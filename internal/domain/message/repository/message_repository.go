@@ -33,6 +33,18 @@ func (r *MessageRepository) InsertMessage(ctx context.Context, msg *po.Message) 
 	return err
 }
 
+// FindByID retrieves a message by its ID.
+func (r *MessageRepository) FindByID(ctx context.Context, id int64) (*po.Message, error) {
+	filter := map[string]interface{}{
+		"_id": id,
+	}
+	var msg po.Message
+	if err := r.col.FindOne(ctx, filter).Decode(&msg); err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
 // FindMessagesByTarget retrieves messages using the primary multi-key index.
 func (r *MessageRepository) FindMessagesByTarget(ctx context.Context, targetID int64, opts ...*options.FindOptions) ([]*po.Message, error) {
 	// Simple lookup based on targetId (tid)
