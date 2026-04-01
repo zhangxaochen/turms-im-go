@@ -12,6 +12,10 @@ import (
 )
 
 func setupRedisTestContainer(ctx context.Context, t *testing.T) (*Client, func()) {
+	if testing.Short() {
+		t.Skip("Skipping testcases requiring Redis in short mode")
+	}
+
 	redisContainer, err := testredis.Run(ctx,
 		"redis:7.0",
 	)

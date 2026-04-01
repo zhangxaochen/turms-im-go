@@ -6,37 +6,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go/modules/mongodb"
 	"im.turms/server/internal/domain/user/po"
-	turmsmongo "im.turms/server/internal/storage/mongo"
+	"im.turms/server/internal/testingutil"
 )
 
 func TestUserRelationshipRepository_BDD(t *testing.T) {
 	ctx := context.Background()
 
-	mongodbContainer, err := mongodb.Run(ctx, "mongo:7.0")
-
-	// Fallback/Graceful skip if Docker is not available in user terminal
-	if err != nil {
-		t.Skipf("Skipping BDD test, testcontainers failed to start: %v", err)
-	}
-	defer func() {
-		_ = mongodbContainer.Terminate(ctx)
-	}()
-
-	uri, err := mongodbContainer.ConnectionString(ctx)
-	require.NoError(t, err)
-
-	cfg := turmsmongo.Config{
-		URI:            uri,
-		Database:       "turms_test",
-		ConnectTimeout: 10 * time.Second,
-	}
-
-	client, err := turmsmongo.NewClient(ctx, cfg)
-	require.NoError(t, err)
-	defer client.Close(ctx)
+	client, cleanup := testingutil.SetupMongo(t, "turms_test")
+	defer cleanup()
 
 	repo := NewUserRelationshipRepository(client)
 
@@ -46,7 +24,7 @@ func TestUserRelationshipRepository_BDD(t *testing.T) {
 	blockedID := int64(300)
 	now := time.Now()
 
-	err = repo.Insert(ctx, &po.UserRelationship{
+	err := repo.Insert(ctx, &po.UserRelationship{
 		ID:        po.UserRelationshipKey{OwnerID: ownerID, RelatedUserID: friendID},
 		BlockDate: nil,
 	})

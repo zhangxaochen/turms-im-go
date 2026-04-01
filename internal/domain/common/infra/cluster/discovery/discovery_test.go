@@ -6,11 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	testredis "github.com/testcontainers/testcontainers-go/modules/redis"
-	turmsredis "im.turms/server/internal/storage/redis"
+	"im.turms/server/internal/testingutil"
 )
-
 type mockListener struct {
 	called int
 }
@@ -19,33 +16,11 @@ func (m *mockListener) OnMembersChange() {
 	m.called++
 }
 
-func setupRedisTestContainer(ctx context.Context, t *testing.T) (*turmsredis.Client, func()) {
-	redisContainer, err := testredis.Run(ctx,
-		"redis:7.0",
-	)
-	require.NoError(t, err)
 
-	uri, err := redisContainer.ConnectionString(ctx)
-	require.NoError(t, err)
-
-	client, err := turmsredis.NewClient(context.Background(), turmsredis.Config{
-		URI: uri,
-	})
-	require.NoError(t, err)
-
-	cleanup := func() {
-		client.Close()
-		if err := redisContainer.Terminate(context.Background()); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
-		}
-	}
-
-	return client, cleanup
-}
 
 func TestDiscoveryService(t *testing.T) {
 	ctx := context.Background()
-	rc, cleanup := setupRedisTestContainer(ctx, t)
+	rc, cleanup := testingutil.SetupRedis(t)
 	defer cleanup()
 
 	// 2. Clear out any previous data for our test cluster
