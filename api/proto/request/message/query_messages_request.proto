@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.message";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message QueryMessagesRequest {
+    // Filter
+    repeated int64 ids = 1;
+    optional bool are_group_messages = 2;
+    optional bool are_system_messages = 3;
+    repeated int64 from_ids = 4;
+    optional int64 delivery_date_start = 5;
+    optional int64 delivery_date_end = 6;
+    // Option
+    optional int32 max_count = 7;
+    // Command
+    bool with_total = 8;
+    // Option
+    // TODO: reorder
+    optional bool descending = 9;
+}

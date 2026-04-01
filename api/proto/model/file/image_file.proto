@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.file";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message ImageFile {
+    optional Description description = 1;
+    optional bytes data = 2;
+
+    message Description {
+        string url = 1;
+        optional bool original = 2;
+        optional int32 image_size = 3;
+        optional int32 file_size = 4;
+    }
+}

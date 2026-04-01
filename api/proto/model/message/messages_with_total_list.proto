@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.message";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "model/message/messages_with_total.proto";
+
+message MessagesWithTotalList {
+    repeated MessagesWithTotal messages_with_total_list = 1;
+}

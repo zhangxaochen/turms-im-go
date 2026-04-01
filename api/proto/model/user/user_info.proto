@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.user";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "constant/profile_access_strategy.proto";
+
+message UserInfo {
+    optional int64 id = 1;
+    optional string name = 2;
+    optional string intro = 3;
+    optional string profile_picture = 4;
+    optional ProfileAccessStrategy profile_access_strategy = 5;
+    optional int64 registration_date = 6;
+    optional int64 last_updated_date = 7;
+    optional bool active = 8;
+}

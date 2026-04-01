@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.user";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message UpdateUserLocationRequest {
+    // Update
+    float latitude = 1;
+    float longitude = 2;
+    map<string, string> details = 3;
+}

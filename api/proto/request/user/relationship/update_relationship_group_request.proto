@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.user.relationship";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message UpdateRelationshipGroupRequest {
+    // Query filter
+    int32 group_index = 1;
+
+    // Update
+    string new_name = 2;
+}

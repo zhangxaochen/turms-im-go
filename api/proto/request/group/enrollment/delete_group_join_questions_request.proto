@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.group.enrollment";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message DeleteGroupJoinQuestionsRequest {
+    int64 group_id = 1;
+    repeated int64 question_ids = 2;
+}

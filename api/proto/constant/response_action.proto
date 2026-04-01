@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.constant";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+enum ResponseAction {
+    ACCEPT = 0;
+    DECLINE = 1;
+    IGNORE = 2;
+}

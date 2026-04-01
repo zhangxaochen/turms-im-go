@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.constant";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+enum DeviceType {
+    DESKTOP = 0;
+    BROWSER = 1;
+    IOS = 2;
+    ANDROID = 3;
+    OTHERS = 4;
+    UNKNOWN = 5;
+}

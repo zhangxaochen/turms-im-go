@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.constant";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+enum UserStatus {
+    AVAILABLE = 0;
+    OFFLINE = 1;
+    INVISIBLE = 2;
+    BUSY = 3;
+    DO_NOT_DISTURB = 4;
+    AWAY = 5;
+    BE_RIGHT_BACK = 6;
+}

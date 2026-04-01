@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.group";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "model/group/group_invitation.proto";
+
+message GroupInvitationsWithVersion {
+    repeated GroupInvitation group_invitations = 1;
+    optional int64 last_updated_date = 2;
+}

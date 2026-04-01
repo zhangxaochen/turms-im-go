@@ -1,0 +1,175 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+// Storage
+import "request/storage/delete_resource_request.proto";
+import "request/storage/query_resource_download_info_request.proto";
+import "request/storage/query_resource_upload_info_request.proto";
+import "request/storage/query_message_attachment_infos_request.proto";
+import "request/storage/update_message_attachment_info_request.proto";
+
+// User - Session
+import "request/user/create_session_request.proto";
+import "request/user/delete_session_request.proto";
+
+// User - Info
+import "request/user/query_nearby_users_request.proto";
+import "request/user/query_user_online_statuses_request.proto";
+import "request/user/query_user_profiles_request.proto";
+import "request/user/update_user_location_request.proto";
+import "request/user/update_user_online_status_request.proto";
+import "request/user/update_user_request.proto";
+
+// User - Relationship
+import "request/user/relationship/create_friend_request_request.proto";
+import "request/user/relationship/create_relationship_group_request.proto";
+import "request/user/relationship/create_relationship_request.proto";
+import "request/user/relationship/delete_friend_request_request.proto";
+import "request/user/relationship/delete_relationship_group_request.proto";
+import "request/user/relationship/delete_relationship_request.proto";
+import "request/user/relationship/query_friend_requests_request.proto";
+import "request/user/relationship/query_related_user_ids_request.proto";
+import "request/user/relationship/query_relationship_groups_request.proto";
+import "request/user/relationship/query_relationships_request.proto";
+import "request/user/relationship/update_friend_request_request.proto";
+import "request/user/relationship/update_relationship_group_request.proto";
+import "request/user/relationship/update_relationship_request.proto";
+
+// Group
+import "request/group/create_group_request.proto";
+import "request/group/delete_group_request.proto";
+import "request/group/query_groups_request.proto";
+import "request/group/query_joined_group_ids_request.proto";
+import "request/group/query_joined_group_infos_request.proto";
+import "request/group/update_group_request.proto";
+
+// Group - Blocklist
+import "request/group/blocklist/create_group_blocked_user_request.proto";
+import "request/group/blocklist/delete_group_blocked_user_request.proto";
+import "request/group/blocklist/query_group_blocked_user_ids_request.proto";
+import "request/group/blocklist/query_group_blocked_user_infos_request.proto";
+
+// Group - Enrollment
+import "request/group/enrollment/check_group_join_questions_answers_request.proto";
+import "request/group/enrollment/create_group_invitation_request.proto";
+import "request/group/enrollment/create_group_join_request_request.proto";
+import "request/group/enrollment/create_group_join_questions_request.proto";
+import "request/group/enrollment/delete_group_invitation_request.proto";
+import "request/group/enrollment/delete_group_join_request_request.proto";
+import "request/group/enrollment/delete_group_join_questions_request.proto";
+import "request/group/enrollment/query_group_invitations_request.proto";
+import "request/group/enrollment/query_group_join_requests_request.proto";
+import "request/group/enrollment/query_group_join_questions_request.proto";
+import "request/group/enrollment/update_group_invitation_request.proto";
+import "request/group/enrollment/update_group_join_question_request.proto";
+import "request/group/enrollment/update_group_join_request_request.proto";
+
+// Group - Members
+import "request/group/member/create_group_members_request.proto";
+import "request/group/member/delete_group_members_request.proto";
+import "request/group/member/query_group_members_request.proto";
+import "request/group/member/update_group_member_request.proto";
+
+// Conversation
+import "request/conversation/query_conversations_request.proto";
+import "request/conversation/update_conversation_request.proto";
+import "request/conversation/update_typing_status_request.proto";
+
+// Message
+import "request/message/create_message_request.proto";
+import "request/message/query_messages_request.proto";
+import "request/message/update_message_request.proto";
+
+// Client -> Server -> Client
+message TurmsRequest {
+    // Note: "request_id" is allowed to be duplicate because
+    // it is used for clients to identify the response of the same request id in a session
+    optional int64 request_id = 1;
+
+    oneof kind {
+        // User - Session
+        CreateSessionRequest create_session_request = 3;
+        DeleteSessionRequest delete_session_request = 4;
+
+        // Conversation
+        QueryConversationsRequest query_conversations_request = 5;
+        UpdateConversationRequest update_conversation_request = 6;
+        UpdateTypingStatusRequest update_typing_status_request = 7;
+
+        // Message
+        CreateMessageRequest create_message_request = 8;
+        QueryMessagesRequest query_messages_request = 9;
+        UpdateMessageRequest update_message_request = 10;
+
+        // Group Member
+        CreateGroupMembersRequest create_group_members_request = 11;
+        DeleteGroupMembersRequest delete_group_members_request = 12;
+        QueryGroupMembersRequest query_group_members_request = 13;
+        UpdateGroupMemberRequest update_group_member_request = 14;
+
+        // User
+        QueryUserProfilesRequest query_user_profiles_request = 100;
+        QueryNearbyUsersRequest query_nearby_users_request = 101;
+        QueryUserOnlineStatusesRequest query_user_online_statuses_request = 102;
+        UpdateUserLocationRequest update_user_location_request = 103;
+        UpdateUserOnlineStatusRequest update_user_online_status_request = 104;
+        UpdateUserRequest update_user_request = 105;
+
+        // User Relationship
+        CreateFriendRequestRequest create_friend_request_request = 200;
+        CreateRelationshipGroupRequest create_relationship_group_request = 201;
+        CreateRelationshipRequest create_relationship_request = 202;
+        DeleteFriendRequestRequest delete_friend_request_request = 203;
+        DeleteRelationshipGroupRequest delete_relationship_group_request = 204;
+        DeleteRelationshipRequest delete_relationship_request = 205;
+        QueryFriendRequestsRequest query_friend_requests_request = 206;
+        QueryRelatedUserIdsRequest query_related_user_ids_request = 207;
+        QueryRelationshipGroupsRequest query_relationship_groups_request = 208;
+        QueryRelationshipsRequest query_relationships_request = 209;
+        UpdateFriendRequestRequest update_friend_request_request = 210;
+        UpdateRelationshipGroupRequest update_relationship_group_request = 211;
+        UpdateRelationshipRequest update_relationship_request = 212;
+
+        // Group
+        CreateGroupRequest create_group_request = 300;
+        DeleteGroupRequest delete_group_request = 301;
+        QueryGroupsRequest query_groups_request = 302;
+        QueryJoinedGroupIdsRequest query_joined_group_ids_request = 303;
+        QueryJoinedGroupInfosRequest query_joined_group_infos_request = 304;
+        UpdateGroupRequest update_group_request = 305;
+
+        // Group Blocklist
+        CreateGroupBlockedUserRequest create_group_blocked_user_request = 400;
+        DeleteGroupBlockedUserRequest delete_group_blocked_user_request = 401;
+        QueryGroupBlockedUserIdsRequest query_group_blocked_user_ids_request = 402;
+        QueryGroupBlockedUserInfosRequest query_group_blocked_user_infos_request = 403;
+
+        // Group Enrollment
+        CheckGroupJoinQuestionsAnswersRequest check_group_join_questions_answers_request = 500;
+        CreateGroupInvitationRequest create_group_invitation_request = 501;
+        CreateGroupJoinRequestRequest create_group_join_request_request = 502;
+        CreateGroupJoinQuestionsRequest create_group_join_questions_request = 503;
+        DeleteGroupInvitationRequest delete_group_invitation_request = 504;
+        DeleteGroupJoinRequestRequest delete_group_join_request_request = 505;
+        DeleteGroupJoinQuestionsRequest delete_group_join_questions_request = 506;
+        QueryGroupInvitationsRequest query_group_invitations_request = 507;
+        QueryGroupJoinRequestsRequest query_group_join_requests_request = 508;
+        QueryGroupJoinQuestionsRequest query_group_join_questions_request = 509;
+        UpdateGroupInvitationRequest update_group_invitation_request = 510;
+        UpdateGroupJoinQuestionRequest update_group_join_question_request = 511;
+        UpdateGroupJoinRequestRequest update_group_join_request_request = 512;
+
+        // Storage
+        DeleteResourceRequest delete_resource_request = 1000;
+        QueryResourceDownloadInfoRequest query_resource_download_info_request = 1001;
+        QueryResourceUploadInfoRequest query_resource_upload_info_request = 1002;
+        QueryMessageAttachmentInfosRequest query_message_attachment_infos_request = 1003;
+        UpdateMessageAttachmentInfoRequest update_message_attachment_info_request = 1004;
+    }
+}
