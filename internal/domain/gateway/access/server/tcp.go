@@ -61,6 +61,13 @@ func NewTCPServer(addr string, srv *session.SessionService, handler session.Mess
 	}
 }
 
+func (s *TCPServer) ListenerAddr() string {
+	if s.listener != nil {
+		return s.listener.Addr().String()
+	}
+	return s.addr
+}
+
 func (s *TCPServer) Start() error {
 	var err error
 	s.listener, err = net.Listen("tcp", s.addr)
