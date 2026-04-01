@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -25,7 +27,6 @@ func NewMessageRepository(client *turmsmongo.Client) *MessageRepository {
 }
 
 // InsertMessage inserts a single Message PO into MongoDB.
-// Wait, we don't handle _id (snowflake generation) here, it should be provided by the domain service.
 func (r *MessageRepository) InsertMessage(ctx context.Context, msg *po.Message) error {
 	// The deliveryDate (dyd) will be used by Mongo if collection is sharded.
 	_, err := r.col.InsertOne(ctx, msg)
@@ -40,6 +41,63 @@ func (r *MessageRepository) FindMessagesByTarget(ctx context.Context, targetID i
 	}
 
 	cursor, err := r.col.Find(ctx, filter, opts...)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var msgs []*po.Message
+	if err := cursor.All(ctx, &msgs); err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
+// QueryMessages supports complex querying for message pulling (offline/roaming sync).
+func (r *MessageRepository) QueryMessages(
+	ctx context.Context,
+	isGroupMessage *bool,
+	senderIDs []int64,
+	targetIDs []int64,
+	deliveryDateAfter *time.Time,
+	deliveryDateBefore *time.Time,
+	size int64,
+	ascending bool,
+) ([]*po.Message, error) {
+	filter := bson.M{}
+
+	if isGroupMessage != nil {
+		filter["igm"] = *isGroupMessage
+	}
+
+	if len(senderIDs) > 0 {
+		filter["sid"] = bson.M{"$in": senderIDs}
+	}
+
+	if len(targetIDs) > 0 {
+		filter["tid"] = bson.M{"$in": targetIDs}
+	}
+
+	// Date Range
+	dateFilter := bson.M{}
+	if deliveryDateAfter != nil {
+		dateFilter["$gt"] = *deliveryDateAfter
+	}
+	if deliveryDateBefore != nil {
+		dateFilter["$lt"] = *deliveryDateBefore
+	}
+	if len(dateFilter) > 0 {
+		filter["dyd"] = dateFilter
+	}
+
+	opts := options.Find().SetLimit(size)
+	if ascending {
+		opts.SetSort(bson.D{{Key: "dyd", Value: 1}})
+	} else {
+		opts.SetSort(bson.D{{Key: "dyd", Value: -1}})
+	}
+
+	cursor, err := r.col.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}

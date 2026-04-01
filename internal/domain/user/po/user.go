@@ -19,14 +19,4 @@ type User struct {
 	UserDefinedAttributes map[string]any `bson:"user_defined_attributes,omitempty"`
 }
 
-// UserRelationship Represents relationship between two users.
-type UserRelationship struct {
-	Key struct {
-		OwnerID       int64 `bson:"oid"`
-		RelatedUserID int64 `bson:"rid"`
-	} `bson:"_id"`
-	BlockDate         *time.Time     `bson:"bd,omitempty"`
-	EstablishmentDate time.Time      `bson:"ed"`
-	Name              string         `bson:"n,omitempty"`
-	CustomAttributes  map[string]any `bson:"user_defined_attributes,omitempty"`
-}
+
