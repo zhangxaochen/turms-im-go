@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.storage";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "constant/storage_resource_type.proto";
+
+message QueryResourceDownloadInfoRequest {
+    StorageResourceType type = 1;
+    optional int64 id_num = 2;
+    optional string id_str = 3;
+    map<string, string> extra = 4;
+}

@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.group";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message UpdateGroupRequest {
+    // Query filter
+    int64 group_id = 1;
+
+    // Update options
+    optional bool quit_after_transfer = 2;
+
+    // Update
+    optional string name = 3;
+    optional string intro = 4;
+    optional string announcement = 5;
+    optional int32 min_score = 6;
+    optional int64 type_id = 7;
+    optional int64 mute_end_date = 8;
+    optional int64 successor_id = 9;
+}

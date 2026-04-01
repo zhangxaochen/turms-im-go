@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.group.member";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "constant/group_member_role.proto";
+
+message CreateGroupMembersRequest {
+    int64 group_id = 1;
+    repeated int64 user_ids = 2;
+    optional string name = 3;
+    optional GroupMemberRole role = 4;
+    optional int64 mute_end_date = 5;
+}

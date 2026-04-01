@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.conversation";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "model/conversation/private_conversation.proto";
+import "model/conversation/group_conversation.proto";
+
+message Conversations {
+    repeated PrivateConversation private_conversations = 1;
+    repeated GroupConversation group_conversations = 2;
+}

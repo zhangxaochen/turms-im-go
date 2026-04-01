@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.group";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message Group {
+    optional int64 id = 1;
+    optional int64 type_id = 2;
+    optional int64 creator_id = 3;
+    optional int64 owner_id = 4;
+    optional string name = 5;
+    optional string intro = 6;
+    optional string announcement = 7;
+    optional int64 creation_date = 8;
+    optional int64 last_updated_date = 9;
+    optional int64 mute_end_date = 10;
+    optional bool active = 11;
+}

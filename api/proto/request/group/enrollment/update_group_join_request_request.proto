@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.group.enrollment";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+import "constant/response_action.proto";
+
+message UpdateGroupJoinRequestRequest {
+    // Query filter
+    int64 request_id = 1;
+
+    // Update
+    ResponseAction response_action = 2;
+    optional string reason = 3;
+}

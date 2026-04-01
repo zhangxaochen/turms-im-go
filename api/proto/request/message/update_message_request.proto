@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.request.message";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message UpdateMessageRequest {
+    // Query filter
+    int64 message_id = 1;
+
+    // Update
+    optional string text = 2;
+    repeated bytes records = 3;
+    optional int64 recall_date = 4;
+}

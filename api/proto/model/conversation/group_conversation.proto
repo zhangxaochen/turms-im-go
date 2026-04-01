@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package im.turms.proto;
+option go_package = "im.turms/server/pkg/protocol";
+
+option java_package = "im.turms.server.common.access.client.dto.model.conversation";
+option java_multiple_files = true;
+option swift_prefix = "";
+
+message GroupConversation {
+    int64 group_id = 1;
+    map<int64, int64> member_id_to_read_date = 2;
+}
