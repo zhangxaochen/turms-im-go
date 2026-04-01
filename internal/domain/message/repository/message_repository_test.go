@@ -7,36 +7,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go/modules/mongodb"
+	"im.turms/server/internal/testingutil"
 
 	"im.turms/server/internal/domain/message/po"
-	turmsmongo "im.turms/server/internal/storage/mongo"
 )
 
 func TestMessageRepository_InsertAndFind(t *testing.T) {
 	ctx := context.Background()
 
-	// Spin up MongoDB container
-	mongodbContainer, err := mongodb.Run(ctx, "mongo:7.0")
-	require.NoError(t, err)
-	defer func() {
-		if err := mongodbContainer.Terminate(ctx); err != nil {
-			t.Fatalf("failed to terminate container: %s", err)
-		}
-	}()
-
-	uri, err := mongodbContainer.ConnectionString(ctx)
-	require.NoError(t, err)
-
-	cfg := turmsmongo.Config{
-		URI:            uri,
-		Database:       "turms_test",
-		ConnectTimeout: 10 * time.Second,
-	}
-
-	client, err := turmsmongo.NewClient(ctx, cfg)
-	require.NoError(t, err)
-	defer client.Close(ctx)
+	client, cleanup := testingutil.SetupMongo(t, "turms_test")
+	defer cleanup()
 
 	repo := NewMessageRepository(client)
 
@@ -56,7 +36,7 @@ func TestMessageRepository_InsertAndFind(t *testing.T) {
 	}
 
 	// Test Insert
-	err = repo.InsertMessage(ctx, msg)
+	err := repo.InsertMessage(ctx, msg)
 	assert.NoError(t, err)
 
 	// Test Find

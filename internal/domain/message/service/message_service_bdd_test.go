@@ -7,12 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go/modules/mongodb"
-	testredis "github.com/testcontainers/testcontainers-go/modules/redis"
-
+	"im.turms/server/internal/testingutil"
+	
 	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/domain/message/po"
 	"im.turms/server/internal/domain/message/repository"
+	grouppo "im.turms/server/internal/domain/group/po"
+	userpo "im.turms/server/internal/domain/user/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 	turmsredis "im.turms/server/internal/storage/redis"
 )
@@ -25,12 +26,24 @@ func (m *mockUserRelService) HasRelationshipAndNotBlocked(ctx context.Context, o
 	return m.allowed, nil
 }
 
+func (m *mockUserRelService) AddFriend(ctx context.Context, ownerID int64, friendID int64) (*userpo.UserRelationship, error) {
+	return nil, nil
+}
+
+func (m *mockUserRelService) BlockUser(ctx context.Context, ownerID int64, blockedID int64) error {
+	return nil
+}
+
 type mockGroupMemService struct {
 	allowed bool
 }
 
 func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error) {
 	return m.allowed, nil
+}
+
+func (m *mockGroupMemService) AddGroupMember(ctx context.Context, groupID int64, userID int64, role int32, name *string, muteEndDate *time.Time) (*grouppo.GroupMember, error) {
+	return nil, nil
 }
 
 type mockDelivery struct {
@@ -43,37 +56,12 @@ func (m *mockDelivery) Deliver(ctx context.Context, targetID int64, msg *po.Mess
 }
 
 func setupTestInfra(t *testing.T) (*turmsredis.Client, *turmsmongo.Client, func()) {
-	ctx := context.Background()
-
-	// Redis
-	redisContainer, err := testredis.Run(ctx, "redis:7.0")
-	require.NoError(t, err)
-
-	redisURI, err := redisContainer.ConnectionString(ctx)
-	require.NoError(t, err)
-
-	redisClient, err := turmsredis.NewClient(ctx, turmsredis.Config{URI: redisURI})
-	require.NoError(t, err)
-
-	// MongoDB
-	mongoContainer, err := mongodb.Run(ctx, "mongo:7.0")
-	require.NoError(t, err)
-
-	mongoURI, err := mongoContainer.ConnectionString(ctx)
-	require.NoError(t, err)
-
-	mongoClient, err := turmsmongo.NewClient(ctx, turmsmongo.Config{
-		URI:            mongoURI,
-		Database:       "turms_bdd_test",
-		ConnectTimeout: 10 * time.Second,
-	})
-	require.NoError(t, err)
+	redisClient, rCleanup := testingutil.SetupRedis(t)
+	mongoClient, mCleanup := testingutil.SetupMongo(t, "turms_bdd_test")
 
 	cleanup := func() {
-		redisClient.Close()
-		mongoClient.Close(ctx)
-		redisContainer.Terminate(ctx)
-		mongoContainer.Terminate(ctx)
+		rCleanup()
+		mCleanup()
 	}
 
 	return redisClient, mongoClient, cleanup
