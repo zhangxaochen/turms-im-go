@@ -57,6 +57,23 @@ git commit -m "chore: sync original turms to latest upstream"
    make generate
    ```
 
+### 🧪 Automated Testing (TDD & BDD)
+For any AI Agent working on this repository, you **MUST** ensure behavior is verified before writing business code (TDD) and ensure end-to-end features cover the requirements (BDD).
+
+- **TDD (Unit & Concurrency Tests)**: 
+  You should write tests for any internal algorithm or concurrency tool. Trigger them via standard Go test commands:
+  ```bash
+  go test -v ./internal/domain/...
+  ```
+- **BDD (Integration & E2E Tests)**:
+  We use `testcontainers-go` and raw TCP `mockTurmsClient` to do outside-in BDD verifications (e.g. Gateway login conflicts, MongoDB insertions).
+  *Rule of Thumb: Do not just write a mock interface; whenever interacting with Redis or MongoDB, or acting as a Gateway, spin up the real container or server!*
+  
+  To trigger BDD tests across the codebase, you can look for files ending with `_bdd_test.go` and run them:
+  ```bash
+  go test -v ./internal/domain/... -run "BDD"
+  ```
+
 ## 📜 Original Project
 - Upstream Project: [turms-im/turms](https://github.com/turms-im/turms) 
 - License: Apache 2.0
