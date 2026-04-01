@@ -1,0 +1,3 @@
+[submodule "turms-orig"]
+	path = turms-orig
+	url = https://github.com/turms-im/turms.git
