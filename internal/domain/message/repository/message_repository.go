@@ -121,3 +121,34 @@ func (r *MessageRepository) QueryMessages(
 	}
 	return msgs, nil
 }
+
+// UpdateMessage partially updates a message's text, modificationDate, or recallDate.
+func (r *MessageRepository) UpdateMessage(
+	ctx context.Context,
+	messageID int64,
+	text *string,
+	modificationDate *time.Time,
+	recallDate *time.Time,
+) error {
+	set := bson.M{}
+	
+	if text != nil {
+		set["txt"] = *text
+	}
+	if modificationDate != nil {
+		set["md"] = *modificationDate
+	}
+	if recallDate != nil {
+		set["rd"] = *recallDate
+	}
+
+	if len(set) == 0 {
+		return nil // nothing to update
+	}
+
+	filter := bson.M{"_id": messageID}
+	update := bson.M{"$set": set}
+
+	_, err := r.col.UpdateOne(ctx, filter, update)
+	return err
+}
