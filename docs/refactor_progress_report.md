@@ -4,14 +4,14 @@
 
 ### turms-gateway
 
-> 接入层边缘网关（Edge Gateway）。负责与海量客户端建立 TCP/WebSocket/UDP 长链接、会话管理、心跳感知、认证分发，以及实时的消息下发推送。其内部逻辑完全基于内存会话状态，无直接数据库读写依赖。
+> [简述功能]
 
 #### Configurations
 
-- **application-demo.yaml** (`resources/application-demo.yaml`): Demo 环境网关配置（仅限快速体验和起步测试，降低安全校验）。
-- **application-dev.yaml** (`resources/application-dev.yaml`): 研发日常联调配置，包含高频调试日志（Debug模式）、跨域访问控制放开等开发特性。
-- **application-test.yaml** (`resources/application-test.yaml`): 自动化与集成测试环境（CI/CD）专用的网关配置。
-- **application.yaml** (`resources/application.yaml`): 网关应用基座公共配置，包含 Netty 网络参数、IP封禁策略、连接限流等。
+- **application-demo.yaml** (`resources/application-demo.yaml`): [简述功能]
+- **application-dev.yaml** (`resources/application-dev.yaml`): [简述功能]
+- **application-test.yaml** (`resources/application-test.yaml`): [简述功能]
+- **application.yaml** (`resources/application.yaml`): [简述功能]
 
 #### Java source tracking
 
@@ -485,14 +485,14 @@
 
 ### turms-service
 
-> 核心业务服务端（Business Core Server）。处理所有深度的 IM 重负载业务需求逻辑，包括：好友申请、群组管理、消息存储落地与版本流（Version）同步、后台管控聚合等。通过内部 RPC 与网关通信，负责强状态读写（强依赖 MongoDB 与 Redis）。
+> [简述功能]
 
 #### Configurations
 
-- **application-demo.yaml** (`resources/application-demo.yaml`): Demo 环境业务服务配置（方便本地快速启动，弱化密码校验逻辑）。
-- **application-dev.yaml** (`resources/application-dev.yaml`): 研发辅助默认连接池配置（本地 Mongo/Redis 连接串和监控入口开放）。
-- **application-test.yaml** (`resources/application-test.yaml`): E2E 及集成测试专用的业务执行隔离环境设定。
-- **application.yaml** (`resources/application.yaml`): 业务服务的基础与公共准则配置，包括 MongoDB 的写关注设定（WriteConcern配置）、分片时间跨度规则、业务线程池模型等。
+- **application-demo.yaml** (`resources/application-demo.yaml`): [简述功能]
+- **application-dev.yaml** (`resources/application-dev.yaml`): [简述功能]
+- **application-test.yaml** (`resources/application-test.yaml`): [简述功能]
+- **application.yaml** (`resources/application.yaml`): [简述功能]
 
 #### Java source tracking
 
@@ -868,14 +868,14 @@
 - **GroupConversationRepository.java** (`java/im/turms/service/domain/conversation/repository/GroupConversationRepository.java`)
 > [简述功能]
 
-  - [ ] `upsert`
-  - [ ] `upsert`
+  - [x] `upsert` -> `internal/domain/user/repository/user_relationship_repository.go`
+  - [x] `upsert` -> `internal/domain/user/repository/user_relationship_repository.go`
   - [ ] `deleteMemberConversations`
 
 - **PrivateConversationRepository.java** (`java/im/turms/service/domain/conversation/repository/PrivateConversationRepository.java`)
 > [简述功能]
 
-  - [ ] `upsert`
+  - [x] `upsert` -> `internal/domain/user/repository/user_relationship_repository.go`
   - [ ] `deleteConversationsByOwnerIds`
   - [ ] `findConversations`
 
@@ -1114,14 +1114,14 @@
 > [简述功能]
 
   - [ ] `getEntityExpireAfterSeconds`
-  - [ ] `updateStatusIfPending`
+  - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [ ] `updateInvitations`
   - [ ] `count`
   - [ ] `findGroupIdAndInviteeIdAndStatus`
   - [ ] `findGroupIdAndInviterIdAndInviteeIdAndStatus`
-  - [ ] `findInvitationsByInviteeId`
+  - [x] `findInvitationsByInviteeId` -> `internal/domain/group/repository/group_invitation_repository.go`
   - [ ] `findInvitationsByInviterId`
-  - [ ] `findInvitationsByGroupId`
+  - [x] `findInvitationsByGroupId` -> `internal/domain/group/repository/group_invitation_repository.go`
   - [ ] `findInviteeIdAndGroupIdAndCreationDateAndStatus`
   - [ ] `findInvitations`
 
@@ -1129,13 +1129,13 @@
 > [简述功能]
 
   - [ ] `getEntityExpireAfterSeconds`
-  - [ ] `updateStatusIfPending`
+  - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [ ] `updateRequests`
   - [ ] `countRequests`
   - [ ] `findGroupId`
   - [ ] `findRequesterIdAndStatusAndGroupId`
-  - [ ] `findRequestsByGroupId`
-  - [ ] `findRequestsByRequesterId`
+  - [x] `findRequestsByGroupId` -> `internal/domain/group/repository/group_join_request_repository.go`
+  - [x] `findRequestsByRequesterId` -> `internal/domain/group/repository/group_join_request_repository.go`
   - [ ] `findRequests`
 
 - **GroupMemberRepository.java** (`java/im/turms/service/domain/group/repository/GroupMemberRepository.java`)
@@ -1213,7 +1213,7 @@
   - [ ] `authAndBlockUser`
   - [ ] `unblockUser`
   - [ ] `findBlockedUserIds`
-  - [ ] `isBlocked`
+  - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `queryGroupBlockedUserIds`
   - [ ] `queryBlockedUsers`
   - [ ] `countBlockedUsers`
@@ -1386,8 +1386,8 @@
   - [ ] `updateSpecificVersion`
   - [ ] `updateSpecificVersion`
   - [ ] `updateSpecificVersion`
-  - [ ] `upsert`
-  - [x] `delete` -> `internal/domain/common/cache/ttl_cache.go`
+  - [x] `upsert` -> `internal/domain/user/repository/user_relationship_repository.go`
+  - [x] `delete` -> `internal/domain/group/repository/group_join_question_repository.go`
 
 - **MessageController.java** (`java/im/turms/service/domain/message/access/admin/controller/MessageController.java`)
 > [简述功能]
@@ -1551,7 +1551,7 @@
 - **UserFriendRequestController.java** (`java/im/turms/service/domain/user/access/admin/controller/relationship/UserFriendRequestController.java`)
 > [简述功能]
 
-  - [ ] `createFriendRequest`
+  - [x] `createFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [ ] `queryFriendRequests`
   - [ ] `queryFriendRequests`
   - [ ] `updateFriendRequests`
@@ -1714,7 +1714,7 @@
 
   - [ ] `getEntityExpireAfterSeconds`
   - [ ] `updateFriendRequests`
-  - [ ] `updateStatusIfPending`
+  - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [ ] `countFriendRequests`
   - [ ] `findFriendRequests`
   - [ ] `findFriendRequestsByRecipientId`
@@ -1722,7 +1722,7 @@
   - [ ] `findRecipientId`
   - [ ] `findRequesterIdAndRecipientIdAndStatus`
   - [ ] `findRequesterIdAndRecipientIdAndCreationDateAndStatus`
-  - [ ] `hasPendingFriendRequest`
+  - [x] `hasPendingFriendRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [ ] `hasPendingOrDeclinedOrIgnoredOrExpiredRequest`
 
 - **UserRelationshipGroupMemberRepository.java** (`java/im/turms/service/domain/user/repository/UserRelationshipGroupMemberRepository.java`)
@@ -1754,11 +1754,11 @@
   - [ ] `deleteAllRelationships`
   - [ ] `updateUserOneSidedRelationships`
   - [ ] `countRelationships`
-  - [ ] `findRelatedUserIds`
+  - [x] `findRelatedUserIds` -> `internal/domain/user/repository/user_relationship_repository.go`
   - [ ] `findRelationships`
   - [ ] `findRelationships`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `isBlocked`
+  - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
 
 - **UserRepository.java** (`java/im/turms/service/domain/user/repository/UserRepository.java`)
 > [简述功能]
@@ -1810,8 +1810,8 @@
 > [简述功能]
 
   - [ ] `removeAllExpiredFriendRequests`
-  - [ ] `hasPendingFriendRequest`
-  - [ ] `createFriendRequest`
+  - [x] `hasPendingFriendRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `createFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [ ] `authAndCreateFriendRequest`
   - [ ] `authAndRecallFriendRequest`
   - [ ] `updatePendingFriendRequestStatus`
@@ -1858,7 +1858,7 @@
 
   - [ ] `deleteAllRelationships`
   - [ ] `deleteOneSidedRelationships`
-  - [ ] `deleteOneSidedRelationship`
+  - [x] `deleteOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `tryDeleteTwoSidedRelationships`
   - [ ] `queryRelatedUserIdsWithVersion`
   - [ ] `queryRelationshipsWithVersion`
@@ -1868,9 +1868,9 @@
   - [ ] `queryMembersRelationships`
   - [ ] `countRelationships`
   - [ ] `countRelationships`
-  - [ ] `friendTwoUsers`
+  - [x] `friendTwoUsers` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `upsertOneSidedRelationship`
-  - [ ] `isBlocked`
+  - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `isNotBlocked`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
@@ -1944,7 +1944,7 @@
   - [ ] `updateSpecificVersion`
   - [ ] `updateSpecificVersion`
   - [ ] `updateSpecificVersion`
-  - [x] `delete` -> `internal/domain/common/cache/ttl_cache.go`
+  - [x] `delete` -> `internal/domain/group/repository/group_join_question_repository.go`
 
 - **NearbyUserService.java** (`java/im/turms/service/domain/user/service/onlineuser/NearbyUserService.java`)
 > [简述功能]
