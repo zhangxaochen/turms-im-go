@@ -183,6 +183,23 @@ func (s *GroupMemberService) DeleteGroupMember(
 	return nil
 }
 
+// DeleteAllGroupMembers deletes all members of multiple groups.
+func (s *GroupMemberService) DeleteAllGroupMembers(ctx context.Context, groupIDs []int64, session mongo.SessionContext, updateVersion bool) error {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+	_, err := s.groupMemberRepo.DeleteByGroupIDs(ctx, groupIDs)
+	if err != nil {
+		return err
+	}
+	if updateVersion {
+		for _, groupID := range groupIDs {
+			_ = s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+		}
+	}
+	return nil
+}
+
 func (s *GroupMemberService) AddGroupMembers(
 	ctx context.Context,
 	groupID int64,

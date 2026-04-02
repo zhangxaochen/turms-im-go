@@ -135,6 +135,17 @@ func (r *GroupMemberRepository) DeleteByIds(ctx context.Context, keys []po.Group
 	return r.col.DeleteMany(ctx, filter)
 }
 
+// DeleteByGroupIDs removes all members of the specified groups.
+func (r *GroupMemberRepository) DeleteByGroupIDs(ctx context.Context, groupIDs []int64) (*mongo.DeleteResult, error) {
+	if len(groupIDs) == 0 {
+		return &mongo.DeleteResult{}, nil
+	}
+	filter := bson.M{
+		"_id.gid": bson.M{"$in": groupIDs},
+	}
+	return r.col.DeleteMany(ctx, filter)
+}
+
 // UpdateGroupMembers updates multiple group members' properties.
 func (r *GroupMemberRepository) UpdateGroupMembers(ctx context.Context, keys []po.GroupMemberKey, name *string, role *protocol.GroupMemberRole, joinDate *time.Time, muteEndDate *time.Time) (*mongo.UpdateResult, error) {
 	filter := bson.M{

@@ -21,8 +21,9 @@ var (
 )
 
 type GroupService struct {
-	groupRepo          *repository.GroupRepository
-	groupMemberService *GroupMemberService
+	groupRepo           *repository.GroupRepository
+	groupMemberService  *GroupMemberService
+	groupVersionService *GroupVersionService
 }
 
 func NewGroupService(groupRepo *repository.GroupRepository) *GroupService {
@@ -33,6 +34,10 @@ func NewGroupService(groupRepo *repository.GroupRepository) *GroupService {
 
 func (s *GroupService) SetGroupMemberService(groupMemberService *GroupMemberService) {
 	s.groupMemberService = groupMemberService
+}
+
+func (s *GroupService) SetGroupVersionService(groupVersionService *GroupVersionService) {
+	s.groupVersionService = groupVersionService
 }
 
 // CreateGroup creates a new group.
@@ -52,6 +57,22 @@ func (s *GroupService) CreateGroup(ctx context.Context, creatorID, groupID int64
 	if err != nil {
 		return nil, err
 	}
+
+	// Parity: add group member who created it as OWNER
+	err = s.groupMemberService.AddGroupMember(ctx, groupID, creatorID, protocol.GroupMemberRole_OWNER, nil, nil)
+	if err != nil {
+		_ = s.groupRepo.DeleteGroup(ctx, groupID) // Basic rollback
+		return nil, err
+	}
+
+	// Parity: upsert group version
+	if s.groupVersionService != nil {
+		_ = s.groupVersionService.Upsert(ctx, groupID, now)
+	}
+
+	// TODO: add metric increment (createdGroupsCounter.increment)
+	// TODO: add Elasticsearch integration if supported
+
 	return group, nil
 }
 
@@ -108,6 +129,16 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 		return nil
 	}
 
+	// Parity: check if successor is a member
+	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupID, successorID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_GROUP_SUCCESSOR_NOT_GROUP_MEMBER), "Successor is not a member of the group")
+	}
+	// TODO: add isAllowedToCreateGroupAndHaveGroupType constraint check parity
+
 	// Update owner in repository
 	update := bson.M{"oid": successorID}
 	err = s.groupRepo.UpdateGroup(ctx, groupID, update)
@@ -140,5 +171,42 @@ func (s *GroupService) AuthAndDeleteGroup(ctx context.Context, requesterID int64
 	if *ownerID != requesterID {
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_TO_DELETE_GROUP), "Only the owner can delete the group")
 	}
-	return s.groupRepo.DeleteGroup(ctx, groupID)
+
+	// Call DeleteGroupsAndGroupMembers parity (cascading)
+	return s.DeleteGroupsAndGroupMembers(ctx, []int64{groupID}, nil)
+}
+
+// DeleteGroupsAndGroupMembers performs cascading deletion parity.
+func (s *GroupService) DeleteGroupsAndGroupMembers(ctx context.Context, groupIDs []int64, session mongo.SessionContext) error {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+
+	// 1. Delete groups physically/logically
+	// Normally handled by groupRepo.DeleteByIds, here we loop delete for simplicity based on repo
+	for _, groupID := range groupIDs {
+		// Assuming hard delete conceptually, turms-orig toggles logic via props.
+		// For now we use the existing DeleteGroup
+		err := s.groupRepo.DeleteGroup(ctx, groupID)
+		if err != nil {
+			return err
+		}
+	}
+
+	// 2. Cascading delete all group members
+	err := s.groupMemberService.DeleteAllGroupMembers(ctx, groupIDs, session, false)
+	if err != nil {
+		return err
+	}
+
+	// 3. Cascading delete group versions
+	if s.groupVersionService != nil {
+		err = s.groupVersionService.Delete(ctx, groupIDs)
+		if err != nil {
+			return err
+		}
+	}
+
+	// TODO: cascading message sequence IDs and conversations
+	return nil
 }
