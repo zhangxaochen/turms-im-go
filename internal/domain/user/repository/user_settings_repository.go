@@ -13,6 +13,8 @@ type UserSettingsRepository interface {
 	UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{}) error
 	DeleteSettings(ctx context.Context, filter interface{}) (int64, error)
 	FindSettings(ctx context.Context, filter interface{}) ([]*po.UserSettings, error)
+	UnsetSettings(ctx context.Context, userID int64, settingsNames []string) error
+	FindByIdAndSettingNames(ctx context.Context, userID int64, names []string) (*po.UserSettings, error)
 }
 
 type userSettingsRepository struct {
@@ -54,4 +56,36 @@ func (r *userSettingsRepository) FindSettings(ctx context.Context, filter interf
 		return nil, err
 	}
 	return settings, nil
+}
+
+func (r *userSettingsRepository) UnsetSettings(ctx context.Context, userID int64, settingsNames []string) error {
+	if len(settingsNames) == 0 {
+		return nil
+	}
+	unsetMap := make(map[string]interface{})
+	for _, name := range settingsNames {
+		unsetMap["s."+name] = ""
+	}
+	update := map[string]interface{}{"$unset": unsetMap}
+	_, err := r.collection.UpdateOne(ctx, map[string]interface{}{"_id": userID}, update)
+	return err
+}
+
+func (r *userSettingsRepository) FindByIdAndSettingNames(ctx context.Context, userID int64, names []string) (*po.UserSettings, error) {
+	projection := map[string]interface{}{}
+	if len(names) > 0 {
+		for _, name := range names {
+			projection["s."+name] = 1
+		}
+	}
+	opts := options.FindOne().SetProjection(projection)
+	var settings po.UserSettings
+	err := r.collection.FindOne(ctx, map[string]interface{}{"_id": userID}, opts).Decode(&settings)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &settings, nil
 }

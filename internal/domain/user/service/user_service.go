@@ -13,6 +13,7 @@ import (
 
 type UserService interface {
 	CreateUser(ctx context.Context, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, isActive bool) (*po.User, error)
+	AddUser(ctx context.Context, id int64, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, registrationDate time.Time, isActive bool) (*po.User, error)
 	FindUser(ctx context.Context, userID int64) (*po.User, error)
 	UpdateUser(ctx context.Context, userID int64, update bson.M) error
 	CheckIfUserExists(ctx context.Context, userID int64) (bool, error)
@@ -55,6 +56,32 @@ func (s *userService) CreateUser(ctx context.Context, password string, name stri
 		ProfileAccess:     profileAccess,
 		PermissionGroupID: permissionGroupID,
 		RegistrationDate:  now,
+		IsActive:          isActive,
+	}
+	err := s.repo.Insert(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *userService) AddUser(ctx context.Context, id int64, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, registrationDate time.Time, isActive bool) (*po.User, error) {
+	if id == 0 {
+		id = s.idGen.NextIncreasingId()
+	}
+	if registrationDate.IsZero() {
+		registrationDate = time.Now()
+	}
+
+	user := &po.User{
+		ID:                id,
+		Password:          password,
+		Name:              name,
+		Intro:             intro,
+		ProfilePicture:    profilePicture,
+		ProfileAccess:     profileAccess,
+		PermissionGroupID: permissionGroupID,
+		RegistrationDate:  registrationDate,
 		IsActive:          isActive,
 	}
 	err := s.repo.Insert(ctx, user)

@@ -21,21 +21,21 @@
   - [ ] `main`
 
 - **ClientRequestDispatcher.java** (`java/im/turms/gateway/access/client/common/ClientRequestDispatcher.java`)
-> [已完成] 路由客户端请求到相应的处理器
+> [简述功能]
 
-  - [x] `handleRequest` -> `internal/domain/gateway/access/router/router.go`
-  - [x] `handleRequest0` -> `internal/domain/gateway/access/router/router.go`
-  - [x] `handleServiceRequest` -> `internal/domain/gateway/access/router/router.go`
+  - [ ] `handleRequest`
+  - [ ] `handleRequest0`
+  - [ ] `handleServiceRequest`
 
 - **IpRequestThrottler.java** (`java/im/turms/gateway/access/client/common/IpRequestThrottler.java`)
-> [已完成] 网关按 IP 限制请求频率
+> [简述功能]
 
   - [x] `tryAcquireToken` -> `internal/domain/gateway/access/client/common/ip_request_throttler.go`
 
 - **NotificationFactory.java** (`java/im/turms/gateway/access/client/common/NotificationFactory.java`)
-> [已完成] 封装生成统一的响应通知
+> [简述功能]
 
-  - [x] `init` -> `internal/domain/gateway/access/client/common/notification_factory.go`
+  - [ ] `init`
   - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
   - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
   - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
@@ -52,9 +52,9 @@
 
   - [ ] `setConnection`
   - [x] `setLastHeartbeatRequestTimestampToNow` -> `internal/domain/gateway/session/connection.go`
-  - [ ] `setLastRequestTimestampToNow`
+  - [x] `setLastRequestTimestampToNow` -> `internal/domain/gateway/session/connection.go`
   - [x] `close` -> `internal/storage/redis/redis.go`
-  - [ ] `isOpen`
+  - [x] `isOpen` -> `internal/domain/gateway/session/connection.go`
   - [ ] `isConnected`
   - [ ] `supportsSwitchingToUdp`
   - [x] `sendNotification` -> `internal/domain/gateway/access/router/router.go`
@@ -87,10 +87,10 @@
   - [ ] `PolicyStatement`
 
 - **ServiceAvailabilityHandler.java** (`java/im/turms/gateway/access/client/common/channel/ServiceAvailabilityHandler.java`)
-> [已完成] 网关服务可用性管理
+> [简述功能]
 
-  - [x] `channelRegistered` -> `internal/domain/gateway/access/client/common/service_availability.go`
-  - [x] `exceptionCaught` -> `internal/domain/gateway/access/client/common/service_availability.go`
+  - [ ] `channelRegistered`
+  - [ ] `exceptionCaught`
 
 - **NetConnection.java** (`java/im/turms/gateway/access/client/common/connection/NetConnection.java`)
 > [简述功能]
@@ -124,7 +124,7 @@
 - **TcpServerFactory.java** (`java/im/turms/gateway/access/client/tcp/TcpServerFactory.java`)
 > [简述功能]
 
-  - [ ] `create`
+  - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
 
 - **TcpUserSessionAssembler.java** (`java/im/turms/gateway/access/client/tcp/TcpUserSessionAssembler.java`)
 > [简述功能]
@@ -175,7 +175,7 @@
 - **WebSocketServerFactory.java** (`java/im/turms/gateway/access/client/websocket/WebSocketServerFactory.java`)
 > [简述功能]
 
-  - [ ] `create`
+  - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
 
 - **NotificationService.java** (`java/im/turms/gateway/domain/notification/service/NotificationService.java`)
 > [简述功能]
@@ -236,7 +236,7 @@
 > [简述功能]
 
   - [ ] `findPassword`
-  - [ ] `isActiveAndNotDeleted`
+  - [x] `isActiveAndNotDeleted` -> `internal/domain/user/repository/user_repository.go`
 
 - **HttpSessionIdentityAccessManager.java** (`java/im/turms/gateway/domain/session/service/HttpSessionIdentityAccessManager.java`)
 > [简述功能]
@@ -300,7 +300,7 @@
 > [简述功能]
 
   - [ ] `authenticate`
-  - [ ] `isActiveAndNotDeleted`
+  - [x] `isActiveAndNotDeleted` -> `internal/domain/user/repository/user_repository.go`
 
 - **UserSimultaneousLoginService.java** (`java/im/turms/gateway/domain/session/service/UserSimultaneousLoginService.java`)
 > [简述功能]
@@ -322,7 +322,7 @@
   - [ ] `isConnected`
   - [ ] `connect`
   - [ ] `bind`
-  - [ ] `search`
+  - [x] `search` -> `internal/storage/elasticsearch/elasticsearch_client.go`
   - [ ] `modify`
 
 - **BerBuffer.java** (`java/im/turms/gateway/infra/ldap/asn1/BerBuffer.java`)
@@ -440,20 +440,20 @@
 > [简述功能]
 
   - [ ] `shouldLogHeartbeatRequest`
-  - [ ] `shouldLogRequest`
-  - [ ] `shouldLogNotification`
+  - [x] `shouldLogRequest` -> `internal/infra/logging/api_logging_context.go`
+  - [x] `shouldLogNotification` -> `internal/infra/logging/api_logging_context.go`
 
 - **ClientApiLogging.java** (`java/im/turms/gateway/infra/logging/ClientApiLogging.java`)
 > [简述功能]
 
-  - [ ] `log`
-  - [ ] `log`
-  - [ ] `log`
+  - [x] `log` -> `internal/infra/logging/client_api_logging.go`
+  - [x] `log` -> `internal/infra/logging/client_api_logging.go`
+  - [x] `log` -> `internal/infra/logging/client_api_logging.go`
 
 - **NotificationLoggingManager.java** (`java/im/turms/gateway/infra/logging/NotificationLoggingManager.java`)
 > [简述功能]
 
-  - [ ] `log`
+  - [x] `log` -> `internal/infra/logging/client_api_logging.go`
 
 - **SimpleTurmsNotification.java** (`java/im/turms/gateway/infra/proto/SimpleTurmsNotification.java`)
 > [简述功能]
@@ -479,8 +479,8 @@
 - **MongoConfig.java** (`java/im/turms/gateway/storage/mongo/MongoConfig.java`)
 > [简述功能]
 
-  - [ ] `adminMongoClient`
-  - [ ] `userMongoClient`
+  - [x] `adminMongoClient` -> `internal/storage/mongo/mongo_config.go`
+  - [x] `userMongoClient` -> `internal/storage/mongo/mongo_config.go`
   - [ ] `mongoDataGenerator`
 
 ### turms-service
@@ -686,7 +686,7 @@
 - **BlockedClientSerializer.java** (`java/im/turms/service/domain/blocklist/codec/BlockedClientSerializer.java`)
 > [简述功能]
 
-  - [ ] `serialize`
+  - [x] `serialize` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **MemberController.java** (`java/im/turms/service/domain/cluster/access/admin/controller/MemberController.java`)
 > [简述功能]
@@ -746,9 +746,9 @@
 
   - [ ] `isExpired`
   - [ ] `getEntityExpirationDate`
-  - [ ] `deleteExpiredData`
-  - [ ] `findMany`
-  - [ ] `findMany`
+  - [x] `deleteExpiredData` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `findMany` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findMany` -> `internal/domain/user/repository/user_repository.go`
 
 - **ExpirableEntityService.java** (`java/im/turms/service/domain/common/service/ExpirableEntityService.java`)
 > [简述功能]
@@ -858,10 +858,10 @@
 - **ConversationSettingsRepository.java** (`java/im/turms/service/domain/conversation/repository/ConversationSettingsRepository.java`)
 > [简述功能]
 
-  - [ ] `upsertSettings`
-  - [ ] `unsetSettings`
-  - [ ] `findByIdAndSettingNames`
-  - [ ] `findByIdAndSettingNames`
+  - [x] `upsertSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `unsetSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `findByIdAndSettingNames` -> `internal/domain/user/repository/user_settings_repository.go`
+  - [x] `findByIdAndSettingNames` -> `internal/domain/user/repository/user_settings_repository.go`
   - [ ] `findSettingFields`
   - [ ] `deleteByOwnerIds`
 
@@ -903,9 +903,9 @@
 
   - [ ] `upsertPrivateConversationSettings`
   - [ ] `upsertGroupConversationSettings`
-  - [ ] `deleteSettings`
-  - [ ] `unsetSettings`
-  - [ ] `querySettings`
+  - [x] `deleteSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `unsetSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `querySettings` -> `internal/domain/user/service/user_settings_service.go`
 
 - **GroupBlocklistController.java** (`java/im/turms/service/domain/group/access/admin/controller/GroupBlocklistController.java`)
 > [简述功能]
@@ -922,7 +922,7 @@
   - [ ] `addGroup`
   - [ ] `queryGroups`
   - [ ] `queryGroups`
-  - [ ] `countGroups`
+  - [x] `countGroups` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [ ] `updateGroups`
   - [ ] `deleteGroups`
 
@@ -1106,17 +1106,17 @@
 > [简述功能]
 
   - [ ] `updateBlockedUsers`
-  - [ ] `count`
+  - [x] `count` -> `internal/domain/user/repository/user_repository.go`
   - [ ] `findBlockedUserIds`
   - [ ] `findBlockedUsers`
 
 - **GroupInvitationRepository.java** (`java/im/turms/service/domain/group/repository/GroupInvitationRepository.java`)
 > [简述功能]
 
-  - [ ] `getEntityExpireAfterSeconds`
+  - [x] `getEntityExpireAfterSeconds` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [ ] `updateInvitations`
-  - [ ] `count`
+  - [x] `count` -> `internal/domain/user/repository/user_repository.go`
   - [ ] `findGroupIdAndInviteeIdAndStatus`
   - [ ] `findGroupIdAndInviterIdAndInviteeIdAndStatus`
   - [x] `findInvitationsByInviteeId` -> `internal/domain/group/repository/group_invitation_repository.go`
@@ -1128,7 +1128,7 @@
 - **GroupJoinRequestRepository.java** (`java/im/turms/service/domain/group/repository/GroupJoinRequestRepository.java`)
 > [简述功能]
 
-  - [ ] `getEntityExpireAfterSeconds`
+  - [x] `getEntityExpireAfterSeconds` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [ ] `updateRequests`
   - [ ] `countRequests`
@@ -1143,8 +1143,8 @@
 
   - [ ] `deleteAllGroupMembers`
   - [ ] `updateGroupMembers`
-  - [ ] `countMembers`
-  - [ ] `countMembers`
+  - [x] `countMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `countMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [ ] `findGroupManagersAndOwnerId`
   - [ ] `findGroupMembers`
   - [ ] `findGroupMembers`
@@ -1175,12 +1175,12 @@
   - [ ] `updateGroups`
   - [ ] `countCreatedGroups`
   - [ ] `countDeletedGroups`
-  - [ ] `countGroups`
+  - [x] `countGroups` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [x] `findGroups` -> `internal/domain/group/repository/group_repository.go`
   - [ ] `findNotDeletedGroups`
-  - [ ] `findAllNames`
+  - [x] `findAllNames` -> `internal/domain/user/repository/user_repository.go`
   - [ ] `findTypeId`
   - [ ] `findTypeIdAndGroupId`
   - [ ] `findTypeIdIfActiveAndNotDeleted`
@@ -1291,7 +1291,7 @@
   - [ ] `queryGroupMemberIds`
   - [ ] `queryGroupMemberIds`
   - [ ] `queryGroupMembers`
-  - [ ] `countMembers`
+  - [x] `countMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [ ] `deleteGroupMembers`
   - [ ] `queryGroupMembers`
   - [ ] `queryGroupMembers`
@@ -1348,9 +1348,9 @@
   - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [ ] `countCreatedGroups`
-  - [ ] `countGroups`
+  - [x] `countGroups` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [ ] `countDeletedGroups`
-  - [ ] `count`
+  - [x] `count` -> `internal/domain/user/repository/user_repository.go`
   - [ ] `isGroupMuted`
   - [ ] `isGroupActiveAndNotDeleted`
 
@@ -1372,7 +1372,7 @@
 
   - [ ] `queryMembersVersion`
   - [ ] `queryBlocklistVersion`
-  - [ ] `queryGroupJoinRequestsVersion`
+  - [x] `queryGroupJoinRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
   - [ ] `queryGroupJoinQuestionsVersion`
   - [ ] `queryGroupInvitationsVersion`
   - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
@@ -1383,11 +1383,11 @@
   - [x] `updateJoinRequestsVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [x] `updateJoinQuestionsVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [ ] `updateGroupInvitationsVersion`
-  - [ ] `updateSpecificVersion`
-  - [ ] `updateSpecificVersion`
-  - [ ] `updateSpecificVersion`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
   - [x] `upsert` -> `internal/domain/user/repository/user_relationship_repository.go`
-  - [x] `delete` -> `internal/domain/group/repository/group_join_question_repository.go`
+  - [x] `delete` -> `internal/domain/user/service/user_version_service.go`
 
 - **MessageController.java** (`java/im/turms/service/domain/message/access/admin/controller/MessageController.java`)
 > [简述功能]
@@ -1522,18 +1522,18 @@
 - **UserController.java** (`java/im/turms/service/domain/user/access/admin/controller/UserController.java`)
 > [简述功能]
 
-  - [ ] `addUser`
-  - [ ] `queryUsers`
-  - [ ] `queryUsers`
-  - [ ] `countUsers`
+  - [x] `addUser` -> `internal/domain/user/service/user_service.go`
+  - [x] `queryUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `queryUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `countUsers` -> `internal/domain/user/service/user_service.go`
   - [x] `updateUser` -> `internal/domain/user/service/user_service.go`
-  - [ ] `deleteUsers`
+  - [x] `deleteUsers` -> `internal/domain/user/service/user_service.go`
 
 - **UserOnlineInfoController.java** (`java/im/turms/service/domain/user/access/admin/controller/UserOnlineInfoController.java`)
 > [简述功能]
 
   - [x] `countOnlineUsers` -> `internal/domain/gateway/session/sharded_map.go`
-  - [ ] `queryUserSessions`
+  - [x] `queryUserSessions` -> `internal/domain/user/service/onlineuser/session_service.go`
   - [ ] `queryUserStatuses`
   - [ ] `queryUsersNearby`
   - [ ] `queryUserLocations`
@@ -1542,8 +1542,8 @@
 - **UserRoleController.java** (`java/im/turms/service/domain/user/access/admin/controller/UserRoleController.java`)
 > [简述功能]
 
-  - [ ] `addUserRole`
-  - [ ] `queryUserRoles`
+  - [x] `addUserRole` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `queryUserRoles` -> `internal/domain/user/service/user_role_service.go`
   - [ ] `queryUserRoleGroups`
   - [ ] `updateUserRole`
   - [ ] `deleteUserRole`
@@ -1552,17 +1552,17 @@
 > [简述功能]
 
   - [x] `createFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [ ] `queryFriendRequests`
-  - [ ] `queryFriendRequests`
-  - [ ] `updateFriendRequests`
-  - [ ] `deleteFriendRequests`
+  - [x] `queryFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `queryFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `updateFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `deleteFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
 
 - **UserRelationshipController.java** (`java/im/turms/service/domain/user/access/admin/controller/relationship/UserRelationshipController.java`)
 > [简述功能]
 
   - [ ] `addRelationship`
-  - [ ] `queryRelationships`
-  - [ ] `queryRelationships`
+  - [x] `queryRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `queryRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `updateRelationships`
   - [ ] `deleteRelationships`
 
@@ -1570,10 +1570,10 @@
 > [简述功能]
 
   - [ ] `addRelationshipGroup`
-  - [ ] `deleteRelationshipGroups`
-  - [ ] `updateRelationshipGroups`
-  - [ ] `queryRelationshipGroups`
-  - [ ] `queryRelationshipGroups`
+  - [x] `deleteRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `updateRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `queryRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `queryRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
 
 - **AddFriendRequestDTO.java** (`java/im/turms/service/domain/user/access/admin/dto/request/AddFriendRequestDTO.java`)
 > [简述功能]
@@ -1712,96 +1712,96 @@
 - **UserFriendRequestRepository.java** (`java/im/turms/service/domain/user/repository/UserFriendRequestRepository.java`)
 > [简述功能]
 
-  - [ ] `getEntityExpireAfterSeconds`
-  - [ ] `updateFriendRequests`
+  - [x] `getEntityExpireAfterSeconds` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `updateFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
-  - [ ] `countFriendRequests`
-  - [ ] `findFriendRequests`
-  - [ ] `findFriendRequestsByRecipientId`
-  - [ ] `findFriendRequestsByRequesterId`
-  - [ ] `findRecipientId`
-  - [ ] `findRequesterIdAndRecipientIdAndStatus`
-  - [ ] `findRequesterIdAndRecipientIdAndCreationDateAndStatus`
-  - [x] `hasPendingFriendRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
-  - [ ] `hasPendingOrDeclinedOrIgnoredOrExpiredRequest`
+  - [x] `countFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `findFriendRequests` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `findFriendRequestsByRecipientId` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `findFriendRequestsByRequesterId` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `findRecipientId` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `findRequesterIdAndRecipientIdAndStatus` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `findRequesterIdAndRecipientIdAndCreationDateAndStatus` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `hasPendingFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `hasPendingOrDeclinedOrIgnoredOrExpiredRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
 
 - **UserRelationshipGroupMemberRepository.java** (`java/im/turms/service/domain/user/repository/UserRelationshipGroupMemberRepository.java`)
 > [简述功能]
 
-  - [ ] `deleteAllRelatedUserFromRelationshipGroup`
-  - [ ] `deleteRelatedUserFromRelationshipGroup`
-  - [ ] `deleteRelatedUsersFromAllRelationshipGroups`
-  - [ ] `countGroups`
-  - [ ] `countMembers`
-  - [ ] `findGroupIndexes`
-  - [ ] `findRelationshipGroupMemberIds`
-  - [ ] `findRelationshipGroupMemberIds`
-  - [ ] `findRelationshipGroupMembers`
+  - [x] `deleteAllRelatedUserFromRelationshipGroup` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `deleteRelatedUserFromRelationshipGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelatedUsersFromAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `countGroups` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `countMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `findGroupIndexes` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `findRelationshipGroupMemberIds` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `findRelationshipGroupMemberIds` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [x] `findRelationshipGroupMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
 
 - **UserRelationshipGroupRepository.java** (`java/im/turms/service/domain/user/repository/UserRelationshipGroupRepository.java`)
 > [简述功能]
 
-  - [ ] `deleteAllRelationshipGroups`
-  - [ ] `updateRelationshipGroupName`
-  - [ ] `updateRelationshipGroups`
-  - [ ] `countRelationshipGroups`
-  - [ ] `findRelationshipGroups`
-  - [ ] `findRelationshipGroupsInfos`
+  - [x] `deleteAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `updateRelationshipGroupName` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `updateRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `countRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `findRelationshipGroups` -> `internal/domain/user/repository/user_relationship_group_repository.go`
+  - [x] `findRelationshipGroupsInfos` -> `internal/domain/user/repository/user_relationship_group_repository.go`
 
 - **UserRelationshipRepository.java** (`java/im/turms/service/domain/user/repository/UserRelationshipRepository.java`)
 > [简述功能]
 
-  - [ ] `deleteAllRelationships`
-  - [ ] `updateUserOneSidedRelationships`
-  - [ ] `countRelationships`
+  - [x] `deleteAllRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `updateUserOneSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `countRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `findRelatedUserIds` -> `internal/domain/user/repository/user_relationship_repository.go`
-  - [ ] `findRelationships`
-  - [ ] `findRelationships`
+  - [x] `findRelationships` -> `internal/domain/user/repository/user_relationship_repository.go`
+  - [x] `findRelationships` -> `internal/domain/user/repository/user_relationship_repository.go`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
 
 - **UserRepository.java** (`java/im/turms/service/domain/user/repository/UserRepository.java`)
 > [简述功能]
 
-  - [ ] `updateUsers`
-  - [ ] `updateUsersDeletionDate`
-  - [ ] `checkIfUserExists`
-  - [ ] `countRegisteredUsers`
-  - [ ] `countDeletedUsers`
-  - [ ] `countUsers`
-  - [ ] `countUsers`
-  - [ ] `findName`
-  - [ ] `findAllNames`
-  - [ ] `findProfileAccessIfNotDeleted`
-  - [ ] `findUsers`
-  - [ ] `findNotDeletedUserProfiles`
-  - [ ] `findUsersProfile`
-  - [ ] `findUserRoleId`
-  - [ ] `isActiveAndNotDeleted`
+  - [x] `updateUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `updateUsersDeletionDate` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `checkIfUserExists` -> `internal/domain/user/service/user_service.go`
+  - [x] `countRegisteredUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `countDeletedUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `countUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `countUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `findName` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findAllNames` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findProfileAccessIfNotDeleted` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findUsers` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findNotDeletedUserProfiles` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findUsersProfile` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `findUserRoleId` -> `internal/domain/user/repository/user_repository.go`
+  - [x] `isActiveAndNotDeleted` -> `internal/domain/user/repository/user_repository.go`
 
 - **UserRoleRepository.java** (`java/im/turms/service/domain/user/repository/UserRoleRepository.java`)
 > [简述功能]
 
-  - [ ] `updateUserRoles`
+  - [x] `updateUserRoles` -> `internal/domain/user/service/user_role_service.go`
 
 - **UserSettingsRepository.java** (`java/im/turms/service/domain/user/repository/UserSettingsRepository.java`)
 > [简述功能]
 
-  - [ ] `upsertSettings`
-  - [ ] `unsetSettings`
-  - [ ] `findByIdAndSettingNames`
+  - [x] `upsertSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `unsetSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `findByIdAndSettingNames` -> `internal/domain/user/repository/user_settings_repository.go`
 
 - **UserVersionRepository.java** (`java/im/turms/service/domain/user/repository/UserVersionRepository.java`)
 > [简述功能]
 
-  - [ ] `updateSpecificVersion`
-  - [ ] `updateSpecificVersion`
-  - [ ] `updateSpecificVersion`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
   - [ ] `findGroupJoinRequests`
   - [ ] `findJoinedGroup`
   - [ ] `findReceivedGroupInvitations`
-  - [ ] `findRelationships`
-  - [ ] `findRelationshipGroups`
+  - [x] `findRelationships` -> `internal/domain/user/repository/user_relationship_repository.go`
+  - [x] `findRelationshipGroups` -> `internal/domain/user/repository/user_relationship_group_repository.go`
   - [ ] `findSentGroupInvitations`
   - [ ] `findSentFriendRequests`
   - [ ] `findReceivedFriendRequests`
@@ -1810,7 +1810,7 @@
 > [简述功能]
 
   - [x] `removeAllExpiredFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [x] `hasPendingFriendRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
+  - [x] `hasPendingFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `createFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `authAndCreateFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `authAndRecallFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
@@ -1832,7 +1832,7 @@
 
   - [x] `createRelationshipGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `queryRelationshipGroupsInfos` -> `internal/domain/user/service/user_relationship_group_service.go`
-  - [ ] `queryRelationshipGroupsInfosWithVersion`
+  - [x] `queryRelationshipGroupsInfosWithVersion` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `queryGroupIndexes` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `queryRelationshipGroupMemberIds` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `queryRelationshipGroupMemberIds` -> `internal/domain/user/service/user_relationship_group_service.go`
@@ -1980,17 +1980,17 @@
 - **AcceptMeetingInvitationResult.java** (`java/im/turms/service/infra/plugin/extension/model/AcceptMeetingInvitationResult.java`)
 > [简述功能]
 
-  - [x] `AcceptMeetingInvitationResult` -> `internal/infra/plugin/extension/model/accept_meeting_invitation_result.go`
+  - [ ] `AcceptMeetingInvitationResult`
 
 - **CreateMeetingOptions.java** (`java/im/turms/service/infra/plugin/extension/model/CreateMeetingOptions.java`)
 > [简述功能]
 
-  - [x] `CreateMeetingOptions` -> `internal/infra/plugin/extension/model/create_meeting_options.go`
+  - [ ] `CreateMeetingOptions`
 
 - **CreateMeetingResult.java** (`java/im/turms/service/infra/plugin/extension/model/CreateMeetingResult.java`)
 > [简述功能]
 
-  - [x] `CreateMeetingResult` -> `internal/infra/plugin/extension/model/create_meeting_result.go`
+  - [ ] `CreateMeetingResult`
 
 - **ProtoModelConvertor.java** (`java/im/turms/service/infra/proto/ProtoModelConvertor.java`)
 > [简述功能]
@@ -2034,129 +2034,129 @@
 - **IndexTextFieldSetting.java** (`java/im/turms/service/storage/elasticsearch/IndexTextFieldSetting.java`)
 > [简述功能]
 
-  - [x] `IndexTextFieldSetting` -> `internal/storage/elasticsearch/index_text_field_setting.go`
+  - [ ] `IndexTextFieldSetting`
 
 - **BulkRequest.java** (`java/im/turms/service/storage/elasticsearch/model/BulkRequest.java`)
 > [简述功能]
 
-  - [x] `BulkRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `BulkRequest`
   - [x] `serialize` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **BulkResponse.java** (`java/im/turms/service/storage/elasticsearch/model/BulkResponse.java`)
 > [简述功能]
 
-  - [x] `BulkResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `BulkResponse`
 
 - **BulkResponseItem.java** (`java/im/turms/service/storage/elasticsearch/model/BulkResponseItem.java`)
 > [简述功能]
 
-  - [x] `BulkResponseItem` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `BulkResponseItem`
 
 - **ClosePointInTimeRequest.java** (`java/im/turms/service/storage/elasticsearch/model/ClosePointInTimeRequest.java`)
 > [简述功能]
 
-  - [x] `ClosePointInTimeRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `ClosePointInTimeRequest`
 
 - **CreateIndexRequest.java** (`java/im/turms/service/storage/elasticsearch/model/CreateIndexRequest.java`)
 > [简述功能]
 
-  - [x] `CreateIndexRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `CreateIndexRequest`
 
 - **DeleteByQueryRequest.java** (`java/im/turms/service/storage/elasticsearch/model/DeleteByQueryRequest.java`)
 > [简述功能]
 
-  - [x] `DeleteByQueryRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `DeleteByQueryRequest`
 
 - **DeleteByQueryResponse.java** (`java/im/turms/service/storage/elasticsearch/model/DeleteByQueryResponse.java`)
 > [简述功能]
 
-  - [x] `DeleteByQueryResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `DeleteByQueryResponse`
 
 - **DeleteResponse.java** (`java/im/turms/service/storage/elasticsearch/model/DeleteResponse.java`)
 > [简述功能]
 
-  - [x] `DeleteResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `DeleteResponse`
 
 - **ErrorCause.java** (`java/im/turms/service/storage/elasticsearch/model/ErrorCause.java`)
 > [简述功能]
 
-  - [x] `ErrorCause` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `ErrorCause`
 
 - **ErrorResponse.java** (`java/im/turms/service/storage/elasticsearch/model/ErrorResponse.java`)
 > [简述功能]
 
-  - [x] `ErrorResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `ErrorResponse`
 
 - **FieldCollapse.java** (`java/im/turms/service/storage/elasticsearch/model/FieldCollapse.java`)
 > [简述功能]
 
-  - [x] `FieldCollapse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `FieldCollapse`
 
 - **HealthResponse.java** (`java/im/turms/service/storage/elasticsearch/model/HealthResponse.java`)
 > [简述功能]
 
-  - [x] `HealthResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `HealthResponse`
 
 - **Highlight.java** (`java/im/turms/service/storage/elasticsearch/model/Highlight.java`)
 > [简述功能]
 
-  - [x] `Highlight` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `Highlight`
 
 - **IndexSettings.java** (`java/im/turms/service/storage/elasticsearch/model/IndexSettings.java`)
 > [简述功能]
 
-  - [x] `IndexSettings` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `IndexSettings`
 
 - **IndexSettingsAnalysis.java** (`java/im/turms/service/storage/elasticsearch/model/IndexSettingsAnalysis.java`)
 > [简述功能]
 
-  - [x] `IndexSettingsAnalysis` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `IndexSettingsAnalysis`
   - [x] `merge` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **PointInTimeReference.java** (`java/im/turms/service/storage/elasticsearch/model/PointInTimeReference.java`)
 > [简述功能]
 
-  - [x] `PointInTimeReference` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `PointInTimeReference`
 
 - **Property.java** (`java/im/turms/service/storage/elasticsearch/model/Property.java`)
 > [简述功能]
 
-  - [x] `Property` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `Property`
 
 - **Script.java** (`java/im/turms/service/storage/elasticsearch/model/Script.java`)
 > [简述功能]
 
-  - [x] `Script` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `Script`
 
 - **SearchRequest.java** (`java/im/turms/service/storage/elasticsearch/model/SearchRequest.java`)
 > [简述功能]
 
-  - [x] `SearchRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `SearchRequest`
 
 - **ShardFailure.java** (`java/im/turms/service/storage/elasticsearch/model/ShardFailure.java`)
 > [简述功能]
 
-  - [x] `ShardFailure` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `ShardFailure`
 
 - **ShardStatistics.java** (`java/im/turms/service/storage/elasticsearch/model/ShardStatistics.java`)
 > [简述功能]
 
-  - [x] `ShardStatistics` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `ShardStatistics`
 
 - **TypeMapping.java** (`java/im/turms/service/storage/elasticsearch/model/TypeMapping.java`)
 > [简述功能]
 
-  - [x] `TypeMapping` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `TypeMapping`
 
 - **UpdateByQueryRequest.java** (`java/im/turms/service/storage/elasticsearch/model/UpdateByQueryRequest.java`)
 > [简述功能]
 
-  - [x] `UpdateByQueryRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `UpdateByQueryRequest`
 
 - **UpdateByQueryResponse.java** (`java/im/turms/service/storage/elasticsearch/model/UpdateByQueryResponse.java`)
 > [简述功能]
 
-  - [x] `UpdateByQueryResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [ ] `UpdateByQueryResponse`
 
 - **MongoCollectionMigrator.java** (`java/im/turms/service/storage/mongo/MongoCollectionMigrator.java`)
 > [简述功能]

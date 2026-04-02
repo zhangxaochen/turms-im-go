@@ -18,8 +18,9 @@ type UserFriendRequestRepository interface {
 	HasPendingOrDeclinedOrIgnoredOrExpiredRequest(ctx context.Context, requesterID, recipientID int64) (bool, error)
 	UpdateStatusIfPending(ctx context.Context, requestID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
 	UpdateFriendRequests(ctx context.Context, requestIds []int64, requesterID, recipientID *int64, content *string, status *po.RequestStatus, reason *string, creationDate *time.Time) error
-	FindRequestsByRecipientID(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
-	FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
+	FindFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
+	FindFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
+	GetEntityExpireAfterSeconds() int
 	FindRecipientId(ctx context.Context, requestID int64) (int64, error)
 	FindRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
 	FindRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
@@ -77,8 +78,8 @@ func (r *userFriendRequestRepository) HasPendingOrDeclinedOrIgnoredOrExpiredRequ
 
 func (r *userFriendRequestRepository) UpdateStatusIfPending(ctx context.Context, requestID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error) {
 	filter := bson.M{
-		"_id":  requestID,
-		"s":    po.RequestStatusPending,
+		"_id": requestID,
+		"s":   po.RequestStatusPending,
 	}
 	updateOps := bson.M{
 		"s":  newStatus,
@@ -124,7 +125,11 @@ func (r *userFriendRequestRepository) UpdateFriendRequests(ctx context.Context, 
 	return err
 }
 
-func (r *userFriendRequestRepository) FindRequestsByRecipientID(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
+func (r *userFriendRequestRepository) GetEntityExpireAfterSeconds() int {
+	return 0
+}
+
+func (r *userFriendRequestRepository) FindFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
 	filter := bson.M{"rcid": recipientID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
 	cursor, err := r.coll.Find(ctx, filter, opts)
@@ -140,7 +145,7 @@ func (r *userFriendRequestRepository) FindRequestsByRecipientID(ctx context.Cont
 	return reqs, nil
 }
 
-func (r *userFriendRequestRepository) FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error) {
+func (r *userFriendRequestRepository) FindFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error) {
 	filter := bson.M{"rqid": requesterID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
 	cursor, err := r.coll.Find(ctx, filter, opts)

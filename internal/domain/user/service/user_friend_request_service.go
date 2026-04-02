@@ -23,6 +23,7 @@ type UserFriendRequestService interface {
 	AuthAndHandleFriendRequest(ctx context.Context, friendRequestID int64, requesterID int64, action po.ResponseAction, reason *string) (bool, error)
 	QueryFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
 	QueryFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
+	QueryFriendRequestsWithVersion(ctx context.Context, userID int64, isRecipient bool, lastUpdatedDate *time.Time) ([]po.UserFriendRequest, error)
 	DeleteFriendRequests(ctx context.Context, ids []int64) error
 	QueryFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]po.UserFriendRequest, error)
 	CountFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time) (int64, error)
@@ -59,7 +60,7 @@ func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requ
 	if requestID != nil {
 		id = *requestID
 	}
-	
+
 	now := time.Now()
 	var cd time.Time
 	if creationDate == nil {
@@ -84,10 +85,10 @@ func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requ
 		RecipientID:  recipientID,
 	}
 	if reason != nil {
-		req.Reason = *reason
+		req.Reason = reason
 	}
 	if responseDate != nil {
-		req.ResponseDate = *responseDate
+		req.ResponseDate = responseDate
 	}
 
 	if err := s.repo.Insert(ctx, req); err != nil {
@@ -137,7 +138,7 @@ func (s *userFriendRequestService) AuthAndRecallFriendRequest(ctx context.Contex
 		return nil, fmt.Errorf("recall non-pending friend request")
 	}
 
-	success, err := s.repo.UpdateStatusIfPending(ctx, requestID, req.RecipientID, po.RequestStatusCanceled, nil, time.Now())
+	success, err := s.repo.UpdateStatusIfPending(ctx, requestID, po.RequestStatusCanceled, nil, time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +156,7 @@ func (s *userFriendRequestService) UpdatePendingFriendRequestStatus(ctx context.
 	if targetStatus == po.RequestStatusPending {
 		return false, fmt.Errorf("status must not be pending")
 	}
-	success, err := s.repo.UpdateStatusIfPending(ctx, requestID, recipientID, targetStatus, reason, time.Now())
+	success, err := s.repo.UpdateStatusIfPending(ctx, requestID, targetStatus, reason, time.Now())
 	if err != nil {
 		return false, err
 	}
@@ -222,11 +223,18 @@ func (s *userFriendRequestService) AuthAndHandleFriendRequest(ctx context.Contex
 }
 
 func (s *userFriendRequestService) QueryFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
-	return s.repo.FindRequestsByRecipientID(ctx, recipientID)
+	return s.repo.FindFriendRequestsByRecipientId(ctx, recipientID)
 }
 
 func (s *userFriendRequestService) QueryFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error) {
-	return s.repo.FindRequestsByRequesterID(ctx, requesterID)
+	return s.repo.FindFriendRequestsByRequesterId(ctx, requesterID)
+}
+
+func (s *userFriendRequestService) QueryFriendRequestsWithVersion(ctx context.Context, userID int64, isRecipient bool, lastUpdatedDate *time.Time) ([]po.UserFriendRequest, error) {
+	if isRecipient {
+		return s.QueryFriendRequestsByRecipientId(ctx, userID)
+	}
+	return s.QueryFriendRequestsByRequesterId(ctx, userID)
 }
 
 func (s *userFriendRequestService) DeleteFriendRequests(ctx context.Context, ids []int64) error {

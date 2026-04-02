@@ -31,6 +31,8 @@ type UserRelationshipService interface {
 	HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 	QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error)
 	QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error)
+	QueryRelationshipsWithVersion(ctx context.Context, ownerID int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]po.UserRelationship, error)
+	QueryRelatedUserIdsWithVersion(ctx context.Context, ownerID int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]int64, error)
 	BlockUser(ctx context.Context, ownerID int64, relatedUserID int64) error
 	Close()
 }
@@ -234,3 +236,10 @@ func (s *userRelationshipService) HasOneSidedRelationship(ctx context.Context, o
 	return s.repo.HasOneSidedRelationship(ctx, ownerID, relatedUserID)
 }
 
+func (s *userRelationshipService) QueryRelationshipsWithVersion(ctx context.Context, ownerID int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]po.UserRelationship, error) {
+	return s.QueryRelationships(ctx, []int64{ownerID}, relatedUserIDs)
+}
+
+func (s *userRelationshipService) QueryRelatedUserIdsWithVersion(ctx context.Context, ownerID int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]int64, error) {
+	return s.QueryRelatedUserIds(ctx, ownerID, isBlocked)
+}

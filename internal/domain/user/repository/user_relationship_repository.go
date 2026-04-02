@@ -243,4 +243,3 @@ func (r *userRelationshipRepository) HasOneSidedRelationship(ctx context.Context
 	}
 	return count > 0, nil
 }
-

@@ -15,6 +15,7 @@ type UserRoleRepository interface {
 	UpdateRole(ctx context.Context, roleID int64, update interface{}) error
 	DeleteRoles(ctx context.Context, filter interface{}) (int64, error)
 	CountRoles(ctx context.Context, filter interface{}) (int64, error)
+	UpdateUserRoles(ctx context.Context, roleIDs []int64, update interface{}) (int64, error)
 }
 
 type userRoleRepository struct {
@@ -71,4 +72,16 @@ func (r *userRoleRepository) DeleteRoles(ctx context.Context, filter interface{}
 
 func (r *userRoleRepository) CountRoles(ctx context.Context, filter interface{}) (int64, error) {
 	return r.collection.CountDocuments(ctx, filter)
+}
+
+func (r *userRoleRepository) UpdateUserRoles(ctx context.Context, roleIDs []int64, update interface{}) (int64, error) {
+	if len(roleIDs) == 0 {
+		return 0, nil
+	}
+	filter := map[string]interface{}{"_id": map[string]interface{}{"$in": roleIDs}}
+	res, err := r.collection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
 }
