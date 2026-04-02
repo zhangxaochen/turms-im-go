@@ -22,6 +22,7 @@
 | [docs/api-protocol.md](docs/api-protocol.md) | 客户端&管理端 API 协议定义 + ResponseStatusCode 体系 |
 | [docs/go-design.md](docs/go-design.md) | Go 版总体设计 + 包结构 + 技术选型 |
 | [docs/tdd-bdd-strategy.md](docs/tdd-bdd-strategy.md) | TDD + BDD 测试策略详细设计 |
+| [docs/review_checklist.md](docs/review_checklist.md) | **Review 固化清单**: 复刻并超越的质量保障准则 |
 
 ## 核心约束
 
