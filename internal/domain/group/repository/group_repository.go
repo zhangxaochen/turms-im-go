@@ -32,6 +32,7 @@ func (r *GroupRepository) InsertGroup(ctx context.Context, group *po.Group) erro
 }
 
 // FindGroups retrieves multiple groups by their IDs, filtering out deleted ones.
+// @MappedFrom findGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size)
 func (r *GroupRepository) FindGroups(ctx context.Context, groupIDs []int64) ([]*po.Group, error) {
 	filter := bson.M{
 		"_id": bson.M{"$in": groupIDs},
@@ -79,6 +80,10 @@ func (r *GroupRepository) FindGroup(ctx context.Context, groupID int64) (*po.Gro
 }
 
 // CountOwnedGroups counts the number of groups owned by a specific user.
+// @MappedFrom countOwnedGroups(@NotNull Long ownerId, @NotNull Long groupTypeId)
+// @MappedFrom countOwnedGroups(Long ownerId, Long groupTypeId)
+// @MappedFrom countOwnedGroups(Long ownerId)
+// @MappedFrom countOwnedGroups(@NotNull Long ownerId)
 func (r *GroupRepository) CountOwnedGroups(ctx context.Context, ownerID int64) (int64, error) {
 	filter := bson.M{"oid": ownerID, "dd": bson.M{"$exists": false}}
 	return r.col.CountDocuments(ctx, filter)

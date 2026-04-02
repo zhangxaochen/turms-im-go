@@ -38,6 +38,7 @@ func NewUserVersionRepository(mongoClient *turmsmongo.Client) UserVersionReposit
 	}
 }
 
+// @MappedFrom upsertEmptyUserVersion(@NotNull Long userId, @NotNull Date timestamp, @Nullable ClientSession session)
 func (r *userVersionRepository) UpsertEmptyUserVersion(ctx context.Context, userID int64) error {
 	update := map[string]interface{}{
 		"$setOnInsert": po.UserVersion{
@@ -91,6 +92,15 @@ func (r *userVersionRepository) DeleteUserVersions(ctx context.Context, userIDs 
 	return err
 }
 
+// @MappedFrom updateSpecificVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session, @NotEmpty String... fields)
+// @MappedFrom updateSpecificVersion(@Nullable Set<Long> groupIds, @NotNull String field)
+// @MappedFrom updateSpecificVersion(Long userId, @Nullable ClientSession session, String... fields)
+// @MappedFrom updateSpecificVersion(@NotNull Long userId, @Nullable ClientSession session, @NotEmpty String... fields)
+// @MappedFrom updateSpecificVersion(Long userId, @Nullable ClientSession session, String field)
+// @MappedFrom updateSpecificVersion(@NotNull Long groupId, @NotNull String field)
+// @MappedFrom updateSpecificVersion(@NotNull String field)
+// @MappedFrom updateSpecificVersion(@NotNull Long userId, @Nullable ClientSession session, @NotNull String field)
+// @MappedFrom updateSpecificVersion(Set<Long> userIds, @Nullable ClientSession session, String... fields)
 func (r *userVersionRepository) UpdateSpecificVersion(ctx context.Context, userIDs []int64, field string, updateDate time.Time) error {
 	if len(userIDs) == 0 {
 		return nil

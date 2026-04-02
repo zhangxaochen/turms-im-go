@@ -56,6 +56,7 @@ func (c *UserServiceController) RegisterRoutes(r *router.Router) {
 }
 
 // HandleQueryUserProfilesRequest queries user profiles by user IDs.
+// @MappedFrom handleQueryUserProfilesRequest()
 func (c *UserServiceController) HandleQueryUserProfilesRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryUserProfilesRequest()
 
@@ -108,6 +109,7 @@ func (c *UserServiceController) HandleQueryUserProfilesRequest(ctx context.Conte
 }
 
 // HandleQueryNearbyUsersRequest queries nearby users based on location.
+// @MappedFrom handleQueryNearbyUsersRequest()
 func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryNearbyUsersRequest()
 
@@ -174,6 +176,7 @@ func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Contex
 }
 
 // HandleQueryUserOnlineStatusesRequest queries online statuses for a set of user IDs.
+// @MappedFrom handleQueryUserOnlineStatusesRequest()
 func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryUserOnlineStatusesRequest()
 	userIDs := queryReq.GetUserIds()
@@ -210,6 +213,7 @@ func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context
 }
 
 // HandleUpdateUserLocationRequest updates the user's current location.
+// @MappedFrom handleUpdateUserLocationRequest()
 func (c *UserServiceController) HandleUpdateUserLocationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateUserLocationRequest()
 	err := c.sessionLocationService.UpsertUserLocation(ctx, s.UserID, s.DeviceType, updateReq.Longitude, updateReq.Latitude)
@@ -220,6 +224,7 @@ func (c *UserServiceController) HandleUpdateUserLocationRequest(ctx context.Cont
 }
 
 // HandleUpdateUserOnlineStatusRequest updates the user's online status (invisible, busy, etc.).
+// @MappedFrom handleUpdateUserOnlineStatusRequest()
 func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateUserOnlineStatusRequest()
 	updated, err := c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)
@@ -256,6 +261,7 @@ func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.
 }
 
 // HandleUpdateUserRequest updates user profile fields (name, intro, profilePicture, etc.).
+// @MappedFrom handleUpdateUserRequest()
 func (c *UserServiceController) HandleUpdateUserRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateUserRequest()
 

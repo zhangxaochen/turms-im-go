@@ -39,6 +39,7 @@ func (r *Router) Register(codecID uint16, handler HandlerFunc) {
 
 // Dispatch routes the incoming RPC frame to its corresponding handler.
 // It returns an error if the codec ID is not registered, or if the handler fails.
+// @MappedFrom dispatch(TracingContext context, ServiceRequest serviceRequest)
 func (r *Router) Dispatch(ctx context.Context, frame *codec.RpcFrame) ([]byte, error) {
 	r.mu.RLock()
 	handler, exists := r.handlers[frame.CodecID]

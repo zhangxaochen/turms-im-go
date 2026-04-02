@@ -78,6 +78,7 @@ func PastOrPresent(date *time.Time, name string) error {
 }
 
 // ValidRequestStatus (Placeholder for specific business validator)
+// @MappedFrom validRequestStatus(RequestStatus status)
 func ValidRequestStatus(status interface{}, name string) error {
 	return nil
 }

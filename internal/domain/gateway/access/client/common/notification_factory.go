@@ -28,11 +28,17 @@ func NewNotificationFactory(props *config.GatewayProperties) *NotificationFactor
 }
 
 // Create generates a generic Notification payload.
+// @MappedFrom create(ResponseStatusCode code, long requestId)
+// @MappedFrom create(TcpProperties tcpProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFrameLength)
+// @MappedFrom create(ResponseStatusCode code, @Nullable String reason, long requestId)
+// @MappedFrom create(ThrowableInfo info, long requestId)
+// @MappedFrom create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)
 func (f *NotificationFactory) Create(requestID *int64, code constant.ResponseStatusCode) *protocol.TurmsNotification {
 	return f.CreateWithReason(requestID, code, "")
 }
 
 // CreateWithReason generates a payload allowing reason texts depending on config.
+// @MappedFrom create(ResponseStatusCode code, @Nullable String reason, long requestId)
 func (f *NotificationFactory) CreateWithReason(requestID *int64, code constant.ResponseStatusCode, reason string) *protocol.TurmsNotification {
 	notification := &protocol.TurmsNotification{
 		Timestamp: time.Now().UnixMilli(),
@@ -45,6 +51,7 @@ func (f *NotificationFactory) CreateWithReason(requestID *int64, code constant.R
 }
 
 // CreateFromError parses a typed TurmsError securely.
+// @MappedFrom create(ThrowableInfo info, long requestId)
 func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *protocol.TurmsNotification {
 	code := constant.ResponseStatusCode_SERVER_INTERNAL_ERROR
 	var reason string
@@ -67,12 +74,14 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 }
 
 // CreateBuffer generates the serialized protobuf bytes directly.
+// @MappedFrom createBuffer(CloseReason closeReason)
 func (f *NotificationFactory) CreateBuffer(requestID *int64, code constant.ResponseStatusCode, reason string) ([]byte, error) {
 	notification := f.CreateWithReason(requestID, code, reason)
 	return proto.Marshal(notification)
 }
 
 // SessionClosed generates a specialized notification when the server forcefully kicks the client.
+// @MappedFrom sessionClosed(long requestId)
 func (f *NotificationFactory) SessionClosed(requestID *int64) *protocol.TurmsNotification {
 	return &protocol.TurmsNotification{
 		Timestamp: time.Now().UnixMilli(),

@@ -42,6 +42,9 @@ func NewUserRelationshipRepository(client *turmsmongo.Client) UserRelationshipRe
 	}
 }
 
+// @MappedFrom hasRelationshipAndNotBlocked(Long ownerId, Long relatedUserId)
+// @MappedFrom hasRelationshipAndNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId)
+// @MappedFrom hasRelationshipAndNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache)
 func (r *userRelationshipRepository) HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64, session *mongo.Session) (bool, error) {
 	filter := bson.M{
 		"_id": po.UserRelationshipKey{
@@ -95,6 +98,7 @@ func (r *userRelationshipRepository) UpdateBlockDate(ctx context.Context, ownerI
 	})
 }
 
+// @MappedFrom findRelatedUserIds(@Nullable Set<Long> ownerIds, @Nullable Boolean isBlocked)
 func (r *userRelationshipRepository) FindRelatedUserIDs(ctx context.Context, ownerIDs []int64, groupIndexes []int32, isBlocked *bool, page, size *int, session *mongo.Session) ([]int64, error) {
 	filter := r.countOrFindFilter(ownerIDs, nil, groupIndexes, isBlocked)
 	opts := options.Find().SetProjection(bson.M{"_id.rid": 1})
@@ -171,6 +175,9 @@ func (r *userRelationshipRepository) Upsert(
 	})
 }
 
+// @MappedFrom findRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Integer page, @Nullable Integer size)
+// @MappedFrom findRelationships(Long userId)
+// @MappedFrom findRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Boolean isBlocked, @Nullable DateRange establishmentDateRange, @Nullable Integer page, @Nullable Integer size)
 func (r *userRelationshipRepository) FindRelationships(
 	ctx context.Context,
 	ownerIDs []int64,
@@ -210,6 +217,8 @@ func (r *userRelationshipRepository) FindRelationships(
 	})
 }
 
+// @MappedFrom deleteAllRelationships(Set<Long> userIds, @Nullable ClientSession session)
+// @MappedFrom deleteAllRelationships(@NotEmpty Set<Long> userIds, @Nullable ClientSession session, boolean updateRelationshipsVersion)
 func (r *userRelationshipRepository) DeleteAllRelationships(ctx context.Context, ownerIDs []int64, session *mongo.Session) (*mongo.DeleteResult, error) {
 	filter := bson.M{"_id.oid": bson.M{"$in": ownerIDs}}
 	return turmsmongo.ExecuteWithSessionResult(ctx, r.client, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) (*mongo.DeleteResult, error) {
@@ -217,6 +226,7 @@ func (r *userRelationshipRepository) DeleteAllRelationships(ctx context.Context,
 	})
 }
 
+// @MappedFrom deleteOneSidedRelationships(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys)
 func (r *userRelationshipRepository) DeleteOneSidedRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, session *mongo.Session) (*mongo.DeleteResult, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
@@ -230,6 +240,8 @@ func (r *userRelationshipRepository) DeleteOneSidedRelationships(ctx context.Con
 	})
 }
 
+// @MappedFrom updateUserOneSidedRelationships(Set<UserRelationship.Key> keys, @Nullable String name, @Nullable Date blockDate, @Nullable Date establishmentDate)
+// @MappedFrom updateUserOneSidedRelationships(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys, @Nullable String name, @Nullable @PastOrPresent Date blockDate, @Nullable @PastOrPresent Date establishmentDate)
 func (r *userRelationshipRepository) UpdateUserOneSidedRelationships(
 	ctx context.Context,
 	ownerID int64,
@@ -291,6 +303,8 @@ func (r *userRelationshipRepository) countOrFindFilter(ownerIDs, relatedUserIDs 
 	return filter
 }
 
+// @MappedFrom countRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked)
+// @MappedFrom countRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Boolean isBlocked)
 func (r *userRelationshipRepository) CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, session *mongo.Session) (int64, error) {
 	filter := r.countOrFindFilter(ownerIDs, relatedUserIDs, groupIndexes, isBlocked)
 	return turmsmongo.ExecuteWithSessionResult(ctx, r.client, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) (int64, error) {
@@ -298,6 +312,7 @@ func (r *userRelationshipRepository) CountRelationships(ctx context.Context, own
 	})
 }
 
+// @MappedFrom queryMembersRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Integer page, @Nullable Integer size)
 func (r *userRelationshipRepository) QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int, session *mongo.Session) ([]po.UserRelationship, error) {
 	filter := r.countOrFindFilter([]int64{ownerID}, nil, groupIndexes, nil)
 	opts := options.Find().SetSort(bson.M{"ed": -1})
@@ -322,6 +337,7 @@ func (r *userRelationshipRepository) QueryMembersRelationships(ctx context.Conte
 	})
 }
 
+// @MappedFrom hasOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId)
 func (r *userRelationshipRepository) HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64, session *mongo.Session) (bool, error) {
 	filter := bson.M{
 		"_id": po.UserRelationshipKey{

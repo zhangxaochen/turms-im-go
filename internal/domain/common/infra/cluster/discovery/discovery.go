@@ -88,7 +88,12 @@ func (s *DiscoveryService) Start() error {
 		return fmt.Errorf("registering local member failed: %w", err)
 	}
 
-	// 3. Start background routines
+	// 3. Initial Leader Election
+	if s.localMember.IsLeaderEligible {
+		s.runLeaderElection()
+	}
+
+	// 4. Start background routines
 	s.wg.Add(3)
 	go s.heartbeatRoutine()
 	go s.leaderElectionRoutine()
@@ -266,8 +271,7 @@ func (s *DiscoveryService) leaderElectionRoutine() {
 	ticker := time.NewTicker(s.heartbeatInterval)
 	defer ticker.Stop()
 
-	// Run once immediately
-	s.runLeaderElection()
+	// Initial run is already done in Start()
 
 	for {
 		select {

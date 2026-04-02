@@ -42,6 +42,9 @@ func (r *GroupVersionRepository) InsertVersion(ctx context.Context, groupID int6
 }
 
 // UpdateVersion updates a specific version field.
+// @MappedFrom updateVersion(@NotNull Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
+// @MappedFrom updateVersion(Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
+// @MappedFrom updateVersion(Long groupId, String field)
 func (r *GroupVersionRepository) UpdateVersion(ctx context.Context, groupID int64, field string) error {
 	filter := bson.M{"_id": groupID}
 	update := bson.M{"$set": bson.M{field: time.Now()}}
@@ -52,21 +55,27 @@ func (r *GroupVersionRepository) UpdateVersion(ctx context.Context, groupID int6
 }
 
 // UpdateMembersVersion updates the members version.
+// @MappedFrom updateMembersVersion(@NotNull Long groupId)
+// @MappedFrom updateMembersVersion()
+// @MappedFrom updateMembersVersion(@Nullable Set<Long> groupIds)
 func (r *GroupVersionRepository) UpdateMembersVersion(ctx context.Context, groupID int64) error {
 	return r.UpdateVersion(ctx, groupID, "mbr")
 }
 
 // UpdateBlocklistVersion updates the blocklist version.
+// @MappedFrom updateBlocklistVersion(@NotNull Long groupId)
 func (r *GroupVersionRepository) UpdateBlocklistVersion(ctx context.Context, groupID int64) error {
 	return r.UpdateVersion(ctx, groupID, "bl")
 }
 
 // UpdateJoinRequestsVersion updates the join requests version.
+// @MappedFrom updateJoinRequestsVersion(@NotNull Long groupId)
 func (r *GroupVersionRepository) UpdateJoinRequestsVersion(ctx context.Context, groupID int64) error {
 	return r.UpdateVersion(ctx, groupID, "jr")
 }
 
 // UpdateJoinQuestionsVersion updates the join questions version.
+// @MappedFrom updateJoinQuestionsVersion(@NotNull Long groupId)
 func (r *GroupVersionRepository) UpdateJoinQuestionsVersion(ctx context.Context, groupID int64) error {
 	return r.UpdateVersion(ctx, groupID, "jq")
 }
@@ -76,6 +85,10 @@ func (r *GroupVersionRepository) UpdateInvitationsVersion(ctx context.Context, g
 	return r.UpdateVersion(ctx, groupID, "invt")
 }
 // Upsert creates or updates all group version records.
+// @MappedFrom upsert(Long groupId, Collection<Long> memberIds, Date readDate)
+// @MappedFrom upsert(Long groupId, Long memberId, Date readDate, boolean allowMoveReadDateForward)
+// @MappedFrom upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward)
+// @MappedFrom upsert(@NotNull Long groupId, @NotNull Date timestamp)
 func (r *GroupVersionRepository) Upsert(ctx context.Context, groupID int64, timestamp time.Time) error {
 	filter := bson.M{"_id": groupID}
 	update := bson.M{

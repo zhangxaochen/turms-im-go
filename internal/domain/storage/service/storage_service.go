@@ -31,6 +31,7 @@ func (s *StorageService) DeleteResource(
 	return s.provider.DeleteResource(ctx, resourceType, resourceIDStr)
 }
 
+// @MappedFrom queryResourceUploadInfo(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceName, @Nullable String resourceMediaType, List<Value> customAttributes)
 func (s *StorageService) QueryResourceUploadInfo(
 	ctx context.Context,
 	requesterID int64,
@@ -46,6 +47,7 @@ func (s *StorageService) QueryResourceUploadInfo(
 	return s.provider.GetPresignedUploadURL(ctx, resourceType, resourceName, contentType, maxSize)
 }
 
+// @MappedFrom queryResourceDownloadInfo(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceIdStr, List<Value> customAttributes)
 func (s *StorageService) QueryResourceDownloadInfo(
 	ctx context.Context,
 	requesterID int64,

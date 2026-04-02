@@ -45,6 +45,7 @@ func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, us
 }
 
 // AuthAndBlockUser blocks a user from a group after performing authorization checks.
+// @MappedFrom authAndBlockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToBlock, @Nullable ClientSession session)
 func (s *GroupBlocklistService) AuthAndBlockUser(
 	ctx context.Context,
 	requesterID int64,
@@ -110,14 +111,21 @@ func (s *GroupBlocklistService) AuthAndUnblockUser(
 	return s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
 }
 
+// @MappedFrom unblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion)
 func (s *GroupBlocklistService) UnblockUser(ctx context.Context, groupID int64, userID int64) error {
 	return s.blockedUserRepo.Delete(ctx, groupID, userID)
 }
 
+// @MappedFrom queryBlockedUsers(int page, @QueryParam(required = false)
+// @MappedFrom queryBlockedUsers(Set<Long> ids)
+// @MappedFrom queryBlockedUsers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange blockDateRange, @Nullable Set<Long> requesterIds, @Nullable Integer page, @Nullable Integer size)
 func (s *GroupBlocklistService) QueryBlockedUsers(ctx context.Context, groupID int64) ([]po.GroupBlockedUser, error) {
 	return s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
 }
 
+// @MappedFrom isBlocked(Long ownerId, Long relatedUserId)
+// @MappedFrom isBlocked(@NotNull Long groupId, @NotNull Long userId)
+// @MappedFrom isBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache)
 func (s *GroupBlocklistService) IsBlocked(ctx context.Context, groupID int64, userID int64) (bool, error) {
 	return s.blockedUserRepo.Exists(ctx, groupID, userID)
 }

@@ -35,6 +35,11 @@ func NewSessionService(userStatusService UserStatusService) SessionService {
 	}
 }
 
+// @MappedFrom disconnect(@NotNull Long userId, @NotNull SessionCloseStatus closeStatus)
+// @MappedFrom disconnect(@NotNull Set<Long> userIds, @Nullable Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull SessionCloseStatus closeStatus)
+// @MappedFrom disconnect(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull SessionCloseStatus closeStatus)
+// @MappedFrom disconnect(@NotNull Set<Long> userIds, @NotNull SessionCloseStatus closeStatus)
+// @MappedFrom disconnect(@NotNull Long userId, @NotNull Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull SessionCloseStatus closeStatus)
 func (s *sessionService) Disconnect(ctx context.Context, userID int64, closeStatus int) (bool, error) {
 	// TODO: Implement using UserStatusService and RPC to notify gateway
 	return true, nil
@@ -56,6 +61,8 @@ func (s *sessionService) DisconnectMultipleUsersWithDeviceTypes(ctx context.Cont
 	return true, nil
 }
 
+// @MappedFrom queryUserSessions(Set<Long> userIds)
+// @MappedFrom queryUserSessions(Set<Long> ids, boolean returnNonExistingUsers)
 func (s *sessionService) QueryUserSessions(ctx context.Context, userIDs []int64) ([]*UserSessionsInfo, error) {
 	infos := make([]*UserSessionsInfo, 0, len(userIDs))
 	for _, uid := range userIDs {

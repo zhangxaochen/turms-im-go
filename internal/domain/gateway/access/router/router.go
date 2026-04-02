@@ -7,7 +7,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
+	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/pkg/protocol"
 )
@@ -29,7 +31,7 @@ func NewRouter(sessionService *session.SessionService) *Router {
 		controllers:         make(ControllerMap),
 		throttler:           common.DefaultIpRequestThrottler(),
 		availabilityHandler: common.NewServiceAvailabilityHandler(),
-		notifFactory:        common.NewNotificationFactory(),
+		notifFactory:        common.NewNotificationFactory(config.NewGatewayProperties()),
 	}
 }
 
@@ -128,9 +130,11 @@ func (r *Router) handleCreateSession(ctx context.Context, s *session.UserSession
 	r.sendNotification(s, req.RequestId, 1000, "OK")
 }
 
+// @MappedFrom sendNotification(ByteBuf byteBuf, TracingContext tracingContext)
+// @MappedFrom sendNotification(ByteBuf byteBuf)
 func (r *Router) sendNotification(s *session.UserSession, requestID *int64, code int32, reason string) {
-	buf, err := r.notifFactory.CreateBuffer(requestID, code, reason)
-	if err == nil {
+	buf, err := r.notifFactory.CreateBuffer(requestID, constant.ResponseStatusCode(code), reason)
+	if err == nil && s.Conn != nil {
 		_ = s.Conn.WriteMessage(buf)
 	}
 }

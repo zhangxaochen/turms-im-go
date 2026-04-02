@@ -66,6 +66,8 @@ func (r *userRepository) FindByID(ctx context.Context, userID int64) (*po.User, 
 	return &user, nil
 }
 
+// @MappedFrom findMany(Filter filter, QueryOptions options)
+// @MappedFrom findMany(Filter filter)
 func (r *userRepository) FindMany(ctx context.Context, filter bson.M) ([]*po.User, error) {
 	cursor, err := r.coll.Find(ctx, filter)
 	if err != nil {
@@ -95,6 +97,9 @@ func (r *userRepository) DeleteMany(ctx context.Context, filter bson.M) (int64, 
 	return result.DeletedCount, nil
 }
 
+// @MappedFrom count(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange blockDateRange, @Nullable Set<Long> requesterIds)
+// @MappedFrom count(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange)
+// @MappedFrom count()
 func (r *userRepository) Count(ctx context.Context, filter bson.M) (int64, error) {
 	return r.coll.CountDocuments(ctx, filter)
 }
@@ -117,6 +122,8 @@ func (r *userRepository) UpdateMany(ctx context.Context, filter bson.M, update b
 	return result.ModifiedCount, nil
 }
 
+// @MappedFrom updateUsers(@NotEmpty Set<Long> userIds, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive, @Nullable Map<String, Object> userDefinedAttributes)
+// @MappedFrom updateUsers(Set<Long> userIds, @Nullable byte[] password, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable Date registrationDate, @Nullable Boolean isActive, @Nullable Map<String, Object> userDefinedAttributes, @Nullable ClientSession session)
 func (r *userRepository) UpdateUsers(ctx context.Context, userIDs []int64, update bson.M) (int64, error) {
 	if len(userIDs) == 0 {
 		return 0, nil
@@ -125,6 +132,7 @@ func (r *userRepository) UpdateUsers(ctx context.Context, userIDs []int64, updat
 	return r.UpdateMany(ctx, filter, update)
 }
 
+// @MappedFrom updateUsersDeletionDate(Set<Long> userIds)
 func (r *userRepository) UpdateUsersDeletionDate(ctx context.Context, userIDs []int64) (int64, error) {
 	if len(userIDs) == 0 {
 		return 0, nil
@@ -133,6 +141,7 @@ func (r *userRepository) UpdateUsersDeletionDate(ctx context.Context, userIDs []
 	return r.UpdateMany(ctx, filter, bson.M{"dd": time.Now()})
 }
 
+// @MappedFrom countRegisteredUsers(@Nullable DateRange dateRange, boolean queryDeletedRecords)
 func (r *userRepository) CountRegisteredUsers(ctx context.Context, startDate *time.Time, endDate *time.Time, queryDeletedRecords bool) (int64, error) {
 	filter := bson.M{}
 	if startDate != nil || endDate != nil {
@@ -151,6 +160,7 @@ func (r *userRepository) CountRegisteredUsers(ctx context.Context, startDate *ti
 	return r.Count(ctx, filter)
 }
 
+// @MappedFrom countDeletedUsers(@Nullable DateRange dateRange)
 func (r *userRepository) CountDeletedUsers(ctx context.Context, startDate *time.Time, endDate *time.Time) (int64, error) {
 	filter := bson.M{"dd": bson.M{"$ne": nil}}
 	if startDate != nil || endDate != nil {
@@ -166,6 +176,9 @@ func (r *userRepository) CountDeletedUsers(ctx context.Context, startDate *time.
 	return r.Count(ctx, filter)
 }
 
+// @MappedFrom countUsers(@Nullable Set<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive)
+// @MappedFrom countUsers(@QueryParam(required = false)
+// @MappedFrom countUsers(boolean queryDeletedRecords)
 func (r *userRepository) CountUsers(ctx context.Context, startDate *time.Time, endDate *time.Time) (int64, error) {
 	filter := bson.M{}
 	if startDate != nil || endDate != nil {
@@ -185,6 +198,7 @@ func (r *userRepository) CountAllUsers(ctx context.Context) (int64, error) {
 	return r.Count(ctx, bson.M{})
 }
 
+// @MappedFrom findName(Long userId)
 func (r *userRepository) FindName(ctx context.Context, userID int64) (string, error) {
 	user, err := r.FindByID(ctx, userID)
 	if err != nil || user == nil {
@@ -193,6 +207,7 @@ func (r *userRepository) FindName(ctx context.Context, userID int64) (string, er
 	return user.Name, nil
 }
 
+// @MappedFrom findAllNames()
 func (r *userRepository) FindAllNames(ctx context.Context) ([]string, error) {
 	users, err := r.FindMany(ctx, bson.M{})
 	if err != nil {
@@ -205,6 +220,7 @@ func (r *userRepository) FindAllNames(ctx context.Context) ([]string, error) {
 	return names, nil
 }
 
+// @MappedFrom findProfileAccessIfNotDeleted(Long userId)
 func (r *userRepository) FindProfileAccessIfNotDeleted(ctx context.Context, userID int64) (*int32, error) {
 	user, err := r.FindByID(ctx, userID)
 	if err != nil || user == nil || user.DeletionDate != nil {
@@ -213,6 +229,7 @@ func (r *userRepository) FindProfileAccessIfNotDeleted(ctx context.Context, user
 	return &user.ProfileAccess, nil
 }
 
+// @MappedFrom findUsers(@Nullable Collection<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive, @Nullable Integer page, @Nullable Integer size, boolean queryDeletedRecords)
 func (r *userRepository) FindUsers(ctx context.Context, userIDs []int64) ([]*po.User, error) {
 	if len(userIDs) == 0 {
 		return []*po.User{}, nil
@@ -221,6 +238,7 @@ func (r *userRepository) FindUsers(ctx context.Context, userIDs []int64) ([]*po.
 	return r.FindMany(ctx, filter)
 }
 
+// @MappedFrom findNotDeletedUserProfiles(Collection<Long> userIds, Collection<String> includedUserDefinedAttributes, @Nullable Date lastUpdatedDate)
 func (r *userRepository) FindNotDeletedUserProfiles(ctx context.Context, userIDs []int64) ([]*po.User, error) {
 	if len(userIDs) == 0 {
 		return []*po.User{}, nil
@@ -229,6 +247,7 @@ func (r *userRepository) FindNotDeletedUserProfiles(ctx context.Context, userIDs
 	return r.FindMany(ctx, filter)
 }
 
+// @MappedFrom findUsersProfile(Collection<Long> userIds, Collection<String> includedUserDefinedAttributes, boolean queryDeletedRecords)
 func (r *userRepository) FindUsersProfile(ctx context.Context, userIDs []int64) ([]*po.User, error) {
 	if len(userIDs) == 0 {
 		return []*po.User{}, nil
@@ -237,6 +256,7 @@ func (r *userRepository) FindUsersProfile(ctx context.Context, userIDs []int64) 
 	return r.FindMany(ctx, filter)
 }
 
+// @MappedFrom findUserRoleId(Long userId)
 func (r *userRepository) FindUserRoleID(ctx context.Context, userID int64) (*int64, error) {
 	user, err := r.FindByID(ctx, userID)
 	if err != nil || user == nil {
@@ -245,6 +265,8 @@ func (r *userRepository) FindUserRoleID(ctx context.Context, userID int64) (*int
 	return &user.PermissionGroupID, nil
 }
 
+// @MappedFrom isActiveAndNotDeleted(Long userId)
+// @MappedFrom isActiveAndNotDeleted(@NotNull Long userId)
 func (r *userRepository) IsActiveAndNotDeleted(ctx context.Context, userID int64) (bool, error) {
 	user, err := r.FindByID(ctx, userID)
 	if err != nil || user == nil {

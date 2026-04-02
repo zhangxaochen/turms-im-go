@@ -32,6 +32,7 @@ type UserSession struct {
 }
 
 // SetLastHeartbeatRequestTimestampToNow updates the heartbeat to now.
+// @MappedFrom setLastHeartbeatRequestTimestampToNow()
 func (s *UserSession) SetLastHeartbeatRequestTimestampToNow() {
 	atomic.StoreInt64(&s.lastHeartbeat, time.Now().UnixMilli())
 }
@@ -42,6 +43,7 @@ func (s *UserSession) GetLastHeartbeatRequestTimestamp() int64 {
 }
 
 // SetLastRequestTimestampToNow updates the last request to now.
+// @MappedFrom setLastRequestTimestampToNow()
 func (s *UserSession) SetLastRequestTimestampToNow() {
 	atomic.StoreInt64(&s.lastRequest, time.Now().UnixMilli())
 }
@@ -52,6 +54,7 @@ func (s *UserSession) GetLastRequestTimestamp() int64 {
 }
 
 // IsOpen returns whether the session's connection is active
+// @MappedFrom isOpen()
 func (s *UserSession) IsOpen() bool {
 	return s.Conn != nil
 }

@@ -41,6 +41,7 @@ func (s *GroupVersionService) UpdateJoinQuestionsVersion(ctx context.Context, gr
 	return s.groupVersionRepo.UpdateJoinQuestionsVersion(ctx, groupID)
 }
 
+// @MappedFrom queryGroupInvitationsVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupInvitationsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
 	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
 	if err != nil || v == nil {

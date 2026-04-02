@@ -113,6 +113,7 @@ func (r *userRelationshipGroupMemberRepository) DeleteById(ctx context.Context, 
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom deleteAllRelatedUserFromRelationshipGroup(Long ownerId, Integer groupIndex)
 func (r *userRelationshipGroupMemberRepository) DeleteAllRelatedUserFromRelationshipGroup(ctx context.Context, ownerID int64, session *mongo.Session) (int64, error) {
 	filter := bson.M{
 		"_id.oid": ownerID,
@@ -133,6 +134,8 @@ func (r *userRelationshipGroupMemberRepository) DeleteAllRelatedUserFromRelation
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom deleteRelatedUserFromRelationshipGroup(Long ownerId, Long relatedUserId, Integer groupIndex, @Nullable ClientSession session)
+// @MappedFrom deleteRelatedUserFromRelationshipGroup(@NotNull Long ownerId, @NotNull Long relatedUserId, @NotNull Integer groupIndex, @Nullable ClientSession session, boolean updateRelationshipGroupsMembersVersion)
 func (r *userRelationshipGroupMemberRepository) DeleteRelatedUserFromRelationshipGroup(ctx context.Context, ownerID int64, relatedUserID int64, groupIndexes []int32, session *mongo.Session) (int64, error) {
 	filter := bson.M{
 		"_id.oid": ownerID,
@@ -159,6 +162,8 @@ func (r *userRelationshipGroupMemberRepository) DeleteRelatedUserFromRelationshi
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom deleteRelatedUsersFromAllRelationshipGroups(Long ownerId, Collection<Long> relatedUserIds, @Nullable ClientSession session)
+// @MappedFrom deleteRelatedUsersFromAllRelationshipGroups(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys, @Nullable ClientSession session, boolean updateRelationshipGroupsMembersVersion)
 func (r *userRelationshipGroupMemberRepository) DeleteRelatedUsersFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserIDs []int64, session *mongo.Session) (int64, error) {
 	if len(relatedUserIDs) == 0 {
 		return 0, nil
@@ -183,6 +188,10 @@ func (r *userRelationshipGroupMemberRepository) DeleteRelatedUsersFromAllRelatio
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom countGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange)
+// @MappedFrom countGroups(@Nullable Collection<Long> ownerIds, @Nullable Collection<Long> relatedUserIds)
+// @MappedFrom countGroups(@QueryParam(required = false)
+// @MappedFrom countGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Set<Long> memberIds)
 func (r *userRelationshipGroupMemberRepository) CountGroups(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) (int64, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
@@ -205,6 +214,7 @@ func (r *userRelationshipGroupMemberRepository) CountMembers(ctx context.Context
 	return r.collection.CountDocuments(ctx, filter)
 }
 
+// @MappedFrom findGroupIndexes(Long ownerId, Long relatedUserId)
 func (r *userRelationshipGroupMemberRepository) FindGroupIndexes(ctx context.Context, ownerID int64, relatedUserID int64) ([]int32, error) {
 	filter := bson.M{
 		"_id.oid": ownerID,
@@ -227,6 +237,8 @@ func (r *userRelationshipGroupMemberRepository) FindGroupIndexes(ctx context.Con
 	return indexes, nil
 }
 
+// @MappedFrom findRelationshipGroupMemberIds(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Integer page, @Nullable Integer size)
+// @MappedFrom findRelationshipGroupMemberIds(Long ownerId, Integer groupIndex)
 func (r *userRelationshipGroupMemberRepository) FindRelationshipGroupMemberIds(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]int64, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
@@ -260,6 +272,7 @@ func (r *userRelationshipGroupMemberRepository) FindRelationshipGroupMemberIds(c
 	return ids, nil
 }
 
+// @MappedFrom findRelationshipGroupMembers(Long ownerId, Integer groupIndex)
 func (r *userRelationshipGroupMemberRepository) FindRelationshipGroupMembers(ctx context.Context, ownerID int64, groupIndex int32) ([]*po.UserRelationshipGroupMember, error) {
 	filter := bson.M{
 		"_id.oid": ownerID,

@@ -47,6 +47,9 @@ func (s *ShardedMap[K, V]) Set(key K, value V) {
 	shard.Unlock()
 }
 
+// @MappedFrom get(UdpNotificationType type)
+// @MappedFrom get(ResponseStatusCode code, String reason)
+// @MappedFrom get(ResponseStatusCode code)
 func (s *ShardedMap[K, V]) Get(key K) (V, bool) {
 	shard := s.getShard(key)
 	shard.RLock()
@@ -55,6 +58,8 @@ func (s *ShardedMap[K, V]) Get(key K) (V, bool) {
 	return val, ok
 }
 
+// @MappedFrom delete(@Nullable Set<Long> groupIds, @Nullable ClientSession session)
+// @MappedFrom delete(@NotEmpty Set<Long> userIds, @Nullable ClientSession session)
 func (s *ShardedMap[K, V]) Delete(key K) {
 	shard := s.getShard(key)
 	shard.Lock()

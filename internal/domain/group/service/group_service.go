@@ -41,6 +41,7 @@ func (s *GroupService) SetGroupVersionService(groupVersionService *GroupVersionS
 }
 
 // CreateGroup creates a new group.
+// @MappedFrom createGroup(@NotNull Long creatorId, @NotNull Long ownerId, @Nullable String groupName, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0)
 func (s *GroupService) CreateGroup(ctx context.Context, creatorID, groupID int64, name, intro *string, minimumScore *int32) (*po.Group, error) {
 	now := time.Now()
 	group := &po.Group{
@@ -98,6 +99,7 @@ func (s *GroupService) DeleteGroup(ctx context.Context, requesterID, groupID int
 	return s.groupRepo.UpdateGroup(ctx, groupID, update)
 }
 
+// @MappedFrom queryGroupTypeIdIfActiveAndNotDeleted(@NotNull Long groupId)
 func (s *GroupService) QueryGroupTypeIdIfActiveAndNotDeleted(ctx context.Context, groupID int64) (*int64, error) {
 	group, err := s.groupRepo.FindGroup(ctx, groupID)
 	if err != nil {
@@ -109,6 +111,7 @@ func (s *GroupService) QueryGroupTypeIdIfActiveAndNotDeleted(ctx context.Context
 	return group.TypeID, nil
 }
 
+// @MappedFrom authAndTransferGroupOwnership(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long successorId, boolean quitAfterTransfer, @Nullable ClientSession session)
 func (s *GroupService) AuthAndTransferGroupOwnership(
 	ctx context.Context,
 	requesterID, groupID, successorID int64,
@@ -160,6 +163,7 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 	}
 }
 // AuthAndDeleteGroup deletes a group after authorization check.
+// @MappedFrom authAndDeleteGroup(boolean queryGroupMemberIds, @NotNull Long requesterId, @NotNull Long groupId)
 func (s *GroupService) AuthAndDeleteGroup(ctx context.Context, requesterID int64, groupID int64) error {
 	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
 	if err != nil {
@@ -177,6 +181,7 @@ func (s *GroupService) AuthAndDeleteGroup(ctx context.Context, requesterID int64
 }
 
 // DeleteGroupsAndGroupMembers performs cascading deletion parity.
+// @MappedFrom deleteGroupsAndGroupMembers(@Nullable Set<Long> groupIds, @Nullable Boolean deleteLogically)
 func (s *GroupService) DeleteGroupsAndGroupMembers(ctx context.Context, groupIDs []int64, session mongo.SessionContext) error {
 	if len(groupIDs) == 0 {
 		return nil

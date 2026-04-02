@@ -36,6 +36,7 @@ func DefaultIpRequestThrottler() *IpRequestThrottler {
 }
 
 // TryAcquireToken returns true if the IP is allowed to proceed, false if rate limited.
+// @MappedFrom tryAcquireToken(ByteArrayWrapper ip, long timestamp)
 func (t *IpRequestThrottler) TryAcquireToken(ip string) bool {
 	// Special case: unlimited
 	if t.Burst <= 0 || t.Limit == 0 {

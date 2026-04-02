@@ -3,6 +3,8 @@ package model
 type BulkRequest struct {
 }
 
+// @MappedFrom serialize(BulkRequest value, JsonGenerator gen, SerializerProvider serializers)
+// @MappedFrom serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)
 func (r *BulkRequest) Serialize() []byte {
 	return nil
 }
@@ -49,6 +51,7 @@ type IndexSettings struct {
 type IndexSettingsAnalysis struct {
 }
 
+// @MappedFrom merge(IndexSettingsAnalysis analysis)
 func (a *IndexSettingsAnalysis) Merge(other *IndexSettingsAnalysis) {
 }
 

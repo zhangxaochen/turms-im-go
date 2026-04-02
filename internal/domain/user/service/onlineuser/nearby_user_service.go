@@ -39,6 +39,7 @@ func NewNearbyUserService(userService service.UserService, sessionLocationServic
 	}
 }
 
+// @MappedFrom queryNearbyUsers(@NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Float longitude, @Nullable Float latitude, @Nullable Short maxCount, @Nullable Integer maxDistance, boolean withCoordinates, boolean withDistance, boolean withUserInfo)
 func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *float64, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error) {
 	if longitude == nil || latitude == nil {
 		return []*NearbyUser{}, nil

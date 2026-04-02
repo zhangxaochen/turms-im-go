@@ -118,6 +118,8 @@ func (s *SessionService) GetAllUserSessions(userID int64) []*UserSession {
 }
 
 // CountOnlineUsers returns the approximate number of active connections in this gateway node.
+// @MappedFrom countOnlineUsers(boolean countByNodes)
+// @MappedFrom countOnlineUsers()
 func (s *SessionService) CountOnlineUsers() int {
 	return s.shardedMap.CountOnlineUsers()
 }

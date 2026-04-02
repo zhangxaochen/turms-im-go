@@ -44,6 +44,7 @@ func NewGroupInvitationService(
 	}
 }
 
+// @MappedFrom authAndCreateGroupInvitation(@NotNull Long groupId, @NotNull Long inviterId, @NotNull Long inviteeId, @Nullable String content)
 func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 	ctx context.Context,
 	requesterID int64,
@@ -139,6 +140,7 @@ func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 	return inv, nil
 }
 
+// @MappedFrom authAndRecallPendingGroupInvitation(@NotNull Long requesterId, @NotNull Long invitationId)
 func (s *GroupInvitationService) AuthAndRecallPendingGroupInvitation(
 	ctx context.Context,
 	requesterID int64,
@@ -178,6 +180,7 @@ func (s *GroupInvitationService) AuthAndRecallPendingGroupInvitation(
 	return nil
 }
 
+// @MappedFrom authAndHandleInvitation(@NotNull Long requesterId, @NotNull Long invitationId, @NotNull @ValidResponseAction ResponseAction action, @Nullable String reason)
 func (s *GroupInvitationService) AuthAndHandleInvitation(
 	ctx context.Context,
 	requesterID int64,
@@ -226,10 +229,12 @@ func (s *GroupInvitationService) AuthAndHandleInvitation(
 	return nil
 }
 
+// @MappedFrom queryInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (s *GroupInvitationService) QueryInvitations(ctx context.Context, groupID *int64, inviterID *int64, inviteeID *int64, status *po.RequestStatus, lastUpdatedDate *time.Time, page int, size int) ([]*po.GroupInvitation, error) {
 	return s.invRepo.FindInvitations(ctx, groupID, inviterID, inviteeID, status, lastUpdatedDate, page, size)
 }
 
+// @MappedFrom queryUserGroupInvitationsWithVersion(@NotNull Long userId, boolean areSentByUser, @Nullable Date lastUpdatedDate)
 func (s *GroupInvitationService) QueryUserGroupInvitationsWithVersion(ctx context.Context, userID int64, areSentInvitations bool, lastUpdatedDate *time.Time) (*po.GroupInvitationsWithVersion, error) {
 	var version *time.Time
 	var err error
@@ -259,6 +264,7 @@ func (s *GroupInvitationService) QueryUserGroupInvitationsWithVersion(ctx contex
 	}, nil
 }
 
+// @MappedFrom authAndQueryGroupInvitationsWithVersion(@NotNull Long userId, @NotNull Long groupId, @Nullable Date lastUpdatedDate)
 func (s *GroupInvitationService) AuthAndQueryGroupInvitationsWithVersion(ctx context.Context, requesterID int64, groupID int64, lastUpdatedDate *time.Time) (*po.GroupInvitationsWithVersion, error) {
 	role, err := s.groupMemberService.QueryGroupMemberRole(ctx, groupID, requesterID)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 
 var (
 	javaMethodRegex = regexp.MustCompile(`(?m)^\s*(?:@\w+(?:\([^)]*\))?\s*)*public\s+(?:static\s+|final\s+|abstract\s+|default\s+)*(?:<[^>]+>\s+)?(?:[\w<>[\]?,\s]+\s+)+(\w+)\s*\(([^)]*)\)`)
-	goMethodRegex   = regexp.MustCompile(`(?m)^func\s+(?:\([^)]+\)\s+)?(\w+)\s*\(([^)]*)\)`)
+	goMethodRegex   = regexp.MustCompile(`(?m)((?:^\s*//\s*@MappedFrom\s+[^\n]+\n)+)?^func\s+(?:\([^)]+\)\s+)?(\w+)\s*\(([^)]*)\)`)
 )
 
 type MethodDef struct {
@@ -33,11 +33,43 @@ func extractPublicMethods(code string) []MethodDef {
 	return methods
 }
 
-func extractGoMethods(code string) []MethodDef {
+func extractGoMethods(code string) []GoMethod {
 	matches := goMethodRegex.FindAllStringSubmatch(code, -1)
-	var methods []MethodDef
+	var methods []GoMethod
+	mappedFromRegex := regexp.MustCompile(`@MappedFrom\s+([^\n]+)`)
+
 	for _, match := range matches {
-		methods = append(methods, MethodDef{Name: match[1], Args: cleanWhitespace(match[2])})
+		mappedFromBlock := match[1]
+		name := match[2]
+		args := cleanWhitespace(match[3])
+
+		if mappedFromBlock != "" {
+			lines := strings.Split(mappedFromBlock, "\n")
+			hasAtLeastOne := false
+			for _, line := range lines {
+				if strings.TrimSpace(line) == "" {
+					continue
+				}
+				subMatch := mappedFromRegex.FindStringSubmatch(line)
+				if len(subMatch) > 1 {
+					hasAtLeastOne = true
+					methods = append(methods, GoMethod{
+						MappedFrom: strings.TrimSpace(subMatch[1]),
+						Name:       name,
+						Args:       args,
+					})
+				}
+			}
+			if !hasAtLeastOne {
+				methods = append(methods, GoMethod{Name: name, Args: args})
+			}
+		} else {
+			methods = append(methods, GoMethod{
+				MappedFrom: "",
+				Name:       name,
+				Args:       args,
+			})
+		}
 	}
 	return methods
 }
@@ -60,9 +92,10 @@ type JavaConfig struct {
 }
 
 type GoMethod struct {
-	Path string
-	Name string
-	Args string
+	Path       string
+	Name       string
+	Args       string
+	MappedFrom string
 }
 
 func main() {
@@ -85,13 +118,21 @@ func main() {
 				if err == nil {
 					methods := extractGoMethods(string(content))
 					for _, m := range methods {
+						if m.MappedFrom != "" {
+							idx := strings.Index(m.MappedFrom, "(")
+							if idx > 0 {
+								javaName := strings.TrimSpace(m.MappedFrom[:idx])
+								lowerM := strings.ToLower(javaName)
+								m.Path = path
+								goMethodMap[lowerM] = append(goMethodMap[lowerM], m)
+								continue
+							}
+						}
+						
 						lowerM := strings.ToLower(m.Name)
 						if !ignoreMethods[lowerM] {
-							goMethodMap[lowerM] = append(goMethodMap[lowerM], GoMethod{
-								Path: path,
-								Name: m.Name,
-								Args: m.Args,
-							})
+							m.Path = path
+							goMethodMap[lowerM] = append(goMethodMap[lowerM], m)
 						}
 					}
 				}
@@ -185,11 +226,36 @@ func main() {
 			for _, m := range f.Methods {
 				goMethods, exists := goMethodMap[strings.ToLower(m.Name)]
 				if exists && len(goMethods) > 0 {
-					var goStrs []string
+					var exactMatches []GoMethod
+					var fuzzyMatches []GoMethod
+					javaSig := fmt.Sprintf("%s(%s)", m.Name, m.Args)
+
 					for _, gm := range goMethods {
-						goStrs = append(goStrs, fmt.Sprintf("`%s:%s(%s)`", gm.Path, gm.Name, gm.Args))
+						if gm.MappedFrom != "" {
+							if cleanWhitespace(gm.MappedFrom) == cleanWhitespace(javaSig) {
+								exactMatches = append(exactMatches, gm)
+							}
+						} else {
+							fuzzyMatches = append(fuzzyMatches, gm)
+						}
 					}
-					sb.WriteString(fmt.Sprintf("  - [x] `%s(%s)` -> %s\n", m.Name, m.Args, strings.Join(goStrs, ", ")))
+
+					var matchesToUse []GoMethod
+					if len(exactMatches) > 0 {
+						matchesToUse = exactMatches
+					} else {
+						matchesToUse = fuzzyMatches
+					}
+
+					if len(matchesToUse) > 0 {
+						var goStrs []string
+						for _, gm := range matchesToUse {
+							goStrs = append(goStrs, fmt.Sprintf("`%s:%s(%s)`", gm.Path, gm.Name, gm.Args))
+						}
+						sb.WriteString(fmt.Sprintf("  - [x] `%s(%s)` -> %s\n", m.Name, m.Args, strings.Join(goStrs, ", ")))
+					} else {
+						sb.WriteString(fmt.Sprintf("  - [ ] `%s(%s)`\n", m.Name, m.Args))
+					}
 				} else {
 					sb.WriteString(fmt.Sprintf("  - [ ] `%s(%s)`\n", m.Name, m.Args))
 				}

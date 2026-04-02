@@ -35,11 +35,12 @@ func TestUserRelationshipLifecycle(t *testing.T) {
 
 	userVersionSvc := service.NewUserVersionService(versionRepo)
 	groupSvc := service.NewUserRelationshipGroupService(groupRepo, groupMemberRepo, userVersionSvc)
-	relSvc := service.NewUserRelationshipService(relRepo, groupSvc, userVersionSvc, mongoClient, nil)
+	mockOutboundSvc := testingutil.NewMockOutboundMessageService()
+	relSvc := service.NewUserRelationshipService(relRepo, groupSvc, userVersionSvc, mongoClient, mockOutboundSvc)
 
 	idGen, err := idgen.NewSnowflakeIdGenerator(1, 1)
 	require.NoError(t, err)
-	reqSvc := service.NewUserFriendRequestService(idGen, reqRepo, relSvc, userVersionSvc, nil)
+	reqSvc := service.NewUserFriendRequestService(idGen, reqRepo, relSvc, userVersionSvc, mockOutboundSvc)
 
 	// 3. Test scenario: User 1 wants to add User 2
 	var user1ID int64 = 1001

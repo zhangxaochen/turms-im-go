@@ -39,6 +39,8 @@ func (r *PrivateConversationRepository) UpsertReadDate(ctx context.Context, owne
 }
 
 // QueryPrivateConversations retrieves private conversations for given ownerIDs.
+// @MappedFrom queryPrivateConversations(@NotNull Collection<Long> ownerIds, @NotNull Long targetId)
+// @MappedFrom queryPrivateConversations(@NotNull Set<PrivateConversation.Key> keys)
 func (r *PrivateConversationRepository) QueryPrivateConversations(ctx context.Context, ownerIDs []int64) ([]*po.PrivateConversation, error) {
 	if len(ownerIDs) == 0 {
 		return nil, nil

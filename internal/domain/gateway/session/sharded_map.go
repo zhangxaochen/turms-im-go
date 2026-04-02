@@ -27,6 +27,7 @@ func (m *UserSessionsManager) AddSession(session *UserSession) {
 	m.Sessions[session.DeviceType] = session
 }
 
+// @MappedFrom getSession(@NotNull DeviceType deviceType)
 func (m *UserSessionsManager) GetSession(deviceType protocol.DeviceType) *UserSession {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -39,6 +40,7 @@ func (m *UserSessionsManager) RemoveSession(deviceType protocol.DeviceType) {
 	delete(m.Sessions, deviceType)
 }
 
+// @MappedFrom isEmpty()
 func (m *UserSessionsManager) IsEmpty() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

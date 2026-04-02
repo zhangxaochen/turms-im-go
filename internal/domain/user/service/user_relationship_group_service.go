@@ -53,6 +53,7 @@ func NewUserRelationshipGroupService(
 	}
 }
 
+// @MappedFrom createRelationshipGroup(@NotNull Long ownerId, @Nullable Integer groupIndex, @NotNull String groupName, @Nullable @PastOrPresent Date creationDate, @Nullable ClientSession session)
 func (s *userRelationshipGroupService) CreateRelationshipGroup(
 	ctx context.Context,
 	ownerID int64,
@@ -106,6 +107,7 @@ func (s *userRelationshipGroupService) CreateRelationshipGroup(
 	return nil, err
 }
 
+// @MappedFrom queryRelationshipGroupsInfos(@NotNull Long ownerId)
 func (s *userRelationshipGroupService) QueryRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error) {
 	if err := validator.NotNull(ownerID, "ownerID"); err != nil {
 		return nil, err
@@ -113,6 +115,7 @@ func (s *userRelationshipGroupService) QueryRelationshipGroupsInfos(ctx context.
 	return s.groupRepo.FindRelationshipGroupsInfos(ctx, ownerID)
 }
 
+// @MappedFrom queryRelationshipGroupsInfosWithVersion(@NotNull Long ownerId, @Nullable Date lastUpdatedDate)
 func (s *userRelationshipGroupService) QueryRelationshipGroupsInfosWithVersion(
 	ctx context.Context,
 	ownerID int64,
@@ -132,6 +135,7 @@ func (s *userRelationshipGroupService) QueryRelationshipGroupsInfosWithVersion(
 	return groups, version, err
 }
 
+// @MappedFrom queryGroupIndexes(@NotNull Long ownerId, @NotNull Long relatedUserId)
 func (s *userRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ownerID int64, relatedUserID int64) ([]int32, error) {
 	if err := validator.NotNull(ownerID, "ownerID"); err != nil {
 		return nil, err
@@ -142,6 +146,8 @@ func (s *userRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ow
 	return s.groupMemberRepo.FindGroupIndexes(ctx, ownerID, relatedUserID)
 }
 
+// @MappedFrom queryRelationshipGroupMemberIds(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Integer page, @Nullable Integer size)
+// @MappedFrom queryRelationshipGroupMemberIds(@NotNull Long ownerId, @NotNull Integer groupIndex)
 func (s *userRelationshipGroupService) QueryRelationshipGroupMemberIds(
 	ctx context.Context,
 	ownerID int64,
@@ -185,6 +191,7 @@ func (s *userRelationshipGroupService) UpdateRelationshipGroupName(
 	return nil
 }
 
+// @MappedFrom upsertRelationshipGroupMember(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable Integer newGroupIndex, @Nullable Integer deleteGroupIndex, @Nullable ClientSession session)
 func (s *userRelationshipGroupService) UpsertRelationshipGroupMember(
 	ctx context.Context,
 	ownerID int64,
@@ -327,6 +334,7 @@ func (s *userRelationshipGroupService) DeleteRelationshipGroups(
 	return count, nil
 }
 
+// @MappedFrom deleteRelationshipGroupAndMoveMembersToNewGroup(@NotNull Long ownerId, @NotNull Integer deleteGroupIndex, @NotNull Integer newGroupIndex)
 func (s *userRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNewGroup(
 	ctx context.Context,
 	ownerID int64,
@@ -464,6 +472,7 @@ func (s *userRelationshipGroupService) DeleteRelatedUsersFromAllRelationshipGrou
 	return count, nil
 }
 
+// @MappedFrom moveRelatedUserToNewGroup(@NotNull Long ownerId, @NotNull Long relatedUserId, @NotNull Integer currentGroupIndex, @NotNull Integer targetGroupIndex, boolean suppressIfAlreadyExistsInTargetGroup, @Nullable ClientSession session)
 func (s *userRelationshipGroupService) MoveRelatedUserToNewGroup(
 	ctx context.Context,
 	ownerID int64,
@@ -513,10 +522,13 @@ func (s *userRelationshipGroupService) CountRelationshipGroups(ctx context.Conte
 	return s.groupRepo.CountRelationshipGroups(ctx, ownerIDs, nil)
 }
 
+// @MappedFrom countRelationshipGroupMembers(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes)
 func (s *userRelationshipGroupService) CountRelationshipGroupMembers(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error) {
 	return s.groupMemberRepo.CountMembers(ctx, ownerIDs, groupIndexes)
 }
 
+// @MappedFrom queryRelationshipGroups(@QueryParam(required = false)
+// @MappedFrom queryRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (s *userRelationshipGroupService) QueryRelationshipGroups(
 	ctx context.Context,
 	ownerIDs []int64,
