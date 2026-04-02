@@ -1809,23 +1809,23 @@
 - **UserFriendRequestService.java** (`java/im/turms/service/domain/user/service/UserFriendRequestService.java`)
 > [简述功能]
 
-  - [ ] `removeAllExpiredFriendRequests`
+  - [x] `removeAllExpiredFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `hasPendingFriendRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [x] `createFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `authAndCreateFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [ ] `authAndRecallFriendRequest`
+  - [x] `authAndRecallFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `updatePendingFriendRequestStatus` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [ ] `updateFriendRequests`
-  - [ ] `queryRecipientId`
-  - [ ] `queryRequesterIdAndRecipientIdAndStatus`
-  - [ ] `queryRequesterIdAndRecipientIdAndCreationDateAndStatus`
+  - [x] `updateFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `queryRecipientId` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `queryRequesterIdAndRecipientIdAndStatus` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `queryRequesterIdAndRecipientIdAndCreationDateAndStatus` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `authAndHandleFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [ ] `queryFriendRequestsWithVersion`
+  - [x] `queryFriendRequestsWithVersion` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `queryFriendRequestsByRecipientId` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `queryFriendRequestsByRequesterId` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [ ] `deleteFriendRequests`
-  - [ ] `queryFriendRequests`
-  - [ ] `countFriendRequests`
+  - [x] `deleteFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `queryFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `countFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
 
 - **UserRelationshipGroupService.java** (`java/im/turms/service/domain/user/service/UserRelationshipGroupService.java`)
 > [简述功能]
@@ -1856,26 +1856,26 @@
 - **UserRelationshipService.java** (`java/im/turms/service/domain/user/service/UserRelationshipService.java`)
 > [简述功能]
 
-  - [ ] `deleteAllRelationships`
-  - [ ] `deleteOneSidedRelationships`
+  - [x] `deleteAllRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `deleteOneSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `deleteOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `tryDeleteTwoSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `queryRelatedUserIdsWithVersion`
-  - [ ] `queryRelationshipsWithVersion`
+  - [x] `queryRelatedUserIdsWithVersion` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `queryRelationshipsWithVersion` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `queryRelatedUserIds` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `queryRelatedUserIds`
+  - [x] `queryRelatedUserIds` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `queryRelationships` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `queryMembersRelationships`
-  - [ ] `countRelationships`
-  - [ ] `countRelationships`
+  - [x] `queryMembersRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `countRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `countRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `friendTwoUsers` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `upsertOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `isNotBlocked`
+  - [x] `isNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `updateUserOneSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `hasOneSidedRelationship`
+  - [x] `hasOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
 
 - **UserRoleService.java** (`java/im/turms/service/domain/user/service/UserRoleService.java`)
 > [简述功能]

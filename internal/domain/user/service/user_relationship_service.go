@@ -23,6 +23,12 @@ type UserRelationshipService interface {
 	UpsertOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error
 	UpdateUserOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error
 	TryDeleteTwoSidedRelationships(ctx context.Context, user1ID, user2ID int64) error
+	DeleteAllRelationships(ctx context.Context, ids []int64) error
+	DeleteOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64) error
+	QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int) ([]po.UserRelationship, error)
+	CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error)
+	IsNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
+	HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 	QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error)
 	QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error)
 	BlockUser(ctx context.Context, ownerID int64, relatedUserID int64) error
@@ -199,3 +205,32 @@ func (s *userRelationshipService) QueryRelationships(ctx context.Context, ownerI
 func (s *userRelationshipService) QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error) {
 	return s.repo.FindRelatedUserIDs(ctx, ownerID, isBlocked)
 }
+
+func (s *userRelationshipService) DeleteAllRelationships(ctx context.Context, ids []int64) error {
+	return s.repo.DeleteAllRelationships(ctx, ids)
+}
+
+func (s *userRelationshipService) DeleteOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64) error {
+	return s.repo.DeleteOneSidedRelationships(ctx, []int64{ownerID}, relatedUserIDs)
+}
+
+func (s *userRelationshipService) QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int) ([]po.UserRelationship, error) {
+	return s.repo.QueryMembersRelationships(ctx, ownerID, groupIndexes, page, size)
+}
+
+func (s *userRelationshipService) CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error) {
+	return s.repo.CountRelationships(ctx, ownerIDs, relatedUserIDs, groupIndexes, isBlocked)
+}
+
+func (s *userRelationshipService) IsNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	isBlocked, err := s.IsBlocked(ctx, ownerID, relatedUserID)
+	if err != nil {
+		return false, err
+	}
+	return !isBlocked, nil
+}
+
+func (s *userRelationshipService) HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	return s.repo.HasOneSidedRelationship(ctx, ownerID, relatedUserID)
+}
+

@@ -20,6 +20,11 @@ type UserRelationshipRepository interface {
 	FindRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error)
 	DeleteById(ctx context.Context, ownerID, relatedUserID int64) error
 	Upsert(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string, session mongo.SessionContext) error
+	DeleteAllRelationships(ctx context.Context, ownerIDs []int64) error
+	DeleteOneSidedRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64) error
+	CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error)
+	QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int) ([]po.UserRelationship, error)
+	HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 }
 
 type userRelationshipRepository struct {
@@ -157,3 +162,85 @@ func (r *userRelationshipRepository) FindRelationships(ctx context.Context, owne
 	}
 	return rels, nil
 }
+
+func (r *userRelationshipRepository) DeleteAllRelationships(ctx context.Context, ownerIDs []int64) error {
+	filter := bson.M{"_id.oid": bson.M{"$in": ownerIDs}}
+	_, err := r.coll.DeleteMany(ctx, filter)
+	return err
+}
+
+func (r *userRelationshipRepository) DeleteOneSidedRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64) error {
+	filter := bson.M{}
+	if len(ownerIDs) > 0 {
+		filter["_id.oid"] = bson.M{"$in": ownerIDs}
+	}
+	if len(relatedUserIDs) > 0 {
+		filter["_id.rid"] = bson.M{"$in": relatedUserIDs}
+	}
+	_, err := r.coll.DeleteMany(ctx, filter)
+	return err
+}
+
+func (r *userRelationshipRepository) countOrFindFilter(ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) bson.M {
+	filter := bson.M{}
+	if len(ownerIDs) > 0 {
+		filter["_id.oid"] = bson.M{"$in": ownerIDs}
+	}
+	if len(relatedUserIDs) > 0 {
+		filter["_id.rid"] = bson.M{"$in": relatedUserIDs}
+	}
+	if len(groupIndexes) > 0 {
+		filter["gi"] = bson.M{"$in": groupIndexes}
+	}
+	if isBlocked != nil {
+		if *isBlocked {
+			filter["bd"] = bson.M{"$ne": nil}
+		} else {
+			filter["bd"] = nil
+		}
+	}
+	return filter
+}
+
+func (r *userRelationshipRepository) CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error) {
+	filter := r.countOrFindFilter(ownerIDs, relatedUserIDs, groupIndexes, isBlocked)
+	return r.coll.CountDocuments(ctx, filter)
+}
+
+func (r *userRelationshipRepository) QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int) ([]po.UserRelationship, error) {
+	filter := r.countOrFindFilter([]int64{ownerID}, nil, groupIndexes, nil)
+	opts := options.Find().SetSort(bson.M{"ed": -1})
+	if page != nil && size != nil {
+		opts.SetSkip(int64(*page * *size))
+		opts.SetLimit(int64(*size))
+	} else if size != nil {
+		opts.SetLimit(int64(*size))
+	}
+
+	cursor, err := r.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rels []po.UserRelationship
+	if err := cursor.All(ctx, &rels); err != nil {
+		return nil, err
+	}
+	return rels, nil
+}
+
+func (r *userRelationshipRepository) HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	filter := bson.M{
+		"_id": po.UserRelationshipKey{
+			OwnerID:       ownerID,
+			RelatedUserID: relatedUserID,
+		},
+	}
+	count, err := r.coll.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
