@@ -11,24 +11,33 @@ import (
 )
 
 var (
-	javaMethodRegex = regexp.MustCompile(`(?m)^\s*(?:@\w+\s*)*public\s+(?:static\s+|final\s+|abstract\s+|default\s+)*(?:<[^>]+>\s+)?(?:[\w<>[\]?,\s]+\s+)+(\w+)\s*\(`)
-	goMethodRegex   = regexp.MustCompile(`(?m)^func\s+(?:\([^)]+\)\s+)?(\w+)\s*\(`)
+	javaMethodRegex = regexp.MustCompile(`(?m)^\s*(?:@\w+(?:\([^)]*\))?\s*)*public\s+(?:static\s+|final\s+|abstract\s+|default\s+)*(?:<[^>]+>\s+)?(?:[\w<>[\]?,\s]+\s+)+(\w+)\s*\(([^)]*)\)`)
+	goMethodRegex   = regexp.MustCompile(`(?m)^func\s+(?:\([^)]+\)\s+)?(\w+)\s*\(([^)]*)\)`)
 )
 
-func extractPublicMethods(code string) []string {
+type MethodDef struct {
+	Name string
+	Args string
+}
+
+func cleanWhitespace(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+func extractPublicMethods(code string) []MethodDef {
 	matches := javaMethodRegex.FindAllStringSubmatch(code, -1)
-	var methods []string
+	var methods []MethodDef
 	for _, match := range matches {
-		methods = append(methods, match[1])
+		methods = append(methods, MethodDef{Name: match[1], Args: cleanWhitespace(match[2])})
 	}
 	return methods
 }
 
-func extractGoMethods(code string) []string {
+func extractGoMethods(code string) []MethodDef {
 	matches := goMethodRegex.FindAllStringSubmatch(code, -1)
-	var methods []string
+	var methods []MethodDef
 	for _, match := range matches {
-		methods = append(methods, match[1])
+		methods = append(methods, MethodDef{Name: match[1], Args: cleanWhitespace(match[2])})
 	}
 	return methods
 }
@@ -42,7 +51,7 @@ type JavaModule struct {
 type JavaFile struct {
 	RelativePath string
 	ClassName    string
-	Methods      []string
+	Methods      []MethodDef
 }
 
 type JavaConfig struct {
@@ -50,8 +59,14 @@ type JavaConfig struct {
 	Name         string
 }
 
+type GoMethod struct {
+	Path string
+	Name string
+	Args string
+}
+
 func main() {
-	goMethodMap := make(map[string]string) // method name (lowercase) -> relative go file path
+	goMethodMap := make(map[string][]GoMethod) // method name (lowercase) -> all its implementations
 
 	ignoreMethods := map[string]bool{
 		"init":     true,
@@ -70,9 +85,13 @@ func main() {
 				if err == nil {
 					methods := extractGoMethods(string(content))
 					for _, m := range methods {
-						lowerM := strings.ToLower(m)
+						lowerM := strings.ToLower(m.Name)
 						if !ignoreMethods[lowerM] {
-							goMethodMap[lowerM] = path
+							goMethodMap[lowerM] = append(goMethodMap[lowerM], GoMethod{
+								Path: path,
+								Name: m.Name,
+								Args: m.Args,
+							})
 						}
 					}
 				}
@@ -164,11 +183,15 @@ func main() {
 			sb.WriteString(fmt.Sprintf("- **%s** (`%s`)\n", f.ClassName, f.RelativePath))
 			sb.WriteString("> [简述功能]\n\n")
 			for _, m := range f.Methods {
-				goPath, exists := goMethodMap[strings.ToLower(m)]
-				if exists {
-					sb.WriteString(fmt.Sprintf("  - [x] `%s` -> `%s`\n", m, goPath))
+				goMethods, exists := goMethodMap[strings.ToLower(m.Name)]
+				if exists && len(goMethods) > 0 {
+					var goStrs []string
+					for _, gm := range goMethods {
+						goStrs = append(goStrs, fmt.Sprintf("`%s:%s(%s)`", gm.Path, gm.Name, gm.Args))
+					}
+					sb.WriteString(fmt.Sprintf("  - [x] `%s(%s)` -> %s\n", m.Name, m.Args, strings.Join(goStrs, ", ")))
 				} else {
-					sb.WriteString(fmt.Sprintf("  - [ ] `%s`\n", m))
+					sb.WriteString(fmt.Sprintf("  - [ ] `%s(%s)`\n", m.Name, m.Args))
 				}
 			}
 			sb.WriteString("\n")
