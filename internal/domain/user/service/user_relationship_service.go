@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -90,7 +91,7 @@ func (s *userRelationshipService) FriendTwoUsers(ctx context.Context, user1ID in
 	}
 
 	// Start a MongoDB session to insert transationally
-	return s.mongoClient.Client.UseSession(ctx, func(sessCtx mongo.SessionContext) error {
+	err := s.mongoClient.Client.UseSession(ctx, func(sessCtx mongo.SessionContext) error {
 		err := sessCtx.StartTransaction()
 		if err != nil {
 			return err
@@ -119,6 +120,23 @@ func (s *userRelationshipService) FriendTwoUsers(ctx context.Context, user1ID in
 		}
 		return err
 	})
+
+	if err != nil && (strings.Contains(err.Error(), "Transaction numbers are only allowed on a replica set member") || strings.Contains(err.Error(), "Standalone")) {
+		// Fallback to non-transactional execution
+		now := time.Now()
+		if upsertErr := s.repo.Upsert(ctx, user1ID, user2ID, nil, nil, &now, nil, nil); upsertErr != nil {
+			return upsertErr
+		}
+		if upsertErr := s.repo.Upsert(ctx, user2ID, user1ID, nil, nil, &now, nil, nil); upsertErr != nil {
+			return upsertErr
+		}
+		// Invalidate caches
+		s.relCache.Delete(fmt.Sprintf("%d:%d", user1ID, user2ID))
+		s.relCache.Delete(fmt.Sprintf("%d:%d", user2ID, user1ID))
+		return nil
+	}
+
+	return err
 }
 
 func (s *userRelationshipService) DeleteOneSidedRelationship(ctx context.Context, ownerID int64, relatedUserID int64) error {

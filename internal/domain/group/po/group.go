@@ -19,5 +19,5 @@ type Group struct {
 	MuteEndDate      *time.Time `bson:"med,omitempty"`
 	IsActive         *bool      `bson:"ac,omitempty"`
 
-	UserDefinedAttributes map[string]any `bson:"user_defined_attributes,omitempty"`
+	UserDefinedAttributes map[string]any `bson:"uda,omitempty"`
 }

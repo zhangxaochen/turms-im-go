@@ -9,6 +9,7 @@ import (
 	"im.turms/server/internal/domain/common/cache"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
+	"im.turms/server/pkg/protocol"
 )
 
 var (
@@ -38,13 +39,13 @@ func (s *GroupMemberService) Close() {
 
 // AddGroupMember adds a new member with the given role.
 // Only admins (Owner/Manager) can explicitly add someone without an invite.
-func (s *GroupMemberService) AddGroupMember(ctx context.Context, requesterID, targetUserID, groupID int64, targetRole po.GroupMemberRole) error {
+func (s *GroupMemberService) AddGroupMember(ctx context.Context, requesterID, targetUserID, groupID int64, targetRole protocol.GroupMemberRole) error {
 	// Simple RBAC: check if requester is Owner/Manager
 	role, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
 	if err != nil {
 		return err
 	}
-	if role == nil || (*role != po.GroupMemberRole_OWNER && *role != po.GroupMemberRole_MANAGER) {
+	if role == nil || (*role != protocol.GroupMemberRole_OWNER && *role != protocol.GroupMemberRole_MANAGER) {
 		return ErrUnauthorized
 	}
 

@@ -7,6 +7,7 @@ import (
 
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
@@ -60,7 +61,7 @@ func (s *GroupService) DeleteGroup(ctx context.Context, requesterID, groupID int
 	}
 
 	now := time.Now()
-	update := map[string]interface{}{}
+	update := bson.M{}
 	update["dd"] = now
 
 	return s.groupRepo.UpdateGroup(ctx, groupID, update)
