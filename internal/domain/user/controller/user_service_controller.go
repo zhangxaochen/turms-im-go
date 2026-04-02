@@ -15,20 +15,26 @@ import (
 )
 
 type UserServiceController struct {
-	userService       service.UserService
-	nearbyUserService onlineuser.NearbyUserService
-	sessionService    onlineuser.SessionService
+	userService            service.UserService
+	nearbyUserService      onlineuser.NearbyUserService
+	sessionService         onlineuser.SessionService
+	userStatusService      onlineuser.UserStatusService
+	sessionLocationService onlineuser.SessionLocationService
 }
 
 func NewUserServiceController(
 	userService service.UserService,
 	nearbyUserService onlineuser.NearbyUserService,
 	sessionService onlineuser.SessionService,
+	userStatusService onlineuser.UserStatusService,
+	sessionLocationService onlineuser.SessionLocationService,
 ) *UserServiceController {
 	return &UserServiceController{
-		userService:       userService,
-		nearbyUserService: nearbyUserService,
-		sessionService:    sessionService,
+		userService:            userService,
+		nearbyUserService:      nearbyUserService,
+		sessionService:         sessionService,
+		userStatusService:      userStatusService,
+		sessionLocationService: sessionLocationService,
 	}
 }
 
@@ -101,7 +107,7 @@ func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Contex
 	nearbyUsers, err := c.nearbyUserService.QueryNearbyUsers(
 		ctx,
 		s.UserID,
-		int(s.DeviceType),
+		s.DeviceType,
 		&queryReq.Longitude,
 		&queryReq.Latitude,
 		nil, // maxCount
@@ -120,7 +126,7 @@ func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Contex
 			UserId: u.UserID,
 		}
 		if u.DeviceType != nil {
-			nu.DeviceType = protocol.DeviceType(int32(*u.DeviceType)).Enum()
+			nu.DeviceType = u.DeviceType.Enum()
 		}
 		if u.Longitude != nil || u.Latitude != nil {
 			nu.Location = &protocol.UserLocation{}
@@ -161,8 +167,6 @@ func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Contex
 }
 
 // HandleQueryUserOnlineStatusesRequest queries online statuses for a set of user IDs.
-// NOTE: This requires UserStatusService which is not yet ported.
-// Returns empty result for now.
 func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryUserOnlineStatusesRequest()
 	userIDs := queryReq.GetUserIds()
@@ -180,7 +184,7 @@ func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context
 		}
 		statusProtos = append(statusProtos, &protocol.UserOnlineStatus{
 			UserId:           sInfo.UserID,
-			UserStatus:       protocol.UserStatus(int32(sInfo.Status)),
+			UserStatus:       sInfo.Status,
 			UsingDeviceTypes: deviceTypes,
 		})
 	}
@@ -199,20 +203,22 @@ func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context
 }
 
 // HandleUpdateUserLocationRequest updates the user's current location.
-// NOTE: This requires SessionLocationService which is not yet ported.
-// Returns OK for now.
 func (c *UserServiceController) HandleUpdateUserLocationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// TODO: Implement when SessionLocationService is ported
-	_ = req.GetUpdateUserLocationRequest()
+	updateReq := req.GetUpdateUserLocationRequest()
+	err := c.sessionLocationService.UpsertUserLocation(ctx, s.UserID, s.DeviceType, updateReq.Longitude, updateReq.Latitude)
+	if err != nil {
+		return nil, err
+	}
 	return buildSuccessNotification(req.RequestId), nil
 }
 
 // HandleUpdateUserOnlineStatusRequest updates the user's online status (invisible, busy, etc.).
-// NOTE: This requires UserStatusService/SessionService which are not yet fully ported.
-// Returns OK for now.
 func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// TODO: Implement when UserStatusService is ported
-	_ = req.GetUpdateUserOnlineStatusRequest()
+	updateReq := req.GetUpdateUserOnlineStatusRequest()
+	_, err := c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)
+	if err != nil {
+		return nil, err
+	}
 	return buildSuccessNotification(req.RequestId), nil
 }
 
