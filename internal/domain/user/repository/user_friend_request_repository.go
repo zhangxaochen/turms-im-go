@@ -15,9 +15,18 @@ import (
 type UserFriendRequestRepository interface {
 	Insert(ctx context.Context, req *po.UserFriendRequest) error
 	HasPendingFriendRequest(ctx context.Context, requesterID, recipientID int64) (bool, error)
-	UpdateStatusIfPending(ctx context.Context, requestID, recipientID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
+	HasPendingOrDeclinedOrIgnoredOrExpiredRequest(ctx context.Context, requesterID, recipientID int64) (bool, error)
+	UpdateStatusIfPending(ctx context.Context, requestID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
+	UpdateFriendRequests(ctx context.Context, requestIds []int64, requesterID, recipientID *int64, content *string, status *po.RequestStatus, reason *string, creationDate *time.Time) error
 	FindRequestsByRecipientID(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
 	FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
+	FindRecipientId(ctx context.Context, requestID int64) (int64, error)
+	FindRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
+	FindRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
+	DeleteExpiredData(ctx context.Context, expirationDate time.Time) error
+	DeleteByIds(ctx context.Context, ids []int64) error
+	FindFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]po.UserFriendRequest, error)
+	CountFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time) (int64, error)
 }
 
 type userFriendRequestRepository struct {
@@ -48,10 +57,27 @@ func (r *userFriendRequestRepository) HasPendingFriendRequest(ctx context.Contex
 	return count > 0, nil
 }
 
-func (r *userFriendRequestRepository) UpdateStatusIfPending(ctx context.Context, requestID, recipientID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error) {
+func (r *userFriendRequestRepository) HasPendingOrDeclinedOrIgnoredOrExpiredRequest(ctx context.Context, requesterID, recipientID int64) (bool, error) {
+	filter := bson.M{
+		"rqid": requesterID,
+		"rcid": recipientID,
+		"s": bson.M{"$in": []po.RequestStatus{
+			po.RequestStatusPending,
+			po.RequestStatusDeclined,
+			po.RequestStatusIgnored,
+			po.RequestStatusExpired,
+		}},
+	}
+	count, err := r.coll.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *userFriendRequestRepository) UpdateStatusIfPending(ctx context.Context, requestID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error) {
 	filter := bson.M{
 		"_id":  requestID,
-		"rcid": recipientID,
 		"s":    po.RequestStatusPending,
 	}
 	updateOps := bson.M{
@@ -61,15 +87,41 @@ func (r *userFriendRequestRepository) UpdateStatusIfPending(ctx context.Context,
 	if reason != nil {
 		updateOps["r"] = *reason
 	}
-	update := bson.M{
-		"$set": updateOps,
-	}
+	update := bson.M{"$set": updateOps}
 
 	res, err := r.coll.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return false, err
 	}
 	return res.ModifiedCount > 0, nil
+}
+
+func (r *userFriendRequestRepository) UpdateFriendRequests(ctx context.Context, requestIds []int64, requesterID, recipientID *int64, content *string, status *po.RequestStatus, reason *string, creationDate *time.Time) error {
+	filter := bson.M{"_id": bson.M{"$in": requestIds}}
+	updateOps := bson.M{}
+	if requesterID != nil {
+		updateOps["rqid"] = *requesterID
+	}
+	if recipientID != nil {
+		updateOps["rcid"] = *recipientID
+	}
+	if content != nil {
+		updateOps["txt"] = *content
+	}
+	if status != nil {
+		updateOps["s"] = *status
+	}
+	if reason != nil {
+		updateOps["r"] = *reason
+	}
+	if creationDate != nil {
+		updateOps["cd"] = *creationDate
+	}
+	if len(updateOps) == 0 {
+		return nil
+	}
+	_, err := r.coll.UpdateMany(ctx, filter, bson.M{"$set": updateOps})
+	return err
 }
 
 func (r *userFriendRequestRepository) FindRequestsByRecipientID(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
@@ -102,4 +154,122 @@ func (r *userFriendRequestRepository) FindRequestsByRequesterID(ctx context.Cont
 		return nil, err
 	}
 	return reqs, nil
+}
+
+func (r *userFriendRequestRepository) FindRecipientId(ctx context.Context, requestID int64) (int64, error) {
+	filter := bson.M{"_id": requestID}
+	opts := options.FindOne().SetProjection(bson.M{"rcid": 1})
+	var result struct {
+		RecipientID int64 `bson:"rcid"`
+	}
+	err := r.coll.FindOne(ctx, filter, opts).Decode(&result)
+	return result.RecipientID, err
+}
+
+func (r *userFriendRequestRepository) FindRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error) {
+	filter := bson.M{"_id": requestID}
+	opts := options.FindOne().SetProjection(bson.M{"rqid": 1, "rcid": 1, "s": 1})
+	var result po.UserFriendRequest
+	err := r.coll.FindOne(ctx, filter, opts).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (r *userFriendRequestRepository) FindRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error) {
+	filter := bson.M{"_id": requestID}
+	opts := options.FindOne().SetProjection(bson.M{"rqid": 1, "rcid": 1, "cd": 1, "s": 1})
+	var result po.UserFriendRequest
+	err := r.coll.FindOne(ctx, filter, opts).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (r *userFriendRequestRepository) DeleteExpiredData(ctx context.Context, expirationDate time.Time) error {
+	filter := bson.M{"cd": bson.M{"$lt": expirationDate}}
+	_, err := r.coll.DeleteMany(ctx, filter)
+	return err
+}
+
+func (r *userFriendRequestRepository) DeleteByIds(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	_, err := r.coll.DeleteMany(ctx, filter)
+	return err
+}
+
+func (r *userFriendRequestRepository) countOrFind(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time) bson.M {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter["_id"] = bson.M{"$in": ids}
+	}
+	if len(requesterIds) > 0 {
+		filter["rqid"] = bson.M{"$in": requesterIds}
+	}
+	if len(recipientIds) > 0 {
+		filter["rcid"] = bson.M{"$in": recipientIds}
+	}
+	if len(statuses) > 0 {
+		filter["s"] = bson.M{"$in": statuses}
+	}
+	if creationDateStart != nil || creationDateEnd != nil {
+		cdFilter := bson.M{}
+		if creationDateStart != nil {
+			cdFilter["$gte"] = *creationDateStart
+		}
+		if creationDateEnd != nil {
+			cdFilter["$lt"] = *creationDateEnd
+		}
+		filter["cd"] = cdFilter
+	}
+	if responseDateStart != nil || responseDateEnd != nil {
+		rdFilter := bson.M{}
+		if responseDateStart != nil {
+			rdFilter["$gte"] = *responseDateStart
+		}
+		if responseDateEnd != nil {
+			rdFilter["$lt"] = *responseDateEnd
+		}
+		filter["rd"] = rdFilter
+	}
+	return filter
+}
+
+func (r *userFriendRequestRepository) FindFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]po.UserFriendRequest, error) {
+	filter := r.countOrFind(ctx, ids, requesterIds, recipientIds, statuses, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd)
+	opts := options.Find().SetSort(bson.M{"cd": -1})
+	if page != nil && size != nil {
+		opts.SetSkip(int64(*page * *size))
+		opts.SetLimit(int64(*size))
+	} else if size != nil {
+		opts.SetLimit(int64(*size))
+	}
+
+	cursor, err := r.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var reqs []po.UserFriendRequest
+	if err := cursor.All(ctx, &reqs); err != nil {
+		return nil, err
+	}
+	return reqs, nil
+}
+
+func (r *userFriendRequestRepository) CountFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time) (int64, error) {
+	filter := r.countOrFind(ctx, ids, requesterIds, recipientIds, statuses, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd)
+	return r.coll.CountDocuments(ctx, filter)
 }
