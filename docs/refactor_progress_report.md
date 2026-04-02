@@ -659,8 +659,8 @@
 > [简述功能]
 
   - [ ] `addBlockedUserIds`
-  - [ ] `queryBlockedUsers`
-  - [ ] `queryBlockedUsers`
+  - [x] `queryBlockedUsers` -> `internal/domain/group/service/group_blocklist_service.go`
+  - [x] `queryBlockedUsers` -> `internal/domain/group/service/group_blocklist_service.go`
   - [ ] `deleteBlockedUserIds`
 
 - **AddBlockedIpsDTO.java** (`java/im/turms/service/domain/blocklist/access/admin/dto/request/AddBlockedIpsDTO.java`)
@@ -1211,11 +1211,11 @@
 > [简述功能]
 
   - [ ] `authAndBlockUser`
-  - [ ] `unblockUser`
+  - [x] `unblockUser` -> `internal/domain/group/service/group_blocklist_service.go`
   - [ ] `findBlockedUserIds`
   - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `queryGroupBlockedUserIds`
-  - [ ] `queryBlockedUsers`
+  - [x] `queryBlockedUsers` -> `internal/domain/group/service/group_blocklist_service.go`
   - [ ] `countBlockedUsers`
   - [ ] `queryGroupBlockedUserIdsWithVersion`
   - [ ] `queryGroupBlockedUserInfosWithVersion`
