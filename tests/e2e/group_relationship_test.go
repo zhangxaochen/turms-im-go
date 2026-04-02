@@ -83,7 +83,7 @@ func TestGroupRelationshipPOValidation(t *testing.T) {
 		assert.True(t, hasPending)
 
 		now := time.Now()
-		updated, err := invRepo.UpdateStatusIfPending(ctx, 1, userB, po.RequestStatusDeclined, nil, now)
+		updated, err := invRepo.UpdateStatusIfPending(ctx, 1, po.RequestStatusDeclined, nil, now)
 		require.NoError(t, err)
 		assert.True(t, updated)
 	})

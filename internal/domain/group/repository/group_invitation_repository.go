@@ -15,7 +15,7 @@ import (
 type GroupInvitationRepository interface {
 	Insert(ctx context.Context, inv *po.GroupInvitation) error
 	HasPendingInvitation(ctx context.Context, groupID, inviteeID int64) (bool, error)
-	UpdateStatusIfPending(ctx context.Context, invitationID, inviteeID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
+	UpdateStatusIfPending(ctx context.Context, invitationID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
 	FindInvitationsByInviteeID(ctx context.Context, inviteeID int64) ([]po.GroupInvitation, error)
 	FindInvitationsByGroupID(ctx context.Context, groupID int64) ([]po.GroupInvitation, error)
 }
@@ -48,10 +48,9 @@ func (r *groupInvitationRepository) HasPendingInvitation(ctx context.Context, gr
 	return count > 0, nil
 }
 
-func (r *groupInvitationRepository) UpdateStatusIfPending(ctx context.Context, invitationID, inviteeID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error) {
+func (r *groupInvitationRepository) UpdateStatusIfPending(ctx context.Context, invitationID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error) {
 	filter := bson.M{
 		"_id":  invitationID,
-		"ieid": inviteeID,
 		"stat": po.RequestStatusPending,
 	}
 	updateOps := bson.M{
