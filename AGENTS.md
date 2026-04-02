@@ -42,3 +42,10 @@
 3. **显式优于隐式**: 不用 DI 框架，手动构造依赖图
 4. **性能第一**: goroutine 替代 Reactor，zero-alloc 序列化
 5. **可测试性优先**: 所有 service 通过 interface 注入，方便 mock
+
+## [CRITICAL REFRACTOR PROTOCOL]
+When porting/refactoring code from Java to Go, you MUST NOT just translate method signatures blindly.
+BEFORE committing any ported struct/service, you MUST complete this implicit checklist:
+1. **Config Audit**: Which configuration/Properties was the Java version reading? You must read the SAME property in Go using dependency injection. If it does not exist, explicitly mock it or flag it.
+2. **Overload Audit**: Java might have multiple overloaded methods with the same name. Go does not have method overloading. You MUST create multiple explicit Go functions (e.g., `NewX`, `NewXWithReason`, `NewXFromError`) to catch EVERY original path and ensure parity.
+3. **Data Loss Audit**: Ensure all object field assignments via chained Builders in Java (e.g., `.setTimestamp(...)`) are exactly represented in the Go struct literal. Do not drop implicit assignments like system timestamps.

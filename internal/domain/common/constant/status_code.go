@@ -91,3 +91,10 @@ const (
 	ResponseStatusCode_USER_ALREADY_GROUP_MEMBER                       ResponseStatusCode = 3405
 	ResponseStatusCode_GROUP_JOIN_STRATEGY_NOT_JOIN_REQUEST         ResponseStatusCode = 3407
 )
+
+// IsServerError returns true if the turms business code implies a server-side runtime error.
+func IsServerError(code int32) bool {
+	// Roughly based on original Turms ResponseStatusCode mapping ranges:
+	// Usually 1200 / 12xx maps to internal server errors.
+	return code >= 1200 && code < 1300
+}
