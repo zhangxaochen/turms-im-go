@@ -17,3 +17,8 @@ type GroupInvitation struct {
 	ResponseDate *time.Time    `bson:"rd,omitempty"`
 	Reason       *string       `bson:"rsn,omitempty"`
 }
+
+type GroupInvitationsWithVersion struct {
+	GroupInvitations []*GroupInvitation `json:"invitations"`
+	LastUpdatedDate  *time.Time         `json:"lastUpdatedDate"`
+}

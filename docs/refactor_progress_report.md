@@ -140,8 +140,8 @@
 - **UdpSignalResponseBufferPool.java** (`java/im/turms/gateway/access/client/udp/UdpSignalResponseBufferPool.java`)
 > [简述功能]
 
-  - [x] `get` -> `internal/domain/gateway/session/sharded_map.go`
-  - [x] `get` -> `internal/domain/gateway/session/sharded_map.go`
+  - [x] `get` -> `internal/infra/exception/turms_error.go`
+  - [x] `get` -> `internal/infra/exception/turms_error.go`
 
 - **UdpNotification.java** (`java/im/turms/gateway/access/client/udp/dto/UdpNotification.java`)
 > [简述功能]
@@ -738,8 +738,8 @@
 > [简述功能]
 
   - [ ] `ServicePermission`
-  - [x] `get` -> `internal/domain/gateway/session/sharded_map.go`
-  - [x] `get` -> `internal/domain/gateway/session/sharded_map.go`
+  - [x] `get` -> `internal/infra/exception/turms_error.go`
+  - [x] `get` -> `internal/infra/exception/turms_error.go`
 
 - **ExpirableEntityRepository.java** (`java/im/turms/service/domain/common/repository/ExpirableEntityRepository.java`)
 > [简述功能]
@@ -769,7 +769,7 @@
 - **DataValidator.java** (`java/im/turms/service/domain/common/validation/DataValidator.java`)
 > [简述功能]
 
-  - [ ] `validRequestStatus`
+  - [x] `validRequestStatus` -> `internal/infra/validator/validator.go`
   - [ ] `validResponseAction`
   - [ ] `validDeviceType`
   - [ ] `validProfileAccess`
@@ -950,7 +950,7 @@
   - [x] `addGroupMember` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `queryGroupMembers`
   - [ ] `queryGroupMembers`
-  - [ ] `updateGroupMembers`
+  - [x] `updateGroupMembers` -> `internal/domain/group/repository/group_member_repository.go`
   - [ ] `deleteGroupMembers`
 
 - **GroupQuestionController.java** (`java/im/turms/service/domain/group/access/admin/controller/GroupQuestionController.java`)
@@ -1049,33 +1049,33 @@
 - **GroupServiceController.java** (`java/im/turms/service/domain/group/access/servicerequest/controller/GroupServiceController.java`)
 > [简述功能]
 
-  - [ ] `handleCreateGroupRequest`
-  - [ ] `handleDeleteGroupRequest`
-  - [ ] `handleQueryGroupsRequest`
-  - [ ] `handleQueryJoinedGroupIdsRequest`
+  - [x] `handleCreateGroupRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleDeleteGroupRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryGroupsRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryJoinedGroupIdsRequest` -> `internal/domain/group/controller/group_service_controller.go`
   - [ ] `handleQueryJoinedGroupsRequest`
-  - [ ] `handleUpdateGroupRequest`
-  - [ ] `handleCreateGroupBlockedUserRequest`
-  - [ ] `handleDeleteGroupBlockedUserRequest`
-  - [ ] `handleQueryGroupBlockedUserIdsRequest`
+  - [x] `handleUpdateGroupRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleCreateGroupBlockedUserRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleDeleteGroupBlockedUserRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryGroupBlockedUserIdsRequest` -> `internal/domain/group/controller/group_service_controller.go`
   - [ ] `handleQueryGroupBlockedUsersInfosRequest`
   - [ ] `handleCheckGroupQuestionAnswerRequest`
   - [ ] `handleCreateGroupInvitationRequestRequest`
-  - [ ] `handleCreateGroupJoinRequestRequest`
+  - [x] `handleCreateGroupJoinRequestRequest` -> `internal/domain/group/controller/group_service_controller.go`
   - [ ] `handleCreateGroupQuestionsRequest`
-  - [ ] `handleDeleteGroupInvitationRequest`
-  - [ ] `handleUpdateGroupInvitationRequest`
-  - [ ] `handleDeleteGroupJoinRequestRequest`
-  - [ ] `handleUpdateGroupJoinRequestRequest`
-  - [ ] `handleDeleteGroupJoinQuestionsRequest`
-  - [ ] `handleQueryGroupInvitationsRequest`
-  - [ ] `handleQueryGroupJoinRequestsRequest`
-  - [ ] `handleQueryGroupJoinQuestionsRequest`
-  - [ ] `handleUpdateGroupJoinQuestionRequest`
-  - [ ] `handleCreateGroupMembersRequest`
-  - [ ] `handleDeleteGroupMembersRequest`
-  - [ ] `handleQueryGroupMembersRequest`
-  - [ ] `handleUpdateGroupMemberRequest`
+  - [x] `handleDeleteGroupInvitationRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleUpdateGroupInvitationRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleDeleteGroupJoinRequestRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleUpdateGroupJoinRequestRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleDeleteGroupJoinQuestionsRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryGroupInvitationsRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryGroupJoinRequestsRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryGroupJoinQuestionsRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleUpdateGroupJoinQuestionRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleCreateGroupMembersRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleDeleteGroupMembersRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleQueryGroupMembersRequest` -> `internal/domain/group/controller/group_service_controller.go`
+  - [x] `handleUpdateGroupMemberRequest` -> `internal/domain/group/controller/group_service_controller.go`
 
 - **CheckGroupQuestionAnswerResult.java** (`java/im/turms/service/domain/group/bo/CheckGroupQuestionAnswerResult.java`)
 > [简述功能]
@@ -1115,15 +1115,15 @@
 
   - [x] `getEntityExpireAfterSeconds` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [x] `updateStatusIfPending` -> `internal/domain/user/repository/user_friend_request_repository.go`
-  - [ ] `updateInvitations`
+  - [x] `updateInvitations` -> `internal/domain/group/service/group_invitation_service.go`
   - [x] `count` -> `internal/domain/user/repository/user_repository.go`
-  - [ ] `findGroupIdAndInviteeIdAndStatus`
-  - [ ] `findGroupIdAndInviterIdAndInviteeIdAndStatus`
+  - [x] `findGroupIdAndInviteeIdAndStatus` -> `internal/domain/group/repository/group_invitation_repository.go`
+  - [x] `findGroupIdAndInviterIdAndInviteeIdAndStatus` -> `internal/domain/group/repository/group_invitation_repository.go`
   - [x] `findInvitationsByInviteeId` -> `internal/domain/group/repository/group_invitation_repository.go`
   - [ ] `findInvitationsByInviterId`
   - [x] `findInvitationsByGroupId` -> `internal/domain/group/repository/group_invitation_repository.go`
-  - [ ] `findInviteeIdAndGroupIdAndCreationDateAndStatus`
-  - [ ] `findInvitations`
+  - [x] `findInviteeIdAndGroupIdAndCreationDateAndStatus` -> `internal/domain/group/repository/group_invitation_repository.go`
+  - [x] `findInvitations` -> `internal/domain/group/repository/group_invitation_repository.go`
 
 - **GroupJoinRequestRepository.java** (`java/im/turms/service/domain/group/repository/GroupJoinRequestRepository.java`)
 > [简述功能]
@@ -1136,13 +1136,13 @@
   - [ ] `findRequesterIdAndStatusAndGroupId`
   - [x] `findRequestsByGroupId` -> `internal/domain/group/repository/group_join_request_repository.go`
   - [x] `findRequestsByRequesterId` -> `internal/domain/group/repository/group_join_request_repository.go`
-  - [ ] `findRequests`
+  - [x] `findRequests` -> `internal/domain/group/repository/group_join_request_repository.go`
 
 - **GroupMemberRepository.java** (`java/im/turms/service/domain/group/repository/GroupMemberRepository.java`)
 > [简述功能]
 
   - [ ] `deleteAllGroupMembers`
-  - [ ] `updateGroupMembers`
+  - [x] `updateGroupMembers` -> `internal/domain/group/repository/group_member_repository.go`
   - [x] `countMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [x] `countMembers` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
   - [ ] `findGroupManagersAndOwnerId`
@@ -1152,7 +1152,7 @@
   - [x] `findGroupMemberIds` -> `internal/domain/group/repository/group_member_repository.go`
   - [x] `findGroupMemberIds` -> `internal/domain/group/repository/group_member_repository.go`
   - [ ] `findGroupMemberKeyAndRoleParis`
-  - [x] `findGroupMemberRole` -> `internal/domain/group/repository/group_member_repository.go`
+  - [x] `findGroupMemberRole` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `findMemberIdsByGroupId`
   - [x] `findUserJoinedGroupIds` -> `internal/domain/group/repository/group_member_repository.go`
   - [ ] `findUsersJoinedGroupIds`
@@ -1202,7 +1202,7 @@
   - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [ ] `findBlocklist`
-  - [ ] `findInvitations`
+  - [x] `findInvitations` -> `internal/domain/group/repository/group_invitation_repository.go`
   - [ ] `findJoinRequests`
   - [ ] `findJoinQuestions`
   - [ ] `findMembers`
@@ -1210,8 +1210,8 @@
 - **GroupBlocklistService.java** (`java/im/turms/service/domain/group/service/GroupBlocklistService.java`)
 > [简述功能]
 
-  - [ ] `authAndBlockUser`
-  - [x] `unblockUser` -> `internal/domain/group/service/group_blocklist_service.go`
+  - [x] `authAndBlockUser` -> `internal/domain/group/service/group_blocklist_service.go`
+  - [x] `unblockUser` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `findBlockedUserIds`
   - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `queryGroupBlockedUserIds`
@@ -1226,23 +1226,23 @@
 - **GroupInvitationService.java** (`java/im/turms/service/domain/group/service/GroupInvitationService.java`)
 > [简述功能]
 
-  - [ ] `authAndCreateGroupInvitation`
+  - [x] `authAndCreateGroupInvitation` -> `internal/domain/group/service/group_invitation_service.go`
   - [ ] `createGroupInvitation`
   - [ ] `queryGroupIdAndInviterIdAndInviteeIdAndStatus`
   - [ ] `queryGroupIdAndInviteeIdAndStatus`
-  - [ ] `authAndRecallPendingGroupInvitation`
+  - [x] `authAndRecallPendingGroupInvitation` -> `internal/domain/group/service/group_invitation_service.go`
   - [ ] `queryGroupInvitationsByInviteeId`
   - [ ] `queryGroupInvitationsByInviterId`
   - [ ] `queryGroupInvitationsByGroupId`
-  - [ ] `queryUserGroupInvitationsWithVersion`
-  - [ ] `authAndQueryGroupInvitationsWithVersion`
+  - [x] `queryUserGroupInvitationsWithVersion` -> `internal/domain/group/service/group_invitation_service.go`
+  - [x] `authAndQueryGroupInvitationsWithVersion` -> `internal/domain/group/service/group_invitation_service.go`
   - [ ] `queryInviteeIdAndGroupIdAndCreationDateAndStatusByInvitationId`
-  - [ ] `queryInvitations`
-  - [ ] `countInvitations`
-  - [ ] `deleteInvitations`
-  - [ ] `authAndHandleInvitation`
+  - [x] `queryInvitations` -> `internal/domain/group/service/group_invitation_service.go`
+  - [x] `countInvitations` -> `internal/domain/group/service/group_invitation_service.go`
+  - [x] `deleteInvitations` -> `internal/domain/group/service/group_invitation_service.go`
+  - [x] `authAndHandleInvitation` -> `internal/domain/group/service/group_invitation_service.go`
   - [ ] `updatePendingInvitationStatus`
-  - [ ] `updateInvitations`
+  - [x] `updateInvitations` -> `internal/domain/group/service/group_invitation_service.go`
 
 - **GroupJoinRequestService.java** (`java/im/turms/service/domain/group/service/GroupJoinRequestService.java`)
 > [简述功能]
@@ -1253,10 +1253,10 @@
   - [ ] `queryGroupJoinRequestsByGroupId`
   - [ ] `queryGroupJoinRequestsByRequesterId`
   - [ ] `queryGroupId`
-  - [ ] `queryJoinRequests`
+  - [x] `queryJoinRequests` -> `internal/domain/group/service/group_join_request_service.go`
   - [ ] `countJoinRequests`
   - [ ] `deleteJoinRequests`
-  - [ ] `authAndHandleJoinRequest`
+  - [x] `authAndHandleJoinRequest` -> `internal/domain/group/service/group_join_request_service.go`
   - [ ] `updatePendingJoinRequestStatus`
   - [ ] `updateJoinRequests`
   - [ ] `createGroupJoinRequest`
@@ -1265,14 +1265,14 @@
 > [简述功能]
 
   - [x] `addGroupMember` -> `internal/domain/group/service/group_member_service.go`
-  - [ ] `addGroupMembers`
-  - [ ] `authAndAddGroupMembers`
-  - [ ] `authAndDeleteGroupMembers`
-  - [ ] `deleteGroupMember`
+  - [x] `addGroupMembers` -> `internal/domain/group/service/group_member_service.go`
+  - [x] `authAndAddGroupMembers` -> `internal/domain/group/service/group_member_service.go`
+  - [x] `authAndDeleteGroupMembers` -> `internal/domain/group/service/group_member_service.go`
+  - [x] `deleteGroupMember` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `deleteGroupMembers`
   - [ ] `updateGroupMember`
-  - [ ] `updateGroupMembers`
-  - [ ] `updateGroupMembers`
+  - [x] `updateGroupMembers` -> `internal/domain/group/repository/group_member_repository.go`
+  - [x] `updateGroupMembers` -> `internal/domain/group/repository/group_member_repository.go`
   - [x] `isGroupMember` -> `internal/domain/group/service/group_member_service.go`
   - [x] `isGroupMember` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `findExistentMemberGroupIds`
@@ -1281,9 +1281,9 @@
   - [ ] `isAllowedToSendMessage`
   - [x] `isMemberMuted` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `queryGroupMemberKeyAndRolePairs`
-  - [ ] `queryGroupMemberRole`
-  - [ ] `isOwner`
-  - [ ] `isOwnerOrManager`
+  - [x] `queryGroupMemberRole` -> `internal/domain/group/service/group_member_service.go`
+  - [x] `isOwner` -> `internal/domain/group/service/group_member_service.go`
+  - [x] `isOwnerOrManager` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `isOwnerOrManagerOrMember`
   - [ ] `queryUserJoinedGroupIds`
   - [ ] `queryUsersJoinedGroupIds`
@@ -1297,7 +1297,7 @@
   - [ ] `queryGroupMembers`
   - [ ] `authAndQueryGroupMembers`
   - [ ] `authAndQueryGroupMembersWithVersion`
-  - [ ] `authAndUpdateGroupMember`
+  - [x] `authAndUpdateGroupMember` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `deleteAllGroupMembers`
   - [ ] `queryGroupManagersAndOwnerId`
 
@@ -1321,16 +1321,16 @@
 > [简述功能]
 
   - [x] `createGroup` -> `internal/domain/group/service/group_service.go`
-  - [ ] `authAndDeleteGroup`
+  - [x] `authAndDeleteGroup` -> `internal/domain/group/service/group_service.go`
   - [ ] `authAndCreateGroup`
   - [ ] `deleteGroupsAndGroupMembers`
   - [ ] `queryGroups`
   - [ ] `queryGroupTypeIfActiveAndNotDeleted`
   - [ ] `queryGroupTypeIfActiveAndNotDeleted`
   - [ ] `queryGroupTypeId`
-  - [ ] `queryGroupTypeIdIfActiveAndNotDeleted`
+  - [x] `queryGroupTypeIdIfActiveAndNotDeleted` -> `internal/domain/group/service/group_service.go`
   - [ ] `queryGroupMinimumScore`
-  - [ ] `authAndTransferGroupOwnership`
+  - [x] `authAndTransferGroupOwnership` -> `internal/domain/group/service/group_service.go`
   - [ ] `queryGroupOwnerId`
   - [ ] `checkAndTransferGroupOwnership`
   - [ ] `checkAndTransferGroupOwnership`
@@ -1374,14 +1374,14 @@
   - [ ] `queryBlocklistVersion`
   - [x] `queryGroupJoinRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
   - [ ] `queryGroupJoinQuestionsVersion`
-  - [ ] `queryGroupInvitationsVersion`
+  - [x] `queryGroupInvitationsVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateBlocklistVersion` -> `internal/domain/group/service/group_version_service.go`
-  - [x] `updateJoinRequestsVersion` -> `internal/domain/group/repository/group_version_repository.go`
-  - [x] `updateJoinQuestionsVersion` -> `internal/domain/group/repository/group_version_repository.go`
+  - [x] `updateJoinRequestsVersion` -> `internal/domain/group/service/group_version_service.go`
+  - [x] `updateJoinQuestionsVersion` -> `internal/domain/group/service/group_version_service.go`
   - [ ] `updateGroupInvitationsVersion`
   - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
   - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
@@ -1685,19 +1685,19 @@
 - **UserServiceController.java** (`java/im/turms/service/domain/user/access/servicerequest/controller/UserServiceController.java`)
 > [简述功能]
 
-  - [ ] `handleQueryUserProfilesRequest`
-  - [ ] `handleQueryNearbyUsersRequest`
-  - [ ] `handleQueryUserOnlineStatusesRequest`
-  - [ ] `handleUpdateUserLocationRequest`
-  - [ ] `handleUpdateUserOnlineStatusRequest`
-  - [ ] `handleUpdateUserRequest`
+  - [x] `handleQueryUserProfilesRequest` -> `internal/domain/user/controller/user_service_controller.go`
+  - [x] `handleQueryNearbyUsersRequest` -> `internal/domain/user/controller/user_service_controller.go`
+  - [x] `handleQueryUserOnlineStatusesRequest` -> `internal/domain/user/controller/user_service_controller.go`
+  - [x] `handleUpdateUserLocationRequest` -> `internal/domain/user/controller/user_service_controller.go`
+  - [x] `handleUpdateUserOnlineStatusRequest` -> `internal/domain/user/controller/user_service_controller.go`
+  - [x] `handleUpdateUserRequest` -> `internal/domain/user/controller/user_service_controller.go`
 
 - **UserSettingsServiceController.java** (`java/im/turms/service/domain/user/access/servicerequest/controller/UserSettingsServiceController.java`)
 > [简述功能]
 
   - [ ] `handleDeleteUserSettingsRequest`
-  - [ ] `handleUpdateUserSettingsRequest`
-  - [ ] `handleQueryUserSettingsRequest`
+  - [x] `handleUpdateUserSettingsRequest` -> `internal/domain/user/controller/user_settings_controller.go`
+  - [x] `handleQueryUserSettingsRequest` -> `internal/domain/user/controller/user_settings_controller.go`
 
 - **HandleFriendRequestResult.java** (`java/im/turms/service/domain/user/bo/HandleFriendRequestResult.java`)
 > [简述功能]
@@ -1817,8 +1817,8 @@
   - [x] `updatePendingFriendRequestStatus` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `updateFriendRequests` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `queryRecipientId` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [x] `queryRequesterIdAndRecipientIdAndStatus` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [x] `queryRequesterIdAndRecipientIdAndCreationDateAndStatus` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [ ] `queryRequesterIdAndRecipientIdAndStatus`
+  - [ ] `queryRequesterIdAndRecipientIdAndCreationDateAndStatus`
   - [x] `authAndHandleFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `queryFriendRequestsWithVersion` -> `internal/domain/user/service/user_friend_request_service.go`
   - [x] `queryFriendRequestsByRecipientId` -> `internal/domain/user/service/user_friend_request_service.go`
@@ -1839,11 +1839,11 @@
   - [x] `updateRelationshipGroupName` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `upsertRelationshipGroupMember` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `updateRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
-  - [x] `addRelatedUserToRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [ ] `addRelatedUserToRelationshipGroups`
   - [x] `deleteRelationshipGroupAndMoveMembersToNewGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `deleteAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `deleteRelatedUserFromRelationshipGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
-  - [x] `deleteRelatedUserFromAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [ ] `deleteRelatedUserFromAllRelationshipGroups`
   - [x] `deleteRelatedUsersFromAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `moveRelatedUserToNewGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [x] `deleteRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
@@ -1865,7 +1865,7 @@
   - [x] `queryRelatedUserIds` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `queryRelatedUserIds` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `queryRelationships` -> `internal/domain/user/service/user_relationship_service.go`
-  - [x] `queryMembersRelationships` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `queryMembersRelationships` -> `internal/domain/user/repository/user_relationship_repository.go`
   - [x] `countRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `countRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `friendTwoUsers` -> `internal/domain/user/service/user_relationship_service.go`
@@ -1875,7 +1875,7 @@
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `updateUserOneSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
-  - [x] `hasOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
+  - [x] `hasOneSidedRelationship` -> `internal/domain/user/repository/user_relationship_repository.go`
 
 - **UserRoleService.java** (`java/im/turms/service/domain/user/service/UserRoleService.java`)
 > [简述功能]
@@ -1921,8 +1921,8 @@
 > [简述功能]
 
   - [x] `queryRelationshipsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
-  - [x] `querySentGroupInvitationsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
-  - [x] `queryReceivedGroupInvitationsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
+  - [ ] `querySentGroupInvitationsLastUpdatedDate`
+  - [ ] `queryReceivedGroupInvitationsLastUpdatedDate`
   - [x] `queryGroupJoinRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
   - [x] `queryRelationshipGroupsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
   - [x] `queryJoinedGroupVersion` -> `internal/domain/user/service/user_version_service.go`
