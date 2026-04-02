@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
+	common "im.turms/server/internal/domain/common/service"
 )
 
 var (
@@ -22,12 +23,17 @@ type UserSettingsService interface {
 }
 
 type userSettingsService struct {
-	settingsRepo repository.UserSettingsRepository
+	settingsRepo           repository.UserSettingsRepository
+	outboundMessageService common.OutboundMessageService
 }
 
-func NewUserSettingsService(settingsRepo repository.UserSettingsRepository) UserSettingsService {
+func NewUserSettingsService(
+	settingsRepo repository.UserSettingsRepository,
+	outboundMessageService common.OutboundMessageService,
+) UserSettingsService {
 	return &userSettingsService{
-		settingsRepo: settingsRepo,
+		settingsRepo:           settingsRepo,
+		outboundMessageService: outboundMessageService,
 	}
 }
 
@@ -35,8 +41,42 @@ func (s *userSettingsService) UpsertSettings(ctx context.Context, userID int64, 
 	if len(settings) == 0 {
 		return nil
 	}
-	// TODO: Add validation from TurmsProperties if needed (e.g. check immutable settings)
-	return s.settingsRepo.UpsertSettings(ctx, userID, settings)
+
+	// Basic validation for immutable settings
+	// In a real scenario, this would come from TurmsProperties
+	immutableSettings := map[string]bool{
+		"user_id": true,
+	}
+	for k := range settings {
+		if immutableSettings[k] {
+			return ErrImmutableSetting
+		}
+	}
+
+	err := s.settingsRepo.UpsertSettings(ctx, userID, settings)
+	if err != nil {
+		return err
+	}
+
+	// Notify other devices
+	// TODO: Enable notification when protocol supports UserSettings/Value
+	/*
+		if s.outboundMessageService != nil {
+			notification := &protocol.TurmsNotification{
+				Data: &protocol.TurmsNotification_Data{
+					Kind: &protocol.TurmsNotification_Data_UserSettings{
+						UserSettings: &protocol.UserSettings{
+							Settings: make(map[string]*protocol.Value),
+						},
+					},
+				},
+			}
+			// Convert map[string]interface{} to map[string]*protocol.Value (simplified)
+			s.outboundMessageService.ForwardNotification(ctx, notification, userID)
+		}
+	*/
+
+	return nil
 }
 
 func (s *userSettingsService) DeleteSettings(ctx context.Context, filter bson.M) (int64, error) {
