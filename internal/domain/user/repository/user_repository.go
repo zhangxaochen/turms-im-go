@@ -20,6 +20,8 @@ type UserRepository interface {
 	DeleteMany(ctx context.Context, filter bson.M) (int64, error)
 	Count(ctx context.Context, filter bson.M) (int64, error)
 	Exists(ctx context.Context, userID int64) (bool, error)
+	UpdateMany(ctx context.Context, filter bson.M, update bson.M) (int64, error)
+	Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error)
 }
 
 type userRepository struct {
@@ -91,3 +93,17 @@ func (r *userRepository) Exists(ctx context.Context, userID int64) (bool, error)
 	}
 	return count > 0, nil
 }
+
+func (r *userRepository) UpdateMany(ctx context.Context, filter bson.M, update bson.M) (int64, error) {
+	updateBson := bson.M{"$set": update}
+	result, err := r.coll.UpdateMany(ctx, filter, updateBson)
+	if err != nil {
+		return 0, err
+	}
+	return result.ModifiedCount, nil
+}
+
+func (r *userRepository) Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error) {
+	return r.coll.Aggregate(ctx, pipeline)
+}
+

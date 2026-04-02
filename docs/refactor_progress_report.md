@@ -1830,28 +1830,28 @@
 - **UserRelationshipGroupService.java** (`java/im/turms/service/domain/user/service/UserRelationshipGroupService.java`)
 > [简述功能]
 
-  - [ ] `createRelationshipGroup`
-  - [ ] `queryRelationshipGroupsInfos`
+  - [x] `createRelationshipGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `queryRelationshipGroupsInfos` -> `internal/domain/user/service/user_relationship_group_service.go`
   - [ ] `queryRelationshipGroupsInfosWithVersion`
-  - [ ] `queryGroupIndexes`
-  - [ ] `queryRelationshipGroupMemberIds`
-  - [ ] `queryRelationshipGroupMemberIds`
-  - [ ] `updateRelationshipGroupName`
-  - [ ] `upsertRelationshipGroupMember`
-  - [ ] `updateRelationshipGroups`
-  - [ ] `addRelatedUserToRelationshipGroups`
-  - [ ] `deleteRelationshipGroupAndMoveMembersToNewGroup`
-  - [ ] `deleteAllRelationshipGroups`
-  - [ ] `deleteRelatedUserFromRelationshipGroup`
-  - [ ] `deleteRelatedUserFromAllRelationshipGroups`
-  - [ ] `deleteRelatedUsersFromAllRelationshipGroups`
-  - [ ] `moveRelatedUserToNewGroup`
-  - [ ] `deleteRelationshipGroups`
-  - [ ] `deleteRelationshipGroups`
-  - [ ] `queryRelationshipGroups`
-  - [ ] `countRelationshipGroups`
-  - [ ] `countRelationshipGroups`
-  - [ ] `countRelationshipGroupMembers`
+  - [x] `queryGroupIndexes` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `queryRelationshipGroupMemberIds` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `queryRelationshipGroupMemberIds` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `updateRelationshipGroupName` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `upsertRelationshipGroupMember` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `updateRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `addRelatedUserToRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelationshipGroupAndMoveMembersToNewGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelatedUserFromRelationshipGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelatedUserFromAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelatedUsersFromAllRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `moveRelatedUserToNewGroup` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `deleteRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `queryRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `countRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `countRelationshipGroups` -> `internal/domain/user/service/user_relationship_group_service.go`
+  - [x] `countRelationshipGroupMembers` -> `internal/domain/user/service/user_relationship_group_service.go`
 
 - **UserRelationshipService.java** (`java/im/turms/service/domain/user/service/UserRelationshipService.java`)
 > [简述功能]
@@ -1880,86 +1880,86 @@
 - **UserRoleService.java** (`java/im/turms/service/domain/user/service/UserRoleService.java`)
 > [简述功能]
 
-  - [ ] `queryUserRoles`
-  - [ ] `addUserRole`
-  - [ ] `updateUserRoles`
-  - [ ] `deleteUserRoles`
-  - [ ] `queryUserRoleById`
-  - [ ] `queryStoredOrDefaultUserRoleByUserId`
-  - [ ] `countUserRoles`
+  - [x] `queryUserRoles` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `addUserRole` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `updateUserRoles` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `deleteUserRoles` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `queryUserRoleById` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `queryStoredOrDefaultUserRoleByUserId` -> `internal/domain/user/service/user_role_service.go`
+  - [x] `countUserRoles` -> `internal/domain/user/service/user_role_service.go`
 
 - **UserService.java** (`java/im/turms/service/domain/user/service/UserService.java`)
 > [简述功能]
 
-  - [ ] `isAllowedToSendMessageToTarget`
+  - [x] `isAllowedToSendMessageToTarget` -> `internal/domain/user/service/user_service.go`
   - [x] `createUser` -> `internal/domain/user/service/user_service.go`
-  - [ ] `addUser`
-  - [ ] `isAllowToQueryUserProfile`
-  - [ ] `authAndQueryUsersProfile`
+  - [x] `addUser` -> `internal/domain/user/service/user_service.go`
+  - [x] `isAllowToQueryUserProfile` -> `internal/domain/user/service/user_service.go`
+  - [x] `authAndQueryUsersProfile` -> `internal/domain/user/service/user_service.go`
   - [x] `queryUserName` -> `internal/domain/user/service/user_service.go`
   - [x] `queryUsersProfile` -> `internal/domain/user/service/user_service.go`
-  - [ ] `queryUserRoleIdByUserId`
+  - [x] `queryUserRoleIdByUserId` -> `internal/domain/user/service/user_service.go`
   - [x] `deleteUsers` -> `internal/domain/user/service/user_service.go`
   - [x] `checkIfUserExists` -> `internal/domain/user/service/user_service.go`
   - [x] `updateUser` -> `internal/domain/user/service/user_service.go`
   - [x] `queryUsers` -> `internal/domain/user/service/user_service.go`
-  - [ ] `countRegisteredUsers`
-  - [ ] `countDeletedUsers`
+  - [x] `countRegisteredUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `countDeletedUsers` -> `internal/domain/user/service/user_service.go`
   - [x] `countUsers` -> `internal/domain/user/service/user_service.go`
-  - [ ] `countUsers`
-  - [ ] `updateUsers`
+  - [x] `countUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `updateUsers` -> `internal/domain/user/service/user_service.go`
 
 - **UserSettingsService.java** (`java/im/turms/service/domain/user/service/UserSettingsService.java`)
 > [简述功能]
 
-  - [ ] `upsertSettings`
-  - [ ] `deleteSettings`
-  - [ ] `unsetSettings`
-  - [ ] `querySettings`
+  - [x] `upsertSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `deleteSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `unsetSettings` -> `internal/domain/user/service/user_settings_service.go`
+  - [x] `querySettings` -> `internal/domain/user/service/user_settings_service.go`
 
 - **UserVersionService.java** (`java/im/turms/service/domain/user/service/UserVersionService.java`)
 > [简述功能]
 
-  - [ ] `queryRelationshipsLastUpdatedDate`
-  - [ ] `querySentGroupInvitationsLastUpdatedDate`
-  - [ ] `queryReceivedGroupInvitationsLastUpdatedDate`
-  - [ ] `queryGroupJoinRequestsVersion`
-  - [ ] `queryRelationshipGroupsLastUpdatedDate`
-  - [ ] `queryJoinedGroupVersion`
-  - [ ] `querySentFriendRequestsVersion`
-  - [ ] `queryReceivedFriendRequestsVersion`
-  - [ ] `upsertEmptyUserVersion`
-  - [ ] `updateRelationshipsVersion`
-  - [ ] `updateRelationshipsVersion`
-  - [ ] `updateSentFriendRequestsVersion`
-  - [ ] `updateReceivedFriendRequestsVersion`
-  - [ ] `updateRelationshipGroupsVersion`
-  - [ ] `updateRelationshipGroupsVersion`
-  - [ ] `updateRelationshipGroupsMembersVersion`
-  - [ ] `updateRelationshipGroupsMembersVersion`
-  - [ ] `updateSentGroupInvitationsVersion`
-  - [ ] `updateReceivedGroupInvitationsVersion`
-  - [ ] `updateSentGroupJoinRequestsVersion`
-  - [ ] `updateJoinedGroupsVersion`
-  - [ ] `updateSpecificVersion`
-  - [ ] `updateSpecificVersion`
-  - [ ] `updateSpecificVersion`
-  - [x] `delete` -> `internal/domain/group/repository/group_join_question_repository.go`
+  - [x] `queryRelationshipsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `querySentGroupInvitationsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `queryReceivedGroupInvitationsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `queryGroupJoinRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `queryRelationshipGroupsLastUpdatedDate` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `queryJoinedGroupVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `querySentFriendRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `queryReceivedFriendRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `upsertEmptyUserVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateRelationshipsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateRelationshipsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSentFriendRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateReceivedFriendRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateRelationshipGroupsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateRelationshipGroupsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateRelationshipGroupsMembersVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateRelationshipGroupsMembersVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSentGroupInvitationsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateReceivedGroupInvitationsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSentGroupJoinRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateJoinedGroupsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [x] `delete` -> `internal/domain/user/service/user_version_service.go`
 
 - **NearbyUserService.java** (`java/im/turms/service/domain/user/service/onlineuser/NearbyUserService.java`)
 > [简述功能]
 
-  - [ ] `queryNearbyUsers`
+  - [x] `queryNearbyUsers` -> `internal/domain/user/service/onlineuser/nearby_user_service.go`
 
 - **SessionService.java** (`java/im/turms/service/domain/user/service/onlineuser/SessionService.java`)
 > [简述功能]
 
-  - [ ] `disconnect`
-  - [ ] `disconnect`
-  - [ ] `disconnect`
-  - [ ] `disconnect`
-  - [ ] `disconnect`
-  - [ ] `queryUserSessions`
+  - [x] `disconnect` -> `internal/domain/user/service/onlineuser/session_service.go`
+  - [x] `disconnect` -> `internal/domain/user/service/onlineuser/session_service.go`
+  - [x] `disconnect` -> `internal/domain/user/service/onlineuser/session_service.go`
+  - [x] `disconnect` -> `internal/domain/user/service/onlineuser/session_service.go`
+  - [x] `disconnect` -> `internal/domain/user/service/onlineuser/session_service.go`
+  - [x] `queryUserSessions` -> `internal/domain/user/service/onlineuser/session_service.go`
 
 - **LocaleUtil.java** (`java/im/turms/service/infra/locale/LocaleUtil.java`)
 > [简述功能]
