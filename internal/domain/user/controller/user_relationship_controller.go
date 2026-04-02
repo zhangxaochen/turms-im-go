@@ -15,13 +15,13 @@ import (
 
 type UserRelationshipController struct {
 	userFriendRequestService     service.UserFriendRequestService
-	userRelationshipGroupService *service.UserRelationshipGroupService
+	userRelationshipGroupService service.UserRelationshipGroupService
 	userRelationshipService      service.UserRelationshipService
 }
 
 func NewUserRelationshipController(
 	userFriendRequestService service.UserFriendRequestService,
-	userRelationshipGroupService *service.UserRelationshipGroupService,
+	userRelationshipGroupService service.UserRelationshipGroupService,
 	userRelationshipService service.UserRelationshipService,
 ) *UserRelationshipController {
 	return &UserRelationshipController{
@@ -48,12 +48,6 @@ func (c *UserRelationshipController) RegisterRoutes(r *router.Router) {
 	r.RegisterController(&protocol.TurmsRequest_UpdateRelationshipRequest{}, c.HandleUpdateRelationshipRequest)
 }
 
-func buildSuccessNotification(reqID *int64) *protocol.TurmsNotification {
-	return &protocol.TurmsNotification{
-		RequestId: reqID,
-		Code:      proto.Int32(1000), // SUCCESS
-	}
-}
 
 func (c *UserRelationshipController) HandleCreateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateFriendRequestRequest()
@@ -93,7 +87,7 @@ func (c *UserRelationshipController) HandleCreateRelationshipRequest(ctx context
 	}
 	now := time.Now()
 
-	err := c.userRelationshipService.UpsertOneSidedRelationship(ctx, s.UserID, createReq.GetUserId(), blockDate, createReq.GroupIndex, &now, createReq.Name)
+	_, err := c.userRelationshipService.UpsertOneSidedRelationship(ctx, s.UserID, createReq.GetUserId(), blockDate, createReq.GroupIndex, &now, createReq.Name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -161,9 +155,22 @@ func (c *UserRelationshipController) HandleQueryFriendRequestsRequest(ctx contex
 		return nil, err
 	}
 
-	// For simplicity, we assume we return empty response or proper serialization later
-	_ = requests
-	return buildSuccessNotification(req.RequestId), nil
+	protos := make([]*protocol.UserFriendRequest, len(requests))
+	for i, r := range requests {
+		protos[i] = toFriendRequestProto(&r)
+	}
+
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserFriendRequestsWithVersion{
+				UserFriendRequestsWithVersion: &protocol.UserFriendRequestsWithVersion{
+					UserFriendRequests: protos,
+				},
+			},
+		},
+	}, nil
 }
 
 func (c *UserRelationshipController) HandleQueryRelatedUserIdsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
@@ -175,14 +182,29 @@ func (c *UserRelationshipController) HandleQueryRelatedUserIdsRequest(ctx contex
 		lastUpdatedTime = &t
 	}
 
-	userIds, err := c.userRelationshipService.QueryRelatedUserIdsWithVersion(ctx, s.UserID, queryReq.GetGroupIndexes(), queryReq.Blocked, lastUpdatedTime)
+	userIds, version, err := c.userRelationshipService.QueryRelatedUserIdsWithVersion(ctx, s.UserID, queryReq.GetGroupIndexes(), queryReq.Blocked, lastUpdatedTime)
 	if err != nil {
 		return nil, err
 	}
 
-	// Just checking the compilation for now
-	_ = userIds
-	return buildSuccessNotification(req.RequestId), nil
+	var lastUpdatedDate *int64
+	if version != nil {
+		t := version.UnixMilli()
+		lastUpdatedDate = &t
+	}
+
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_LongsWithVersion{
+				LongsWithVersion: &protocol.LongsWithVersion{
+					Longs:           userIds,
+					LastUpdatedDate: lastUpdatedDate,
+				},
+			},
+		},
+	}, nil
 }
 
 func (c *UserRelationshipController) HandleQueryRelationshipGroupsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
@@ -198,9 +220,29 @@ func (c *UserRelationshipController) HandleQueryRelationshipGroupsRequest(ctx co
 		return nil, err
 	}
 
-	_ = groups
-	_ = version
-	return buildSuccessNotification(req.RequestId), nil
+	protos := make([]*protocol.UserRelationshipGroup, len(groups))
+	for i, g := range groups {
+		protos[i] = toRelationshipGroupProto(g)
+	}
+
+	var lastUpdatedTimeProto *int64
+	if version != nil {
+		t := version.UnixMilli()
+		lastUpdatedTimeProto = &t
+	}
+
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserRelationshipGroupsWithVersion{
+				UserRelationshipGroupsWithVersion: &protocol.UserRelationshipGroupsWithVersion{
+					UserRelationshipGroups: protos,
+					LastUpdatedDate:        lastUpdatedTimeProto,
+				},
+			},
+		},
+	}, nil
 }
 
 func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
@@ -212,13 +254,34 @@ func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context
 		lastUpdatedTime = &t
 	}
 
-	relationships, err := c.userRelationshipService.QueryRelationshipsWithVersion(ctx, s.UserID, queryReq.GetUserIds(), queryReq.GetGroupIndexes(), queryReq.Blocked, lastUpdatedTime)
+	relationships, version, err := c.userRelationshipService.QueryRelationshipsWithVersion(ctx, s.UserID, queryReq.GetUserIds(), queryReq.GetGroupIndexes(), queryReq.Blocked, lastUpdatedTime)
 	if err != nil {
 		return nil, err
 	}
 
-	_ = relationships
-	return buildSuccessNotification(req.RequestId), nil
+	protos := make([]*protocol.UserRelationship, len(relationships))
+	for i, r := range relationships {
+		protos[i] = toRelationshipProto(&r)
+	}
+
+	var lastUpdatedTimeProto *int64
+	if version != nil {
+		t := version.UnixMilli()
+		lastUpdatedTimeProto = &t
+	}
+
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserRelationshipsWithVersion{
+				UserRelationshipsWithVersion: &protocol.UserRelationshipsWithVersion{
+					UserRelationships: protos,
+					LastUpdatedDate:   lastUpdatedTimeProto,
+				},
+			},
+		},
+	}, nil
 }
 
 func (c *UserRelationshipController) HandleUpdateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
@@ -258,10 +321,82 @@ func (c *UserRelationshipController) HandleUpdateRelationshipRequest(ctx context
 		}
 	}
 
-	err := c.userRelationshipService.UpdateUserOneSidedRelationships(ctx, s.UserID, []int64{updateReq.GetUserId()}, blockDate, updateReq.NewGroupIndex, nil, updateReq.Name)
+	err := c.userRelationshipService.UpdateUserOneSidedRelationships(ctx, s.UserID, []int64{updateReq.GetUserId()}, blockDate, updateReq.NewGroupIndex, nil, updateReq.Name, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return buildSuccessNotification(req.RequestId), nil
+}
+
+// Helpers
+
+func toFriendRequestProto(r *po.UserFriendRequest) *protocol.UserFriendRequest {
+	var reason *string
+	if r.Reason != nil {
+		reason = r.Reason
+	}
+	// Note: protocol.UserFriendRequest doesn't seem to have ResponseDate in this version of pb.go
+	// It has ExpirationDate. If PO doesn't have ExpirationDate, we skip it or check logic.
+	// For now, mapping based on available fields in pb.go.
+	status := func() protocol.RequestStatus {
+		switch r.Status {
+		case po.RequestStatusPending:
+			return protocol.RequestStatus_PENDING
+		case po.RequestStatusAccepted:
+			return protocol.RequestStatus_ACCEPTED
+		case po.RequestStatusDeclined:
+			return protocol.RequestStatus_DECLINED
+		case po.RequestStatusIgnored:
+			return protocol.RequestStatus_IGNORED
+		case po.RequestStatusExpired:
+			return protocol.RequestStatus_EXPIRED
+		case po.RequestStatusCanceled:
+			return protocol.RequestStatus_CANCELED
+		default:
+			return protocol.RequestStatus_PENDING
+		}
+	}()
+	return &protocol.UserFriendRequest{
+		Id:            proto.Int64(r.ID),
+		CreationDate:  proto.Int64(r.CreationDate.UnixMilli()),
+		Content:       proto.String(r.Content),
+		RequestStatus: &status,
+		Reason:        reason,
+		RequesterId:   proto.Int64(r.RequesterID),
+		RecipientId:   proto.Int64(r.RecipientID),
+	}
+}
+
+func toRelationshipProto(r *po.UserRelationship) *protocol.UserRelationship {
+	var blockDate *int64
+	if r.BlockDate != nil {
+		t := r.BlockDate.UnixMilli()
+		blockDate = &t
+	}
+	var establishmentDate *int64
+	if r.EstablishmentDate != nil {
+		t := r.EstablishmentDate.UnixMilli()
+		establishmentDate = &t
+	}
+	var groupIndex *int64
+	if r.GroupIndex != nil {
+		idx := int64(*r.GroupIndex)
+		groupIndex = &idx
+	}
+	return &protocol.UserRelationship{
+		OwnerId:           proto.Int64(r.ID.OwnerID),
+		RelatedUserId:     proto.Int64(r.ID.RelatedUserID),
+		BlockDate:         blockDate,
+		GroupIndex:        groupIndex,
+		EstablishmentDate: establishmentDate,
+		// protocol.UserRelationship doesn't have Name field in pb.go
+	}
+}
+
+func toRelationshipGroupProto(g *po.UserRelationshipGroup) *protocol.UserRelationshipGroup {
+	return &protocol.UserRelationshipGroup{
+		Index: g.Key.Index,
+		Name:  g.Name,
+	}
 }

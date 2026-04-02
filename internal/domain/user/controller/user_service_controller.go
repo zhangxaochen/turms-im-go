@@ -10,18 +10,25 @@ import (
 	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/internal/domain/user/service"
+	"im.turms/server/internal/domain/user/service/onlineuser"
 	"im.turms/server/pkg/protocol"
 )
 
 type UserServiceController struct {
-	userService service.UserService
+	userService       service.UserService
+	nearbyUserService onlineuser.NearbyUserService
+	sessionService    onlineuser.SessionService
 }
 
 func NewUserServiceController(
 	userService service.UserService,
+	nearbyUserService onlineuser.NearbyUserService,
+	sessionService onlineuser.SessionService,
 ) *UserServiceController {
 	return &UserServiceController{
-		userService: userService,
+		userService:       userService,
+		nearbyUserService: nearbyUserService,
+		sessionService:    sessionService,
 	}
 }
 
@@ -88,21 +95,107 @@ func (c *UserServiceController) HandleQueryUserProfilesRequest(ctx context.Conte
 }
 
 // HandleQueryNearbyUsersRequest queries nearby users based on location.
-// NOTE: This requires SessionLocationService/NearbyUserService which are not yet ported.
-// Returns empty result for now.
 func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// TODO: Implement when NearbyUserService is ported
-	_ = req.GetQueryNearbyUsersRequest()
-	return buildSuccessNotification(req.RequestId), nil
+	queryReq := req.GetQueryNearbyUsersRequest()
+
+	nearbyUsers, err := c.nearbyUserService.QueryNearbyUsers(
+		ctx,
+		s.UserID,
+		int(s.DeviceType),
+		&queryReq.Longitude,
+		&queryReq.Latitude,
+		nil, // maxCount
+		nil, // maxDistance
+		queryReq.GetWithCoordinates(),
+		queryReq.GetWithDistance(),
+		queryReq.GetWithUserInfo(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	nearbyUserProtos := make([]*protocol.NearbyUser, 0, len(nearbyUsers))
+	for _, u := range nearbyUsers {
+		nu := &protocol.NearbyUser{
+			UserId: u.UserID,
+		}
+		if u.DeviceType != nil {
+			nu.DeviceType = protocol.DeviceType(int32(*u.DeviceType)).Enum()
+		}
+		if u.Longitude != nil || u.Latitude != nil {
+			nu.Location = &protocol.UserLocation{}
+			if u.Longitude != nil {
+				nu.Location.Longitude = *u.Longitude
+			}
+			if u.Latitude != nil {
+				nu.Location.Latitude = *u.Latitude
+			}
+		}
+		if u.Distance != nil {
+			nu.Distance = proto.Int32(int32(*u.Distance))
+		}
+		if u.User != nil {
+			nu.Info = &protocol.UserInfo{
+				Id:               proto.Int64(u.User.ID),
+				Name:             proto.String(u.User.Name),
+				Intro:            proto.String(u.User.Intro),
+				ProfilePicture:   proto.String(u.User.ProfilePicture),
+				RegistrationDate: proto.Int64(u.User.RegistrationDate.UnixMilli()),
+				Active:           proto.Bool(u.User.IsActive),
+			}
+		}
+		nearbyUserProtos = append(nearbyUserProtos, nu)
+	}
+
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_NearbyUsers{
+				NearbyUsers: &protocol.NearbyUsers{
+					NearbyUsers: nearbyUserProtos,
+				},
+			},
+		},
+	}, nil
 }
 
 // HandleQueryUserOnlineStatusesRequest queries online statuses for a set of user IDs.
 // NOTE: This requires UserStatusService which is not yet ported.
 // Returns empty result for now.
 func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// TODO: Implement when UserStatusService is ported
-	_ = req.GetQueryUserOnlineStatusesRequest()
-	return buildSuccessNotification(req.RequestId), nil
+	queryReq := req.GetQueryUserOnlineStatusesRequest()
+	userIDs := queryReq.GetUserIds()
+
+	sessions, err := c.sessionService.QueryUserSessions(ctx, userIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	statusProtos := make([]*protocol.UserOnlineStatus, 0, len(sessions))
+	for _, sInfo := range sessions {
+		deviceTypes := make([]protocol.DeviceType, 0, len(sInfo.Sessions))
+		for _, sess := range sInfo.Sessions {
+			deviceTypes = append(deviceTypes, sess.DeviceType)
+		}
+		statusProtos = append(statusProtos, &protocol.UserOnlineStatus{
+			UserId:           sInfo.UserID,
+			UserStatus:       protocol.UserStatus(int32(sInfo.Status)),
+			UsingDeviceTypes: deviceTypes,
+		})
+	}
+
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserOnlineStatuses{
+				UserOnlineStatuses: &protocol.UserOnlineStatuses{
+					Statuses: statusProtos,
+				},
+			},
+		},
+	}, nil
 }
 
 // HandleUpdateUserLocationRequest updates the user's current location.
