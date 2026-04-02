@@ -126,3 +126,92 @@ func (r *GroupMemberRepository) FindUserJoinedGroupIDs(ctx context.Context, user
 	}
 	return groupIDs, nil
 }
+
+// DeleteByIds removes multiple group members by their keys.
+func (r *GroupMemberRepository) DeleteByIds(ctx context.Context, keys []po.GroupMemberKey) (*mongo.DeleteResult, error) {
+	filter := bson.M{
+		"_id": bson.M{"$in": keys},
+	}
+	return r.col.DeleteMany(ctx, filter)
+}
+
+// UpdateGroupMembers updates multiple group members' properties.
+func (r *GroupMemberRepository) UpdateGroupMembers(ctx context.Context, keys []po.GroupMemberKey, name *string, role *protocol.GroupMemberRole, joinDate *time.Time, muteEndDate *time.Time) (*mongo.UpdateResult, error) {
+	filter := bson.M{
+		"_id": bson.M{"$in": keys},
+	}
+
+	update := bson.M{}
+	set := bson.M{}
+	unset := bson.M{}
+
+	if name != nil {
+		set["n"] = *name
+	}
+	if role != nil {
+		set["role"] = *role
+	}
+	if joinDate != nil {
+		set["jd"] = *joinDate
+	}
+	if muteEndDate != nil {
+		if muteEndDate.Before(time.Now()) {
+			unset["med"] = ""
+		} else {
+			set["med"] = *muteEndDate
+		}
+	}
+
+	if len(set) > 0 {
+		update["$set"] = set
+	}
+	if len(unset) > 0 {
+		update["$unset"] = unset
+	}
+
+	if len(update) == 0 {
+		return &mongo.UpdateResult{MatchedCount: int64(len(keys))}, nil
+	}
+
+	return r.col.UpdateMany(ctx, filter, update)
+}
+
+// CountMembers returns the total number of members in a group.
+func (r *GroupMemberRepository) CountMembers(ctx context.Context, groupID int64) (int64, error) {
+	filter := bson.M{
+		"_id.gid": groupID,
+	}
+	return r.col.CountDocuments(ctx, filter)
+}
+
+// FindGroupMemberKeyAndRolePairs retrieves the roles of multiple users in a group.
+func (r *GroupMemberRepository) FindGroupMemberKeyAndRolePairs(ctx context.Context, groupID int64, userIDs []int64) ([]po.GroupMember, error) {
+	filter := bson.M{
+		"_id.gid": groupID,
+		"_id.uid": bson.M{"$in": userIDs},
+	}
+	opts := options.Find().SetProjection(bson.M{"role": 1, "_id.uid": 1})
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+// IsGroupMember checks if a user is a member of a group.
+func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
+	filter := bson.M{
+		"_id": po.GroupMemberKey{GroupID: groupID, UserID: userID},
+	}
+	count, err := r.col.CountDocuments(ctx, filter, options.Count().SetLimit(1))
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

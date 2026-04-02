@@ -18,6 +18,17 @@ type GroupJoinRequestRepository interface {
 	UpdateStatusIfPending(ctx context.Context, requestID, responderID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
 	FindRequestsByGroupID(ctx context.Context, groupID int64) ([]po.GroupJoinRequest, error)
 	FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.GroupJoinRequest, error)
+	FindByID(ctx context.Context, requestID int64) (*po.GroupJoinRequest, error)
+	FindRequests(ctx context.Context,
+		groupID *int64,
+		requesterID *int64,
+		responderID *int64,
+		status *po.RequestStatus,
+		creationDate *time.Time,
+		responseDate *time.Time,
+		expirationDate *time.Time,
+		page int,
+		size int) ([]*po.GroupJoinRequest, error)
 }
 
 type groupJoinRequestRepository struct {
@@ -98,6 +109,68 @@ func (r *groupJoinRequestRepository) FindRequestsByRequesterID(ctx context.Conte
 	defer cursor.Close(ctx)
 
 	var reqs []po.GroupJoinRequest
+	if err := cursor.All(ctx, &reqs); err != nil {
+		return nil, err
+	}
+	return reqs, nil
+}
+func (r *groupJoinRequestRepository) FindByID(ctx context.Context, requestID int64) (*po.GroupJoinRequest, error) {
+	filter := bson.M{"_id": requestID}
+	var res po.GroupJoinRequest
+	err := r.coll.FindOne(ctx, filter).Decode(&res)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &res, err
+}
+
+func (r *groupJoinRequestRepository) FindRequests(ctx context.Context,
+	groupID *int64,
+	requesterID *int64,
+	responderID *int64,
+	status *po.RequestStatus,
+	creationDate *time.Time,
+	responseDate *time.Time,
+	expirationDate *time.Time,
+	page int,
+	size int) ([]*po.GroupJoinRequest, error) {
+	filter := bson.M{}
+	if groupID != nil {
+		filter["gid"] = *groupID
+	}
+	if requesterID != nil {
+		filter["rqid"] = *requesterID
+	}
+	if responderID != nil {
+		filter["rpid"] = *responderID
+	}
+	if status != nil {
+		filter["stat"] = *status
+	}
+	if creationDate != nil {
+		filter["cd"] = bson.M{"$gte": *creationDate}
+	}
+	if responseDate != nil {
+		filter["rd"] = bson.M{"$gte": *responseDate}
+	}
+	if expirationDate != nil {
+		filter["ed"] = bson.M{"$lt": *expirationDate}
+	}
+
+	skip := int64(page * size)
+	limit := int64(size)
+	opts := options.Find().
+		SetSort(bson.M{"cd": -1}).
+		SetSkip(skip).
+		SetLimit(limit)
+
+	cursor, err := r.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var reqs []*po.GroupJoinRequest
 	if err := cursor.All(ctx, &reqs); err != nil {
 		return nil, err
 	}

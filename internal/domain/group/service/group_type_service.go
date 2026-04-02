@@ -22,6 +22,10 @@ func (s *GroupTypeService) FindGroupType(ctx context.Context, typeID int64) (*po
 	return s.groupTypeRepo.FindGroupType(ctx, typeID)
 }
 
+func (s *GroupTypeService) FindByID(ctx context.Context, typeID int64) (*po.GroupType, error) {
+	return s.FindGroupType(ctx, typeID)
+}
+
 // EnsureDefaultGroupType creates the default group type if it does not exist.
 func (s *GroupTypeService) EnsureDefaultGroupType(ctx context.Context) error {
 	// Simple implementation for ensuring default group type.
