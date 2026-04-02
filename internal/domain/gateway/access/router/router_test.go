@@ -26,11 +26,13 @@ func (m *mockConnection) WriteMessage(payload []byte) error {
 	return nil
 }
 func (m *mockConnection) Close() error { return nil }
-func (m *mockConnection) RemoteAddr() net.Addr { return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 12345} }
+func (m *mockConnection) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 12345}
+}
 
 func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()
-	
+
 	setupRouter := func() (*session.SessionService, *router.Router) {
 		sessionSvc := session.NewSessionService()
 		r := router.NewRouter(sessionSvc)

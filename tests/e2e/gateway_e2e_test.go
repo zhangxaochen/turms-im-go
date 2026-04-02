@@ -171,7 +171,7 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 
 	// 4. Gateway Dispatcher and Controllers
 	msgController := messagecontroller.NewMessageController(msgSvc)
-	
+
 	r := router.NewRouter(sessionSvc)
 	r.SetServiceAvailability(common.StatusRunning)
 	r.RegisterController(&protocol.TurmsRequest_CreateMessageRequest{}, msgController.HandleCreateMessageRequest)
@@ -284,21 +284,21 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 		wg.Add(1)
 		go func(reqID int32) {
 			defer wg.Done()
-			
+
 			// We need a separate connection per request otherwise we'll interleave writes
-			// However, mockTurmsE2EClient is just writing, we can use the same client 
+			// However, mockTurmsE2EClient is just writing, we can use the same client
 			// if we just want to hit the router, but its ReadTurmsNotification might get mixed up.
 			// Instead of reading all 110 responses, let's just create a quick new client for the extra calls,
 			// or just blast the current client.
 			// Best approach: Use the same client (mockTurmsE2EClient is thread-safe on send),
 			// and read 110 responses.
-			
+
 			client.SendTurmsRequest(t, reqID, &protocol.TurmsRequest{
 				RequestId: proto.Int64(int64(reqID)),
 				Kind: &protocol.TurmsRequest_CreateMessageRequest{
 					CreateMessageRequest: &protocol.CreateMessageRequest{
-						RecipientId:  proto.Int64(200),
-						Text:         proto.String("spam"),
+						RecipientId: proto.Int64(200),
+						Text:        proto.String("spam"),
 					},
 				},
 			})

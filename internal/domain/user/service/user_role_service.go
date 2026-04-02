@@ -29,7 +29,7 @@ func (s *UserRoleService) AddUserRole(ctx context.Context, role *po.UserRole) er
 func (s *UserRoleService) UpdateUserRoles(ctx context.Context, filter bson.M, update bson.M) error {
 	// Not implementing complex update parsing, just using bare Mongo operations right now.
 	// Since we defined UpdateRole for a single ID, let's just add an UpdateRoles if needed.
-	// But in UserRole, they update specific roles. 
+	// But in UserRole, they update specific roles.
 	// For simplicity, we just iterate or we need UpdateRoles in repo.
 	// We'll leave it as a placeholder until we implement the actual turms query builder.
 	return nil
@@ -44,7 +44,7 @@ func (s *UserRoleService) QueryUserRoleById(ctx context.Context, roleID int64) (
 }
 
 func (s *UserRoleService) QueryStoredOrDefaultUserRoleByUserId(ctx context.Context, userID int64) (*po.UserRole, error) {
-	// Usually there is a default role. This needs UserService to fetch user's roleID, 
+	// Usually there is a default role. This needs UserService to fetch user's roleID,
 	// but currently we just return a stub or we'd inject UserService.
 	// We'll return nil for now to map the method.
 	return nil, nil

@@ -1964,223 +1964,223 @@
 - **LocaleUtil.java** (`java/im/turms/service/infra/locale/LocaleUtil.java`)
 > [简述功能]
 
-  - [ ] `isAvailableLanguage`
+  - [x] `isAvailableLanguage` -> `internal/infra/locale/locale_util.go`
 
 - **ApiLoggingContext.java** (`java/im/turms/service/infra/logging/ApiLoggingContext.java`)
 > [简述功能]
 
-  - [ ] `shouldLogRequest`
-  - [ ] `shouldLogNotification`
+  - [x] `shouldLogRequest` -> `internal/infra/logging/api_logging_context.go`
+  - [x] `shouldLogNotification` -> `internal/infra/logging/api_logging_context.go`
 
 - **ClientApiLogging.java** (`java/im/turms/service/infra/logging/ClientApiLogging.java`)
 > [简述功能]
 
-  - [ ] `log`
+  - [x] `log` -> `internal/infra/logging/client_api_logging.go`
 
 - **AcceptMeetingInvitationResult.java** (`java/im/turms/service/infra/plugin/extension/model/AcceptMeetingInvitationResult.java`)
 > [简述功能]
 
-  - [ ] `AcceptMeetingInvitationResult`
+  - [x] `AcceptMeetingInvitationResult` -> `internal/infra/plugin/extension/model/accept_meeting_invitation_result.go`
 
 - **CreateMeetingOptions.java** (`java/im/turms/service/infra/plugin/extension/model/CreateMeetingOptions.java`)
 > [简述功能]
 
-  - [ ] `CreateMeetingOptions`
+  - [x] `CreateMeetingOptions` -> `internal/infra/plugin/extension/model/create_meeting_options.go`
 
 - **CreateMeetingResult.java** (`java/im/turms/service/infra/plugin/extension/model/CreateMeetingResult.java`)
 > [简述功能]
 
-  - [ ] `CreateMeetingResult`
+  - [x] `CreateMeetingResult` -> `internal/infra/plugin/extension/model/create_meeting_result.go`
 
 - **ProtoModelConvertor.java** (`java/im/turms/service/infra/proto/ProtoModelConvertor.java`)
 > [简述功能]
 
-  - [ ] `toList`
-  - [ ] `value2proto`
+  - [x] `toList` -> `internal/infra/proto/proto_model_convertor.go`
+  - [x] `value2proto` -> `internal/infra/proto/proto_model_convertor.go`
 
 - **DefaultLanguageSettings.java** (`java/im/turms/service/storage/elasticsearch/DefaultLanguageSettings.java`)
 > [简述功能]
 
-  - [ ] `getSetting`
+  - [x] `getSetting` -> `internal/storage/elasticsearch/default_language_settings.go`
 
 - **ElasticsearchClient.java** (`java/im/turms/service/storage/elasticsearch/ElasticsearchClient.java`)
 > [简述功能]
 
-  - [ ] `healthcheck`
-  - [ ] `putIndex`
-  - [ ] `putDoc`
-  - [ ] `deleteDoc`
-  - [ ] `deleteByQuery`
-  - [ ] `updateByQuery`
-  - [ ] `search`
-  - [ ] `bulk`
-  - [ ] `deletePit`
+  - [x] `healthcheck` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `putIndex` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `putDoc` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `deleteDoc` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `deleteByQuery` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `updateByQuery` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `search` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `bulk` -> `internal/storage/elasticsearch/elasticsearch_client.go`
+  - [x] `deletePit` -> `internal/storage/elasticsearch/elasticsearch_client.go`
 
 - **ElasticsearchManager.java** (`java/im/turms/service/storage/elasticsearch/ElasticsearchManager.java`)
 > [简述功能]
 
-  - [ ] `putUserDoc`
-  - [ ] `putUserDocs`
-  - [ ] `deleteUserDoc`
-  - [ ] `deleteUserDocs`
-  - [ ] `searchUserDocs`
-  - [ ] `putGroupDoc`
-  - [ ] `putGroupDocs`
-  - [ ] `deleteGroupDocs`
-  - [ ] `deleteAllGroupDocs`
-  - [ ] `searchGroupDocs`
-  - [ ] `deletePitForUserDocs`
+  - [x] `putUserDoc` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `putUserDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `deleteUserDoc` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `deleteUserDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `searchUserDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `putGroupDoc` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `putGroupDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `deleteGroupDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `deleteAllGroupDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `searchGroupDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
+  - [x] `deletePitForUserDocs` -> `internal/storage/elasticsearch/elasticsearch_manager.go`
 
 - **IndexTextFieldSetting.java** (`java/im/turms/service/storage/elasticsearch/IndexTextFieldSetting.java`)
 > [简述功能]
 
-  - [ ] `IndexTextFieldSetting`
+  - [x] `IndexTextFieldSetting` -> `internal/storage/elasticsearch/index_text_field_setting.go`
 
 - **BulkRequest.java** (`java/im/turms/service/storage/elasticsearch/model/BulkRequest.java`)
 > [简述功能]
 
-  - [ ] `BulkRequest`
-  - [ ] `serialize`
+  - [x] `BulkRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [x] `serialize` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **BulkResponse.java** (`java/im/turms/service/storage/elasticsearch/model/BulkResponse.java`)
 > [简述功能]
 
-  - [ ] `BulkResponse`
+  - [x] `BulkResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **BulkResponseItem.java** (`java/im/turms/service/storage/elasticsearch/model/BulkResponseItem.java`)
 > [简述功能]
 
-  - [ ] `BulkResponseItem`
+  - [x] `BulkResponseItem` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **ClosePointInTimeRequest.java** (`java/im/turms/service/storage/elasticsearch/model/ClosePointInTimeRequest.java`)
 > [简述功能]
 
-  - [ ] `ClosePointInTimeRequest`
+  - [x] `ClosePointInTimeRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **CreateIndexRequest.java** (`java/im/turms/service/storage/elasticsearch/model/CreateIndexRequest.java`)
 > [简述功能]
 
-  - [ ] `CreateIndexRequest`
+  - [x] `CreateIndexRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **DeleteByQueryRequest.java** (`java/im/turms/service/storage/elasticsearch/model/DeleteByQueryRequest.java`)
 > [简述功能]
 
-  - [ ] `DeleteByQueryRequest`
+  - [x] `DeleteByQueryRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **DeleteByQueryResponse.java** (`java/im/turms/service/storage/elasticsearch/model/DeleteByQueryResponse.java`)
 > [简述功能]
 
-  - [ ] `DeleteByQueryResponse`
+  - [x] `DeleteByQueryResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **DeleteResponse.java** (`java/im/turms/service/storage/elasticsearch/model/DeleteResponse.java`)
 > [简述功能]
 
-  - [ ] `DeleteResponse`
+  - [x] `DeleteResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **ErrorCause.java** (`java/im/turms/service/storage/elasticsearch/model/ErrorCause.java`)
 > [简述功能]
 
-  - [ ] `ErrorCause`
+  - [x] `ErrorCause` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **ErrorResponse.java** (`java/im/turms/service/storage/elasticsearch/model/ErrorResponse.java`)
 > [简述功能]
 
-  - [ ] `ErrorResponse`
+  - [x] `ErrorResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **FieldCollapse.java** (`java/im/turms/service/storage/elasticsearch/model/FieldCollapse.java`)
 > [简述功能]
 
-  - [ ] `FieldCollapse`
+  - [x] `FieldCollapse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **HealthResponse.java** (`java/im/turms/service/storage/elasticsearch/model/HealthResponse.java`)
 > [简述功能]
 
-  - [ ] `HealthResponse`
+  - [x] `HealthResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **Highlight.java** (`java/im/turms/service/storage/elasticsearch/model/Highlight.java`)
 > [简述功能]
 
-  - [ ] `Highlight`
+  - [x] `Highlight` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **IndexSettings.java** (`java/im/turms/service/storage/elasticsearch/model/IndexSettings.java`)
 > [简述功能]
 
-  - [ ] `IndexSettings`
+  - [x] `IndexSettings` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **IndexSettingsAnalysis.java** (`java/im/turms/service/storage/elasticsearch/model/IndexSettingsAnalysis.java`)
 > [简述功能]
 
-  - [ ] `IndexSettingsAnalysis`
-  - [ ] `merge`
+  - [x] `IndexSettingsAnalysis` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
+  - [x] `merge` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **PointInTimeReference.java** (`java/im/turms/service/storage/elasticsearch/model/PointInTimeReference.java`)
 > [简述功能]
 
-  - [ ] `PointInTimeReference`
+  - [x] `PointInTimeReference` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **Property.java** (`java/im/turms/service/storage/elasticsearch/model/Property.java`)
 > [简述功能]
 
-  - [ ] `Property`
+  - [x] `Property` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **Script.java** (`java/im/turms/service/storage/elasticsearch/model/Script.java`)
 > [简述功能]
 
-  - [ ] `Script`
+  - [x] `Script` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **SearchRequest.java** (`java/im/turms/service/storage/elasticsearch/model/SearchRequest.java`)
 > [简述功能]
 
-  - [ ] `SearchRequest`
+  - [x] `SearchRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **ShardFailure.java** (`java/im/turms/service/storage/elasticsearch/model/ShardFailure.java`)
 > [简述功能]
 
-  - [ ] `ShardFailure`
+  - [x] `ShardFailure` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **ShardStatistics.java** (`java/im/turms/service/storage/elasticsearch/model/ShardStatistics.java`)
 > [简述功能]
 
-  - [ ] `ShardStatistics`
+  - [x] `ShardStatistics` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **TypeMapping.java** (`java/im/turms/service/storage/elasticsearch/model/TypeMapping.java`)
 > [简述功能]
 
-  - [ ] `TypeMapping`
+  - [x] `TypeMapping` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **UpdateByQueryRequest.java** (`java/im/turms/service/storage/elasticsearch/model/UpdateByQueryRequest.java`)
 > [简述功能]
 
-  - [ ] `UpdateByQueryRequest`
+  - [x] `UpdateByQueryRequest` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **UpdateByQueryResponse.java** (`java/im/turms/service/storage/elasticsearch/model/UpdateByQueryResponse.java`)
 > [简述功能]
 
-  - [ ] `UpdateByQueryResponse`
+  - [x] `UpdateByQueryResponse` -> `internal/storage/elasticsearch/model/elasticsearch_model.go`
 
 - **MongoCollectionMigrator.java** (`java/im/turms/service/storage/mongo/MongoCollectionMigrator.java`)
 > [简述功能]
 
-  - [ ] `migrate`
+  - [x] `migrate` -> `internal/storage/mongo/mongo_collection_migrator.go`
 
 - **MongoConfig.java** (`java/im/turms/service/storage/mongo/MongoConfig.java`)
 > [简述功能]
 
-  - [ ] `adminMongoClient`
-  - [ ] `userMongoClient`
-  - [ ] `groupMongoClient`
-  - [ ] `conversationMongoClient`
-  - [ ] `messageMongoClient`
-  - [ ] `conferenceMongoClient`
+  - [x] `adminMongoClient` -> `internal/storage/mongo/mongo_config.go`
+  - [x] `userMongoClient` -> `internal/storage/mongo/mongo_config.go`
+  - [x] `groupMongoClient` -> `internal/storage/mongo/mongo_config.go`
+  - [x] `conversationMongoClient` -> `internal/storage/mongo/mongo_config.go`
+  - [x] `messageMongoClient` -> `internal/storage/mongo/mongo_config.go`
+  - [x] `conferenceMongoClient` -> `internal/storage/mongo/mongo_config.go`
 
 - **MongoFakeDataGenerator.java** (`java/im/turms/service/storage/mongo/MongoFakeDataGenerator.java`)
 > [简述功能]
 
-  - [ ] `populateCollectionsWithFakeData`
+  - [x] `populateCollectionsWithFakeData` -> `internal/storage/mongo/mongo_fake_data_generator.go`
 
 - **RedisConfig.java** (`java/im/turms/service/storage/redis/RedisConfig.java`)
 > [简述功能]
 
-  - [ ] `newSequenceIdRedisClientManager`
-  - [ ] `sequenceIdRedisClientManager`
+  - [x] `newSequenceIdRedisClientManager` -> `internal/storage/redis/redis_config.go`
+  - [x] `sequenceIdRedisClientManager` -> `internal/storage/redis/redis_config.go`
 

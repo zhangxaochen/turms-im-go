@@ -155,13 +155,13 @@ func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNe
 	if deleteGroupIndex == newGroupIndex {
 		return nil
 	}
-	
+
 	filter := bson.M{"_id.oid": ownerID, "_id.gi": deleteGroupIndex}
 	members, err := s.groupMemberRepo.FindMembers(ctx, filter)
 	if err != nil {
 		return err
 	}
-	
+
 	for _, member := range members {
 		newMember := &po.UserRelationshipGroupMember{
 			Key: po.UserRelationshipGroupMemberKey{

@@ -8,6 +8,6 @@ const CollectionNameUserSettings = "userSettings"
 // MongoDB Collection: userSettings
 type UserSettings struct {
 	UserID          int64                  `bson:"_id"` // userId
-	Settings        map[string]interface{} `bson:"s"` // settings
+	Settings        map[string]interface{} `bson:"s"`   // settings
 	LastUpdatedDate time.Time              `bson:"lud"` // lastUpdatedDate
 }
