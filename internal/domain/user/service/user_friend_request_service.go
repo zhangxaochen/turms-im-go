@@ -6,11 +6,13 @@ import (
 	"time"
 
 	"im.turms/server/internal/domain/common/infra/idgen"
+	common "im.turms/server/internal/domain/common/service"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/internal/infra/validator"
 	"im.turms/server/pkg/codes"
+	"im.turms/server/pkg/protocol"
 )
 
 type UserFriendRequestService interface {
@@ -32,10 +34,11 @@ type UserFriendRequestService interface {
 }
 
 type userFriendRequestService struct {
-	idGen               *idgen.SnowflakeIdGenerator
-	repo                repository.UserFriendRequestRepository
-	relationshipService UserRelationshipService
-	userVersionService  *UserVersionService
+	idGen                  *idgen.SnowflakeIdGenerator
+	repo                   repository.UserFriendRequestRepository
+	relationshipService    UserRelationshipService
+	userVersionService     *UserVersionService
+	outboundMessageService common.OutboundMessageService
 }
 
 func NewUserFriendRequestService(
@@ -43,12 +46,14 @@ func NewUserFriendRequestService(
 	repo repository.UserFriendRequestRepository,
 	relService UserRelationshipService,
 	userVersionService *UserVersionService,
+	outboundMessageService common.OutboundMessageService,
 ) UserFriendRequestService {
 	return &userFriendRequestService{
-		idGen:               idGen,
-		repo:                repo,
-		relationshipService: relService,
-		userVersionService:  userVersionService,
+		idGen:                  idGen,
+		repo:                   repo,
+		relationshipService:    relService,
+		userVersionService:     userVersionService,
+		outboundMessageService: outboundMessageService,
 	}
 }
 
@@ -172,7 +177,26 @@ func (s *userFriendRequestService) AuthAndCreateFriendRequest(ctx context.Contex
 		return nil, exception.NewTurmsError(int32(codes.CreateExistingFriendRequest), "")
 	}
 
-	return s.CreateFriendRequest(ctx, nil, requesterID, recipientID, content, nil, &creationDate, nil, nil)
+	req, err := s.CreateFriendRequest(ctx, nil, requesterID, recipientID, content, nil, &creationDate, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send notification to recipient
+	notification := &protocol.TurmsNotification{
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserFriendRequestsWithVersion{
+				UserFriendRequestsWithVersion: &protocol.UserFriendRequestsWithVersion{
+					UserFriendRequests: []*protocol.UserFriendRequest{
+						FriendRequestToProto(req),
+					},
+				},
+			},
+		},
+	}
+	s.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, []int64{recipientID})
+
+	return req, nil
 }
 
 func (s *userFriendRequestService) AuthAndRecallFriendRequest(ctx context.Context, requesterID, requestID int64) (*po.UserFriendRequest, error) {
@@ -312,6 +336,23 @@ func (s *userFriendRequestService) AuthAndHandleFriendRequest(ctx context.Contex
 	if success && status == po.RequestStatusAccepted {
 		err = s.relationshipService.FriendTwoUsers(ctx, req.RequesterID, requesterID)
 	}
+
+	if success {
+		// Send notification to requester
+		notification := &protocol.TurmsNotification{
+			Data: &protocol.TurmsNotification_Data{
+				Kind: &protocol.TurmsNotification_Data_UserFriendRequestsWithVersion{
+					UserFriendRequestsWithVersion: &protocol.UserFriendRequestsWithVersion{
+						UserFriendRequests: []*protocol.UserFriendRequest{
+							FriendRequestToProto(req),
+						},
+					},
+				},
+			},
+		}
+		s.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, []int64{req.RequesterID})
+	}
+
 	return success, err
 }
 
