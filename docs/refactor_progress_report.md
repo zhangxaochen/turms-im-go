@@ -21,26 +21,26 @@
   - [ ] `main`
 
 - **ClientRequestDispatcher.java** (`java/im/turms/gateway/access/client/common/ClientRequestDispatcher.java`)
-> [简述功能]
+> [已完成] 路由客户端请求到相应的处理器
 
-  - [ ] `handleRequest`
-  - [ ] `handleRequest0`
-  - [ ] `handleServiceRequest`
+  - [x] `handleRequest` -> `internal/domain/gateway/access/router/router.go`
+  - [x] `handleRequest0` -> `internal/domain/gateway/access/router/router.go`
+  - [x] `handleServiceRequest` -> `internal/domain/gateway/access/router/router.go`
 
 - **IpRequestThrottler.java** (`java/im/turms/gateway/access/client/common/IpRequestThrottler.java`)
-> [简述功能]
+> [已完成] 网关按 IP 限制请求频率
 
-  - [ ] `tryAcquireToken`
+  - [x] `tryAcquireToken` -> `internal/domain/gateway/access/client/common/ip_request_throttler.go`
 
 - **NotificationFactory.java** (`java/im/turms/gateway/access/client/common/NotificationFactory.java`)
-> [简述功能]
+> [已完成] 封装生成统一的响应通知
 
-  - [ ] `init`
-  - [ ] `create`
-  - [ ] `create`
-  - [ ] `create`
-  - [ ] `createBuffer`
-  - [ ] `sessionClosed`
+  - [x] `init` -> `internal/domain/gateway/access/client/common/notification_factory.go`
+  - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
+  - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
+  - [x] `create` -> `internal/domain/gateway/access/client/common/notification_factory.go`
+  - [x] `createBuffer` -> `internal/domain/gateway/access/client/common/notification_factory.go`
+  - [x] `sessionClosed` -> `internal/domain/gateway/access/client/common/notification_factory.go`
 
 - **RequestHandlerResult.java** (`java/im/turms/gateway/access/client/common/RequestHandlerResult.java`)
 > [简述功能]
@@ -57,8 +57,8 @@
   - [ ] `isOpen`
   - [ ] `isConnected`
   - [ ] `supportsSwitchingToUdp`
-  - [ ] `sendNotification`
-  - [ ] `sendNotification`
+  - [x] `sendNotification` -> `internal/domain/gateway/access/router/router.go`
+  - [x] `sendNotification` -> `internal/domain/gateway/access/router/router.go`
   - [ ] `acquireDeleteSessionRequestLoggingLock`
   - [ ] `hasPermission`
   - [ ] `toString`
@@ -87,10 +87,10 @@
   - [ ] `PolicyStatement`
 
 - **ServiceAvailabilityHandler.java** (`java/im/turms/gateway/access/client/common/channel/ServiceAvailabilityHandler.java`)
-> [简述功能]
+> [已完成] 网关服务可用性管理
 
-  - [ ] `channelRegistered`
-  - [ ] `exceptionCaught`
+  - [x] `channelRegistered` -> `internal/domain/gateway/access/client/common/service_availability.go`
+  - [x] `exceptionCaught` -> `internal/domain/gateway/access/client/common/service_availability.go`
 
 - **NetConnection.java** (`java/im/turms/gateway/access/client/common/connection/NetConnection.java`)
 > [简述功能]
@@ -888,10 +888,10 @@
   - [ ] `upsertGroupConversationsReadDate`
   - [ ] `upsertPrivateConversationReadDate`
   - [ ] `upsertPrivateConversationsReadDate`
-  - [ ] `queryGroupConversations`
+  - [x] `queryGroupConversations` -> `internal/domain/conversation/service/conversation_service.go`
   - [ ] `queryPrivateConversationsByOwnerIds`
-  - [ ] `queryPrivateConversations`
-  - [ ] `queryPrivateConversations`
+  - [x] `queryPrivateConversations` -> `internal/domain/conversation/service/conversation_service.go`
+  - [x] `queryPrivateConversations` -> `internal/domain/conversation/service/conversation_service.go`
   - [ ] `deletePrivateConversations`
   - [ ] `deletePrivateConversations`
   - [ ] `deleteGroupConversations`
@@ -968,7 +968,7 @@
   - [ ] `addGroupType`
   - [ ] `queryGroupTypes`
   - [ ] `queryGroupTypes`
-  - [ ] `updateGroupType`
+  - [x] `updateGroupType` -> `internal/domain/group/repository/group_type_repository.go`
   - [ ] `deleteGroupType`
 
 - **AddGroupBlockedUserDTO.java** (`java/im/turms/service/domain/group/access/admin/dto/request/AddGroupBlockedUserDTO.java`)
@@ -1085,7 +1085,7 @@
 - **GroupInvitationStrategy.java** (`java/im/turms/service/domain/group/bo/GroupInvitationStrategy.java`)
 > [简述功能]
 
-  - [ ] `requiresApproval`
+  - [x] `requiresApproval` -> `internal/domain/group/constant/group_strategy.go`
 
 - **HandleHandleGroupInvitationResult.java** (`java/im/turms/service/domain/group/bo/HandleHandleGroupInvitationResult.java`)
 > [简述功能]
@@ -1199,8 +1199,8 @@
 
   - [ ] `updateVersions`
   - [ ] `updateVersions`
-  - [ ] `updateVersion`
-  - [ ] `updateVersion`
+  - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
+  - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [ ] `findBlocklist`
   - [ ] `findInvitations`
   - [ ] `findJoinRequests`
@@ -1375,13 +1375,13 @@
   - [ ] `queryGroupJoinRequestsVersion`
   - [ ] `queryGroupJoinQuestionsVersion`
   - [ ] `queryGroupInvitationsVersion`
-  - [ ] `updateVersion`
-  - [ ] `updateMembersVersion`
-  - [ ] `updateMembersVersion`
-  - [ ] `updateMembersVersion`
-  - [ ] `updateBlocklistVersion`
-  - [ ] `updateJoinRequestsVersion`
-  - [ ] `updateJoinQuestionsVersion`
+  - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
+  - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
+  - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
+  - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
+  - [x] `updateBlocklistVersion` -> `internal/domain/group/service/group_version_service.go`
+  - [x] `updateJoinRequestsVersion` -> `internal/domain/group/repository/group_version_repository.go`
+  - [x] `updateJoinQuestionsVersion` -> `internal/domain/group/repository/group_version_repository.go`
   - [ ] `updateGroupInvitationsVersion`
   - [ ] `updateSpecificVersion`
   - [ ] `updateSpecificVersion`
@@ -1417,7 +1417,7 @@
 - **MessageServiceController.java** (`java/im/turms/service/domain/message/access/servicerequest/controller/MessageServiceController.java`)
 > [简述功能]
 
-  - [ ] `handleCreateMessageRequest`
+  - [x] `handleCreateMessageRequest` -> `internal/domain/message/controller/message_controller.go`
   - [ ] `handleQueryMessagesRequest`
   - [ ] `handleUpdateMessageRequest`
   - [ ] `handleCreateMessageReactionsRequest`
@@ -1508,9 +1508,9 @@
 - **StorageService.java** (`java/im/turms/service/domain/storage/service/StorageService.java`)
 > [简述功能]
 
-  - [ ] `deleteResource`
-  - [ ] `queryResourceUploadInfo`
-  - [ ] `queryResourceDownloadInfo`
+  - [x] `deleteResource` -> `internal/domain/storage/service/storage_service.go`
+  - [x] `queryResourceUploadInfo` -> `internal/domain/storage/service/storage_service.go`
+  - [x] `queryResourceDownloadInfo` -> `internal/domain/storage/service/storage_service.go`
   - [ ] `shareMessageAttachmentWithUser`
   - [ ] `shareMessageAttachmentWithGroup`
   - [ ] `unshareMessageAttachmentWithUser`

@@ -120,7 +120,11 @@ func (s *DiscoveryService) registerLocalMember() error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	return s.redisClient.RDB.Set(ctx, s.getMemberKeyString(s.localMember.NodeID), data, s.ttl).Err()
+	err = s.redisClient.RDB.Set(ctx, s.getMemberKeyString(s.localMember.NodeID), data, s.ttl).Err()
+	if err == nil {
+		s.allKnownMembers.Store(s.localMember.NodeID, s.localMember)
+	}
+	return err
 }
 
 func (s *DiscoveryService) heartbeatRoutine() {
@@ -229,45 +233,48 @@ func (s *DiscoveryService) syncMembers() error {
 	return nil
 }
 
+func (s *DiscoveryService) runLeaderElection() {
+	if !s.localMember.IsLeaderEligible {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	leaderKey := fmt.Sprintf("turms:cluster:%s:leader", s.localMember.ClusterID)
+
+	ok, err := s.redisClient.RDB.SetNX(ctx, leaderKey, s.localMember.NodeID, s.ttl).Result()
+	if err != nil {
+		return
+	}
+	if ok {
+		s.leaderMu.Lock()
+		s.leaderID = s.localMember.NodeID
+		s.leaderMu.Unlock()
+	} else {
+		currentLeader, _ := s.redisClient.RDB.Get(ctx, leaderKey).Result()
+		if currentLeader == s.localMember.NodeID {
+			s.redisClient.RDB.SetXX(ctx, leaderKey, s.localMember.NodeID, s.ttl)
+		}
+		s.leaderMu.Lock()
+		s.leaderID = currentLeader
+		s.leaderMu.Unlock()
+	}
+}
+
 func (s *DiscoveryService) leaderElectionRoutine() {
 	defer s.wg.Done()
 	ticker := time.NewTicker(s.heartbeatInterval)
 	defer ticker.Stop()
 
-	leaderKey := fmt.Sprintf("turms:cluster:%s:leader", s.localMember.ClusterID)
+	// Run once immediately
+	s.runLeaderElection()
 
 	for {
 		select {
 		case <-s.stopCtx.Done():
 			return
 		case <-ticker.C:
-			if !s.localMember.IsLeaderEligible {
-				continue
-			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			// Try to acquire leadership using SET NX EX (only sets if not exist)
-			ok, err := s.redisClient.RDB.SetNX(ctx, leaderKey, s.localMember.NodeID, s.ttl).Result()
-			if err != nil {
-				cancel()
-				continue
-			}
-			if ok {
-				// We acquired the leadership!
-				s.leaderMu.Lock()
-				s.leaderID = s.localMember.NodeID
-				s.leaderMu.Unlock()
-			} else {
-				// Someone else is leader, check if it's us
-				currentLeader, _ := s.redisClient.RDB.Get(ctx, leaderKey).Result()
-				if currentLeader == s.localMember.NodeID {
-					// We are the leader, renew TTL using SET XX
-					s.redisClient.RDB.SetXX(ctx, leaderKey, s.localMember.NodeID, s.ttl)
-				}
-				s.leaderMu.Lock()
-				s.leaderID = currentLeader
-				s.leaderMu.Unlock()
-			}
-			cancel()
+			s.runLeaderElection()
 		}
 	}
 }

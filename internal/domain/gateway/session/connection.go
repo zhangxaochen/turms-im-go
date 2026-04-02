@@ -25,6 +25,7 @@ type UserSession struct {
 	Conn Connection
 
 	lastHeartbeat int64 // Use atomic operations if accessed concurrently
+	lastRequest   int64 // Use atomic operations if accessed concurrently
 
 	// Channel to cleanly shutdown the connection loops
 	CloseChan chan struct{}
@@ -38,6 +39,21 @@ func (s *UserSession) SetLastHeartbeatRequestTimestampToNow() {
 // GetLastHeartbeatRequestTimestamp returns the last heartbeat received in milliseconds.
 func (s *UserSession) GetLastHeartbeatRequestTimestamp() int64 {
 	return atomic.LoadInt64(&s.lastHeartbeat)
+}
+
+// SetLastRequestTimestampToNow updates the last request to now.
+func (s *UserSession) SetLastRequestTimestampToNow() {
+	atomic.StoreInt64(&s.lastRequest, time.Now().UnixMilli())
+}
+
+// GetLastRequestTimestamp returns the last request timestamp in milliseconds.
+func (s *UserSession) GetLastRequestTimestamp() int64 {
+	return atomic.LoadInt64(&s.lastRequest)
+}
+
+// IsOpen returns whether the session's connection is active
+func (s *UserSession) IsOpen() bool {
+	return s.Conn != nil
 }
 
 // Connection abstracts away the difference between net.TCPConn and gorilla websocket.Conn
