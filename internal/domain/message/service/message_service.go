@@ -8,10 +8,8 @@ import (
 
 	"im.turms/server/internal/domain/common/cache"
 	"im.turms/server/internal/domain/common/infra/idgen"
-	groupsvc "im.turms/server/internal/domain/group/service"
 	"im.turms/server/internal/domain/message/po"
 	"im.turms/server/internal/domain/message/repository"
-	usersvc "im.turms/server/internal/domain/user/service"
 	turmsredis "im.turms/server/internal/storage/redis"
 )
 
@@ -25,12 +23,20 @@ type OutboundMessageDelivery interface {
 	Deliver(ctx context.Context, targetID int64, msg *po.Message) error
 }
 
+type UserRelationshipService interface {
+	HasRelationshipAndNotBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error)
+}
+
+type GroupMemberService interface {
+	IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error)
+}
+
 type MessageService struct {
 	idGen              *idgen.SnowflakeIdGenerator
 	seqGen             *turmsredis.SequenceGenerator
 	msgRepo            *repository.MessageRepository
-	userRelService     usersvc.UserRelationshipService
-	groupMemService    groupsvc.GroupMemberService
+	userRelService     UserRelationshipService
+	groupMemService    GroupMemberService
 	outboundDelivery   OutboundMessageDelivery
 
 	authCache *cache.TTLCache[string, bool]
@@ -40,8 +46,8 @@ func NewMessageService(
 	idGen *idgen.SnowflakeIdGenerator,
 	seqGen *turmsredis.SequenceGenerator,
 	msgRepo *repository.MessageRepository,
-	userRelSvc usersvc.UserRelationshipService,
-	groupMemSvc groupsvc.GroupMemberService,
+	userRelSvc UserRelationshipService,
+	groupMemSvc GroupMemberService,
 	delivery OutboundMessageDelivery,
 ) *MessageService {
 	return &MessageService{

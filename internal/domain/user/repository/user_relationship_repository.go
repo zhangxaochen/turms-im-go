@@ -6,6 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"im.turms/server/internal/domain/user/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
@@ -15,6 +16,9 @@ type UserRelationshipRepository interface {
 	HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 	Insert(ctx context.Context, rel *po.UserRelationship) error
 	UpdateBlockDate(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time) error
+	FindRelatedUserIDs(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error)
+	DeleteById(ctx context.Context, ownerID, relatedUserID int64) error
+	Upsert(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string, session mongo.SessionContext) error
 }
 
 type userRelationshipRepository struct {
@@ -59,5 +63,78 @@ func (r *userRelationshipRepository) UpdateBlockDate(ctx context.Context, ownerI
 		"$set": bson.M{"bd": blockDate},
 	}
 	_, err := r.coll.UpdateOne(ctx, filter, update)
+	return err
+}
+
+func (r *userRelationshipRepository) FindRelatedUserIDs(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error) {
+	filter := bson.M{"_id.oid": ownerID}
+	if isBlocked != nil {
+		if *isBlocked {
+			filter["bd"] = bson.M{"$ne": nil}
+		} else {
+			filter["bd"] = nil
+		}
+	}
+	cursor, err := r.coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var relatedIDs []int64
+	for cursor.Next(ctx) {
+		var rel po.UserRelationship
+		if err := cursor.Decode(&rel); err != nil {
+			return nil, err
+		}
+		relatedIDs = append(relatedIDs, rel.ID.RelatedUserID)
+	}
+	return relatedIDs, cursor.Err()
+}
+
+func (r *userRelationshipRepository) DeleteById(ctx context.Context, ownerID, relatedUserID int64) error {
+	filter := bson.M{
+		"_id": bson.M{
+			"oid": ownerID,
+			"rid": relatedUserID,
+		},
+	}
+	_, err := r.coll.DeleteOne(ctx, filter)
+	return err
+}
+
+func (r *userRelationshipRepository) Upsert(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string, session mongo.SessionContext) error {
+	filter := bson.M{
+		"_id": bson.M{
+			"oid": ownerID,
+			"rid": relatedUserID,
+		},
+	}
+	update := bson.M{}
+	setOps := bson.M{}
+	if blockDate != nil {
+		setOps["bd"] = blockDate
+	}
+	if groupIndex != nil {
+		setOps["gi"] = groupIndex
+	}
+	if establishmentDate != nil {
+		setOps["ed"] = establishmentDate
+	}
+	if name != nil {
+		setOps["n"] = name
+	}
+	if len(setOps) > 0 {
+		update["$set"] = setOps
+	} else {
+		update["$setOnInsert"] = bson.M{}
+	}
+
+	opts := options.Update().SetUpsert(true)
+	var execCtx context.Context = ctx
+	if session != nil {
+		execCtx = mongo.NewSessionContext(ctx, session)
+	}
+	_, err := r.coll.UpdateOne(execCtx, filter, update, opts)
 	return err
 }

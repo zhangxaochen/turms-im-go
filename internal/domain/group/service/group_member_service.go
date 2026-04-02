@@ -2,49 +2,93 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
+	"im.turms/server/internal/domain/common/cache"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 )
 
-// GroupMemberService provides methods to check user roles inside groups.
-type GroupMemberService interface {
-	// IsGroupMember returns true if userID is a common member, admin, or owner of groupID.
-	IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error)
-	// AddGroupMember inserts a new member into the group with a specified role.
-	AddGroupMember(ctx context.Context, groupID int64, userID int64, role int32, name *string, muteEndDate *time.Time) (*po.GroupMember, error)
+var (
+	ErrUnauthorized   = errors.New("unauthorized role operation")
+	ErrRoleNotAllowed = errors.New("target role not allowed")
+)
+
+type GroupMemberService struct {
+	groupRepo       *repository.GroupRepository
+	groupMemberRepo *repository.GroupMemberRepository
+	memberCache     *cache.TTLCache[string, bool]
 }
 
-type groupMemberService struct {
-	repo repository.GroupMemberRepository
-}
-
-func NewGroupMemberService(repo repository.GroupMemberRepository) GroupMemberService {
-	return &groupMemberService{
-		repo: repo,
+func NewGroupMemberService(groupRepo *repository.GroupRepository, groupMemberRepo *repository.GroupMemberRepository) *GroupMemberService {
+	return &GroupMemberService{
+		groupRepo:       groupRepo,
+		groupMemberRepo: groupMemberRepo,
+		memberCache:     cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
 	}
 }
 
-func (s *groupMemberService) IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error) {
-	return s.repo.IsGroupMember(ctx, groupID, userID)
+func (s *GroupMemberService) Close() {
+	if s.memberCache != nil {
+		s.memberCache.Close()
+	}
 }
 
-func (s *groupMemberService) AddGroupMember(ctx context.Context, groupID int64, userID int64, role int32, name *string, muteEndDate *time.Time) (*po.GroupMember, error) {
+// AddGroupMember adds a new member with the given role.
+// Only admins (Owner/Manager) can explicitly add someone without an invite.
+func (s *GroupMemberService) AddGroupMember(ctx context.Context, requesterID, targetUserID, groupID int64, targetRole po.GroupMemberRole) error {
+	// Simple RBAC: check if requester is Owner/Manager
+	role, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	if role == nil || (*role != po.GroupMemberRole_OWNER && *role != po.GroupMemberRole_MANAGER) {
+		return ErrUnauthorized
+	}
+
 	now := time.Now()
 	member := &po.GroupMember{
 		ID: po.GroupMemberKey{
 			GroupID: groupID,
-			UserID:  userID,
+			UserID:  targetUserID,
 		},
-		Name:        name,
-		Role:        role,
-		JoinDate:    &now,
-		MuteEndDate: muteEndDate,
+		Role:     targetRole,
+		JoinDate: &now,
 	}
-	err := s.repo.Insert(ctx, member)
+
+	return s.groupMemberRepo.AddGroupMember(ctx, member)
+}
+
+// IsMemberMuted is intensely called during routing.
+func (s *GroupMemberService) IsMemberMuted(ctx context.Context, groupID, userID int64) (bool, error) {
+	cacheKey := fmt.Sprintf("muted:%d:%d", groupID, userID)
+	if muted, ok := s.memberCache.Get(cacheKey); ok {
+		return muted, nil
+	}
+
+	muted, err := s.groupMemberRepo.IsMemberMuted(ctx, groupID, userID)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-	return member, nil
+
+	s.memberCache.Set(cacheKey, muted)
+	return muted, nil
+}
+
+func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
+	cacheKey := fmt.Sprintf("ismember:%d:%d", groupID, userID)
+	if isMember, ok := s.memberCache.Get(cacheKey); ok {
+		return isMember, nil
+	}
+
+	role, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
+	if err != nil {
+		return false, err
+	}
+	
+	isMember := role != nil
+	s.memberCache.Set(cacheKey, isMember)
+	return isMember, nil
 }

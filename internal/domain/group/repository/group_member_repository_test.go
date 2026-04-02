@@ -11,6 +11,10 @@ import (
 func TestGroupMemberRepository_BDD(t *testing.T) {
 	ctx := context.Background()
 
+	if testing.Short() {
+		t.Skip("Skipping testcases requiring Mongo in short mode")
+	}
+
 	client, cleanup := testingutil.SetupMongo(t, "turms_test")
 	defer cleanup()
 
@@ -21,18 +25,19 @@ func TestGroupMemberRepository_BDD(t *testing.T) {
 	memberID := int64(100)
 	nonMemberID := int64(200)
 
-	err := repo.Insert(ctx, &po.GroupMember{
+	err := repo.AddGroupMember(ctx, &po.GroupMember{
 		ID:   po.GroupMemberKey{GroupID: groupID, UserID: memberID},
-		Role: 1, // member
+		Role: po.GroupMemberRole_MEMBER, // member
 	})
 	assert.NoError(t, err)
 
-	// 2. Test IsGroupMember
-	ok, err := repo.IsGroupMember(ctx, groupID, memberID)
+	// 2. Test FindGroupMemberRole
+	role, err := repo.FindGroupMemberRole(ctx, groupID, memberID)
 	assert.NoError(t, err)
-	assert.True(t, ok)
+	assert.NotNil(t, role)
+	assert.Equal(t, po.GroupMemberRole_MEMBER, *role)
 
-	ok, err = repo.IsGroupMember(ctx, groupID, nonMemberID)
+	role2, err := repo.FindGroupMemberRole(ctx, groupID, nonMemberID)
 	assert.NoError(t, err)
-	assert.False(t, ok)
+	assert.Nil(t, role2)
 }
