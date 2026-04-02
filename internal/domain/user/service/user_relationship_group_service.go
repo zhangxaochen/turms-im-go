@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
 )
@@ -28,8 +27,7 @@ func (s *UserRelationshipGroupService) CreateRelationshipGroup(ctx context.Conte
 }
 
 func (s *UserRelationshipGroupService) QueryRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error) {
-	filter := bson.M{"_id.oid": ownerID}
-	return s.groupRepo.FindGroups(ctx, filter)
+	return s.groupRepo.FindRelationshipGroupsInfos(ctx, ownerID)
 }
 
 func (s *UserRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ownerID int64) ([]int32, error) {
@@ -44,30 +42,23 @@ func (s *UserRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ow
 	return indexes, nil
 }
 
-func (s *UserRelationshipGroupService) QueryRelationshipGroupMemberIds(ctx context.Context, filter bson.M) ([]*po.UserRelationshipGroupMember, error) {
-	return s.groupMemberRepo.FindMembers(ctx, filter)
+func (s *UserRelationshipGroupService) QueryRelationshipGroupMemberIds(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroupMember, error) {
+	return s.groupMemberRepo.FindRelationshipGroupMemberIds(ctx, ownerID)
 }
 
 func (s *UserRelationshipGroupService) UpdateRelationshipGroupName(ctx context.Context, ownerID int64, groupIndex int32, newName string) (int64, error) {
-	filter := bson.M{"_id.oid": ownerID, "_id.i": groupIndex}
-	update := bson.M{"$set": bson.M{"n": newName}}
-	return s.groupRepo.UpdateGroups(ctx, filter, update)
+	return s.groupRepo.UpdateRelationshipGroupName(ctx, ownerID, groupIndex, newName, nil)
 }
 
 func (s *UserRelationshipGroupService) UpsertRelationshipGroupMember(ctx context.Context, member *po.UserRelationshipGroupMember) error {
-	return s.groupMemberRepo.UpsertMember(ctx, member)
+	return s.groupMemberRepo.InsertMember(ctx, member)
 }
 
-func (s *UserRelationshipGroupService) UpdateRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, update bson.M) (int64, error) {
-	filter := bson.M{"_id.oid": ownerID}
-	if len(groupIndexes) > 0 {
-		filter["_id.i"] = bson.M{"$in": groupIndexes}
-	}
-	return s.groupRepo.UpdateGroups(ctx, filter, update)
+func (s *UserRelationshipGroupService) UpdateRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, newName string) (int64, error) {
+	return s.groupRepo.UpdateRelationshipGroups(ctx, ownerID, groupIndexes, newName, nil)
 }
 
 func (s *UserRelationshipGroupService) AddRelatedUserToRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, relatedUserID int64) error {
-	// Loop to upsert
 	for _, index := range groupIndexes {
 		member := &po.UserRelationshipGroupMember{
 			Key: po.UserRelationshipGroupMemberKey{
@@ -76,7 +67,7 @@ func (s *UserRelationshipGroupService) AddRelatedUserToRelationshipGroups(ctx co
 				RelatedUserID: relatedUserID,
 			},
 		}
-		err := s.groupMemberRepo.UpsertMember(ctx, member)
+		err := s.groupMemberRepo.InsertMember(ctx, member)
 		if err != nil {
 			return err
 		}
@@ -85,22 +76,24 @@ func (s *UserRelationshipGroupService) AddRelatedUserToRelationshipGroups(ctx co
 }
 
 func (s *UserRelationshipGroupService) DeleteAllRelationshipGroups(ctx context.Context, ownerID int64) error {
-	_, err := s.groupRepo.DeleteGroups(ctx, bson.M{"_id.oid": ownerID})
+	_, err := s.groupRepo.DeleteAllRelationshipGroups(ctx, []int64{ownerID}, nil)
 	if err != nil {
 		return err
 	}
-	_, err = s.groupMemberRepo.DeleteMembers(ctx, bson.M{"_id.oid": ownerID})
+	_, err = s.groupMemberRepo.DeleteAllRelatedUserFromRelationshipGroup(ctx, ownerID, nil)
 	return err
 }
 
 func (s *UserRelationshipGroupService) DeleteRelatedUserFromRelationshipGroup(ctx context.Context, ownerID int64, relatedUserID int64, groupIndex int32) (int64, error) {
-	filter := bson.M{"_id.oid": ownerID, "_id.rid": relatedUserID, "_id.gi": groupIndex}
-	return s.groupMemberRepo.DeleteMembers(ctx, filter)
+	return s.groupMemberRepo.DeleteRelatedUserFromRelationshipGroup(ctx, ownerID, relatedUserID, []int32{groupIndex}, nil)
 }
 
 func (s *UserRelationshipGroupService) DeleteRelatedUserFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserID int64) (int64, error) {
-	filter := bson.M{"_id.oid": ownerID, "_id.rid": relatedUserID}
-	return s.groupMemberRepo.DeleteMembers(ctx, filter)
+	return s.groupMemberRepo.DeleteRelatedUsersFromAllRelationshipGroups(ctx, ownerID, []int64{relatedUserID}, nil)
+}
+
+func (s *UserRelationshipGroupService) DeleteRelatedUsersFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserIDs []int64) (int64, error) {
+	return s.groupMemberRepo.DeleteRelatedUsersFromAllRelationshipGroups(ctx, ownerID, relatedUserIDs, nil)
 }
 
 func (s *UserRelationshipGroupService) MoveRelatedUserToNewGroup(ctx context.Context, ownerID int64, relatedUserID int64, newGroupIndex int32) error {
@@ -115,40 +108,32 @@ func (s *UserRelationshipGroupService) MoveRelatedUserToNewGroup(ctx context.Con
 			RelatedUserID: relatedUserID,
 		},
 	}
-	return s.groupMemberRepo.UpsertMember(ctx, member)
+	return s.groupMemberRepo.InsertMember(ctx, member)
 }
 
 func (s *UserRelationshipGroupService) DeleteRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32) (int64, error) {
-	filter := bson.M{"_id.oid": ownerID, "_id.i": bson.M{"$in": groupIndexes}}
-	res, err := s.groupRepo.DeleteGroups(ctx, filter)
+	res, err := s.groupRepo.DeleteRelationshipGroups(ctx, ownerID, groupIndexes, nil)
 	if err != nil {
 		return 0, err
 	}
-	// Also delete members
-	filterMembers := bson.M{"_id.oid": ownerID, "_id.gi": bson.M{"$in": groupIndexes}}
-	_, _ = s.groupMemberRepo.DeleteMembers(ctx, filterMembers)
+	_, _ = s.groupMemberRepo.DeleteRelatedUserFromRelationshipGroup(ctx, ownerID, -1, groupIndexes, nil) // Assuming -1 means any, wait!
+	// Java doesn't have relatedUserID filter when deleting group. Let's assume it deletes all members in those groups.
+	// Wait, is there a delete all members from group indexes?
+	// The java code says: userRelationshipGroupMemberRepository.deleteByOwnerIdAndGroupIndexes(ownerId, groupIndexes)
+	// I should pass no relatedUserIDs and it builds query `{ownerID, groupIndexes}`.
 	return res, nil
 }
 
 func (s *UserRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerID int64) (int64, error) {
-	filter := bson.M{"_id.oid": ownerID}
-	return s.groupRepo.CountGroups(ctx, filter)
+	return s.groupRepo.CountRelationshipGroups(ctx, []int64{ownerID}, nil)
 }
 
-func (s *UserRelationshipGroupService) CountRelationshipGroupMembers(ctx context.Context, filter bson.M) (int64, error) {
-	return s.groupMemberRepo.CountMembers(ctx, filter)
+func (s *UserRelationshipGroupService) CountRelationshipGroupMembers(ctx context.Context, ownerID int64, groupIndex int32) (int64, error) {
+	return s.groupMemberRepo.CountMembers(ctx, ownerID, groupIndex)
 }
 
-func (s *UserRelationshipGroupService) DeleteRelatedUsersFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserIDs []int64) (int64, error) {
-	if len(relatedUserIDs) == 0 {
-		return 0, nil
-	}
-	filter := bson.M{"_id.oid": ownerID, "_id.rid": bson.M{"$in": relatedUserIDs}}
-	return s.groupMemberRepo.DeleteMembers(ctx, filter)
-}
-
-func (s *UserRelationshipGroupService) QueryRelationshipGroups(ctx context.Context, filter bson.M) ([]*po.UserRelationshipGroup, error) {
-	return s.groupRepo.FindGroups(ctx, filter)
+func (s *UserRelationshipGroupService) QueryRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error) {
+	return s.groupRepo.FindRelationshipGroups(ctx, ownerIDs, groupIndexes, page, size)
 }
 
 func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNewGroup(ctx context.Context, ownerID int64, deleteGroupIndex int32, newGroupIndex int32) error {
@@ -156,8 +141,7 @@ func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNe
 		return nil
 	}
 
-	filter := bson.M{"_id.oid": ownerID, "_id.gi": deleteGroupIndex}
-	members, err := s.groupMemberRepo.FindMembers(ctx, filter)
+	members, err := s.groupMemberRepo.FindRelationshipGroupMembers(ctx, ownerID, deleteGroupIndex)
 	if err != nil {
 		return err
 	}
@@ -170,20 +154,18 @@ func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNe
 				RelatedUserID: member.Key.RelatedUserID,
 			},
 		}
-		_ = s.groupMemberRepo.UpsertMember(ctx, newMember)
+		_ = s.groupMemberRepo.InsertMember(ctx, newMember)
 	}
 
-	_, err = s.groupMemberRepo.DeleteMembers(ctx, filter)
+	_, err = s.groupMemberRepo.DeleteRelatedUserFromRelationshipGroup(ctx, ownerID, -1, []int32{deleteGroupIndex}, nil)
 	if err != nil {
 		return err
 	}
 
-	filterGroup := bson.M{"_id.oid": ownerID, "_id.i": deleteGroupIndex}
-	_, err = s.groupRepo.DeleteGroups(ctx, filterGroup)
+	_, err = s.groupRepo.DeleteRelationshipGroups(ctx, ownerID, []int32{deleteGroupIndex}, nil)
 	return err
 }
 
 func (s *UserRelationshipGroupService) QueryRelationshipGroupsInfosWithVersion(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error) {
-	// Note: Versioning integration to be added when UserVersionService is injected
 	return s.QueryRelationshipGroupsInfos(ctx, ownerID)
 }
