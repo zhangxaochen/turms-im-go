@@ -4,14 +4,14 @@
 
 ### turms-gateway
 
-> [简述功能]
+> 接入层边缘网关（Edge Gateway）。负责与海量客户端建立 TCP/WebSocket/UDP 长链接、会话管理、心跳感知、认证分发，以及实时的消息下发推送。其内部逻辑完全基于内存会话状态，无直接数据库读写依赖。
 
 #### Configurations
 
-- **application-demo.yaml** (`resources/application-demo.yaml`): [简述功能]
-- **application-dev.yaml** (`resources/application-dev.yaml`): [简述功能]
-- **application-test.yaml** (`resources/application-test.yaml`): [简述功能]
-- **application.yaml** (`resources/application.yaml`): [简述功能]
+- **application-demo.yaml** (`resources/application-demo.yaml`): Demo 环境网关配置（仅限快速体验和起步测试，降低安全校验）。
+- **application-dev.yaml** (`resources/application-dev.yaml`): 研发日常联调配置，包含高频调试日志（Debug模式）、跨域访问控制放开等开发特性。
+- **application-test.yaml** (`resources/application-test.yaml`): 自动化与集成测试环境（CI/CD）专用的网关配置。
+- **application.yaml** (`resources/application.yaml`): 网关应用基座公共配置，包含 Netty 网络参数、IP封禁策略、连接限流等。
 
 #### Java source tracking
 
@@ -485,14 +485,14 @@
 
 ### turms-service
 
-> [简述功能]
+> 核心业务服务端（Business Core Server）。处理所有深度的 IM 重负载业务需求逻辑，包括：好友申请、群组管理、消息存储落地与版本流（Version）同步、后台管控聚合等。通过内部 RPC 与网关通信，负责强状态读写（强依赖 MongoDB 与 Redis）。
 
 #### Configurations
 
-- **application-demo.yaml** (`resources/application-demo.yaml`): [简述功能]
-- **application-dev.yaml** (`resources/application-dev.yaml`): [简述功能]
-- **application-test.yaml** (`resources/application-test.yaml`): [简述功能]
-- **application.yaml** (`resources/application.yaml`): [简述功能]
+- **application-demo.yaml** (`resources/application-demo.yaml`): Demo 环境业务服务配置（方便本地快速启动，弱化密码校验逻辑）。
+- **application-dev.yaml** (`resources/application-dev.yaml`): 研发辅助默认连接池配置（本地 Mongo/Redis 连接串和监控入口开放）。
+- **application-test.yaml** (`resources/application-test.yaml`): E2E 及集成测试专用的业务执行隔离环境设定。
+- **application.yaml** (`resources/application.yaml`): 业务服务的基础与公共准则配置，包括 MongoDB 的写关注设定（WriteConcern配置）、分片时间跨度规则、业务线程池模型等。
 
 #### Java source tracking
 
@@ -1149,14 +1149,14 @@
   - [ ] `findGroupMembers`
   - [ ] `findGroupMembers`
   - [ ] `findGroupsMembers`
-  - [ ] `findGroupMemberIds`
-  - [ ] `findGroupMemberIds`
+  - [x] `findGroupMemberIds` -> `internal/domain/group/repository/group_member_repository.go`
+  - [x] `findGroupMemberIds` -> `internal/domain/group/repository/group_member_repository.go`
   - [ ] `findGroupMemberKeyAndRoleParis`
-  - [ ] `findGroupMemberRole`
+  - [x] `findGroupMemberRole` -> `internal/domain/group/repository/group_member_repository.go`
   - [ ] `findMemberIdsByGroupId`
-  - [ ] `findUserJoinedGroupIds`
+  - [x] `findUserJoinedGroupIds` -> `internal/domain/group/repository/group_member_repository.go`
   - [ ] `findUsersJoinedGroupIds`
-  - [ ] `isMemberMuted`
+  - [x] `isMemberMuted` -> `internal/domain/group/service/group_member_service.go`
 
 - **GroupQuestionRepository.java** (`java/im/turms/service/domain/group/repository/GroupQuestionRepository.java`)
 > [简述功能]
@@ -1176,9 +1176,9 @@
   - [ ] `countCreatedGroups`
   - [ ] `countDeletedGroups`
   - [ ] `countGroups`
-  - [ ] `countOwnedGroups`
-  - [ ] `countOwnedGroups`
-  - [ ] `findGroups`
+  - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
+  - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
+  - [x] `findGroups` -> `internal/domain/group/repository/group_repository.go`
   - [ ] `findNotDeletedGroups`
   - [ ] `findAllNames`
   - [ ] `findTypeId`
@@ -1279,7 +1279,7 @@
   - [ ] `isAllowedToInviteUser`
   - [ ] `isAllowedToBeInvited`
   - [ ] `isAllowedToSendMessage`
-  - [ ] `isMemberMuted`
+  - [x] `isMemberMuted` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `queryGroupMemberKeyAndRolePairs`
   - [ ] `queryGroupMemberRole`
   - [ ] `isOwner`
@@ -1345,8 +1345,8 @@
   - [ ] `isAllowedToCreateGroup`
   - [ ] `isAllowedCreateGroupWithGroupType`
   - [ ] `isAllowedUpdateGroupToGroupType`
-  - [ ] `countOwnedGroups`
-  - [ ] `countOwnedGroups`
+  - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
+  - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [ ] `countCreatedGroups`
   - [ ] `countGroups`
   - [ ] `countDeletedGroups`
