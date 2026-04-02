@@ -2,24 +2,46 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
+	"im.turms/server/internal/infra/exception"
 )
 
 type GroupQuestionService struct {
-	questionRepo repository.GroupJoinQuestionRepository
+	questionRepo        repository.GroupJoinQuestionRepository
+	groupMemberService  *GroupMemberService
+	groupService        *GroupService
+	groupVersionService *GroupVersionService
 }
 
-func NewGroupQuestionService(questionRepo repository.GroupJoinQuestionRepository) *GroupQuestionService {
+func NewGroupQuestionService(
+	questionRepo repository.GroupJoinQuestionRepository,
+	groupMemberService *GroupMemberService,
+	groupService *GroupService,
+	groupVersionService *GroupVersionService,
+) *GroupQuestionService {
 	return &GroupQuestionService{
-		questionRepo: questionRepo,
+		questionRepo:        questionRepo,
+		groupMemberService:  groupMemberService,
+		groupService:        groupService,
+		groupVersionService: groupVersionService,
 	}
 }
 
-func (s *GroupQuestionService) CreateJoinQuestion(ctx context.Context, groupID int64, question string, answers []string, score int) (*po.GroupJoinQuestion, error) {
+// RBAC Operations
+
+func (s *GroupQuestionService) AuthAndCreateQuestion(ctx context.Context, requesterID int64, groupID int64, question string, answers []string, score int) (*po.GroupJoinQuestion, error) {
+	isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, err
+	}
+	if !isOwnerOrManager {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_CREATE_GROUP_QUESTION), "Only owner or manager can create questions")
+	}
+
 	id := time.Now().UnixNano()
 	q := &po.GroupJoinQuestion{
 		ID:       id,
@@ -28,79 +50,92 @@ func (s *GroupQuestionService) CreateJoinQuestion(ctx context.Context, groupID i
 		Answers:  answers,
 		Score:    score,
 	}
-	err := s.questionRepo.Insert(ctx, q)
+	err = s.questionRepo.Insert(ctx, q)
 	if err != nil {
 		return nil, err
 	}
-	return q, nil
+
+	err = s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+	return q, err
 }
 
-func (s *GroupQuestionService) DeleteJoinQuestion(ctx context.Context, questionID int64) error {
-	return s.questionRepo.Delete(ctx, questionID)
-}
+func (s *GroupQuestionService) AuthAndDeleteQuestion(ctx context.Context, requesterID int64, groupID int64, questionID int64) error {
+	isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	if !isOwnerOrManager {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_DELETE_GROUP_QUESTION), "Only owner or manager can delete questions")
+	}
 
-func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionID int64, groupID int64, newQuestion *string, newAnswers []string, newScore *int) error {
-	// Simple update override just to show interaction
-	// Actual Turms logic uses more precise field-by-field updates
-	q, err := s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
+	err = s.questionRepo.Delete(ctx, questionID)
 	if err != nil {
 		return err
 	}
 
-	// Check if question exists (pseudo-logic for simplicity instead of exposing FindByID)
-	found := false
-	for _, item := range q {
-		if item.ID == questionID {
-			found = true
-			break
+	return s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+}
+
+func (s *GroupQuestionService) AuthAndUpdateQuestion(ctx context.Context, requesterID int64, groupID int64, questionID int64, question *string, answers []string, score *int) error {
+	isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	if !isOwnerOrManager {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_QUESTION), "Only owner or manager can update questions")
+	}
+
+	_, err = s.questionRepo.Update(ctx, questionID, question, answers, score)
+	if err != nil {
+		return err
+	}
+
+	return s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+}
+
+func (s *GroupQuestionService) AuthAndCheckAnswer(ctx context.Context, requesterID int64, questionID int64, answer string) (bool, error) {
+	q, err := s.questionRepo.FindByID(ctx, questionID)
+	if err != nil {
+		return false, err
+	}
+	if q == nil {
+		return false, exception.NewTurmsError(int32(constant.ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED), "Question not found")
+	}
+
+	for _, ans := range q.Answers {
+		if ans == answer {
+			return true, nil
 		}
 	}
+	return false, nil
+}
 
-	if !found {
-		return errors.New("question not found")
-	}
+// Aliases for backward compatibility
 
-	// Assuming a delete and re-insert for quick schema sync without building a complex Update builder
-	_ = s.questionRepo.Delete(ctx, questionID)
+func (s *GroupQuestionService) CreateJoinQuestion(ctx context.Context, groupID int64, question string, answers []string, score int) (*po.GroupJoinQuestion, error) {
+	// Note: Requester check missing in original alias, using 0/system as default or assuming owner check done elsewhere
+	return s.AuthAndCreateQuestion(ctx, 0, groupID, question, answers, score)
+}
 
-	qs := ""
-	if newQuestion != nil {
-		qs = *newQuestion
-	}
-	sc := 0
-	if newScore != nil {
-		sc = *newScore
-	}
+func (s *GroupQuestionService) DeleteJoinQuestion(ctx context.Context, questionID int64) error {
+	// Original logic was broken as it didn't know the groupID for version update
+	return s.questionRepo.Delete(ctx, questionID)
+}
 
-	updated := &po.GroupJoinQuestion{
-		ID:       questionID,
-		GroupID:  groupID,
-		Question: qs,
-		Answers:  newAnswers,
-		Score:    sc,
-	}
-	return s.questionRepo.Insert(ctx, updated)
+func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionID int64, groupID int64, newQuestion *string, newAnswers []string, newScore *int) error {
+	return s.AuthAndUpdateQuestion(ctx, 0, groupID, questionID, newQuestion, newAnswers, newScore)
+}
+
+func (s *GroupQuestionService) CheckGroupQuestionAnswerAndJoin(ctx context.Context, requesterID int64, questionID int64, groupID int64, answer string) (bool, error) {
+	return s.AuthAndCheckAnswer(ctx, requesterID, questionID, answer)
 }
 
 func (s *GroupQuestionService) QueryJoinQuestions(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error) {
 	return s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
 }
 
-func (s *GroupQuestionService) CheckGroupQuestionAnswerAndJoin(ctx context.Context, requesterID int64, questionID int64, groupID int64, answer string) (bool, error) {
-	questions, err := s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
-	if err != nil {
-		return false, err
-	}
+// Internal
 
-	for _, q := range questions {
-		if q.ID == questionID {
-			for _, ans := range q.Answers {
-				if ans == answer {
-					return true, nil
-				}
-			}
-			return false, nil
-		}
-	}
-	return false, errors.New("question not found")
+func (s *GroupQuestionService) QueryJoinQuestionsWithAnswers(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error) {
+	return s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
 }

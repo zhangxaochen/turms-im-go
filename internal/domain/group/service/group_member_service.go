@@ -6,9 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
 	"im.turms/server/internal/domain/common/cache"
+	common_constant "im.turms/server/internal/domain/common/constant"
+	group_constant "im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
+	"im.turms/server/internal/infra/exception"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -18,17 +22,37 @@ var (
 )
 
 type GroupMemberService struct {
-	groupRepo       *repository.GroupRepository
-	groupMemberRepo *repository.GroupMemberRepository
-	memberCache     *cache.TTLCache[string, bool]
+	groupRepo             *repository.GroupRepository
+	groupMemberRepo       *repository.GroupMemberRepository
+	groupBlocklistService *GroupBlocklistService
+	groupVersionService   *GroupVersionService
+	groupTypeService      *GroupTypeService
+	groupService          *GroupService // Circular dependency? Usually handled via interface or delayed assignment
+	memberCache           *cache.TTLCache[string, bool]
 }
 
-func NewGroupMemberService(groupRepo *repository.GroupRepository, groupMemberRepo *repository.GroupMemberRepository) *GroupMemberService {
+func NewGroupMemberService(
+	groupRepo *repository.GroupRepository,
+	groupMemberRepo *repository.GroupMemberRepository,
+	groupVersionService *GroupVersionService,
+	groupTypeService *GroupTypeService,
+) *GroupMemberService {
 	return &GroupMemberService{
-		groupRepo:       groupRepo,
-		groupMemberRepo: groupMemberRepo,
-		memberCache:     cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
+		groupRepo:           groupRepo,
+		groupMemberRepo:     groupMemberRepo,
+		groupVersionService: groupVersionService,
+		groupTypeService:    groupTypeService,
+		memberCache:         cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
 	}
+}
+
+func (s *GroupMemberService) SetGroupBlocklistService(groupBlocklistService *GroupBlocklistService) {
+	s.groupBlocklistService = groupBlocklistService
+}
+
+// SetGroupService is a helper to break circular dependency if any.
+func (s *GroupMemberService) SetGroupService(groupService *GroupService) {
+	s.groupService = groupService
 }
 
 func (s *GroupMemberService) Close() {
@@ -38,25 +62,28 @@ func (s *GroupMemberService) Close() {
 }
 
 // AddGroupMember adds a new member with the given role.
-// Only admins (Owner/Manager) can explicitly add someone without an invite.
-func (s *GroupMemberService) AddGroupMember(ctx context.Context, requesterID, targetUserID, groupID int64, targetRole protocol.GroupMemberRole) error {
-	// Simple RBAC: check if requester is Owner/Manager
-	role, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
-	if err != nil {
-		return err
-	}
-	if role == nil || (*role != protocol.GroupMemberRole_OWNER && *role != protocol.GroupMemberRole_MANAGER) {
-		return ErrUnauthorized
+// If requesterID is nil, it's considered a system operation (no RBAC check).
+func (s *GroupMemberService) AddGroupMember(ctx context.Context, groupID, userID int64, role protocol.GroupMemberRole, requesterID *int64, muteEndDate *time.Time) error {
+	if requesterID != nil {
+		// RBAC: check if requester is Owner/Manager
+		reqRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, *requesterID)
+		if err != nil {
+			return err
+		}
+		if reqRole == nil || (*reqRole != protocol.GroupMemberRole_OWNER && *reqRole != protocol.GroupMemberRole_MANAGER) {
+			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_ADD_GROUP_MEMBER), "Unauthorized to add group member")
+		}
 	}
 
 	now := time.Now()
 	member := &po.GroupMember{
 		ID: po.GroupMemberKey{
 			GroupID: groupID,
-			UserID:  targetUserID,
+			UserID:  userID,
 		},
-		Role:     targetRole,
-		JoinDate: &now,
+		Role:        role,
+		JoinDate:    &now,
+		MuteEndDate: muteEndDate,
 	}
 
 	return s.groupMemberRepo.AddGroupMember(ctx, member)
@@ -78,18 +105,326 @@ func (s *GroupMemberService) IsMemberMuted(ctx context.Context, groupID, userID 
 	return muted, nil
 }
 
+func (s *GroupMemberService) IsOwner(ctx context.Context, userID, groupID int64) (bool, error) {
+	role, err := s.FindGroupMemberRole(ctx, userID, groupID)
+	if err != nil {
+		return false, err
+	}
+	if role == nil {
+		return false, nil
+	}
+	return *role == protocol.GroupMemberRole_OWNER, nil
+}
+
+func (s *GroupMemberService) IsOwnerOrManager(ctx context.Context, groupID, userID int64) (bool, error) {
+	role, err := s.FindGroupMemberRole(ctx, groupID, userID)
+	if err != nil {
+		return false, err
+	}
+	if role == nil {
+		return false, nil
+	}
+	return *role == protocol.GroupMemberRole_OWNER || *role == protocol.GroupMemberRole_MANAGER, nil
+}
+
+func (s *GroupMemberService) FindGroupMemberRole(ctx context.Context, groupID, userID int64) (*protocol.GroupMemberRole, error) {
+	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
+}
+
+func (s *GroupMemberService) QueryGroupMemberRole(ctx context.Context, groupID, userID int64) (*protocol.GroupMemberRole, error) {
+	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
+}
+
 func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
-	cacheKey := fmt.Sprintf("ismember:%d:%d", groupID, userID)
+	cacheKey := fmt.Sprintf("member:%d:%d", groupID, userID)
 	if isMember, ok := s.memberCache.Get(cacheKey); ok {
 		return isMember, nil
 	}
 
-	role, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
+	isMember, err := s.groupMemberRepo.IsGroupMember(ctx, groupID, userID)
 	if err != nil {
 		return false, err
 	}
 
-	isMember := role != nil
 	s.memberCache.Set(cacheKey, isMember)
 	return isMember, nil
+}
+
+func (s *GroupMemberService) UpdateGroupMemberRole(
+	ctx context.Context,
+	groupID, userID int64,
+	role protocol.GroupMemberRole,
+	session mongo.SessionContext,
+) error {
+	keys := []po.GroupMemberKey{{GroupID: groupID, UserID: userID}}
+	_, err := s.groupMemberRepo.UpdateGroupMembers(ctx, keys, nil, &role, nil, nil)
+	// Clear cache
+	s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, userID))
+	return err
+}
+
+func (s *GroupMemberService) DeleteGroupMember(
+	ctx context.Context,
+	groupID, userID int64,
+	session mongo.SessionContext,
+	updateVersion bool,
+) error {
+	err := s.groupMemberRepo.RemoveGroupMember(ctx, groupID, userID)
+	if err != nil {
+		return err
+	}
+	// Clear cache
+	s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, userID))
+	s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", groupID, userID))
+
+	if updateVersion {
+		return s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+	}
+	return nil
+}
+
+func (s *GroupMemberService) AddGroupMembers(
+	ctx context.Context,
+	groupID int64,
+	userIDs []int64,
+	role protocol.GroupMemberRole,
+	name *string,
+	joinTime *time.Time,
+	muteEndDate *time.Time,
+	session mongo.SessionContext,
+) ([]po.GroupMember, error) {
+	if joinTime == nil {
+		now := time.Now()
+		joinTime = &now
+	}
+	members := make([]po.GroupMember, len(userIDs))
+	for i, userID := range userIDs {
+		members[i] = po.GroupMember{
+			ID: po.GroupMemberKey{
+				GroupID: groupID,
+				UserID:  userID,
+			},
+			Role:        role,
+			Name:        name,
+			JoinDate:    joinTime,
+			MuteEndDate: muteEndDate,
+		}
+		// In a real implementation, we would call repository bulk insert
+		err := s.groupMemberRepo.AddGroupMember(ctx, &members[i])
+		if err != nil {
+			return nil, err
+		}
+		// Clear cache
+		s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, userID))
+	}
+	_ = s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+	return members, nil
+}
+
+// AuthAndAddGroupMembers adds members to a group after performing authorization and strategy checks.
+func (s *GroupMemberService) AuthAndAddGroupMembers(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	userIDs []int64,
+	role protocol.GroupMemberRole,
+	muteEndDate *time.Time,
+) ([]po.GroupMember, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+
+	// 1. Check if group exists and get its type
+	typeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if typeID == nil {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP), "Group does not exist or is deleted")
+	}
+
+	groupType, err := s.groupTypeService.FindGroupType(ctx, *typeID)
+	if err != nil {
+		return nil, err
+	}
+	if groupType == nil {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_SERVER_INTERNAL_ERROR), "Group type does not exist")
+	}
+
+	// 2. Authorization check
+	requesterRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, err
+	}
+
+	isOwnerOrManager := requesterRole != nil && (*requesterRole == protocol.GroupMemberRole_OWNER || *requesterRole == protocol.GroupMemberRole_MANAGER)
+
+	if !isOwnerOrManager {
+		if groupType.JoinStrategy != group_constant.GroupJoinStrategy_MEMBERSHIP_REQUEST {
+			return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_ADD_GROUP_MEMBER), "Only owner or manager can add members for this group type")
+		}
+		if len(userIDs) > 1 || userIDs[0] != requesterID {
+			return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_ADD_GROUP_MEMBER), "Cannot add other users as a non-member")
+		}
+	}
+
+	// 3. Filter blocked users
+	validUserIDs, err := s.groupBlocklistService.FilterBlockedUserIDs(ctx, groupID, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(validUserIDs) == 0 {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ADD_BLOCKED_USER_TO_GROUP), "All users are blocked")
+	}
+
+	// 4. Check group size limit
+	currentCount, err := s.groupMemberRepo.CountMembers(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if int(currentCount)+len(validUserIDs) > int(groupType.GroupSizeLimit) {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ADD_USER_TO_GROUP_WITH_SIZE_LIMIT_REACHED), "Group size limit exceeded")
+	}
+
+	// 5. Add members
+	return s.AddGroupMembers(ctx, groupID, validUserIDs, role, nil, nil, muteEndDate, nil)
+}
+
+// AuthAndDeleteGroupMembers deletes members from a group after performing authorization checks.
+func (s *GroupMemberService) AuthAndDeleteGroupMembers(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	userIDs []int64,
+	successorID *int64,
+	quitAfterTransfer bool,
+) error {
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	isQuitting := false
+	for _, uid := range userIDs {
+		if uid == requesterID {
+			isQuitting = true
+			break
+		}
+	}
+
+	requesterRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	if requesterRole == nil {
+		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_GROUP_MEMBER), "Requester is not a group member")
+	}
+
+	if isQuitting && *requesterRole == protocol.GroupMemberRole_OWNER {
+		if successorID != nil {
+			err := s.groupService.AuthAndTransferGroupOwnership(ctx, requesterID, groupID, *successorID, quitAfterTransfer, nil)
+			if err != nil {
+				return err
+			}
+			if !quitAfterTransfer {
+				newUserIDs := make([]int64, 0, len(userIDs)-1)
+				for _, uid := range userIDs {
+					if uid != requesterID {
+						newUserIDs = append(newUserIDs, uid)
+					}
+				}
+				userIDs = newUserIDs
+			}
+		} else {
+			return s.groupService.AuthAndDeleteGroup(ctx, requesterID, groupID)
+		}
+	}
+
+	if len(userIDs) == 0 {
+		return nil
+	}
+
+	if !isQuitting || len(userIDs) > 1 {
+		if *requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER {
+			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_GROUP_MEMBER), "Only owner or manager can remove other members")
+		}
+
+		if *requesterRole == protocol.GroupMemberRole_MANAGER {
+			targetRoles, err := s.groupMemberRepo.FindGroupMemberKeyAndRolePairs(ctx, groupID, userIDs)
+			if err != nil {
+				return err
+			}
+			for _, m := range targetRoles {
+				if m.ID.UserID != requesterID && (m.Role == protocol.GroupMemberRole_OWNER || m.Role == protocol.GroupMemberRole_MANAGER) {
+					return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_GROUP_MEMBER), "Manager cannot remove owner or other managers")
+				}
+			}
+		}
+	}
+
+	// DeleteGroupMembers was intended to be bulk version of DeleteGroupMember
+	keys := make([]po.GroupMemberKey, len(userIDs))
+	for i, userID := range userIDs {
+		keys[i] = po.GroupMemberKey{GroupID: groupID, UserID: userID}
+	}
+	_, err = s.groupMemberRepo.DeleteByIds(ctx, keys)
+	if err != nil {
+		return err
+	}
+	for _, userID := range userIDs {
+		s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, userID))
+		s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", groupID, userID))
+	}
+	return s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+}
+
+// AuthAndUpdateGroupMember updates a group member's info after performing authorization checks.
+func (s *GroupMemberService) AuthAndUpdateGroupMember(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	memberID int64,
+	name *string,
+	role *protocol.GroupMemberRole,
+	muteEndDate *time.Time,
+) error {
+	// 1. Authorization check
+	requesterRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	if requesterRole == nil {
+		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_UPDATE_GROUP_MEMBER_INFO), "Requester is not a group member")
+	}
+
+	// 2. Permission check
+	if requesterID != memberID {
+		if *requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER {
+			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_MEMBER_INFO), "Only owner or manager can update other members' info")
+		}
+		if role != nil {
+			if *requesterRole != protocol.GroupMemberRole_OWNER {
+				return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_TO_UPDATE_GROUP_MEMBER_ROLE), "Only owner can update others' roles")
+			}
+			if *role == protocol.GroupMemberRole_OWNER {
+				return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot update member role to OWNER")
+			}
+		}
+	} else {
+		if role != nil {
+			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot update your own role")
+		}
+	}
+
+	// 3. Update
+	keys := []po.GroupMemberKey{{GroupID: groupID, UserID: memberID}}
+	_, err = s.groupMemberRepo.UpdateGroupMembers(ctx, keys, name, role, nil, muteEndDate)
+	if err != nil {
+		return err
+	}
+
+	// 4. Invalidate cache
+	s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, memberID))
+	s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", groupID, memberID))
+
+	return s.groupVersionService.UpdateMembersVersion(ctx, groupID)
 }

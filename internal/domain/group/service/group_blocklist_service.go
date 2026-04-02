@@ -4,18 +4,31 @@ import (
 	"context"
 	"time"
 
+	common_constant "im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
+	"im.turms/server/internal/infra/exception"
+	"im.turms/server/pkg/protocol"
 )
 
 type GroupBlocklistService struct {
-	blockedUserRepo repository.GroupBlockedUserRepository
+	blockedUserRepo     repository.GroupBlockedUserRepository
+	groupMemberService  *GroupMemberService
+	groupVersionService *GroupVersionService
 }
 
-func NewGroupBlocklistService(blockedUserRepo repository.GroupBlockedUserRepository) *GroupBlocklistService {
+func NewGroupBlocklistService(
+	blockedUserRepo repository.GroupBlockedUserRepository,
+	groupVersionService *GroupVersionService,
+) *GroupBlocklistService {
 	return &GroupBlocklistService{
-		blockedUserRepo: blockedUserRepo,
+		blockedUserRepo:     blockedUserRepo,
+		groupVersionService: groupVersionService,
 	}
+}
+
+func (s *GroupBlocklistService) SetGroupMemberService(groupMemberService *GroupMemberService) {
+	s.groupMemberService = groupMemberService
 }
 
 func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, userID int64, requesterID int64) error {
@@ -31,6 +44,72 @@ func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, us
 	return s.blockedUserRepo.Insert(ctx, blockedUser)
 }
 
+// AuthAndBlockUser blocks a user from a group after performing authorization checks.
+func (s *GroupBlocklistService) AuthAndBlockUser(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	userID int64,
+) error {
+	// 1. Authorization check
+	requesterRole, err := s.groupMemberService.FindGroupMemberRole(ctx, requesterID, groupID)
+	if err != nil {
+		return err
+	}
+	if requesterRole == nil || (*requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER) {
+		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_ADD_BLOCKED_USER), "Only owner or manager can block users")
+	}
+
+	// 2. Target check
+	targetRole, err := s.groupMemberService.FindGroupMemberRole(ctx, userID, groupID)
+	if err != nil {
+		return err
+	}
+	if targetRole != nil {
+		if *requesterRole == protocol.GroupMemberRole_MANAGER && (*targetRole == protocol.GroupMemberRole_OWNER || *targetRole == protocol.GroupMemberRole_MANAGER) {
+			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_TO_REMOVE_GROUP_OWNER_OR_MANAGER), "Manager cannot block owner or other managers")
+		}
+	}
+
+	// 3. Block
+	err = s.BlockUser(ctx, groupID, userID, requesterID)
+	if err != nil {
+		return err
+	}
+
+	// 4. Remove from group and update version
+	if targetRole != nil {
+		// No session context passed here, matching existing GroupMemberService.DeleteGroupMember calls
+		_ = s.groupMemberService.DeleteGroupMember(ctx, groupID, userID, nil, false)
+	}
+	return s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
+}
+
+// AuthAndUnblockUser unblocks a user from a group after performing authorization checks.
+func (s *GroupBlocklistService) AuthAndUnblockUser(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	userID int64,
+) error {
+	// 1. Authorization check
+	requesterRole, err := s.groupMemberService.FindGroupMemberRole(ctx, requesterID, groupID)
+	if err != nil {
+		return err
+	}
+	if requesterRole == nil || (*requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER) {
+		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_BLOCKED_USER), "Only owner or manager can unblock users")
+	}
+
+	// 2. Unblock
+	err = s.UnblockUser(ctx, groupID, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
+}
+
 func (s *GroupBlocklistService) UnblockUser(ctx context.Context, groupID int64, userID int64) error {
 	return s.blockedUserRepo.Delete(ctx, groupID, userID)
 }
@@ -41,4 +120,8 @@ func (s *GroupBlocklistService) QueryBlockedUsers(ctx context.Context, groupID i
 
 func (s *GroupBlocklistService) IsBlocked(ctx context.Context, groupID int64, userID int64) (bool, error) {
 	return s.blockedUserRepo.Exists(ctx, groupID, userID)
+}
+
+func (s *GroupBlocklistService) FilterBlockedUserIDs(ctx context.Context, groupID int64, userIDs []int64) ([]int64, error) {
+	return s.blockedUserRepo.FilterBlockedUserIDs(ctx, groupID, userIDs)
 }

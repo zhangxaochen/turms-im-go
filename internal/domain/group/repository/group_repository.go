@@ -66,6 +66,18 @@ func (r *GroupRepository) FindGroupOwnerID(ctx context.Context, groupID int64) (
 	return group.OwnerID, nil
 }
 
+func (r *GroupRepository) FindGroup(ctx context.Context, groupID int64) (*po.Group, error) {
+	filter := bson.M{"_id": groupID}
+	var group po.Group
+	if err := r.col.FindOne(ctx, filter).Decode(&group); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &group, nil
+}
+
 // CountOwnedGroups counts the number of groups owned by a specific user.
 func (r *GroupRepository) CountOwnedGroups(ctx context.Context, ownerID int64) (int64, error) {
 	filter := bson.M{"oid": ownerID, "dd": bson.M{"$exists": false}}
@@ -76,5 +88,11 @@ func (r *GroupRepository) CountOwnedGroups(ctx context.Context, ownerID int64) (
 func (r *GroupRepository) UpdateGroup(ctx context.Context, groupID int64, update bson.M) error {
 	filter := bson.M{"_id": groupID}
 	_, err := r.col.UpdateOne(ctx, filter, bson.M{"$set": update})
+	return err
+}
+// DeleteGroup removes a group from MongoDB.
+func (r *GroupRepository) DeleteGroup(ctx context.Context, groupID int64) error {
+	filter := bson.M{"_id": groupID}
+	_, err := r.col.DeleteOne(ctx, filter)
 	return err
 }

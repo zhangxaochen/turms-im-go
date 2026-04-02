@@ -14,6 +14,8 @@ type GroupJoinQuestionRepository interface {
 	Insert(ctx context.Context, question *po.GroupJoinQuestion) error
 	Delete(ctx context.Context, questionID int64) error
 	FindQuestionsByGroupID(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error)
+	FindByID(ctx context.Context, questionID int64) (*po.GroupJoinQuestion, error)
+	Update(ctx context.Context, questionID int64, question *string, answers []string, score *int) (bool, error)
 }
 
 type groupJoinQuestionRepository struct {
@@ -50,4 +52,36 @@ func (r *groupJoinQuestionRepository) FindQuestionsByGroupID(ctx context.Context
 		return nil, err
 	}
 	return questions, nil
+}
+func (r *groupJoinQuestionRepository) FindByID(ctx context.Context, questionID int64) (*po.GroupJoinQuestion, error) {
+	filter := bson.M{"_id": questionID}
+	var res po.GroupJoinQuestion
+	err := r.coll.FindOne(ctx, filter).Decode(&res)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	return &res, err
+}
+
+func (r *groupJoinQuestionRepository) Update(ctx context.Context, questionID int64, question *string, answers []string, score *int) (bool, error) {
+	filter := bson.M{"_id": questionID}
+	updateOps := bson.M{}
+	if question != nil {
+		updateOps["q"] = *question
+	}
+	if answers != nil {
+		updateOps["ans"] = answers
+	}
+	if score != nil {
+		updateOps["score"] = *score
+	}
+	if len(updateOps) == 0 {
+		return true, nil
+	}
+	update := bson.M{"$set": updateOps}
+	res, err := r.coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return false, err
+	}
+	return res.ModifiedCount > 0, nil
 }
