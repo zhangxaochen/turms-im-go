@@ -46,7 +46,7 @@ func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionI
 	if err != nil {
 		return err
 	}
-	
+
 	// Check if question exists (pseudo-logic for simplicity instead of exposing FindByID)
 	found := false
 	for _, item := range q {
@@ -55,14 +55,14 @@ func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionI
 			break
 		}
 	}
-	
+
 	if !found {
 		return errors.New("question not found")
 	}
 
 	// Assuming a delete and re-insert for quick schema sync without building a complex Update builder
 	_ = s.questionRepo.Delete(ctx, questionID)
-	
+
 	qs := ""
 	if newQuestion != nil {
 		qs = *newQuestion
@@ -71,7 +71,7 @@ func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionI
 	if newScore != nil {
 		sc = *newScore
 	}
-	
+
 	updated := &po.GroupJoinQuestion{
 		ID:       questionID,
 		GroupID:  groupID,

@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"im.turms/server/internal/testingutil"
-	
+
 	"im.turms/server/internal/domain/common/infra/idgen"
+	grouppo "im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/message/po"
 	"im.turms/server/internal/domain/message/repository"
-	grouppo "im.turms/server/internal/domain/group/po"
 	userpo "im.turms/server/internal/domain/user/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 	turmsredis "im.turms/server/internal/storage/redis"
@@ -82,14 +82,14 @@ func TestMessageService_AuthAndSaveAndSendMessage_BDD(t *testing.T) {
 	msgRepo := repository.NewMessageRepository(mongoClient)
 
 	tests := []struct {
-		name           string
-		senderID       int64
-		targetID       int64
-		isGroup        bool
-		text           string
-		mockUserRel    bool
-		mockGroup      bool
-		wantErr        error
+		name        string
+		senderID    int64
+		targetID    int64
+		isGroup     bool
+		text        string
+		mockUserRel bool
+		mockGroup   bool
+		wantErr     error
 	}{
 		{
 			name:        "1. Private Message Success",
@@ -110,22 +110,22 @@ func TestMessageService_AuthAndSaveAndSendMessage_BDD(t *testing.T) {
 			wantErr:     ErrNotFriend,
 		},
 		{
-			name:        "3. Group Message Success",
-			senderID:    1,
-			targetID:    1001,
-			isGroup:     true,
-			text:        "Hello, group!",
-			mockGroup:   true,
-			wantErr:     nil,
+			name:      "3. Group Message Success",
+			senderID:  1,
+			targetID:  1001,
+			isGroup:   true,
+			text:      "Hello, group!",
+			mockGroup: true,
+			wantErr:   nil,
 		},
 		{
-			name:        "4. Group Message Not Member",
-			senderID:    1,
-			targetID:    1002,
-			isGroup:     true,
-			text:        "Hello?",
-			mockGroup:   false,
-			wantErr:     ErrNotGroupMember,
+			name:      "4. Group Message Not Member",
+			senderID:  1,
+			targetID:  1002,
+			isGroup:   true,
+			text:      "Hello?",
+			mockGroup: false,
+			wantErr:   ErrNotGroupMember,
 		},
 		{
 			name:        "5. Invalid Target ID",
@@ -165,12 +165,12 @@ func TestMessageService_AuthAndSaveAndSendMessage_BDD(t *testing.T) {
 
 				// Validate delivered
 				assert.Contains(t, delivery.delivered, tt.targetID)
-				
+
 				// Validate persisted in MongoDB
 				foundMsgs, err := msgRepo.FindMessagesByTarget(ctx, tt.targetID)
 				require.NoError(t, err)
 				require.NotEmpty(t, foundMsgs)
-				
+
 				// Ensure the message we just saved is found
 				var found bool
 				for _, m := range foundMsgs {

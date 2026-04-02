@@ -34,18 +34,18 @@ func TestTCPServer_Lifecycle(t *testing.T) {
 
 func TestWSServer_Lifecycle(t *testing.T) {
 	svc := session.NewSessionService()
-	
+
 	ws := NewWSServer("127.0.0.1:0", svc, func(ctx context.Context, session *session.UserSession, payload []byte) {
 		// handle
 	})
 
-	// Start without binding to port 0 properly, wait we bind to a static port for test to know the addr easily 
+	// Start without binding to port 0 properly, wait we bind to a static port for test to know the addr easily
 	// because http.Server with:0 is tricky to get the actual port if it's not a proper listener
 	// For testing, let's use a specific random port or start listener manually
-	
+
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	assert.NoError(t, err)
-	
+
 	ws.addr = l.Addr().String()
 	ws.httpServer = &http.Server{
 		Handler: http.HandlerFunc(ws.handleHTTPFunc),

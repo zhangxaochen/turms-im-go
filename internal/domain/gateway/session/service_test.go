@@ -63,7 +63,7 @@ func TestSessionService_ConflictKick(t *testing.T) {
 		Conn:       conn1,
 		CloseChan:  make(chan struct{}),
 	}
-	
+
 	err := svc.RegisterSession(context.Background(), session1)
 	assert.NoError(t, err)
 
@@ -75,14 +75,14 @@ func TestSessionService_ConflictKick(t *testing.T) {
 		Conn:       conn2,
 		CloseChan:  make(chan struct{}),
 	}
-	
+
 	err = svc.RegisterSession(context.Background(), session2)
 	assert.NoError(t, err)
 
 	// Should have kicked the first one
 	assert.True(t, conn1.Closed)
 	assert.False(t, conn2.Closed)
-	
+
 	s, ok := svc.GetUserSession(456, protocol.DeviceType_IOS)
 	assert.True(t, ok)
 	assert.Equal(t, session2, s) // should point to session2
@@ -99,7 +99,7 @@ func TestSessionService_DifferentDevices(t *testing.T) {
 		Conn:       conn1,
 		CloseChan:  make(chan struct{}),
 	}
-	
+
 	conn2 := &MockConnection{}
 	session2 := &UserSession{
 		UserID:     456,

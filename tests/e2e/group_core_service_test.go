@@ -50,20 +50,20 @@ func TestGroupCore_E2E(t *testing.T) {
 		groupID := int64(1001)
 		name := "Go Developers"
 		intro := "A group for Go enthusiasts"
-		
+
 		group, err := groupService.CreateGroup(ctx, creatorID, groupID, &name, &intro, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, group)
 		assert.Equal(t, name, *group.Name)
-		
+
 		// Create membership for creator as OWNER
 		err = memberService.AddGroupMember(ctx, creatorID, creatorID, groupID, protocol.GroupMemberRole_OWNER)
 		// Wait, the requester is creatorID, but if they aren't owner yet, it will fail because of our RBAC (returns ErrUnauthorized)
 		// Actually, in Turms Java, CreateGroup adds the creator as Owner organically. Let's fix our AddGroupMember logic if needed or just use Repo here.
-		
+
 		// For the test, we add via Repo to bootstrap the owner
 		member := &po.GroupMember{
-			ID: po.GroupMemberKey{GroupID: groupID, UserID: creatorID},
+			ID:   po.GroupMemberKey{GroupID: groupID, UserID: creatorID},
 			Role: protocol.GroupMemberRole_OWNER,
 		}
 		err = memberRepo.AddGroupMember(ctx, member)
@@ -100,15 +100,15 @@ func TestGroupCore_E2E(t *testing.T) {
 		assert.NotNil(t, v)
 		assert.NotNil(t, v.Members)
 	})
-	
+
 	// Test Soft Delete
 	t.Run("Soft Delete Group", func(t *testing.T) {
 		creatorID := int64(101)
 		groupID := int64(1001)
-		
+
 		err := groupService.DeleteGroup(ctx, creatorID, groupID)
 		require.NoError(t, err)
-		
+
 		// Ensure FindGroups filters deleted
 		groups, err := groupRepo.FindGroups(ctx, []int64{groupID})
 		require.NoError(t, err)

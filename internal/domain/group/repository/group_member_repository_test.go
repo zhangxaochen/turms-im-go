@@ -2,10 +2,10 @@ package repository
 
 import (
 	"context"
-	"testing"
 	"github.com/stretchr/testify/assert"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/testingutil"
+	"testing"
 )
 
 func TestGroupMemberRepository_BDD(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"im.turms/server/internal/testingutil"
 )
+
 type mockListener struct {
 	called int
 }
@@ -15,8 +16,6 @@ type mockListener struct {
 func (m *mockListener) OnMembersChange() {
 	m.called++
 }
-
-
 
 func TestDiscoveryService(t *testing.T) {
 	ctx := context.Background()

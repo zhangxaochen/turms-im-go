@@ -11,7 +11,7 @@ import (
 
 func TestHeartbeatManager_KickTimeout(t *testing.T) {
 	svc := NewSessionService()
-	
+
 	conn := &MockConnection{}
 	session := &UserSession{
 		UserID:     123,
@@ -19,7 +19,7 @@ func TestHeartbeatManager_KickTimeout(t *testing.T) {
 		Conn:       conn,
 		CloseChan:  make(chan struct{}),
 	}
-	
+
 	err := svc.RegisterSession(context.Background(), session)
 	assert.NoError(t, err)
 
@@ -29,7 +29,7 @@ func TestHeartbeatManager_KickTimeout(t *testing.T) {
 	// Timeout is 5 seconds
 	manager := NewHeartbeatManager(svc, 100*time.Millisecond, 5*time.Second)
 	manager.Start()
-	
+
 	// Wait for cleanup loop
 	time.Sleep(200 * time.Millisecond)
 	manager.Stop()

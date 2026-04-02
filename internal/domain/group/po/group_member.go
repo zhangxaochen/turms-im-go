@@ -15,9 +15,9 @@ type GroupMemberKey struct {
 // GroupMember represents a group member entity in MongoDB (groupMember collection).
 // Shard key: _id.groupId (HASH)
 type GroupMember struct {
-	ID          GroupMemberKey  `bson:"_id"`
-	Name        *string         `bson:"n,omitempty"`
+	ID          GroupMemberKey           `bson:"_id"`
+	Name        *string                  `bson:"n,omitempty"`
 	Role        protocol.GroupMemberRole `bson:"role"`
-	JoinDate    *time.Time      `bson:"jd,omitempty"`
-	MuteEndDate *time.Time      `bson:"med,omitempty"`
+	JoinDate    *time.Time               `bson:"jd,omitempty"`
+	MuteEndDate *time.Time               `bson:"med,omitempty"`
 }

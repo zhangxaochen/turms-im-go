@@ -5,9 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 var (
@@ -37,7 +37,7 @@ func (s *GroupService) CreateGroup(ctx context.Context, creatorID, groupID int64
 		MinimumScore: minimumScore,
 		CreationDate: &now,
 	}
-	
+
 	err := s.groupRepo.InsertGroup(ctx, group)
 	if err != nil {
 		return nil, err

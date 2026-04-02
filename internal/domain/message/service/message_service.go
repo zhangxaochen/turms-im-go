@@ -32,12 +32,12 @@ type GroupMemberService interface {
 }
 
 type MessageService struct {
-	idGen              *idgen.SnowflakeIdGenerator
-	seqGen             *turmsredis.SequenceGenerator
-	msgRepo            *repository.MessageRepository
-	userRelService     UserRelationshipService
-	groupMemService    GroupMemberService
-	outboundDelivery   OutboundMessageDelivery
+	idGen            *idgen.SnowflakeIdGenerator
+	seqGen           *turmsredis.SequenceGenerator
+	msgRepo          *repository.MessageRepository
+	userRelService   UserRelationshipService
+	groupMemService  GroupMemberService
+	outboundDelivery OutboundMessageDelivery
 
 	authCache *cache.TTLCache[string, bool]
 }
@@ -51,13 +51,13 @@ func NewMessageService(
 	delivery OutboundMessageDelivery,
 ) *MessageService {
 	return &MessageService{
-		idGen:              idGen,
-		seqGen:             seqGen,
-		msgRepo:            msgRepo,
-		userRelService:     userRelSvc,
-		groupMemService:    groupMemSvc,
-		outboundDelivery:   delivery,
-		authCache:          cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
+		idGen:            idGen,
+		seqGen:           seqGen,
+		msgRepo:          msgRepo,
+		userRelService:   userRelSvc,
+		groupMemService:  groupMemSvc,
+		outboundDelivery: delivery,
+		authCache:        cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
 	}
 }
 
@@ -97,7 +97,7 @@ func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage 
 	seqID32 := int32(sequenceID)
 	msgID := s.idGen.NextIncreasingId()
 	now := time.Now()
-	
+
 	msg := &po.Message{
 		ID:             msgID,
 		IsGroupMessage: &isGroupMessage,

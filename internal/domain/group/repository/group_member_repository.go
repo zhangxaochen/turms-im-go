@@ -32,7 +32,7 @@ func (r *GroupMemberRepository) AddGroupMember(ctx context.Context, member *po.G
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{"_id": member.ID}
 	update := bson.M{"$set": member}
-	
+
 	_, err := r.col.UpdateOne(ctx, filter, update, opts)
 	return err
 }

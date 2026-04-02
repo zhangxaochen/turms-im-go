@@ -67,7 +67,7 @@ func (s *userRelationshipService) IsBlocked(ctx context.Context, ownerID int64, 
 	if isBlocked, ok := s.blockedCache.Get(cacheKey); ok {
 		return isBlocked, nil
 	}
-	
+
 	blockedValue := true
 	relatedIDs, err := s.repo.FindRelatedUserIDs(ctx, ownerID, &blockedValue)
 	if err != nil {

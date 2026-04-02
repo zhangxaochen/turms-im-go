@@ -32,7 +32,7 @@ func NewUserService(idGen *idgen.SnowflakeIdGenerator, repo repository.UserRepos
 func (s *userService) CreateUser(ctx context.Context, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, isActive bool) (*po.User, error) {
 	userID := s.idGen.NextIncreasingId()
 	now := time.Now()
-	
+
 	user := &po.User{
 		ID:                userID,
 		Password:          password, // Assuming plain text for this simple refactor, should be hashed in real world

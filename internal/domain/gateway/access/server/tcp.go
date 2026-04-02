@@ -99,10 +99,10 @@ func (s *TCPServer) acceptLoop() {
 
 func (s *TCPServer) handleConnection(conn net.Conn) {
 	defer s.wg.Done()
-	
+
 	tcpConn := &TCPConnection{conn: conn}
-	
-	// Pre-create an unauthed session shell. 
+
+	// Pre-create an unauthed session shell.
 	// Actual details (UserID, DeviceType) will be populated upon first Auth request.
 	userSession := &session.UserSession{
 		Conn:      tcpConn,
@@ -131,7 +131,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 			s.cleanup(userSession)
 			return
 		}
-		
+
 		// Update heartbeat
 		userSession.SetLastHeartbeatRequestTimestampToNow()
 

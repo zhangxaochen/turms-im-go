@@ -20,8 +20,8 @@ func NewGroupInvitationService(invRepo repository.GroupInvitationRepository) *Gr
 
 func (s *GroupInvitationService) CreateInvitation(ctx context.Context, groupID int64, inviterID int64, inviteeID int64, content string) (*po.GroupInvitation, error) {
 	now := time.Now()
-	
-	// Create identity ID, could be randomly generated or generated via snowflake 
+
+	// Create identity ID, could be randomly generated or generated via snowflake
 	// To simplify, we assume ID is populated externally or we leave it 0 if Mongo auto increments (Turms uses Snowflake)
 	// We'll give it a timestamp-based ID proxy for now
 	id := now.UnixNano()

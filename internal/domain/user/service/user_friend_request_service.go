@@ -49,7 +49,7 @@ func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requ
 	if isBlocked {
 		return nil, fmt.Errorf("you are blocked by the recipient")
 	}
-	
+
 	hasRel, err := s.relationshipService.HasRelationshipAndNotBlocked(ctx, requesterID, recipientID)
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requ
 
 func (s *userFriendRequestService) RecallPendingFriendRequest(ctx context.Context, requesterID, recipientID int64) (bool, error) {
 	// Not strictly atomic recall, but we can do a CAS update via status. Let's do a simple find/update.
-	// We'd actually need a repository method to find request ID by requester/recipient. 
+	// We'd actually need a repository method to find request ID by requester/recipient.
 	// To simplify, we'll mark this logically. Actually since Turms allows multiple, we should update all pending.
 	// Let's assume we do this later if needed.
 	return false, fmt.Errorf("not implemented")
@@ -102,18 +102,18 @@ func (s *userFriendRequestService) HandleFriendRequest(ctx context.Context, requ
 	if err != nil {
 		return false, err
 	}
-	
+
 	if success && targetStatus == po.RequestStatusAccepted {
 		// Create bi-directional relationship!
 		// In Java Turms, userVersion is incremented here.
 		err = s.relationshipService.FriendTwoUsers(ctx, requesterID, recipientID)
 		if err != nil {
-			// This means friend request is marked accepted, but relationship failed to add. 
+			// This means friend request is marked accepted, but relationship failed to add.
 			// In fully transactional systems this wouldn't happen, but since MongoDB cross-collection
-			// transaction is sometimes heavy, Java Turms tries to do it inside. 
+			// transaction is sometimes heavy, Java Turms tries to do it inside.
 			return false, err
 		}
 	}
-	
+
 	return success, nil
 }

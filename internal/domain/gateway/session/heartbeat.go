@@ -61,7 +61,7 @@ func (m *HeartbeatManager) checkHeartbeats() {
 	for _, shard := range smap.shards {
 		// Read lock first to find dead connections
 		shard.RLock()
-		
+
 		// To avoid holding locks for too long, we collect dead sessions
 		type deadSession struct {
 			userID     int64

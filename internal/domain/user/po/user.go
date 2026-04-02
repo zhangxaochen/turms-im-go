@@ -18,5 +18,3 @@ type User struct {
 
 	UserDefinedAttributes map[string]any `bson:"user_defined_attributes,omitempty"`
 }
-
-
