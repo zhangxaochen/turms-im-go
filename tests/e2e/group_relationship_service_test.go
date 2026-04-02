@@ -3,14 +3,20 @@ package e2e_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/domain/group/service"
+	user_repository "im.turms/server/internal/domain/user/repository"
+	user_service "im.turms/server/internal/domain/user/service"
+	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/testingutil"
+	"im.turms/server/pkg/protocol"
 )
 
 func TestGroupRelationshipService(t *testing.T) {
@@ -29,18 +35,71 @@ func TestGroupRelationshipService(t *testing.T) {
 	invRepo := repository.NewGroupInvitationRepository(mongoClient)
 	blockRepo := repository.NewGroupBlockedUserRepository(mongoClient)
 	questionRepo := repository.NewGroupJoinQuestionRepository(mongoClient)
+	memberRepo := repository.NewGroupMemberRepository(mongoClient)
+	groupRepo := repository.NewGroupRepository(mongoClient)
+	typeRepo := repository.NewGroupTypeRepository(mongoClient)
+	groupVerRepo := repository.NewGroupVersionRepository(mongoClient)
+	userVerRepo := user_repository.NewUserVersionRepository(mongoClient)
+	idGen, _ := idgen.NewSnowflakeIdGenerator(1, 1)
 
 	// 3. Initialize Services
-	joinReqSvc := service.NewGroupJoinRequestService(joinReqRepo)
-	invSvc := service.NewGroupInvitationService(invRepo)
-	blockSvc := service.NewGroupBlocklistService(blockRepo)
-	questionSvc := service.NewGroupQuestionService(questionRepo)
+	typeSvc := service.NewGroupTypeService(typeRepo)
+	groupVerSvc := service.NewGroupVersionService(groupVerRepo)
+	userVerSvc := user_service.NewUserVersionService(userVerRepo)
+	blockSvc := service.NewGroupBlocklistService(blockRepo, groupVerSvc)
+
+	memberSvc := service.NewGroupMemberService(groupRepo, memberRepo, groupVerSvc, typeSvc)
+	groupSvc := service.NewGroupService(groupRepo)
+
+	// Break circular dependencies
+	memberSvc.SetGroupService(groupSvc)
+	memberSvc.SetGroupBlocklistService(blockSvc)
+	blockSvc.SetGroupMemberService(memberSvc)
+	groupSvc.SetGroupMemberService(memberSvc)
+
+	joinReqSvc := service.NewGroupJoinRequestService(joinReqRepo, memberSvc, blockSvc, groupSvc, typeSvc, groupVerSvc)
+	invSvc := service.NewGroupInvitationService(invRepo, memberSvc, groupSvc, typeSvc, groupVerSvc, userVerSvc, idGen)
+	questionSvc := service.NewGroupQuestionService(questionRepo, memberSvc, groupSvc, groupVerSvc)
 
 	groupID := int64(10001)
 	adminID := int64(20001)
 	userID := int64(30001)
 
-	// --- 4. Test Group Blocklist ---
+	var err error
+
+	// --- 4. Prepare Test Data ---
+	// Ensure Default Group Type
+	err = typeRepo.InsertGroupType(ctx, &po.GroupType{
+		ID:           0,
+		Name:         "DEFAULT",
+		JoinStrategy: constant.GroupJoinStrategy_JOIN_REQUEST,
+	})
+	require.NoError(t, err)
+
+	// Insert Group
+	isActive := true
+	typeID := int64(0)
+	err = groupRepo.InsertGroup(ctx, &po.Group{
+		ID:        groupID,
+		TypeID:    &typeID,
+		OwnerID:   &adminID,
+		IsActive:  &isActive,
+	})
+	require.NoError(t, err)
+
+	// Add Admin as Owner
+	now := time.Now()
+	err = memberRepo.AddGroupMember(ctx, &po.GroupMember{
+		ID: po.GroupMemberKey{
+			GroupID: groupID,
+			UserID:  adminID,
+		},
+		Role: protocol.GroupMemberRole_OWNER,
+		JoinDate: &now,
+	})
+	require.NoError(t, err)
+
+	// --- 5. Test Group Blocklist ---
 	t.Run("GroupBlocklistService", func(t *testing.T) {
 		err := blockSvc.BlockUser(ctx, groupID, userID, adminID)
 		require.NoError(t, err)
@@ -102,9 +161,10 @@ func TestGroupRelationshipService(t *testing.T) {
 	// --- 7. Test Group Join Question ---
 	t.Run("GroupQuestionService", func(t *testing.T) {
 		answers := []string{"yes", "y"}
-		q, err := questionSvc.CreateJoinQuestion(ctx, groupID, "Ready?", answers, 100)
+		q, err := questionSvc.AuthAndCreateQuestion(ctx, adminID, groupID, "Ready?", answers, 100)
 		require.NoError(t, err)
 		assert.NotZero(t, q.ID)
+		assert.Equal(t, groupID, q.GroupID)
 
 		questions, err := questionSvc.QueryJoinQuestions(ctx, groupID)
 		require.NoError(t, err)
@@ -112,7 +172,7 @@ func TestGroupRelationshipService(t *testing.T) {
 
 		q1Str := "Updated Question?"
 		scoreStr := 200
-		err = questionSvc.UpdateJoinQuestion(ctx, q.ID, groupID, &q1Str, answers, &scoreStr)
+		err = questionSvc.AuthAndUpdateQuestion(ctx, adminID, groupID, q.ID, &q1Str, answers, &scoreStr)
 		require.NoError(t, err)
 
 		questions, err = questionSvc.QueryJoinQuestions(ctx, groupID)
@@ -124,7 +184,7 @@ func TestGroupRelationshipService(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, match)
 
-		err = questionSvc.DeleteJoinQuestion(ctx, q.ID)
+		err = questionSvc.AuthAndDeleteQuestion(ctx, adminID, groupID, q.ID)
 		require.NoError(t, err)
 
 		questions, err = questionSvc.QueryJoinQuestions(ctx, groupID)

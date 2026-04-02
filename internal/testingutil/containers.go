@@ -20,7 +20,7 @@ func SetupMongo(t *testing.T, dbName string) (*turmsmongo.Client, func()) {
 	}
 
 	ctx := context.Background()
-	mongodbContainer, err := mongodb.Run(ctx, "mongo:7.0")
+	mongodbContainer, err := mongodb.Run(ctx, "mongo:7.0", mongodb.WithReplicaSet("rs0"))
 	if err != nil {
 		t.Skipf("Skipping BDD test, testcontainers failed to start MongoDB: %v", err)
 	}
@@ -29,7 +29,7 @@ func SetupMongo(t *testing.T, dbName string) (*turmsmongo.Client, func()) {
 	require.NoError(t, err)
 
 	cfg := turmsmongo.Config{
-		URI:            uri,
+		URI:            uri + "&directConnection=true",
 		Database:       dbName,
 		ConnectTimeout: 10 * time.Second,
 	}

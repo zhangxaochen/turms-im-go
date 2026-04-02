@@ -29,9 +29,13 @@ func TestGroupCore_E2E(t *testing.T) {
 
 	// Services
 	groupService := service.NewGroupService(groupRepo)
-	memberService := service.NewGroupMemberService(groupRepo, memberRepo)
 	typeService := service.NewGroupTypeService(typeRepo)
 	versionService := service.NewGroupVersionService(versionRepo)
+	memberService := service.NewGroupMemberService(groupRepo, memberRepo, versionService, typeService)
+
+	// Break circular dependency
+	groupService.SetGroupMemberService(memberService)
+	memberService.SetGroupService(groupService)
 
 	// Test GroupType
 	t.Run("GroupType Lifecycle", func(t *testing.T) {
@@ -57,7 +61,7 @@ func TestGroupCore_E2E(t *testing.T) {
 		assert.Equal(t, name, *group.Name)
 
 		// Create membership for creator as OWNER
-		err = memberService.AddGroupMember(ctx, creatorID, creatorID, groupID, protocol.GroupMemberRole_OWNER)
+		err = memberService.AddGroupMember(ctx, groupID, creatorID, protocol.GroupMemberRole_OWNER, nil, nil)
 		// Wait, the requester is creatorID, but if they aren't owner yet, it will fail because of our RBAC (returns ErrUnauthorized)
 		// Actually, in Turms Java, CreateGroup adds the creator as Owner organically. Let's fix our AddGroupMember logic if needed or just use Repo here.
 
@@ -77,7 +81,7 @@ func TestGroupCore_E2E(t *testing.T) {
 
 		// Now creator can add a member
 		memberID := int64(102)
-		err = memberService.AddGroupMember(ctx, creatorID, memberID, groupID, protocol.GroupMemberRole_MEMBER)
+		err = memberService.AddGroupMember(ctx, groupID, memberID, protocol.GroupMemberRole_MEMBER, &creatorID, nil)
 		require.NoError(t, err)
 
 		// Test IsGroupMember

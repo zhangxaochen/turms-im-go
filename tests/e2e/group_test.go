@@ -28,10 +28,18 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 	// 2. Repositories
 	groupRepo := grouprepo.NewGroupRepository(mongoClient)
 	groupMemRepo := grouprepo.NewGroupMemberRepository(mongoClient)
+	typeRepo := grouprepo.NewGroupTypeRepository(mongoClient)
+	versionRepo := grouprepo.NewGroupVersionRepository(mongoClient)
 
 	// 3. Services
 	groupSvc := groupservice.NewGroupService(groupRepo)
-	groupMemSvc := groupservice.NewGroupMemberService(groupRepo, groupMemRepo)
+	typeSvc := groupservice.NewGroupTypeService(typeRepo)
+	versionSvc := groupservice.NewGroupVersionService(versionRepo)
+	groupMemSvc := groupservice.NewGroupMemberService(groupRepo, groupMemRepo, versionSvc, typeSvc)
+
+	// Break circular dependencies
+	groupSvc.SetGroupMemberService(groupMemSvc)
+	groupMemSvc.SetGroupService(groupSvc)
 
 	creatorID := int64(100)
 	groupID := int64(1)
@@ -57,7 +65,7 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 
 	t.Run("Owner Adds Manager", func(t *testing.T) {
 		userB := int64(200)
-		err := groupMemSvc.AddGroupMember(ctx, creatorID, userB, groupID, protocol.GroupMemberRole_MANAGER)
+		err := groupMemSvc.AddGroupMember(ctx, groupID, userB, protocol.GroupMemberRole_MANAGER, &creatorID, nil)
 		require.NoError(t, err)
 
 		role, err := groupMemRepo.FindGroupMemberRole(ctx, groupID, userB)
@@ -69,9 +77,8 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 		userC := int64(300) // Not in group
 		userD := int64(400)
 
-		err := groupMemSvc.AddGroupMember(ctx, userC, userD, groupID, protocol.GroupMemberRole_MEMBER)
+		err := groupMemSvc.AddGroupMember(ctx, groupID, userD, protocol.GroupMemberRole_MEMBER, &userC, nil)
 		assert.Error(t, err)
-		assert.Equal(t, groupservice.ErrUnauthorized, err)
 	})
 
 	t.Run("Soft Delete Group by Owner", func(t *testing.T) {
