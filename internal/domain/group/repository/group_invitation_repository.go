@@ -56,6 +56,9 @@ func (r *groupInvitationRepository) HasPendingInvitation(ctx context.Context, gr
 	return count > 0, nil
 }
 
+// @MappedFrom updateStatusIfPending(Long requestId, RequestStatus status, Long responderId, @Nullable String reason, @Nullable ClientSession session)
+// @MappedFrom updateStatusIfPending(Long requestId, RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session)
+// @MappedFrom updateStatusIfPending(Long invitationId, RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session)
 func (r *groupInvitationRepository) UpdateStatusIfPending(ctx context.Context, invitationID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error) {
 	filter := bson.M{
 		"_id":  invitationID,
@@ -79,6 +82,7 @@ func (r *groupInvitationRepository) UpdateStatusIfPending(ctx context.Context, i
 	return res.ModifiedCount > 0, nil
 }
 
+// @MappedFrom findInvitationsByInviteeId(Long inviteeId)
 func (r *groupInvitationRepository) FindInvitationsByInviteeID(ctx context.Context, inviteeID int64) ([]po.GroupInvitation, error) {
 	filter := bson.M{"ieid": inviteeID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
@@ -95,6 +99,7 @@ func (r *groupInvitationRepository) FindInvitationsByInviteeID(ctx context.Conte
 	return invs, nil
 }
 
+// @MappedFrom findInvitationsByGroupId(Long groupId)
 func (r *groupInvitationRepository) FindInvitationsByGroupID(ctx context.Context, groupID int64) ([]po.GroupInvitation, error) {
 	filter := bson.M{"gid": groupID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
@@ -123,6 +128,8 @@ func (r *groupInvitationRepository) FindByID(ctx context.Context, id int64) (*po
 	return &inv, nil
 }
 
+// @MappedFrom findInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
+// @MappedFrom findInvitations(Long groupId)
 func (r *groupInvitationRepository) FindInvitations(ctx context.Context, groupID *int64, inviterID *int64, inviteeID *int64, status *po.RequestStatus, lastUpdatedDate *time.Time, page, size int) ([]*po.GroupInvitation, error) {
 	filter := r.buildFilter(groupID, inviterID, inviteeID, status, lastUpdatedDate)
 
@@ -144,6 +151,7 @@ func (r *groupInvitationRepository) FindInvitations(ctx context.Context, groupID
 	return invs, nil
 }
 
+// @MappedFrom findGroupIdAndInviterIdAndInviteeIdAndStatus(Long invitationId)
 func (r *groupInvitationRepository) FindGroupIdAndInviterIdAndInviteeIdAndStatus(ctx context.Context, id int64) (int64, int64, int64, po.RequestStatus, error) {
 	var results struct {
 		GroupID   int64            `bson:"gid"`
@@ -156,6 +164,7 @@ func (r *groupInvitationRepository) FindGroupIdAndInviterIdAndInviteeIdAndStatus
 	return results.GroupID, results.InviterID, results.InviteeID, results.Status, err
 }
 
+// @MappedFrom findGroupIdAndInviteeIdAndStatus(Long invitationId)
 func (r *groupInvitationRepository) FindGroupIdAndInviteeIdAndStatus(ctx context.Context, id int64) (int64, int64, po.RequestStatus, error) {
 	var results struct {
 		GroupID   int64            `bson:"gid"`
@@ -167,6 +176,7 @@ func (r *groupInvitationRepository) FindGroupIdAndInviteeIdAndStatus(ctx context
 	return results.GroupID, results.InviteeID, results.Status, err
 }
 
+// @MappedFrom findInviteeIdAndGroupIdAndCreationDateAndStatus(Long invitationId)
 func (r *groupInvitationRepository) FindInviteeIdAndGroupIdAndCreationDateAndStatus(ctx context.Context, id int64) (int64, int64, time.Time, po.RequestStatus, error) {
 	var results struct {
 		InviteeID    int64            `bson:"ieid"`
@@ -179,6 +189,8 @@ func (r *groupInvitationRepository) FindInviteeIdAndGroupIdAndCreationDateAndSta
 	return results.InviteeID, results.GroupID, results.CreationDate, results.Status, err
 }
 
+// @MappedFrom updateInvitations(@NotEmpty Set<Long> invitationIds, @Nullable Long inviterId, @Nullable Long inviteeId, @Nullable String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate)
+// @MappedFrom updateInvitations(Set<Long> invitationIds, @Nullable Long inviterId, @Nullable Long inviteeId, @Nullable String content, @Nullable RequestStatus status, @Nullable Date creationDate, @Nullable Date responseDate)
 func (r *groupInvitationRepository) UpdateInvitations(ctx context.Context, ids []int64, inviterID, inviteeID *int64, content *string, status *po.RequestStatus, creationDate, responseDate *time.Time) (int64, error) {
 	filter := bson.M{"_id": bson.M{"$in": ids}}
 	update := bson.M{}
@@ -212,6 +224,7 @@ func (r *groupInvitationRepository) UpdateInvitations(ctx context.Context, ids [
 	return res.ModifiedCount, nil
 }
 
+// @MappedFrom deleteInvitations(@Nullable Set<Long> ids)
 func (r *groupInvitationRepository) DeleteInvitations(ctx context.Context, ids []int64) (int64, error) {
 	res, err := r.coll.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": ids}})
 	if err != nil {
@@ -220,6 +233,7 @@ func (r *groupInvitationRepository) DeleteInvitations(ctx context.Context, ids [
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom countInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange)
 func (r *groupInvitationRepository) CountInvitations(ctx context.Context, groupID, inviterID, inviteeID *int64, status *po.RequestStatus, lastUpdatedDate *time.Time) (int64, error) {
 	filter := r.buildFilter(groupID, inviterID, inviteeID, status, lastUpdatedDate)
 	return r.coll.CountDocuments(ctx, filter)

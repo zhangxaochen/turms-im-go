@@ -66,6 +66,9 @@ func (c *TTLCache[K, V]) Delete(key K) {
 }
 
 // Close stops the background cleanup goroutine.
+// @MappedFrom close(CloseReason closeReason)
+// @MappedFrom close(@NotNull CloseReason closeReason)
+// @MappedFrom close()
 func (c *TTLCache[K, V]) Close() {
 	select {
 	case <-c.stop:

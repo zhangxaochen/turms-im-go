@@ -43,6 +43,7 @@ func NewUserService(idGen *idgen.SnowflakeIdGenerator, repo repository.UserRepos
 	}
 }
 
+// @MappedFrom createUser(@Nullable Long id, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive)
 func (s *userService) CreateUser(ctx context.Context, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, isActive bool) (*po.User, error) {
 	userID := s.idGen.NextIncreasingId()
 	now := time.Now()
@@ -65,6 +66,8 @@ func (s *userService) CreateUser(ctx context.Context, password string, name stri
 	return user, nil
 }
 
+// @MappedFrom addUser(@RequestBody AddUserDTO addUserDTO)
+// @MappedFrom addUser(@Nullable Long id, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive)
 func (s *userService) AddUser(ctx context.Context, id int64, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, registrationDate time.Time, isActive bool) (*po.User, error) {
 	if id == 0 {
 		id = s.idGen.NextIncreasingId()
@@ -95,16 +98,22 @@ func (s *userService) FindUser(ctx context.Context, userID int64) (*po.User, err
 	return s.repo.FindByID(ctx, userID)
 }
 
+// @MappedFrom updateUser(@NotNull Long userId, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable Boolean isActive, @Nullable @PastOrPresent Date registrationDate, @Nullable Map<String, Value> userDefinedAttributes)
+// @MappedFrom updateUser(Set<Long> ids, @RequestBody UpdateUserDTO updateUserDTO)
 func (s *userService) UpdateUser(ctx context.Context, userID int64, update bson.M) error {
 	now := time.Now()
 	update["lud"] = now // Set LastUpdatedDate
 	return s.repo.Update(ctx, userID, update)
 }
 
+// @MappedFrom checkIfUserExists(Long userId, boolean queryDeletedRecords)
+// @MappedFrom checkIfUserExists(@NotNull Long userId, boolean queryDeletedRecords)
 func (s *userService) CheckIfUserExists(ctx context.Context, userID int64) (bool, error) {
 	return s.repo.Exists(ctx, userID)
 }
 
+// @MappedFrom deleteUsers(@NotEmpty Set<Long> userIds, @Nullable Boolean deleteLogically)
+// @MappedFrom deleteUsers(Set<Long> ids, @QueryParam(required = false)
 func (s *userService) DeleteUsers(ctx context.Context, userIDs []int64) error {
 	if len(userIDs) == 0 {
 		return nil
@@ -114,6 +123,7 @@ func (s *userService) DeleteUsers(ctx context.Context, userIDs []int64) error {
 	return err
 }
 
+// @MappedFrom queryUsersProfile(@NotEmpty Collection<Long> userIds, boolean queryDeletedRecords)
 func (s *userService) QueryUsersProfile(ctx context.Context, userIDs []int64) ([]*po.User, error) {
 	if len(userIDs) == 0 {
 		return []*po.User{}, nil
@@ -122,6 +132,7 @@ func (s *userService) QueryUsersProfile(ctx context.Context, userIDs []int64) ([
 	return s.repo.FindMany(ctx, filter)
 }
 
+// @MappedFrom queryUserName(@NotNull Long userId)
 func (s *userService) QueryUserName(ctx context.Context, userID int64) (string, error) {
 	user, err := s.repo.FindByID(ctx, userID)
 	if err != nil {
@@ -133,6 +144,8 @@ func (s *userService) QueryUserName(ctx context.Context, userID int64) (string, 
 	return user.Name, nil
 }
 
+// @MappedFrom queryUsers(@QueryParam(required = false)
+// @MappedFrom queryUsers(@Nullable Collection<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive, @Nullable Integer page, @Nullable Integer size, boolean queryDeletedRecords)
 func (s *userService) QueryUsers(ctx context.Context, userIDs []int64) ([]*po.User, error) {
 	if len(userIDs) == 0 {
 		return []*po.User{}, nil
@@ -149,6 +162,7 @@ func (s *userService) CountUsers(ctx context.Context, activeOnly bool) (int64, e
 	return s.repo.Count(ctx, filter)
 }
 
+// @MappedFrom isAllowedToSendMessageToTarget(@NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @NotNull Long requesterId, @NotNull Long targetId)
 func (s *userService) IsAllowedToSendMessageToTarget(ctx context.Context, isGroupMessage bool, isSystemMessage bool, requesterID int64, targetID int64) (int, error) {
 	if isSystemMessage {
 		return 200, nil // OK
@@ -157,11 +171,13 @@ func (s *userService) IsAllowedToSendMessageToTarget(ctx context.Context, isGrou
 	return 200, nil
 }
 
+// @MappedFrom isAllowToQueryUserProfile(@NotNull Long requesterId, @NotNull Long targetUserId)
 func (s *userService) IsAllowToQueryUserProfile(ctx context.Context, requesterID int64, targetID int64) (int, error) {
 	// Simplified logic for refactor
 	return 200, nil
 }
 
+// @MappedFrom authAndQueryUsersProfile(@NotNull Long requesterId, @Nullable Set<Long> userIds, @Nullable String name, @Nullable Date lastUpdatedDate, @Nullable Integer skip, @Nullable Integer limit, @Nullable List<Integer> fieldsToHighlight)
 func (s *userService) AuthAndQueryUsersProfile(ctx context.Context, requesterID int64, userIDs []int64, name string, lastUpdatedDate *time.Time, skip int, limit int) ([]*po.User, error) {
 	// Simplified, normally check permission then query
 	filter := bson.M{}
@@ -174,6 +190,7 @@ func (s *userService) AuthAndQueryUsersProfile(ctx context.Context, requesterID 
 	return s.repo.FindMany(ctx, filter)
 }
 
+// @MappedFrom queryUserRoleIdByUserId(@NotNull Long userId)
 func (s *userService) QueryUserRoleIDByUserID(ctx context.Context, userID int64) (int64, error) {
 	user, err := s.repo.FindByID(ctx, userID)
 	if err != nil {

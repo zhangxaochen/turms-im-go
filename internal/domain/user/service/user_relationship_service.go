@@ -68,6 +68,7 @@ func NewUserRelationshipService(
 	}
 }
 
+// @MappedFrom upsertOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable String name, @Nullable @PastOrPresent Date blockDate, @Nullable Integer newGroupIndex, @Nullable Integer deleteGroupIndex, @Nullable @PastOrPresent Date establishmentDate, boolean upsert, @Nullable ClientSession session)
 func (s *userRelationshipService) UpsertOneSidedRelationship(
 	ctx context.Context,
 	ownerID int64,
@@ -92,6 +93,7 @@ func (s *userRelationshipService) UpsertOneSidedRelationship(
 	})
 }
 
+// @MappedFrom upsertOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable String name, @Nullable @PastOrPresent Date blockDate, @Nullable Integer newGroupIndex, @Nullable Integer deleteGroupIndex, @Nullable @PastOrPresent Date establishmentDate, boolean upsert, @Nullable ClientSession session)
 func (s *userRelationshipService) upsertOneSidedRelationship(
 	ctx context.Context,
 	ownerID int64,
@@ -135,6 +137,7 @@ func (s *userRelationshipService) upsertOneSidedRelationship(
 	}, err
 }
 
+// @MappedFrom updateUserOneSidedRelationships(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys, @Nullable String name, @Nullable @PastOrPresent Date blockDate, @Nullable @PastOrPresent Date establishmentDate)
 func (s *userRelationshipService) UpdateUserOneSidedRelationships(
 	ctx context.Context,
 	userID int64,
@@ -185,6 +188,7 @@ func (s *userRelationshipService) UnblockUser(ctx context.Context, ownerID, rela
 	return s.repo.UpdateBlockDate(ctx, ownerID, relatedUserID, nil, nil)
 }
 
+// @MappedFrom tryDeleteTwoSidedRelationships(@NotNull Long requesterId, @NotNull Long relatedUserId, @Nullable Integer groupId)
 func (s *userRelationshipService) TryDeleteTwoSidedRelationships(
 	ctx context.Context,
 	user1ID int64,
@@ -208,6 +212,7 @@ func (s *userRelationshipService) TryDeleteTwoSidedRelationships(
 	})
 }
 
+// @MappedFrom deleteAllRelationships(@NotEmpty Set<Long> userIds, @Nullable ClientSession session, boolean updateRelationshipsVersion)
 func (s *userRelationshipService) DeleteAllRelationships(
 	ctx context.Context,
 	userIDs []int64,
@@ -232,6 +237,7 @@ func (s *userRelationshipService) DeleteAllRelationships(
 	})
 }
 
+// @MappedFrom deleteOneSidedRelationships(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys)
 func (s *userRelationshipService) DeleteOneSidedRelationships(
 	ctx context.Context,
 	ownerID int64,
@@ -264,6 +270,7 @@ func (s *userRelationshipService) DeleteOneSidedRelationships(
 	})
 }
 
+// @MappedFrom deleteOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable Integer groupIndex, @Nullable ClientSession session)
 func (s *userRelationshipService) DeleteOneSidedRelationship(
 	ctx context.Context,
 	ownerID int64,
@@ -272,6 +279,7 @@ func (s *userRelationshipService) DeleteOneSidedRelationship(
 	return s.DeleteOneSidedRelationships(ctx, ownerID, []int64{relatedUserID}, nil)
 }
 
+// @MappedFrom isBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache)
 func (s *userRelationshipService) IsBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
 	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
 	if val, ok := s.blockedCache.Get(cacheKey); ok {
@@ -287,6 +295,7 @@ func (s *userRelationshipService) IsBlocked(ctx context.Context, ownerID, relate
 	return blocked, nil
 }
 
+// @MappedFrom isNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache)
 func (s *userRelationshipService) IsNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
 	blocked, err := s.IsBlocked(ctx, ownerID, relatedUserID)
 	if err != nil {
@@ -295,6 +304,7 @@ func (s *userRelationshipService) IsNotBlocked(ctx context.Context, ownerID, rel
 	return !blocked, nil
 }
 
+// @MappedFrom friendTwoUsers(@NotNull Long userOneId, @NotNull Long userTwoId, @Nullable ClientSession session)
 func (s *userRelationshipService) FriendTwoUsers(ctx context.Context, user1ID, user2ID int64) error {
 	return turmsmongo.ExecuteWithSession(ctx, s.mongoClient, nil, func(sessCtx mongo.SessionContext, sess *mongo.Session) error {
 		now := time.Now()
@@ -330,6 +340,8 @@ func (s *userRelationshipService) sendRelationshipNotification(ctx context.Conte
 	s.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, targetUserIDs)
 }
 
+// @MappedFrom queryRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked, @Nullable DateRange establishmentDateRange, @Nullable Integer page, @Nullable Integer size)
+// @MappedFrom queryRelationships(@QueryParam(required = false)
 func (s *userRelationshipService) QueryRelationships(
 	ctx context.Context,
 	ownerIDs []int64,
@@ -343,6 +355,8 @@ func (s *userRelationshipService) QueryRelationships(
 	return s.repo.FindRelationships(ctx, ownerIDs, relatedUserIDs, groupIndexes, isBlocked, establishmentDateRange, page, size, nil)
 }
 
+// @MappedFrom queryRelatedUserIds(@Nullable Set<Long> ownerIds, @Nullable Boolean isBlocked)
+// @MappedFrom queryRelatedUserIds(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked)
 func (s *userRelationshipService) QueryRelatedUserIds(
 	ctx context.Context,
 	ownerIDs []int64,
@@ -354,6 +368,7 @@ func (s *userRelationshipService) QueryRelatedUserIds(
 	return s.repo.FindRelatedUserIDs(ctx, ownerIDs, groupIndexes, isBlocked, page, size, nil)
 }
 
+// @MappedFrom queryRelationshipsWithVersion(@NotNull Long ownerId, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked, @Nullable Date lastUpdatedDate)
 func (s *userRelationshipService) QueryRelationshipsWithVersion(
 	ctx context.Context,
 	ownerID int64,
@@ -373,6 +388,7 @@ func (s *userRelationshipService) QueryRelationshipsWithVersion(
 	return rels, version, err
 }
 
+// @MappedFrom queryRelatedUserIdsWithVersion(@NotNull Long ownerId, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked, @Nullable Date lastUpdatedDate)
 func (s *userRelationshipService) QueryRelatedUserIdsWithVersion(
 	ctx context.Context,
 	ownerID int64,
@@ -391,6 +407,8 @@ func (s *userRelationshipService) QueryRelatedUserIdsWithVersion(
 	return ids, version, err
 }
 
+// @MappedFrom countRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked)
+// @MappedFrom countRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Boolean isBlocked)
 func (s *userRelationshipService) CountRelationships(
 	ctx context.Context,
 	ownerIDs []int64,
@@ -407,6 +425,8 @@ func (s *userRelationshipService) invalidMemberCache(ownerID int64, relatedUserI
 	s.blockedCache.Delete(cacheKey)
 }
 
+// @MappedFrom hasRelationshipAndNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId)
+// @MappedFrom hasRelationshipAndNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache)
 func (s *userRelationshipService) HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
 	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
 	if val, ok := s.relCache.Get(cacheKey); ok {

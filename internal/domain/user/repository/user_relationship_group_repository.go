@@ -73,6 +73,8 @@ func (r *userRelationshipGroupRepository) DeleteByIds(ctx context.Context, keys 
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom deleteAllRelationshipGroups(@NotEmpty Set<Long> ownerIds, @Nullable ClientSession session, boolean updateRelationshipGroupsVersion)
+// @MappedFrom deleteAllRelationshipGroups(Set<Long> ownerIds, @Nullable ClientSession session)
 func (r *userRelationshipGroupRepository) DeleteAllRelationshipGroups(ctx context.Context, ownerIDs []int64, session *mongo.Session) (int64, error) {
 	if len(ownerIDs) == 0 {
 		return 0, nil
@@ -96,6 +98,9 @@ func (r *userRelationshipGroupRepository) DeleteAllRelationshipGroups(ctx contex
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom deleteRelationshipGroups()
+// @MappedFrom deleteRelationshipGroups(@QueryParam(required = false)
+// @MappedFrom deleteRelationshipGroups(@NotEmpty Set<UserRelationshipGroup.@ValidUserRelationshipGroupKey Key> keys)
 func (r *userRelationshipGroupRepository) DeleteRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, session *mongo.Session) (int64, error) {
 	filter := bson.M{
 		"_id.oid": ownerID,
@@ -119,6 +124,9 @@ func (r *userRelationshipGroupRepository) DeleteRelationshipGroups(ctx context.C
 	return res.DeletedCount, nil
 }
 
+// @MappedFrom updateRelationshipGroups(@NotEmpty Set<UserRelationshipGroup.@ValidUserRelationshipGroupKey Key> keys, @Nullable String name, @Nullable @PastOrPresent Date creationDate)
+// @MappedFrom updateRelationshipGroups(Set<UserRelationshipGroup.Key> keys, @Nullable String name, @Nullable Date creationDate)
+// @MappedFrom updateRelationshipGroups(List<UserRelationshipGroup.Key> keys, @RequestBody UpdateRelationshipGroupDTO updateRelationshipGroupDTO)
 func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName string, session *mongo.Session) (int64, error) {
 	if len(keys) == 0 {
 		return 0, nil
@@ -150,6 +158,8 @@ func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.C
 	return res.ModifiedCount, nil
 }
 
+// @MappedFrom updateRelationshipGroupName(Long ownerId, Integer groupIndex, String newGroupName)
+// @MappedFrom updateRelationshipGroupName(@NotNull Long ownerId, @NotNull Integer groupIndex, @NotNull String newGroupName)
 func (r *userRelationshipGroupRepository) UpdateRelationshipGroupName(ctx context.Context, ownerID int64, groupIndex int32, newName string, session *mongo.Session) (int64, error) {
 	filter := bson.M{
 		"_id.oid":  ownerID,
@@ -174,6 +184,8 @@ func (r *userRelationshipGroupRepository) UpdateRelationshipGroupName(ctx contex
 	return res.ModifiedCount, nil
 }
 
+// @MappedFrom countRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange)
+// @MappedFrom countRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds)
 func (r *userRelationshipGroupRepository) CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
@@ -185,6 +197,8 @@ func (r *userRelationshipGroupRepository) CountRelationshipGroups(ctx context.Co
 	return r.collection.CountDocuments(ctx, filter)
 }
 
+// @MappedFrom findRelationshipGroups(Long userId)
+// @MappedFrom findRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (r *userRelationshipGroupRepository) FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
@@ -213,6 +227,7 @@ func (r *userRelationshipGroupRepository) FindRelationshipGroups(ctx context.Con
 	return groups, nil
 }
 
+// @MappedFrom findRelationshipGroupsInfos(Long ownerId)
 func (r *userRelationshipGroupRepository) FindRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error) {
 	filter := bson.M{
 		"_id.oid": ownerID,

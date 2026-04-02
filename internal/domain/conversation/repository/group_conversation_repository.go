@@ -43,6 +43,7 @@ func (r *GroupConversationRepository) UpsertReadDate(ctx context.Context, groupI
 }
 
 // QueryGroupConversations retrieves the conversations for the given groupIDs.
+// @MappedFrom queryGroupConversations(@NotNull Collection<Long> groupIds)
 func (r *GroupConversationRepository) QueryGroupConversations(ctx context.Context, groupIDs []int64) ([]*po.GroupConversation, error) {
 	if len(groupIDs) == 0 {
 		return nil, nil

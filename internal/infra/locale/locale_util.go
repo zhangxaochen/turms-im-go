@@ -12,6 +12,7 @@ func init() {
 	// golang.org/x/text/language.Parse will check for validity anyway.
 }
 
+// @MappedFrom isAvailableLanguage(String languageId)
 func IsAvailableLanguage(languageID string) bool {
 	_, err := language.Parse(languageID)
 	return err == nil

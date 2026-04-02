@@ -21,6 +21,7 @@ func NewMessageController(messageService *service.MessageService) *MessageContro
 }
 
 // HandleCreateMessageRequest handles the creation of a message from the client.
+// @MappedFrom handleCreateMessageRequest()
 func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateMessageRequest()
 

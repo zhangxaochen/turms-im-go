@@ -21,6 +21,7 @@ func (p *MockStorageProvider) GetPresignedUploadURL(ctx context.Context, resourc
 	return fmt.Sprintf("http://localhost:9000/mock/upload/%d/%s?contentType=%s&maxSize=%d", resourceType, keyStr, contentType, maxSize), nil
 }
 
+// @MappedFrom deleteResource(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceIdStr, List<Value> customAttributes)
 func (p *MockStorageProvider) DeleteResource(ctx context.Context, resourceType constants.StorageResourceType, keyStr string) error {
 	return nil
 }

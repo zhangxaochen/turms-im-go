@@ -129,6 +129,7 @@ func (s *GroupJoinRequestService) AuthAndRecallPendingJoinRequest(ctx context.Co
 }
 
 // AuthAndHandleJoinRequest handles a joint request (accept or decline).
+// @MappedFrom authAndHandleJoinRequest(@NotNull Long requesterId, @NotNull Long joinRequestId, @NotNull @ValidResponseAction ResponseAction action, @Nullable String responseReason)
 func (s *GroupJoinRequestService) AuthAndHandleJoinRequest(ctx context.Context, responderID int64, requestID int64, status po.RequestStatus, reason string) error {
 	req, err := s.joinReqRepo.FindByID(ctx, requestID)
 	if err != nil {
@@ -170,6 +171,7 @@ func (s *GroupJoinRequestService) AuthAndHandleJoinRequest(ctx context.Context, 
 	return nil
 }
 
+// @MappedFrom queryJoinRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (s *GroupJoinRequestService) QueryJoinRequests(ctx context.Context, groupID *int64, requesterID *int64, responderID *int64, status *po.RequestStatus, creationDate *time.Time, page int, size int) ([]*po.GroupJoinRequest, error) {
 	return s.joinReqRepo.FindRequests(ctx, groupID, requesterID, responderID, status, creationDate, nil, nil, page, size)
 }

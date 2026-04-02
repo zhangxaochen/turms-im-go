@@ -28,12 +28,14 @@ func (c *UserSettingsController) RegisterRoutes(r *router.Router) {
 }
 
 // HandleUpdateUserSettingsRequest updates user settings.
+// @MappedFrom handleUpdateUserSettingsRequest()
 func (c *UserSettingsController) HandleUpdateUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implementation depends on protocol.UpdateUserSettingsRequest
 	return buildSuccessNotification(req.RequestId), nil
 }
 
 // HandleQueryUserSettingsRequest queries user settings.
+// @MappedFrom handleQueryUserSettingsRequest()
 func (c *UserSettingsController) HandleQueryUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implementation depends on protocol.QueryUserSettingsRequest
 	return buildSuccessNotification(req.RequestId), nil

@@ -90,6 +90,7 @@ func buildSuccessNotification(reqID *int64) *protocol.TurmsNotification {
 
 // Group Handlers
 
+// @MappedFrom handleCreateGroupRequest()
 func (c *GroupServiceController) HandleCreateGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupRequest()
 	group, err := c.groupService.CreateGroup(ctx, s.UserID, 0, &createReq.Name, createReq.Intro, createReq.MinScore)
@@ -107,6 +108,7 @@ func (c *GroupServiceController) HandleCreateGroupRequest(ctx context.Context, s
 	}, nil
 }
 
+// @MappedFrom handleDeleteGroupRequest()
 func (c *GroupServiceController) HandleDeleteGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupRequest()
 	err := c.groupService.DeleteGroup(ctx, s.UserID, deleteReq.GetGroupId())
@@ -116,11 +118,13 @@ func (c *GroupServiceController) HandleDeleteGroupRequest(ctx context.Context, s
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryGroupsRequest()
 func (c *GroupServiceController) HandleQueryGroupsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryGroupsRequest with versioning
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryJoinedGroupIdsRequest()
 func (c *GroupServiceController) HandleQueryJoinedGroupIdsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryJoinedGroupIdsRequest
 	return buildSuccessNotification(req.RequestId), nil
@@ -131,6 +135,7 @@ func (c *GroupServiceController) HandleQueryJoinedGroupInfosRequest(ctx context.
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateGroupRequest()
 func (c *GroupServiceController) HandleUpdateGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement UpdateGroupRequest in service and controller
 	return buildSuccessNotification(req.RequestId), nil
@@ -138,6 +143,7 @@ func (c *GroupServiceController) HandleUpdateGroupRequest(ctx context.Context, s
 
 // Member Handlers
 
+// @MappedFrom handleCreateGroupMembersRequest()
 func (c *GroupServiceController) HandleCreateGroupMembersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupMembersRequest()
 	var muteEndDate *time.Time
@@ -173,6 +179,7 @@ func (c *GroupServiceController) HandleCreateGroupMembersRequest(ctx context.Con
 	}, nil
 }
 
+// @MappedFrom handleDeleteGroupMembersRequest()
 func (c *GroupServiceController) HandleDeleteGroupMembersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupMembersRequest()
 	err := c.groupMemberService.AuthAndDeleteGroupMembers(
@@ -189,11 +196,13 @@ func (c *GroupServiceController) HandleDeleteGroupMembersRequest(ctx context.Con
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryGroupMembersRequest()
 func (c *GroupServiceController) HandleQueryGroupMembersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryGroupMembersRequest
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateGroupMemberRequest()
 func (c *GroupServiceController) HandleUpdateGroupMemberRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupMemberRequest()
 	var muteEndDate *time.Time
@@ -223,6 +232,7 @@ func (c *GroupServiceController) HandleUpdateGroupMemberRequest(ctx context.Cont
 
 // Blocklist Handlers
 
+// @MappedFrom handleCreateGroupBlockedUserRequest()
 func (c *GroupServiceController) HandleCreateGroupBlockedUserRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupBlockedUserRequest()
 	err := c.groupBlocklistService.BlockUser(ctx, createReq.GetGroupId(), createReq.GetUserId(), s.UserID)
@@ -232,6 +242,7 @@ func (c *GroupServiceController) HandleCreateGroupBlockedUserRequest(ctx context
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleDeleteGroupBlockedUserRequest()
 func (c *GroupServiceController) HandleDeleteGroupBlockedUserRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupBlockedUserRequest()
 	err := c.groupBlocklistService.UnblockUser(ctx, deleteReq.GetGroupId(), deleteReq.GetUserId())
@@ -241,6 +252,7 @@ func (c *GroupServiceController) HandleDeleteGroupBlockedUserRequest(ctx context
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryGroupBlockedUserIdsRequest()
 func (c *GroupServiceController) HandleQueryGroupBlockedUserIdsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryGroupBlockedUserIdsRequest
 	return buildSuccessNotification(req.RequestId), nil
@@ -270,6 +282,7 @@ func (c *GroupServiceController) HandleCreateGroupInvitationRequest(ctx context.
 	}, nil
 }
 
+// @MappedFrom handleDeleteGroupInvitationRequest()
 func (c *GroupServiceController) HandleDeleteGroupInvitationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupInvitationRequest()
 	_, err := c.groupInvitationService.RecallPendingInvitation(ctx, deleteReq.GetInvitationId(), s.UserID)
@@ -279,11 +292,13 @@ func (c *GroupServiceController) HandleDeleteGroupInvitationRequest(ctx context.
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryGroupInvitationsRequest()
 func (c *GroupServiceController) HandleQueryGroupInvitationsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryGroupInvitationsRequest
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateGroupInvitationRequest()
 func (c *GroupServiceController) HandleUpdateGroupInvitationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupInvitationRequest()
 	accept := protocol.ResponseAction_name[int32(updateReq.GetResponseAction())] == "ACCEPT" // Simplistic mapping
@@ -296,6 +311,7 @@ func (c *GroupServiceController) HandleUpdateGroupInvitationRequest(ctx context.
 
 // Join Request Handlers
 
+// @MappedFrom handleCreateGroupJoinRequestRequest()
 func (c *GroupServiceController) HandleCreateGroupJoinRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupJoinRequestRequest()
 	joinRequest, err := c.groupJoinRequestService.CreateJoinRequest(ctx, createReq.GetGroupId(), s.UserID, createReq.GetContent())
@@ -313,6 +329,7 @@ func (c *GroupServiceController) HandleCreateGroupJoinRequestRequest(ctx context
 	}, nil
 }
 
+// @MappedFrom handleDeleteGroupJoinRequestRequest()
 func (c *GroupServiceController) HandleDeleteGroupJoinRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupJoinRequestRequest()
 	_, err := c.groupJoinRequestService.RecallPendingJoinRequest(ctx, deleteReq.GetRequestId(), s.UserID)
@@ -322,11 +339,13 @@ func (c *GroupServiceController) HandleDeleteGroupJoinRequestRequest(ctx context
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryGroupJoinRequestsRequest()
 func (c *GroupServiceController) HandleQueryGroupJoinRequestsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryGroupJoinRequestsRequest
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateGroupJoinRequestRequest()
 func (c *GroupServiceController) HandleUpdateGroupJoinRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupJoinRequestRequest()
 	accept := protocol.ResponseAction_name[int32(updateReq.GetResponseAction())] == "ACCEPT"
@@ -362,6 +381,7 @@ func (c *GroupServiceController) HandleCreateGroupJoinQuestionsRequest(ctx conte
 	}, nil
 }
 
+// @MappedFrom handleDeleteGroupJoinQuestionsRequest()
 func (c *GroupServiceController) HandleDeleteGroupJoinQuestionsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupJoinQuestionsRequest()
 	for _, questionID := range deleteReq.GetQuestionIds() {
@@ -373,11 +393,13 @@ func (c *GroupServiceController) HandleDeleteGroupJoinQuestionsRequest(ctx conte
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryGroupJoinQuestionsRequest()
 func (c *GroupServiceController) HandleQueryGroupJoinQuestionsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implement QueryGroupJoinQuestionsRequest
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateGroupJoinQuestionRequest()
 func (c *GroupServiceController) HandleUpdateGroupJoinQuestionRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupJoinQuestionRequest()
 	var score *int

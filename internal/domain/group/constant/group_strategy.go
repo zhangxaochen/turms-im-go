@@ -15,6 +15,7 @@ const (
 )
 
 // RequiresApproval returns true if the strategy requires the invitee's approval.
+// @MappedFrom requiresApproval()
 func (s GroupInvitationStrategy) RequiresApproval() bool {
 	return s <= GroupInvitationStrategy_OWNER_REQUIRING_APPROVAL
 }

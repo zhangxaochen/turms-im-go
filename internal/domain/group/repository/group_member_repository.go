@@ -28,6 +28,8 @@ func NewGroupMemberRepository(client *turmsmongo.Client) *GroupMemberRepository 
 }
 
 // AddGroupMember adds a member to a group or updates their role.
+// @MappedFrom addGroupMember(@RequestBody AddGroupMemberDTO addGroupMemberDTO)
+// @MappedFrom addGroupMember(@NotNull Long groupId, @NotNull Long userId, @NotNull @ValidGroupMemberRole GroupMemberRole groupMemberRole, @Nullable String name, @Nullable @PastOrPresent Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session)
 func (r *GroupMemberRepository) AddGroupMember(ctx context.Context, member *po.GroupMember) error {
 	opts := options.Update().SetUpsert(true)
 	filter := bson.M{"_id": member.ID}
@@ -47,6 +49,7 @@ func (r *GroupMemberRepository) RemoveGroupMember(ctx context.Context, groupID, 
 }
 
 // FindGroupMemberRole retrieves the role of a user in a group.
+// @MappedFrom findGroupMemberRole(Long userId, Long groupId)
 func (r *GroupMemberRepository) FindGroupMemberRole(ctx context.Context, groupID, userID int64) (*protocol.GroupMemberRole, error) {
 	filter := bson.M{
 		"_id": po.GroupMemberKey{GroupID: groupID, UserID: userID},
@@ -64,6 +67,8 @@ func (r *GroupMemberRepository) FindGroupMemberRole(ctx context.Context, groupID
 }
 
 // FindGroupMemberIDs retrieves all user IDs within a group.
+// @MappedFrom findGroupMemberIds(Long groupId)
+// @MappedFrom findGroupMemberIds(Set<Long> groupIds)
 func (r *GroupMemberRepository) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
 	filter := bson.M{
 		"_id.gid": groupID,
@@ -89,6 +94,8 @@ func (r *GroupMemberRepository) FindGroupMemberIDs(ctx context.Context, groupID 
 }
 
 // IsMemberMuted checks if a specific group member is currently muted.
+// @MappedFrom isMemberMuted(@NotNull Long groupId, @NotNull Long userId, boolean preferCache)
+// @MappedFrom isMemberMuted(Long groupId, Long userId)
 func (r *GroupMemberRepository) IsMemberMuted(ctx context.Context, groupID, userID int64) (bool, error) {
 	filter := bson.M{
 		"_id": po.GroupMemberKey{GroupID: groupID, UserID: userID},
@@ -103,6 +110,7 @@ func (r *GroupMemberRepository) IsMemberMuted(ctx context.Context, groupID, user
 }
 
 // FindUserJoinedGroupIDs retrieves all group IDs that a user belongs to.
+// @MappedFrom findUserJoinedGroupIds(Long userId)
 func (r *GroupMemberRepository) FindUserJoinedGroupIDs(ctx context.Context, userID int64) ([]int64, error) {
 	filter := bson.M{
 		"_id.uid": userID,
@@ -147,6 +155,10 @@ func (r *GroupMemberRepository) DeleteByGroupIDs(ctx context.Context, groupIDs [
 }
 
 // UpdateGroupMembers updates multiple group members' properties.
+// @MappedFrom updateGroupMembers(List<GroupMember.Key> keys, @RequestBody UpdateGroupMemberDTO updateGroupMemberDTO)
+// @MappedFrom updateGroupMembers(Set<GroupMember.Key> keys, @Nullable String name, @Nullable GroupMemberRole role, @Nullable Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session)
+// @MappedFrom updateGroupMembers(@NotNull Long groupId, @NotEmpty Set<Long> memberIds, @Nullable String name, @Nullable @ValidGroupMemberRole GroupMemberRole role, @Nullable @PastOrPresent Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session, boolean updateGroupMembersVersion)
+// @MappedFrom updateGroupMembers(@NotEmpty Set<GroupMember.Key> keys, @Nullable String name, @Nullable @ValidGroupMemberRole GroupMemberRole role, @Nullable @PastOrPresent Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session, boolean updateGroupMembersVersion)
 func (r *GroupMemberRepository) UpdateGroupMembers(ctx context.Context, keys []po.GroupMemberKey, name *string, role *protocol.GroupMemberRole, joinDate *time.Time, muteEndDate *time.Time) (*mongo.UpdateResult, error) {
 	filter := bson.M{
 		"_id": bson.M{"$in": keys},
@@ -188,6 +200,10 @@ func (r *GroupMemberRepository) UpdateGroupMembers(ctx context.Context, keys []p
 }
 
 // CountMembers returns the total number of members in a group.
+// @MappedFrom countMembers(Long groupId)
+// @MappedFrom countMembers(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes)
+// @MappedFrom countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<@ValidGroupMemberRole GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)
+// @MappedFrom countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)
 func (r *GroupMemberRepository) CountMembers(ctx context.Context, groupID int64) (int64, error) {
 	filter := bson.M{
 		"_id.gid": groupID,
@@ -216,6 +232,8 @@ func (r *GroupMemberRepository) FindGroupMemberKeyAndRolePairs(ctx context.Conte
 	return members, nil
 }
 // IsGroupMember checks if a user is a member of a group.
+// @MappedFrom isGroupMember(@NotNull Long groupId, @NotNull Long userId, boolean preferCache)
+// @MappedFrom isGroupMember(@NotEmpty Set<Long> groupIds, @NotNull Long userId)
 func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
 	filter := bson.M{
 		"_id": po.GroupMemberKey{GroupID: groupID, UserID: userID},

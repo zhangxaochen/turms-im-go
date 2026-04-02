@@ -4,6 +4,7 @@ package elasticsearch
 type DefaultLanguageSettings struct {
 }
 
+// @MappedFrom getSetting(LanguageCode code)
 func (s *DefaultLanguageSettings) GetSetting() interface{} {
 	return nil
 }

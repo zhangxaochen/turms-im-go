@@ -74,6 +74,8 @@ func (r *userRoleRepository) CountRoles(ctx context.Context, filter interface{})
 	return r.collection.CountDocuments(ctx, filter)
 }
 
+// @MappedFrom updateUserRoles(Set<Long> groupIds, @Nullable String name, @Nullable Set<Long> creatableGroupTypeIds, @Nullable Integer ownedGroupLimit, @Nullable Integer ownedGroupLimitForEachGroupType, @Nullable Map<Long, Integer> groupTypeIdToLimit)
+// @MappedFrom updateUserRoles(@NotEmpty Set<Long> groupIds, @Nullable String name, @Nullable Set<Long> creatableGroupTypeIds, @Nullable Integer ownedGroupLimit, @Nullable Integer ownedGroupLimitForEachGroupType, @Nullable Map<Long, Integer> groupTypeIdToLimit)
 func (r *userRoleRepository) UpdateUserRoles(ctx context.Context, roleIDs []int64, update interface{}) (int64, error) {
 	if len(roleIDs) == 0 {
 		return 0, nil

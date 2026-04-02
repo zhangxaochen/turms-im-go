@@ -49,6 +49,7 @@ func (c *UserRelationshipController) RegisterRoutes(r *router.Router) {
 }
 
 
+// @MappedFrom handleCreateFriendRequestRequest()
 func (c *UserRelationshipController) HandleCreateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateFriendRequestRequest()
 	_, err := c.userFriendRequestService.AuthAndCreateFriendRequest(ctx, s.UserID, createReq.GetRecipientId(), createReq.GetContent(), time.Now())
@@ -58,6 +59,7 @@ func (c *UserRelationshipController) HandleCreateFriendRequestRequest(ctx contex
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleCreateRelationshipGroupRequest()
 func (c *UserRelationshipController) HandleCreateRelationshipGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateRelationshipGroupRequest()
 
@@ -77,6 +79,7 @@ func (c *UserRelationshipController) HandleCreateRelationshipGroupRequest(ctx co
 	}, nil
 }
 
+// @MappedFrom handleCreateRelationshipRequest()
 func (c *UserRelationshipController) HandleCreateRelationshipRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateRelationshipRequest()
 
@@ -94,6 +97,7 @@ func (c *UserRelationshipController) HandleCreateRelationshipRequest(ctx context
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleDeleteFriendRequestRequest()
 func (c *UserRelationshipController) HandleDeleteFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteFriendRequestRequest()
 	_, err := c.userFriendRequestService.AuthAndRecallFriendRequest(ctx, s.UserID, deleteReq.GetRequestId())
@@ -103,6 +107,7 @@ func (c *UserRelationshipController) HandleDeleteFriendRequestRequest(ctx contex
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleDeleteRelationshipGroupRequest()
 func (c *UserRelationshipController) HandleDeleteRelationshipGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteRelationshipGroupRequest()
 	if deleteReq.TargetGroupIndex != nil {
@@ -119,6 +124,7 @@ func (c *UserRelationshipController) HandleDeleteRelationshipGroupRequest(ctx co
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleDeleteRelationshipRequest()
 func (c *UserRelationshipController) HandleDeleteRelationshipRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteRelationshipRequest()
 
@@ -141,6 +147,7 @@ func (c *UserRelationshipController) HandleDeleteRelationshipRequest(ctx context
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleQueryFriendRequestsRequest()
 func (c *UserRelationshipController) HandleQueryFriendRequestsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryFriendRequestsRequest()
 	
@@ -173,6 +180,7 @@ func (c *UserRelationshipController) HandleQueryFriendRequestsRequest(ctx contex
 	}, nil
 }
 
+// @MappedFrom handleQueryRelatedUserIdsRequest()
 func (c *UserRelationshipController) HandleQueryRelatedUserIdsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryRelatedUserIdsRequest()
 
@@ -207,6 +215,7 @@ func (c *UserRelationshipController) HandleQueryRelatedUserIdsRequest(ctx contex
 	}, nil
 }
 
+// @MappedFrom handleQueryRelationshipGroupsRequest()
 func (c *UserRelationshipController) HandleQueryRelationshipGroupsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryRelationshipGroupsRequest()
 	var lastUpdatedDate *time.Time
@@ -245,6 +254,7 @@ func (c *UserRelationshipController) HandleQueryRelationshipGroupsRequest(ctx co
 	}, nil
 }
 
+// @MappedFrom handleQueryRelationshipsRequest()
 func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryRelationshipsRequest()
 
@@ -284,6 +294,7 @@ func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context
 	}, nil
 }
 
+// @MappedFrom handleUpdateFriendRequestRequest()
 func (c *UserRelationshipController) HandleUpdateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateFriendRequestRequest()
 
@@ -296,6 +307,7 @@ func (c *UserRelationshipController) HandleUpdateFriendRequestRequest(ctx contex
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateRelationshipGroupRequest()
 func (c *UserRelationshipController) HandleUpdateRelationshipGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateRelationshipGroupRequest()
 
@@ -307,6 +319,7 @@ func (c *UserRelationshipController) HandleUpdateRelationshipGroupRequest(ctx co
 	return buildSuccessNotification(req.RequestId), nil
 }
 
+// @MappedFrom handleUpdateRelationshipRequest()
 func (c *UserRelationshipController) HandleUpdateRelationshipRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateRelationshipRequest()
 

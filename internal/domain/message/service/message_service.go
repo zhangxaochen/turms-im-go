@@ -67,6 +67,7 @@ func (s *MessageService) Close() {
 	}
 }
 
+// @MappedFrom authAndSaveMessage(boolean queryRecipientIds, @Nullable Boolean persist, @Nullable Long messageId, @NotNull Long senderId, @Nullable byte[] senderIp, @NotNull Long targetId, @NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @Nullable String text, @Nullable List<byte[]> records, @Nullable @Min(0)
 func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage bool, senderID int64, targetID int64, text string) (*po.Message, error) {
 	if targetID <= 0 {
 		return nil, ErrInvalidTargetID
@@ -115,6 +116,7 @@ func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage 
 	return msg, nil
 }
 
+// @MappedFrom authAndSaveAndSendMessage(boolean send, @Nullable Boolean persist, @Nullable Long senderId, @Nullable DeviceType senderDeviceType, @Nullable byte[] senderIp, @Nullable Long messageId, @NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @Nullable String text, @Nullable List<byte[]> records, @NotNull Long targetId, @Nullable @Min(0)
 func (s *MessageService) AuthAndSaveAndSendMessage(ctx context.Context, isGroupMessage bool, senderID int64, targetID int64, text string) (*po.Message, error) {
 	msg, err := s.AuthAndSaveMessage(ctx, isGroupMessage, senderID, targetID, text)
 	if err != nil {

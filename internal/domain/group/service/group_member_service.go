@@ -105,6 +105,7 @@ func (s *GroupMemberService) IsMemberMuted(ctx context.Context, groupID, userID 
 	return muted, nil
 }
 
+// @MappedFrom isOwner(@NotNull Long userId, @NotNull Long groupId, boolean preferCache)
 func (s *GroupMemberService) IsOwner(ctx context.Context, userID, groupID int64) (bool, error) {
 	role, err := s.FindGroupMemberRole(ctx, userID, groupID)
 	if err != nil {
@@ -116,6 +117,7 @@ func (s *GroupMemberService) IsOwner(ctx context.Context, userID, groupID int64)
 	return *role == protocol.GroupMemberRole_OWNER, nil
 }
 
+// @MappedFrom isOwnerOrManager(@NotNull Long userId, @NotNull Long groupId, boolean preferCache)
 func (s *GroupMemberService) IsOwnerOrManager(ctx context.Context, groupID, userID int64) (bool, error) {
 	role, err := s.FindGroupMemberRole(ctx, groupID, userID)
 	if err != nil {
@@ -131,6 +133,7 @@ func (s *GroupMemberService) FindGroupMemberRole(ctx context.Context, groupID, u
 	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
 }
 
+// @MappedFrom queryGroupMemberRole(@NotNull Long userId, @NotNull Long groupId, boolean preferCache)
 func (s *GroupMemberService) QueryGroupMemberRole(ctx context.Context, groupID, userID int64) (*protocol.GroupMemberRole, error) {
 	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
 }
@@ -163,6 +166,7 @@ func (s *GroupMemberService) UpdateGroupMemberRole(
 	return err
 }
 
+// @MappedFrom deleteGroupMember(@NotNull Long groupId, @NotNull Long memberId, @Nullable ClientSession session, boolean updateGroupMembersVersion)
 func (s *GroupMemberService) DeleteGroupMember(
 	ctx context.Context,
 	groupID, userID int64,
@@ -184,6 +188,8 @@ func (s *GroupMemberService) DeleteGroupMember(
 }
 
 // DeleteAllGroupMembers deletes all members of multiple groups.
+// @MappedFrom deleteAllGroupMembers(@Nullable Set<Long> groupIds, @Nullable ClientSession session, boolean updateMembersVersion)
+// @MappedFrom deleteAllGroupMembers(@Nullable Set<Long> groupIds, @Nullable ClientSession session)
 func (s *GroupMemberService) DeleteAllGroupMembers(ctx context.Context, groupIDs []int64, session mongo.SessionContext, updateVersion bool) error {
 	if len(groupIDs) == 0 {
 		return nil
@@ -200,6 +206,7 @@ func (s *GroupMemberService) DeleteAllGroupMembers(ctx context.Context, groupIDs
 	return nil
 }
 
+// @MappedFrom addGroupMembers(@NotNull Long groupId, @NotNull Set<Long> userIds, @NotNull @ValidGroupMemberRole GroupMemberRole groupMemberRole, @Nullable String name, @Nullable @PastOrPresent Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session)
 func (s *GroupMemberService) AddGroupMembers(
 	ctx context.Context,
 	groupID int64,
@@ -239,6 +246,7 @@ func (s *GroupMemberService) AddGroupMembers(
 }
 
 // AuthAndAddGroupMembers adds members to a group after performing authorization and strategy checks.
+// @MappedFrom authAndAddGroupMembers(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Set<Long> userIds, @Nullable @ValidGroupMemberRole GroupMemberRole groupMemberRole, @Nullable String name, @Nullable Date muteEndDate, @Nullable ClientSession session)
 func (s *GroupMemberService) AuthAndAddGroupMembers(
 	ctx context.Context,
 	requesterID int64,
@@ -308,6 +316,7 @@ func (s *GroupMemberService) AuthAndAddGroupMembers(
 }
 
 // AuthAndDeleteGroupMembers deletes members from a group after performing authorization checks.
+// @MappedFrom authAndDeleteGroupMembers(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Set<Long> memberIdsToDelete, @Nullable Long successorId, @Nullable Boolean quitAfterTransfer)
 func (s *GroupMemberService) AuthAndDeleteGroupMembers(
 	ctx context.Context,
 	requesterID int64,
@@ -395,6 +404,7 @@ func (s *GroupMemberService) AuthAndDeleteGroupMembers(
 }
 
 // AuthAndUpdateGroupMember updates a group member's info after performing authorization checks.
+// @MappedFrom authAndUpdateGroupMember(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long memberId, @Nullable String name, @Nullable @ValidGroupMemberRole GroupMemberRole role, @Nullable Date muteEndDate)
 func (s *GroupMemberService) AuthAndUpdateGroupMember(
 	ctx context.Context,
 	requesterID int64,

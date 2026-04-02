@@ -90,6 +90,8 @@ func (s *userSettingsService) UnsetSettings(ctx context.Context, userID int64, k
 	return s.settingsRepo.UnsetSettings(ctx, userID, keys)
 }
 
+// @MappedFrom querySettings(Long ownerId, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)
+// @MappedFrom querySettings(Long userId, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)
 func (s *userSettingsService) QuerySettings(ctx context.Context, filter bson.M) ([]*po.UserSettings, error) {
 	return s.settingsRepo.FindSettings(ctx, filter)
 }

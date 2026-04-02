@@ -27,8 +27,8 @@ public class MyClass {
 	}
 
 	for _, m := range methods {
-		if !expectedMethods[m] {
-			t.Errorf("Unexpected method parsed: %s", m)
+		if !expectedMethods[m.Name] {
+			t.Errorf("Unexpected method parsed: %s", m.Name)
 		}
 	}
 }
@@ -53,8 +53,8 @@ func privateMethod() {}
 	}
 
 	for _, m := range methods {
-		if !expectedMethods[m] {
-			t.Errorf("Unexpected Go method parsed: %s", m)
+		if !expectedMethods[m.Name] {
+			t.Errorf("Unexpected Go method parsed: %s", m.Name)
 		}
 	}
 }

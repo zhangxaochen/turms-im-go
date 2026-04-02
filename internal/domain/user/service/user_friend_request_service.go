@@ -64,6 +64,7 @@ const (
 	defaultAllowRecallPendingFriendRequestBySender = true
 )
 
+// @MappedFrom removeAllExpiredFriendRequests(Date expirationDate)
 func (s *userFriendRequestService) RemoveAllExpiredFriendRequests(ctx context.Context, expirationDate time.Time) error {
 	return s.repo.DeleteExpiredData(ctx, expirationDate)
 }
@@ -72,6 +73,8 @@ func (s *userFriendRequestService) HasPendingFriendRequest(ctx context.Context, 
 	return s.repo.HasPendingFriendRequest(ctx, requesterID, recipientID)
 }
 
+// @MappedFrom createFriendRequest(@RequestBody AddFriendRequestDTO addFriendRequestDTO)
+// @MappedFrom createFriendRequest(@Nullable Long id, @NotNull Long requesterId, @NotNull Long recipientId, @NotNull String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate, @Nullable String reason)
 func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requestID *int64, requesterID, recipientID int64, content string, status *po.RequestStatus, creationDate, responseDate *time.Time, reason *string) (*po.UserFriendRequest, error) {
 	if err := validator.NotNull(requesterID, "requesterID"); err != nil {
 		return nil, err
@@ -142,6 +145,7 @@ func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requ
 	return req, nil
 }
 
+// @MappedFrom authAndCreateFriendRequest(@NotNull Long requesterId, @NotNull Long recipientId, @Nullable String content, @NotNull @PastOrPresent Date creationDate)
 func (s *userFriendRequestService) AuthAndCreateFriendRequest(ctx context.Context, requesterID, recipientID int64, content string, creationDate time.Time) (*po.UserFriendRequest, error) {
 	if err := validator.NotNull(requesterID, "requesterID"); err != nil {
 		return nil, err
@@ -199,6 +203,7 @@ func (s *userFriendRequestService) AuthAndCreateFriendRequest(ctx context.Contex
 	return req, nil
 }
 
+// @MappedFrom authAndRecallFriendRequest(@NotNull Long requesterId, @NotNull Long requestId)
 func (s *userFriendRequestService) AuthAndRecallFriendRequest(ctx context.Context, requesterID, requestID int64) (*po.UserFriendRequest, error) {
 	if err := validator.NotNull(requesterID, "requesterID"); err != nil {
 		return nil, err
@@ -266,10 +271,12 @@ func (s *userFriendRequestService) UpdateFriendRequests(ctx context.Context, req
 	return s.repo.UpdateFriendRequests(ctx, requestIds, requesterID, recipientID, content, status, reason, creationDate)
 }
 
+// @MappedFrom queryRecipientId(@NotNull Long requestId)
 func (s *userFriendRequestService) QueryRecipientId(ctx context.Context, requestID int64) (int64, error) {
 	return s.repo.FindRecipientId(ctx, requestID)
 }
 
+// @MappedFrom updatePendingFriendRequestStatus(@NotNull Long requestId, @NotNull @ValidRequestStatus RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session)
 func (s *userFriendRequestService) UpdatePendingFriendRequestStatus(ctx context.Context, requestID int64, targetStatus po.RequestStatus, reason *string) (bool, error) {
 	if err := validator.NotNull(requestID, "requestID"); err != nil {
 		return false, err
@@ -297,6 +304,7 @@ func (s *userFriendRequestService) UpdatePendingFriendRequestStatus(ctx context.
 	return success, nil
 }
 
+// @MappedFrom authAndHandleFriendRequest(@NotNull Long friendRequestId, @NotNull Long requesterId, @NotNull @ValidResponseAction ResponseAction action, @Nullable String reason)
 func (s *userFriendRequestService) AuthAndHandleFriendRequest(ctx context.Context, friendRequestID int64, requesterID int64, action po.ResponseAction, reason *string) (bool, error) {
 	if friendRequestID <= 0 {
 		return false, exception.NewTurmsError(int32(codes.IllegalArgument), "friendRequestID must be greater than 0")
@@ -356,14 +364,17 @@ func (s *userFriendRequestService) AuthAndHandleFriendRequest(ctx context.Contex
 	return success, err
 }
 
+// @MappedFrom queryFriendRequestsByRecipientId(@NotNull Long recipientId)
 func (s *userFriendRequestService) QueryFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
 	return s.repo.FindFriendRequestsByRecipientId(ctx, recipientID)
 }
 
+// @MappedFrom queryFriendRequestsByRequesterId(@NotNull Long requesterId)
 func (s *userFriendRequestService) QueryFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error) {
 	return s.repo.FindFriendRequestsByRequesterId(ctx, requesterID)
 }
 
+// @MappedFrom queryFriendRequestsWithVersion(@NotNull Long userId, boolean areSentByUser, @Nullable Date lastUpdatedDate)
 func (s *userFriendRequestService) QueryFriendRequestsWithVersion(ctx context.Context, userID int64, isRecipient bool, lastUpdatedDate *time.Time) ([]po.UserFriendRequest, error) {
 	if isRecipient {
 		return s.QueryFriendRequestsByRecipientId(ctx, userID)
@@ -371,10 +382,14 @@ func (s *userFriendRequestService) QueryFriendRequestsWithVersion(ctx context.Co
 	return s.QueryFriendRequestsByRequesterId(ctx, userID)
 }
 
+// @MappedFrom deleteFriendRequests(@Nullable Set<Long> ids)
+// @MappedFrom deleteFriendRequests(@QueryParam(required = false)
 func (s *userFriendRequestService) DeleteFriendRequests(ctx context.Context, ids []int64) error {
 	return s.repo.DeleteByIds(ctx, ids)
 }
 
+// @MappedFrom queryFriendRequests(@Nullable Set<Long> ids, @Nullable Set<Long> requesterIds, @Nullable Set<Long> recipientIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
+// @MappedFrom queryFriendRequests(@QueryParam(required = false)
 func (s *userFriendRequestService) QueryFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]po.UserFriendRequest, error) {
 	if err := validator.PastOrPresent(creationDateStart, "creationDateStart"); err != nil {
 		return nil, err

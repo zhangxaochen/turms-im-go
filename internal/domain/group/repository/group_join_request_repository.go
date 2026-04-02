@@ -83,6 +83,7 @@ func (r *groupJoinRequestRepository) UpdateStatusIfPending(ctx context.Context, 
 	return res.ModifiedCount > 0, nil
 }
 
+// @MappedFrom findRequestsByGroupId(Long groupId)
 func (r *groupJoinRequestRepository) FindRequestsByGroupID(ctx context.Context, groupID int64) ([]po.GroupJoinRequest, error) {
 	filter := bson.M{"gid": groupID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
@@ -99,6 +100,7 @@ func (r *groupJoinRequestRepository) FindRequestsByGroupID(ctx context.Context, 
 	return reqs, nil
 }
 
+// @MappedFrom findRequestsByRequesterId(Long requesterId)
 func (r *groupJoinRequestRepository) FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.GroupJoinRequest, error) {
 	filter := bson.M{"rqid": requesterID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
@@ -124,6 +126,7 @@ func (r *groupJoinRequestRepository) FindByID(ctx context.Context, requestID int
 	return &res, err
 }
 
+// @MappedFrom findRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (r *groupJoinRequestRepository) FindRequests(ctx context.Context,
 	groupID *int64,
 	requesterID *int64,

@@ -66,6 +66,8 @@ func (r *MessageRepository) FindMessagesByTarget(ctx context.Context, targetID i
 }
 
 // QueryMessages supports complex querying for message pulling (offline/roaming sync).
+// @MappedFrom queryMessages(@Nullable Collection<Long> messageIds, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages, @Nullable Set<Long> senderIds, @Nullable Set<Long> targetIds, @Nullable DateRange deliveryDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange recallDateRange, @Nullable Integer page, @Nullable Integer size, @Nullable Boolean ascending)
+// @MappedFrom queryMessages(@QueryParam(required = false)
 func (r *MessageRepository) QueryMessages(
 	ctx context.Context,
 	isGroupMessage *bool,

@@ -44,6 +44,7 @@ func (r *GroupTypeRepository) InsertGroupType(ctx context.Context, groupType *po
 }
 
 // UpdateGroupType modifies an existing GroupType.
+// @MappedFrom updateGroupType(Set<Long> ids, @RequestBody UpdateGroupTypeDTO updateGroupTypeDTO)
 func (r *GroupTypeRepository) UpdateGroupType(ctx context.Context, typeID int64, update bson.M) error {
 	filter := bson.M{"_id": typeID}
 	_, err := r.col.UpdateOne(ctx, filter, bson.M{"$set": update})
