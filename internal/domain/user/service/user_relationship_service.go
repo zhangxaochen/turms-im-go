@@ -14,7 +14,9 @@ import (
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/internal/infra/validator"
 	turmsmongo "im.turms/server/internal/storage/mongo"
+	common "im.turms/server/internal/domain/common/service"
 	"im.turms/server/pkg/codes"
+	"im.turms/server/pkg/protocol"
 )
 
 type UserRelationshipService interface {
@@ -43,8 +45,9 @@ type userRelationshipService struct {
 	userVersionService *UserVersionService
 	mongoClient        *turmsmongo.Client
 
-	relCache     *cache.ShardedMap[string, any]
-	blockedCache *cache.ShardedMap[string, any]
+	relCache               *cache.ShardedMap[string, any]
+	blockedCache           *cache.ShardedMap[string, any]
+	outboundMessageService common.OutboundMessageService
 }
 
 func NewUserRelationshipService(
@@ -52,14 +55,16 @@ func NewUserRelationshipService(
 	groupService UserRelationshipGroupService,
 	userVersionService *UserVersionService,
 	mongoClient *turmsmongo.Client,
+	outboundMessageService common.OutboundMessageService,
 ) UserRelationshipService {
 	return &userRelationshipService{
-		repo:               repo,
-		groupService:       groupService,
-		userVersionService: userVersionService,
-		mongoClient:        mongoClient,
-		relCache:           cache.NewStringShardedMap[any](256),
-		blockedCache:       cache.NewStringShardedMap[any](256),
+		repo:                   repo,
+		groupService:           groupService,
+		userVersionService:     userVersionService,
+		mongoClient:            mongoClient,
+		relCache:               cache.NewStringShardedMap[any](256),
+		blockedCache:           cache.NewStringShardedMap[any](256),
+		outboundMessageService: outboundMessageService,
 	}
 }
 
@@ -120,10 +125,14 @@ func (s *userRelationshipService) upsertOneSidedRelationship(
 		_ = s.userVersionService.UpdateRelationshipsVersion(ctx, ownerID)
 	}
 
+	if err == nil && s.outboundMessageService != nil {
+		s.sendRelationshipNotification(ctx, []int64{relatedUserID}, ownerID, relatedUserID)
+	}
+
 	return bo.UpsertRelationshipResult{
 		IsCreated:  isCreated,
 		GroupIndex: finalGroupIndex,
-	}, nil
+	}, err
 }
 
 func (s *userRelationshipService) UpdateUserOneSidedRelationships(
@@ -244,6 +253,10 @@ func (s *userRelationshipService) DeleteOneSidedRelationships(
 		if res.DeletedCount > 0 {
 			for _, relatedUserID := range relatedUserIDs {
 				s.invalidMemberCache(ownerID, relatedUserID)
+				if s.outboundMessageService != nil {
+					// Notify relevant users about the deletion
+					s.sendRelationshipNotification(sessCtx, []int64{relatedUserID}, ownerID, relatedUserID)
+				}
 			}
 			return s.userVersionService.UpdateRelationshipsVersion(sessCtx, ownerID)
 		}
@@ -290,8 +303,31 @@ func (s *userRelationshipService) FriendTwoUsers(ctx context.Context, user1ID, u
 			return err
 		}
 		_, err = s.upsertOneSidedRelationship(sessCtx, user2ID, user1ID, nil, nil, &now, nil, sess)
+		if err == nil && s.outboundMessageService != nil {
+			s.sendRelationshipNotification(sessCtx, []int64{user1ID}, user2ID, user1ID)
+			s.sendRelationshipNotification(sessCtx, []int64{user2ID}, user1ID, user2ID)
+		}
 		return err
 	})
+}
+
+func (s *userRelationshipService) sendRelationshipNotification(ctx context.Context, targetUserIDs []int64, ownerID, relatedUserID int64) {
+	relationships, _, err := s.QueryRelationshipsWithVersion(ctx, ownerID, []int64{relatedUserID}, nil, nil, nil)
+	if err != nil || len(relationships) == 0 {
+		return
+	}
+	notification := &protocol.TurmsNotification{
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserRelationshipsWithVersion{
+				UserRelationshipsWithVersion: &protocol.UserRelationshipsWithVersion{
+					UserRelationships: []*protocol.UserRelationship{
+						RelationshipToProto(&relationships[0]),
+					},
+				},
+			},
+		},
+	}
+	s.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, targetUserIDs)
 }
 
 func (s *userRelationshipService) QueryRelationships(
