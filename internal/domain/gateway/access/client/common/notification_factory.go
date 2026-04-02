@@ -29,10 +29,7 @@ func NewNotificationFactory(props *config.GatewayProperties) *NotificationFactor
 
 // Create generates a generic Notification payload.
 // @MappedFrom create(ResponseStatusCode code, long requestId)
-// @MappedFrom create(TcpProperties tcpProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFrameLength)
-// @MappedFrom create(ResponseStatusCode code, @Nullable String reason, long requestId)
 // @MappedFrom create(ThrowableInfo info, long requestId)
-// @MappedFrom create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)
 func (f *NotificationFactory) Create(requestID *int64, code constant.ResponseStatusCode) *protocol.TurmsNotification {
 	return f.CreateWithReason(requestID, code, "")
 }

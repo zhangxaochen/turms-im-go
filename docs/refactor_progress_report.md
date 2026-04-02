@@ -37,7 +37,7 @@
 
   - [ ] `init(TurmsPropertiesManager propertiesManager)`
   - [x] `create(ResponseStatusCode code, long requestId)` -> `internal/domain/gateway/access/client/common/notification_factory.go:Create(requestID *int64, code constant.ResponseStatusCode)`
-  - [x] `create(ResponseStatusCode code, @Nullable String reason, long requestId)` -> `internal/domain/gateway/access/client/common/notification_factory.go:Create(requestID *int64, code constant.ResponseStatusCode)`, `internal/domain/gateway/access/client/common/notification_factory.go:CreateWithReason(requestID *int64, code constant.ResponseStatusCode, reason string)`
+  - [x] `create(ResponseStatusCode code, @Nullable String reason, long requestId)` -> `internal/domain/gateway/access/client/common/notification_factory.go:CreateWithReason(requestID *int64, code constant.ResponseStatusCode, reason string)`
   - [x] `create(ThrowableInfo info, long requestId)` -> `internal/domain/gateway/access/client/common/notification_factory.go:Create(requestID *int64, code constant.ResponseStatusCode)`, `internal/domain/gateway/access/client/common/notification_factory.go:CreateFromError(err error, requestID *int64)`
   - [x] `createBuffer(CloseReason closeReason)` -> `internal/domain/gateway/access/client/common/notification_factory.go:CreateBuffer(requestID *int64, code constant.ResponseStatusCode, reason string)`
   - [x] `sessionClosed(long requestId)` -> `internal/domain/gateway/access/client/common/notification_factory.go:SessionClosed(requestID *int64)`
@@ -124,7 +124,7 @@
 - **TcpServerFactory.java** ([java/im/turms/gateway/access/client/tcp/TcpServerFactory.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/access/client/tcp/TcpServerFactory.java))
 > [简述功能]
 
-  - [x] `create(TcpProperties tcpProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFrameLength)` -> `internal/domain/gateway/access/client/common/notification_factory.go:Create(requestID *int64, code constant.ResponseStatusCode)`
+  - [ ] `create(TcpProperties tcpProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFrameLength)`
 
 - **TcpUserSessionAssembler.java** ([java/im/turms/gateway/access/client/tcp/TcpUserSessionAssembler.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/access/client/tcp/TcpUserSessionAssembler.java))
 > [简述功能]
@@ -175,7 +175,7 @@
 - **WebSocketServerFactory.java** ([java/im/turms/gateway/access/client/websocket/WebSocketServerFactory.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/access/client/websocket/WebSocketServerFactory.java))
 > [简述功能]
 
-  - [x] `create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)` -> `internal/domain/gateway/access/client/common/notification_factory.go:Create(requestID *int64, code constant.ResponseStatusCode)`
+  - [ ] `create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)`
 
 - **NotificationService.java** ([java/im/turms/gateway/domain/notification/service/NotificationService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/notification/service/NotificationService.java))
 > [简述功能]
