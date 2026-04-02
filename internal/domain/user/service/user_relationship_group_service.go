@@ -14,7 +14,28 @@ import (
 	"im.turms/server/pkg/codes"
 )
 
-type UserRelationshipGroupService struct {
+type UserRelationshipGroupService interface {
+	CreateRelationshipGroup(ctx context.Context, ownerID int64, groupIndex *int32, groupName string, creationDate *time.Time, session *mongo.Session) (*po.UserRelationshipGroup, error)
+	QueryRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error)
+	QueryRelationshipGroupsInfosWithVersion(ctx context.Context, ownerID int64, lastUpdatedDate *time.Time) ([]*po.UserRelationshipGroup, *time.Time, error)
+	QueryGroupIndexes(ctx context.Context, ownerID int64, relatedUserID int64) ([]int32, error)
+	QueryRelationshipGroupMemberIds(ctx context.Context, ownerID int64, groupIndex int32) ([]int64, error)
+	UpdateRelationshipGroupName(ctx context.Context, ownerID int64, groupIndex int32, newGroupName string) error
+	UpsertRelationshipGroupMember(ctx context.Context, ownerID int64, relatedUserID int64, newGroupIndex *int32, deleteGroupIndex *int32, session *mongo.Session) (*int32, error)
+	UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName *string, creationDate *time.Time) error
+	AddRelatedUserToRelationshipGroup(ctx context.Context, ownerID int64, groupIndex int32, relatedUserID int64, session *mongo.Session) (bool, error)
+	DeleteRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, session *mongo.Session) (int64, error)
+	DeleteRelationshipGroupAndMoveMembersToNewGroup(ctx context.Context, ownerID int64, deleteGroupIndex int32, newGroupIndex int32) error
+	DeleteAllRelationshipGroups(ctx context.Context, ownerIDs []int64, session *mongo.Session, updateVersion bool) error
+	DeleteRelatedUserFromRelationshipGroup(ctx context.Context, ownerID int64, relatedUserID int64, groupIndex int32, session *mongo.Session, updateVersion bool) (int64, error)
+	DeleteRelatedUsersFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserIDs []int64, session *mongo.Session, updateVersion bool) (int64, error)
+	MoveRelatedUserToNewGroup(ctx context.Context, ownerID int64, relatedUserID int64, currentGroupIndex int32, targetGroupIndex int32, suppressIfAlreadyExists bool, session *mongo.Session) error
+	CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error)
+	CountRelationshipGroupMembers(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error)
+	QueryRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error)
+}
+
+type userRelationshipGroupService struct {
 	groupRepo          repository.UserRelationshipGroupRepository
 	groupMemberRepo    repository.UserRelationshipGroupMemberRepository
 	userVersionService *UserVersionService
@@ -24,15 +45,15 @@ func NewUserRelationshipGroupService(
 	groupRepo repository.UserRelationshipGroupRepository,
 	groupMemberRepo repository.UserRelationshipGroupMemberRepository,
 	userVersionService *UserVersionService,
-) *UserRelationshipGroupService {
-	return &UserRelationshipGroupService{
+) UserRelationshipGroupService {
+	return &userRelationshipGroupService{
 		groupRepo:          groupRepo,
 		groupMemberRepo:    groupMemberRepo,
 		userVersionService: userVersionService,
 	}
 }
 
-func (s *UserRelationshipGroupService) CreateRelationshipGroup(
+func (s *userRelationshipGroupService) CreateRelationshipGroup(
 	ctx context.Context,
 	ownerID int64,
 	groupIndex *int32,
@@ -54,11 +75,6 @@ func (s *UserRelationshipGroupService) CreateRelationshipGroup(
 
 	finalGroupIndex := int32(0)
 	if groupIndex == nil {
-		// Use a random index like Java if not provided.
-		// Note: Turms Java uses RandomUtil.nextPositiveInt()
-		// For now let's just use 0 and let it fail or handle it.
-		// Actually, let's implement a simple random generator or just use a placeholder.
-		// In Turms, custom groups start from a certain range or are just random.
 		finalGroupIndex = int32(time.Now().UnixNano()) // Simple random
 	} else {
 		finalGroupIndex = *groupIndex
@@ -90,14 +106,14 @@ func (s *UserRelationshipGroupService) CreateRelationshipGroup(
 	return nil, err
 }
 
-func (s *UserRelationshipGroupService) QueryRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error) {
+func (s *userRelationshipGroupService) QueryRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error) {
 	if err := validator.NotNull(ownerID, "ownerID"); err != nil {
 		return nil, err
 	}
 	return s.groupRepo.FindRelationshipGroupsInfos(ctx, ownerID)
 }
 
-func (s *UserRelationshipGroupService) QueryRelationshipGroupsInfosWithVersion(
+func (s *userRelationshipGroupService) QueryRelationshipGroupsInfosWithVersion(
 	ctx context.Context,
 	ownerID int64,
 	lastUpdatedDate *time.Time,
@@ -116,7 +132,7 @@ func (s *UserRelationshipGroupService) QueryRelationshipGroupsInfosWithVersion(
 	return groups, version, err
 }
 
-func (s *UserRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ownerID int64, relatedUserID int64) ([]int32, error) {
+func (s *userRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ownerID int64, relatedUserID int64) ([]int32, error) {
 	if err := validator.NotNull(ownerID, "ownerID"); err != nil {
 		return nil, err
 	}
@@ -126,7 +142,7 @@ func (s *UserRelationshipGroupService) QueryGroupIndexes(ctx context.Context, ow
 	return s.groupMemberRepo.FindGroupIndexes(ctx, ownerID, relatedUserID)
 }
 
-func (s *UserRelationshipGroupService) QueryRelationshipGroupMemberIds(
+func (s *userRelationshipGroupService) QueryRelationshipGroupMemberIds(
 	ctx context.Context,
 	ownerID int64,
 	groupIndex int32,
@@ -140,7 +156,7 @@ func (s *UserRelationshipGroupService) QueryRelationshipGroupMemberIds(
 	return s.groupMemberRepo.FindRelationshipGroupMemberIds(ctx, []int64{ownerID}, []int32{groupIndex}, nil, nil)
 }
 
-func (s *UserRelationshipGroupService) UpdateRelationshipGroupName(
+func (s *userRelationshipGroupService) UpdateRelationshipGroupName(
 	ctx context.Context,
 	ownerID int64,
 	groupIndex int32,
@@ -169,7 +185,7 @@ func (s *UserRelationshipGroupService) UpdateRelationshipGroupName(
 	return nil
 }
 
-func (s *UserRelationshipGroupService) UpsertRelationshipGroupMember(
+func (s *userRelationshipGroupService) UpsertRelationshipGroupMember(
 	ctx context.Context,
 	ownerID int64,
 	relatedUserID int64,
@@ -202,7 +218,7 @@ func (s *UserRelationshipGroupService) UpsertRelationshipGroupMember(
 			}
 			return nil, nil
 		}
-	} else if deleteGroupIndex != nil && *deleteGroupIndex != 0 { // 0 is DEFAULT_RELATIONSHIP_GROUP_INDEX
+	} else if deleteGroupIndex != nil && *deleteGroupIndex != 0 {
 		err := s.MoveRelatedUserToNewGroup(ctx, ownerID, relatedUserID, *deleteGroupIndex, 0, true, session)
 		if err != nil {
 			return nil, err
@@ -213,7 +229,7 @@ func (s *UserRelationshipGroupService) UpsertRelationshipGroupMember(
 	return nil, nil
 }
 
-func (s *UserRelationshipGroupService) UpdateRelationshipGroups(
+func (s *userRelationshipGroupService) UpdateRelationshipGroups(
 	ctx context.Context,
 	keys []po.UserRelationshipGroupKey,
 	newName *string,
@@ -230,7 +246,6 @@ func (s *UserRelationshipGroupService) UpdateRelationshipGroups(
 	if newName == nil && creationDate == nil {
 		return nil
 	}
-	// For now we only support name update in bulk
 	if newName != nil {
 		count, err := s.groupRepo.UpdateRelationshipGroups(ctx, keys, *newName, nil)
 		if err != nil {
@@ -250,11 +265,10 @@ func (s *UserRelationshipGroupService) UpdateRelationshipGroups(
 			}
 		}
 	}
-	// Note: creationDate update is NOT implemented in bulk yet, focusing on parity with current repo
 	return nil
 }
 
-func (s *UserRelationshipGroupService) AddRelatedUserToRelationshipGroup(
+func (s *userRelationshipGroupService) AddRelatedUserToRelationshipGroup(
 	ctx context.Context,
 	ownerID int64,
 	groupIndex int32,
@@ -287,7 +301,7 @@ func (s *UserRelationshipGroupService) AddRelatedUserToRelationshipGroup(
 	return addedNew, nil
 }
 
-func (s *UserRelationshipGroupService) DeleteRelationshipGroups(
+func (s *userRelationshipGroupService) DeleteRelationshipGroups(
 	ctx context.Context,
 	ownerID int64,
 	groupIndexes []int32,
@@ -313,7 +327,7 @@ func (s *UserRelationshipGroupService) DeleteRelationshipGroups(
 	return count, nil
 }
 
-func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNewGroup(
+func (s *userRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNewGroup(
 	ctx context.Context,
 	ownerID int64,
 	deleteGroupIndex int32,
@@ -328,7 +342,7 @@ func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNe
 	if err := validator.NotNull(newGroupIndex, "newGroupIndex"); err != nil {
 		return err
 	}
-	if deleteGroupIndex == 0 { // DEFAULT_RELATIONSHIP_GROUP_INDEX
+	if deleteGroupIndex == 0 {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "cannot delete default group")
 	}
 	if deleteGroupIndex == newGroupIndex {
@@ -369,7 +383,7 @@ func (s *UserRelationshipGroupService) DeleteRelationshipGroupAndMoveMembersToNe
 	return nil
 }
 
-func (s *UserRelationshipGroupService) DeleteAllRelationshipGroups(
+func (s *userRelationshipGroupService) DeleteAllRelationshipGroups(
 	ctx context.Context,
 	ownerIDs []int64,
 	session *mongo.Session,
@@ -392,7 +406,7 @@ func (s *UserRelationshipGroupService) DeleteAllRelationshipGroups(
 	return nil
 }
 
-func (s *UserRelationshipGroupService) DeleteRelatedUserFromRelationshipGroup(
+func (s *userRelationshipGroupService) DeleteRelatedUserFromRelationshipGroup(
 	ctx context.Context,
 	ownerID int64,
 	relatedUserID int64,
@@ -423,7 +437,7 @@ func (s *UserRelationshipGroupService) DeleteRelatedUserFromRelationshipGroup(
 	return count, nil
 }
 
-func (s *UserRelationshipGroupService) DeleteRelatedUsersFromAllRelationshipGroups(
+func (s *userRelationshipGroupService) DeleteRelatedUsersFromAllRelationshipGroups(
 	ctx context.Context,
 	ownerID int64,
 	relatedUserIDs []int64,
@@ -450,7 +464,7 @@ func (s *UserRelationshipGroupService) DeleteRelatedUsersFromAllRelationshipGrou
 	return count, nil
 }
 
-func (s *UserRelationshipGroupService) MoveRelatedUserToNewGroup(
+func (s *userRelationshipGroupService) MoveRelatedUserToNewGroup(
 	ctx context.Context,
 	ownerID int64,
 	relatedUserID int64,
@@ -495,15 +509,15 @@ func (s *UserRelationshipGroupService) MoveRelatedUserToNewGroup(
 	return nil
 }
 
-func (s *UserRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error) {
+func (s *userRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error) {
 	return s.groupRepo.CountRelationshipGroups(ctx, ownerIDs, nil)
 }
 
-func (s *UserRelationshipGroupService) CountRelationshipGroupMembers(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error) {
+func (s *userRelationshipGroupService) CountRelationshipGroupMembers(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error) {
 	return s.groupMemberRepo.CountMembers(ctx, ownerIDs, groupIndexes)
 }
 
-func (s *UserRelationshipGroupService) QueryRelationshipGroups(
+func (s *userRelationshipGroupService) QueryRelationshipGroups(
 	ctx context.Context,
 	ownerIDs []int64,
 	groupIndexes []int32,

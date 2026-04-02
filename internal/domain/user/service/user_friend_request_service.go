@@ -35,14 +35,14 @@ type userFriendRequestService struct {
 	idGen               *idgen.SnowflakeIdGenerator
 	repo                repository.UserFriendRequestRepository
 	relationshipService UserRelationshipService
-	userVersionService  UserVersionService
+	userVersionService  *UserVersionService
 }
 
 func NewUserFriendRequestService(
 	idGen *idgen.SnowflakeIdGenerator,
 	repo repository.UserFriendRequestRepository,
 	relService UserRelationshipService,
-	userVersionService UserVersionService,
+	userVersionService *UserVersionService,
 ) UserFriendRequestService {
 	return &userFriendRequestService{
 		idGen:               idGen,

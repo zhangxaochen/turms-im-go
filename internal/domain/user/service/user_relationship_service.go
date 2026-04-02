@@ -3,243 +3,385 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"im.turms/server/internal/domain/common/cache"
+	"im.turms/server/internal/domain/user/bo"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
+	"im.turms/server/internal/infra/exception"
+	"im.turms/server/internal/infra/validator"
 	turmsmongo "im.turms/server/internal/storage/mongo"
+	"im.turms/server/pkg/codes"
 )
 
-// UserRelationshipService provides methods to check user relationships.
 type UserRelationshipService interface {
-	HasRelationshipAndNotBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error)
-	IsBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error)
-	FriendTwoUsers(ctx context.Context, user1ID int64, user2ID int64) error
+	UpsertOneSidedRelationship(ctx context.Context, ownerID int64, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string, session *mongo.Session) (bo.UpsertRelationshipResult, error)
+	UpdateUserOneSidedRelationships(ctx context.Context, userID int64, relatedUserIDs []int64, blockDate *time.Time, groupIndex *int32, deleteGroupIndex *int32, name *string, lastUpdatedDate *time.Time) error
+	BlockUser(ctx context.Context, ownerID, relatedUserID int64) error
+	UnblockUser(ctx context.Context, ownerID, relatedUserID int64) error
+	TryDeleteTwoSidedRelationships(ctx context.Context, user1ID int64, user2ID int64, session *mongo.Session) error
+	DeleteAllRelationships(ctx context.Context, userIDs []int64, session *mongo.Session) error
+	DeleteOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64, session *mongo.Session) error
 	DeleteOneSidedRelationship(ctx context.Context, ownerID int64, relatedUserID int64) error
-	UpsertOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error
-	UpdateUserOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error
-	TryDeleteTwoSidedRelationships(ctx context.Context, user1ID, user2ID int64) error
-	DeleteAllRelationships(ctx context.Context, ids []int64) error
-	DeleteOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64) error
-	QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int) ([]po.UserRelationship, error)
-	CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error)
+	IsBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 	IsNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
-	HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
-	QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error)
-	QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error)
-	QueryRelationshipsWithVersion(ctx context.Context, ownerID int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]po.UserRelationship, error)
-	QueryRelatedUserIdsWithVersion(ctx context.Context, ownerID int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]int64, error)
-	BlockUser(ctx context.Context, ownerID int64, relatedUserID int64) error
-	Close()
+	FriendTwoUsers(ctx context.Context, user1ID, user2ID int64) error
+	QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, establishmentDateRange *turmsmongo.DateRange, page *int, size *int) ([]po.UserRelationship, error)
+	QueryRelatedUserIds(ctx context.Context, ownerIDs []int64, groupIndexes []int32, isBlocked *bool, page *int, size *int) ([]int64, error)
+	QueryRelationshipsWithVersion(ctx context.Context, ownerID int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]po.UserRelationship, *time.Time, error)
+	QueryRelatedUserIdsWithVersion(ctx context.Context, ownerID int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]int64, *time.Time, error)
+	CountRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error)
+	HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 }
 
 type userRelationshipService struct {
-	repo         repository.UserRelationshipRepository
-	mongoClient  *turmsmongo.Client
-	relCache     *cache.TTLCache[string, bool] // "ownerID:relatedUserID" -> hasRelationshipAndNotBlocked
-	blockedCache *cache.TTLCache[string, bool] // "ownerID:relatedUserID" -> isBlocked
+	repo               repository.UserRelationshipRepository
+	groupService       UserRelationshipGroupService
+	userVersionService *UserVersionService
+	mongoClient        *turmsmongo.Client
+
+	relCache     *cache.ShardedMap[string, any]
+	blockedCache *cache.ShardedMap[string, any]
 }
 
-func NewUserRelationshipService(repo repository.UserRelationshipRepository, mongoClient *turmsmongo.Client) UserRelationshipService {
+func NewUserRelationshipService(
+	repo repository.UserRelationshipRepository,
+	groupService UserRelationshipGroupService,
+	userVersionService *UserVersionService,
+	mongoClient *turmsmongo.Client,
+) UserRelationshipService {
 	return &userRelationshipService{
-		repo:         repo,
-		mongoClient:  mongoClient,
-		relCache:     cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
-		blockedCache: cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
+		repo:               repo,
+		groupService:       groupService,
+		userVersionService: userVersionService,
+		mongoClient:        mongoClient,
+		relCache:           cache.NewStringShardedMap[any](256),
+		blockedCache:       cache.NewStringShardedMap[any](256),
 	}
 }
 
-func (s *userRelationshipService) Close() {
-	if s.relCache != nil {
-		s.relCache.Close()
+func (s *userRelationshipService) UpsertOneSidedRelationship(
+	ctx context.Context,
+	ownerID int64,
+	relatedUserID int64,
+	blockDate *time.Time,
+	groupIndex *int32,
+	establishmentDate *time.Time,
+	name *string,
+	session *mongo.Session,
+) (bo.UpsertRelationshipResult, error) {
+	if ownerID == relatedUserID {
+		return bo.UpsertRelationshipResult{}, exception.NewTurmsError(int32(codes.IllegalArgument), "ownerID and relatedUserID must not be the same")
 	}
-	if s.blockedCache != nil {
-		s.blockedCache.Close()
-	}
-}
-
-func (s *userRelationshipService) HasRelationshipAndNotBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error) {
-	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
-	if hasRel, ok := s.relCache.Get(cacheKey); ok {
-		return hasRel, nil
-	}
-
-	hasRel, err := s.repo.HasRelationshipAndNotBlocked(ctx, ownerID, relatedUserID)
-	if err != nil {
-		return false, err
-	}
-	s.relCache.Set(cacheKey, hasRel)
-	return hasRel, nil
-}
-
-func (s *userRelationshipService) IsBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error) {
-	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
-	if isBlocked, ok := s.blockedCache.Get(cacheKey); ok {
-		return isBlocked, nil
-	}
-
-	blockedValue := true
-	relatedIDs, err := s.repo.FindRelatedUserIDs(ctx, ownerID, &blockedValue)
-	if err != nil {
-		return false, err
-	}
-
-	isBlocked := false
-	for _, id := range relatedIDs {
-		if id == relatedUserID {
-			isBlocked = true
-			break
+	if name != nil {
+		if err := validator.MaxLength(name, "name", 50); err != nil {
+			return bo.UpsertRelationshipResult{}, err
 		}
 	}
-	s.blockedCache.Set(cacheKey, isBlocked)
-	return isBlocked, nil
-}
 
-func (s *userRelationshipService) FriendTwoUsers(ctx context.Context, user1ID int64, user2ID int64) error {
-	if user1ID == user2ID {
-		return nil
-	}
-
-	// Start a MongoDB session to insert transationally
-	err := s.mongoClient.Client.UseSession(ctx, func(sessCtx mongo.SessionContext) error {
-		err := sessCtx.StartTransaction()
-		if err != nil {
-			return err
-		}
-
-		now := time.Now()
-		// Upsert user1 -> user2
-		err = s.repo.Upsert(sessCtx, user1ID, user2ID, nil, nil, &now, nil, sessCtx)
-		if err != nil {
-			sessCtx.AbortTransaction(sessCtx)
-			return err
-		}
-
-		// Upsert user2 -> user1
-		err = s.repo.Upsert(sessCtx, user2ID, user1ID, nil, nil, &now, nil, sessCtx)
-		if err != nil {
-			sessCtx.AbortTransaction(sessCtx)
-			return err
-		}
-
-		err = sessCtx.CommitTransaction(sessCtx)
-		if err == nil {
-			// Invalidate caches
-			s.relCache.Delete(fmt.Sprintf("%d:%d", user1ID, user2ID))
-			s.relCache.Delete(fmt.Sprintf("%d:%d", user2ID, user1ID))
-		}
-		return err
+	return turmsmongo.ExecuteWithSessionResult(ctx, s.mongoClient, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) (bo.UpsertRelationshipResult, error) {
+		return s.upsertOneSidedRelationship(sessCtx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name, sess)
 	})
+}
 
-	if err != nil && (strings.Contains(err.Error(), "Transaction numbers are only allowed on a replica set member") || strings.Contains(err.Error(), "Standalone")) {
-		// Fallback to non-transactional execution
+func (s *userRelationshipService) upsertOneSidedRelationship(
+	ctx context.Context,
+	ownerID int64,
+	relatedUserID int64,
+	blockDate *time.Time,
+	groupIndex *int32,
+	establishmentDate *time.Time,
+	name *string,
+	session *mongo.Session,
+) (bo.UpsertRelationshipResult, error) {
+	if establishmentDate == nil {
 		now := time.Now()
-		if upsertErr := s.repo.Upsert(ctx, user1ID, user2ID, nil, nil, &now, nil, nil); upsertErr != nil {
-			return upsertErr
+		establishmentDate = &now
+	}
+
+	res, err := s.repo.Upsert(ctx, ownerID, relatedUserID, blockDate, establishmentDate, name, session)
+	if err != nil {
+		return bo.UpsertRelationshipResult{}, err
+	}
+
+	isCreated := res.UpsertedCount > 0
+	isUpdated := res.MatchedCount > 0 || isCreated
+
+	var finalGroupIndex *int32
+	if isUpdated {
+		finalGroupIndex, err = s.groupService.UpsertRelationshipGroupMember(ctx, ownerID, relatedUserID, groupIndex, nil, session)
+		if err != nil {
+			return bo.UpsertRelationshipResult{}, err
 		}
-		if upsertErr := s.repo.Upsert(ctx, user2ID, user1ID, nil, nil, &now, nil, nil); upsertErr != nil {
-			return upsertErr
-		}
-		// Invalidate caches
-		s.relCache.Delete(fmt.Sprintf("%d:%d", user1ID, user2ID))
-		s.relCache.Delete(fmt.Sprintf("%d:%d", user2ID, user1ID))
+		s.invalidMemberCache(ownerID, relatedUserID)
+		_ = s.userVersionService.UpdateRelationshipsVersion(ctx, ownerID)
+	}
+
+	return bo.UpsertRelationshipResult{
+		IsCreated:  isCreated,
+		GroupIndex: finalGroupIndex,
+	}, nil
+}
+
+func (s *userRelationshipService) UpdateUserOneSidedRelationships(
+	ctx context.Context,
+	userID int64,
+	relatedUserIDs []int64,
+	blockDate *time.Time,
+	groupIndex *int32,
+	deleteGroupIndex *int32,
+	name *string,
+	lastUpdatedDate *time.Time,
+) error {
+	if len(relatedUserIDs) == 0 {
 		return nil
 	}
-
-	return err
-}
-
-func (s *userRelationshipService) DeleteOneSidedRelationship(ctx context.Context, ownerID int64, relatedUserID int64) error {
-	err := s.repo.DeleteById(ctx, ownerID, relatedUserID)
-	if err == nil {
-		s.relCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
-	}
-	return err
-}
-
-func (s *userRelationshipService) BlockUser(ctx context.Context, ownerID int64, relatedUserID int64) error {
-	now := time.Now()
-	err := s.repo.UpdateBlockDate(ctx, ownerID, relatedUserID, &now)
-	if err == nil {
-		s.relCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
-		s.blockedCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
-	}
-	return err
-}
-
-func (s *userRelationshipService) UpsertOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error {
-	err := s.repo.Upsert(ctx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name, nil)
-	if err == nil {
-		s.relCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
-		s.blockedCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
-	}
-	return err
-}
-
-func (s *userRelationshipService) UpdateUserOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error {
-	// A real implementation might use a bulk update, but for now we loop
-	for _, relatedUserID := range relatedUserIDs {
-		err := s.UpsertOneSidedRelationship(ctx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name)
-		if err != nil {
+	if name != nil {
+		if err := validator.MaxLength(name, "name", 50); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	return turmsmongo.ExecuteWithSession(ctx, s.mongoClient, nil, func(sessCtx mongo.SessionContext, sess *mongo.Session) error {
+		count, err := s.repo.UpdateUserOneSidedRelationships(sessCtx, userID, relatedUserIDs, blockDate, lastUpdatedDate, name, sess)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			for _, relatedUserID := range relatedUserIDs {
+				if groupIndex != nil || deleteGroupIndex != nil {
+					_, err = s.groupService.UpsertRelationshipGroupMember(sessCtx, userID, relatedUserID, groupIndex, deleteGroupIndex, sess)
+					if err != nil {
+						return err
+					}
+				}
+				s.invalidMemberCache(userID, relatedUserID)
+			}
+			return s.userVersionService.UpdateRelationshipsVersion(sessCtx, userID)
+		}
+		return nil
+	})
 }
 
-func (s *userRelationshipService) TryDeleteTwoSidedRelationships(ctx context.Context, user1ID, user2ID int64) error {
-	err1 := s.DeleteOneSidedRelationship(ctx, user1ID, user2ID)
-	err2 := s.DeleteOneSidedRelationship(ctx, user2ID, user1ID)
-	if err1 != nil {
-		return err1
+func (s *userRelationshipService) BlockUser(ctx context.Context, ownerID, relatedUserID int64) error {
+	now := time.Now()
+	_, err := s.UpsertOneSidedRelationship(ctx, ownerID, relatedUserID, &now, nil, nil, nil, nil)
+	return err
+}
+
+func (s *userRelationshipService) UnblockUser(ctx context.Context, ownerID, relatedUserID int64) error {
+	return s.repo.UpdateBlockDate(ctx, ownerID, relatedUserID, nil, nil)
+}
+
+func (s *userRelationshipService) TryDeleteTwoSidedRelationships(
+	ctx context.Context,
+	user1ID int64,
+	user2ID int64,
+	session *mongo.Session,
+) error {
+	return turmsmongo.ExecuteWithSession(ctx, s.mongoClient, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) error {
+		isBlocked, err := s.IsBlocked(sessCtx, user1ID, user2ID)
+		if err != nil {
+			return err
+		}
+		if isBlocked {
+			return exception.NewTurmsError(int32(codes.Unauthorized), "cannot delete relationship because you are blocked")
+		}
+
+		err = s.DeleteOneSidedRelationships(sessCtx, user1ID, []int64{user2ID}, sess)
+		if err != nil {
+			return err
+		}
+		return s.DeleteOneSidedRelationships(sessCtx, user2ID, []int64{user1ID}, sess)
+	})
+}
+
+func (s *userRelationshipService) DeleteAllRelationships(
+	ctx context.Context,
+	userIDs []int64,
+	session *mongo.Session,
+) error {
+	if len(userIDs) == 0 {
+		return nil
 	}
-	return err2
+	return turmsmongo.ExecuteWithSession(ctx, s.mongoClient, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) error {
+		err := s.groupService.DeleteAllRelationshipGroups(sessCtx, userIDs, sess, false)
+		if err != nil {
+			return err
+		}
+		_, err = s.repo.DeleteAllRelationships(sessCtx, userIDs, sess)
+		if err != nil {
+			return err
+		}
+		for _, userID := range userIDs {
+			_ = s.userVersionService.UpdateRelationshipsVersion(sessCtx, userID)
+		}
+		return nil
+	})
 }
 
-func (s *userRelationshipService) QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error) {
-	return s.repo.FindRelationships(ctx, ownerIDs, relatedUserIDs)
+func (s *userRelationshipService) DeleteOneSidedRelationships(
+	ctx context.Context,
+	ownerID int64,
+	relatedUserIDs []int64,
+	session *mongo.Session,
+) error {
+	if len(relatedUserIDs) == 0 {
+		return nil
+	}
+	return turmsmongo.ExecuteWithSession(ctx, s.mongoClient, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) error {
+		_, err := s.groupService.DeleteRelatedUsersFromAllRelationshipGroups(sessCtx, ownerID, relatedUserIDs, sess, false)
+		if err != nil {
+			return err
+		}
+		res, err := s.repo.DeleteOneSidedRelationships(sessCtx, []int64{ownerID}, relatedUserIDs, sess)
+		if err != nil {
+			return err
+		}
+		if res.DeletedCount > 0 {
+			for _, relatedUserID := range relatedUserIDs {
+				s.invalidMemberCache(ownerID, relatedUserID)
+			}
+			return s.userVersionService.UpdateRelationshipsVersion(sessCtx, ownerID)
+		}
+		return nil
+	})
 }
 
-func (s *userRelationshipService) QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error) {
-	return s.repo.FindRelatedUserIDs(ctx, ownerID, isBlocked)
+func (s *userRelationshipService) DeleteOneSidedRelationship(
+	ctx context.Context,
+	ownerID int64,
+	relatedUserID int64,
+) error {
+	return s.DeleteOneSidedRelationships(ctx, ownerID, []int64{relatedUserID}, nil)
 }
 
-func (s *userRelationshipService) DeleteAllRelationships(ctx context.Context, ids []int64) error {
-	return s.repo.DeleteAllRelationships(ctx, ids)
-}
+func (s *userRelationshipService) IsBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
+	if val, ok := s.blockedCache.Get(cacheKey); ok {
+		return val.(bool), nil
+	}
 
-func (s *userRelationshipService) DeleteOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64) error {
-	return s.repo.DeleteOneSidedRelationships(ctx, []int64{ownerID}, relatedUserIDs)
-}
+	blocked, err := s.repo.IsBlocked(ctx, ownerID, relatedUserID, nil)
+	if err != nil {
+		return false, err
+	}
 
-func (s *userRelationshipService) QueryMembersRelationships(ctx context.Context, ownerID int64, groupIndexes []int32, page, size *int) ([]po.UserRelationship, error) {
-	return s.repo.QueryMembersRelationships(ctx, ownerID, groupIndexes, page, size)
-}
-
-func (s *userRelationshipService) CountRelationships(ctx context.Context, ownerIDs, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error) {
-	return s.repo.CountRelationships(ctx, ownerIDs, relatedUserIDs, groupIndexes, isBlocked)
+	s.blockedCache.Set(cacheKey, blocked)
+	return blocked, nil
 }
 
 func (s *userRelationshipService) IsNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
-	isBlocked, err := s.IsBlocked(ctx, ownerID, relatedUserID)
+	blocked, err := s.IsBlocked(ctx, ownerID, relatedUserID)
 	if err != nil {
 		return false, err
 	}
-	return !isBlocked, nil
+	return !blocked, nil
 }
 
-func (s *userRelationshipService) HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
-	return s.repo.HasOneSidedRelationship(ctx, ownerID, relatedUserID)
+func (s *userRelationshipService) FriendTwoUsers(ctx context.Context, user1ID, user2ID int64) error {
+	return turmsmongo.ExecuteWithSession(ctx, s.mongoClient, nil, func(sessCtx mongo.SessionContext, sess *mongo.Session) error {
+		now := time.Now()
+		_, err := s.upsertOneSidedRelationship(sessCtx, user1ID, user2ID, nil, nil, &now, nil, sess)
+		if err != nil {
+			return err
+		}
+		_, err = s.upsertOneSidedRelationship(sessCtx, user2ID, user1ID, nil, nil, &now, nil, sess)
+		return err
+	})
 }
 
-func (s *userRelationshipService) QueryRelationshipsWithVersion(ctx context.Context, ownerID int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]po.UserRelationship, error) {
-	return s.QueryRelationships(ctx, []int64{ownerID}, relatedUserIDs)
+func (s *userRelationshipService) QueryRelationships(
+	ctx context.Context,
+	ownerIDs []int64,
+	relatedUserIDs []int64,
+	groupIndexes []int32,
+	isBlocked *bool,
+	establishmentDateRange *turmsmongo.DateRange,
+	page *int,
+	size *int,
+) ([]po.UserRelationship, error) {
+	return s.repo.FindRelationships(ctx, ownerIDs, relatedUserIDs, groupIndexes, isBlocked, establishmentDateRange, page, size, nil)
 }
 
-func (s *userRelationshipService) QueryRelatedUserIdsWithVersion(ctx context.Context, ownerID int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]int64, error) {
-	return s.QueryRelatedUserIds(ctx, ownerID, isBlocked)
+func (s *userRelationshipService) QueryRelatedUserIds(
+	ctx context.Context,
+	ownerIDs []int64,
+	groupIndexes []int32,
+	isBlocked *bool,
+	page *int,
+	size *int,
+) ([]int64, error) {
+	return s.repo.FindRelatedUserIDs(ctx, ownerIDs, groupIndexes, isBlocked, page, size, nil)
+}
+
+func (s *userRelationshipService) QueryRelationshipsWithVersion(
+	ctx context.Context,
+	ownerID int64,
+	relatedUserIDs []int64,
+	groupIndexes []int32,
+	isBlocked *bool,
+	lastUpdatedDate *time.Time,
+) ([]po.UserRelationship, *time.Time, error) {
+	version, err := s.userVersionService.QueryRelationshipsLastUpdatedDate(ctx, ownerID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if version != nil && lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
+		return nil, nil, exception.NewTurmsError(int32(codes.AlreadyUpToDate), "already up to date")
+	}
+	rels, err := s.repo.FindRelationships(ctx, []int64{ownerID}, relatedUserIDs, groupIndexes, isBlocked, nil, nil, nil, nil)
+	return rels, version, err
+}
+
+func (s *userRelationshipService) QueryRelatedUserIdsWithVersion(
+	ctx context.Context,
+	ownerID int64,
+	groupIndexes []int32,
+	isBlocked *bool,
+	lastUpdatedDate *time.Time,
+) ([]int64, *time.Time, error) {
+	version, err := s.userVersionService.QueryRelationshipsLastUpdatedDate(ctx, ownerID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if version != nil && lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
+		return nil, nil, exception.NewTurmsError(int32(codes.AlreadyUpToDate), "already up to date")
+	}
+	ids, err := s.repo.FindRelatedUserIDs(ctx, []int64{ownerID}, groupIndexes, isBlocked, nil, nil, nil)
+	return ids, version, err
+}
+
+func (s *userRelationshipService) CountRelationships(
+	ctx context.Context,
+	ownerIDs []int64,
+	relatedUserIDs []int64,
+	groupIndexes []int32,
+	isBlocked *bool,
+) (int64, error) {
+	return s.repo.CountRelationships(ctx, ownerIDs, relatedUserIDs, groupIndexes, isBlocked, nil)
+}
+
+func (s *userRelationshipService) invalidMemberCache(ownerID int64, relatedUserID int64) {
+	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
+	s.relCache.Delete(cacheKey)
+	s.blockedCache.Delete(cacheKey)
+}
+
+func (s *userRelationshipService) HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	cacheKey := fmt.Sprintf("%d:%d", ownerID, relatedUserID)
+	if val, ok := s.relCache.Get(cacheKey); ok {
+		return val.(bool), nil
+	}
+
+	exists, err := s.repo.HasRelationshipAndNotBlocked(ctx, ownerID, relatedUserID, nil)
+	if err != nil {
+		return false, err
+	}
+
+	s.relCache.Set(cacheKey, exists)
+	return exists, nil
 }
