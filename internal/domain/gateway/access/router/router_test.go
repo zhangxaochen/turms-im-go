@@ -2,6 +2,7 @@ package router_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/pkg/protocol"
@@ -20,6 +22,7 @@ type mockConnection struct {
 
 func (m *mockConnection) WriteMessage(payload []byte) error {
 	m.lastWrittenMsg = payload
+	fmt.Printf("MOCK_WRITE: %v\n", payload)
 	return nil
 }
 func (m *mockConnection) Close() error { return nil }
@@ -31,6 +34,7 @@ func TestRouter_HandleMessage(t *testing.T) {
 	setupRouter := func() (*session.SessionService, *router.Router) {
 		sessionSvc := session.NewSessionService()
 		r := router.NewRouter(sessionSvc)
+		r.SetServiceAvailability(common.StatusRunning)
 
 		// Register a simple echo controller
 		r.RegisterController(&protocol.TurmsRequest_CreateMessageRequest{}, func(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {

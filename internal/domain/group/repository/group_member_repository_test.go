@@ -5,6 +5,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/testingutil"
+	"im.turms/server/pkg/protocol"
 	"testing"
 )
 
@@ -27,7 +28,7 @@ func TestGroupMemberRepository_BDD(t *testing.T) {
 
 	err := repo.AddGroupMember(ctx, &po.GroupMember{
 		ID:   po.GroupMemberKey{GroupID: groupID, UserID: memberID},
-		Role: po.GroupMemberRole_MEMBER, // member
+		Role: protocol.GroupMemberRole_MEMBER, // member
 	})
 	assert.NoError(t, err)
 
@@ -35,7 +36,7 @@ func TestGroupMemberRepository_BDD(t *testing.T) {
 	role, err := repo.FindGroupMemberRole(ctx, groupID, memberID)
 	assert.NoError(t, err)
 	assert.NotNil(t, role)
-	assert.Equal(t, po.GroupMemberRole_MEMBER, *role)
+	assert.Equal(t, protocol.GroupMemberRole_MEMBER, *role)
 
 	role2, err := repo.FindGroupMemberRole(ctx, groupID, nonMemberID)
 	assert.NoError(t, err)
