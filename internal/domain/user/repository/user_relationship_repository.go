@@ -33,9 +33,9 @@ func NewUserRelationshipRepository(client *turmsmongo.Client) UserRelationshipRe
 
 func (r *userRelationshipRepository) HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
 	filter := bson.M{
-		"_id": bson.M{
-			"oid": ownerID,
-			"rid": relatedUserID,
+		"_id": po.UserRelationshipKey{
+			OwnerID:       ownerID,
+			RelatedUserID: relatedUserID,
 		},
 		"bd": nil, // Field is null or not exists -> not blocked
 	}
@@ -54,9 +54,9 @@ func (r *userRelationshipRepository) Insert(ctx context.Context, rel *po.UserRel
 
 func (r *userRelationshipRepository) UpdateBlockDate(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time) error {
 	filter := bson.M{
-		"_id": bson.M{
-			"oid": ownerID,
-			"rid": relatedUserID,
+		"_id": po.UserRelationshipKey{
+			OwnerID:       ownerID,
+			RelatedUserID: relatedUserID,
 		},
 	}
 	update := bson.M{
@@ -94,9 +94,9 @@ func (r *userRelationshipRepository) FindRelatedUserIDs(ctx context.Context, own
 
 func (r *userRelationshipRepository) DeleteById(ctx context.Context, ownerID, relatedUserID int64) error {
 	filter := bson.M{
-		"_id": bson.M{
-			"oid": ownerID,
-			"rid": relatedUserID,
+		"_id": po.UserRelationshipKey{
+			OwnerID:       ownerID,
+			RelatedUserID: relatedUserID,
 		},
 	}
 	_, err := r.coll.DeleteOne(ctx, filter)
@@ -105,9 +105,9 @@ func (r *userRelationshipRepository) DeleteById(ctx context.Context, ownerID, re
 
 func (r *userRelationshipRepository) Upsert(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string, session mongo.SessionContext) error {
 	filter := bson.M{
-		"_id": bson.M{
-			"oid": ownerID,
-			"rid": relatedUserID,
+		"_id": po.UserRelationshipKey{
+			OwnerID:       ownerID,
+			RelatedUserID: relatedUserID,
 		},
 	}
 	update := bson.M{}
@@ -131,10 +131,6 @@ func (r *userRelationshipRepository) Upsert(ctx context.Context, ownerID, relate
 	}
 
 	opts := options.Update().SetUpsert(true)
-	var execCtx context.Context = ctx
-	if session != nil {
-		execCtx = mongo.NewSessionContext(ctx, session)
-	}
-	_, err := r.coll.UpdateOne(execCtx, filter, update, opts)
+	_, err := r.coll.UpdateOne(ctx, filter, update, opts)
 	return err
 }

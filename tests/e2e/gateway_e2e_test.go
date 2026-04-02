@@ -336,5 +336,5 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int32(1300), unauthResp.GetCode())
 	assert.NotNil(t, unauthResp.Reason)
-	assert.Contains(t, *unauthResp.Reason, "not a member of group")
+	assert.Contains(t, *unauthResp.Reason, "not a member of the target group")
 }

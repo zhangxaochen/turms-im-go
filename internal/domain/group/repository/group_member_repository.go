@@ -10,6 +10,7 @@ import (
 
 	"im.turms/server/internal/domain/group/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
+	"im.turms/server/pkg/protocol"
 )
 
 const GroupMemberCollectionName = "groupMember"
@@ -46,7 +47,7 @@ func (r *GroupMemberRepository) RemoveGroupMember(ctx context.Context, groupID, 
 }
 
 // FindGroupMemberRole retrieves the role of a user in a group.
-func (r *GroupMemberRepository) FindGroupMemberRole(ctx context.Context, groupID, userID int64) (*po.GroupMemberRole, error) {
+func (r *GroupMemberRepository) FindGroupMemberRole(ctx context.Context, groupID, userID int64) (*protocol.GroupMemberRole, error) {
 	filter := bson.M{
 		"_id": po.GroupMemberKey{GroupID: groupID, UserID: userID},
 	}

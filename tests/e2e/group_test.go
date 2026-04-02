@@ -12,6 +12,7 @@ import (
 	grouprepo "im.turms/server/internal/domain/group/repository"
 	groupservice "im.turms/server/internal/domain/group/service"
 	"im.turms/server/internal/testingutil"
+	"im.turms/server/pkg/protocol"
 )
 
 func TestGroup_E2E_Lifecycle(t *testing.T) {
@@ -48,7 +49,7 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 		now := time.Now()
 		err := groupMemRepo.AddGroupMember(ctx, &grouppo.GroupMember{
 			ID:       grouppo.GroupMemberKey{GroupID: groupID, UserID: creatorID},
-			Role:     grouppo.GroupMemberRole_OWNER,
+			Role:     protocol.GroupMemberRole_OWNER,
 			JoinDate: &now,
 		})
 		require.NoError(t, err)
@@ -56,19 +57,19 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 
 	t.Run("Owner Adds Manager", func(t *testing.T) {
 		userB := int64(200)
-		err := groupMemSvc.AddGroupMember(ctx, creatorID, userB, groupID, grouppo.GroupMemberRole_MANAGER)
+		err := groupMemSvc.AddGroupMember(ctx, creatorID, userB, groupID, protocol.GroupMemberRole_MANAGER)
 		require.NoError(t, err)
 
 		role, err := groupMemRepo.FindGroupMemberRole(ctx, groupID, userB)
 		require.NoError(t, err)
-		assert.Equal(t, grouppo.GroupMemberRole_MANAGER, *role)
+		assert.Equal(t, protocol.GroupMemberRole_MANAGER, *role)
 	})
 
 	t.Run("Unauthorized User Cannot Add Members", func(t *testing.T) {
 		userC := int64(300) // Not in group
 		userD := int64(400)
 
-		err := groupMemSvc.AddGroupMember(ctx, userC, userD, groupID, grouppo.GroupMemberRole_MEMBER)
+		err := groupMemSvc.AddGroupMember(ctx, userC, userD, groupID, protocol.GroupMemberRole_MEMBER)
 		assert.Error(t, err)
 		assert.Equal(t, groupservice.ErrUnauthorized, err)
 	})
