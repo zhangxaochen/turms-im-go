@@ -858,10 +858,10 @@
 - **ConversationSettingsRepository.java** ([java/im/turms/service/domain/conversation/repository/ConversationSettingsRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/repository/ConversationSettingsRepository.java))
 > [简述功能]
 
-  - [x] `upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` -> `internal/domain/user/repository/user_settings_repository.go:UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{})`
-  - [x] `unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)` -> `internal/domain/user/repository/user_settings_repository.go:UnsetSettings(ctx context.Context, userID int64, settingsNames []string)`
-  - [x] `findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> `internal/domain/user/repository/user_settings_repository.go:FindByIdAndSettingNames(ctx context.Context, userID int64, names []string)`
-  - [x] `findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> `internal/domain/user/repository/user_settings_repository.go:FindByIdAndSettingNames(ctx context.Context, userID int64, names []string)`
+  - [x] `upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` -> `internal/domain/user/service/user_settings_service.go:UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{})`
+  - [x] `unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)` -> `internal/domain/user/service/user_settings_service.go:UnsetSettings(ctx context.Context, userID int64, keys []string)`
+  - [ ] `findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)`
+  - [ ] `findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)`
   - [ ] `findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields)`
   - [ ] `deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)`
 
@@ -903,8 +903,8 @@
 
   - [ ] `upsertPrivateConversationSettings(Long ownerId, Long userId, Map<String, Value> settings)`
   - [ ] `upsertGroupConversationSettings(Long ownerId, Long groupId, Map<String, Value> settings)`
-  - [x] `deleteSettings(Collection<Long> ownerIds, @Nullable ClientSession clientSession)` -> `internal/domain/user/repository/user_settings_repository.go:DeleteSettings(ctx context.Context, filter interface{})`
-  - [x] `unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)` -> `internal/domain/user/repository/user_settings_repository.go:UnsetSettings(ctx context.Context, userID int64, settingsNames []string)`
+  - [x] `deleteSettings(Collection<Long> ownerIds, @Nullable ClientSession clientSession)` -> `internal/domain/user/repository/user_settings_repository.go:DeleteSettings(ctx context.Context, filter interface{})`, `internal/domain/user/service/user_settings_service.go:DeleteSettings(ctx context.Context, filter bson.M)`
+  - [x] `unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)` -> `internal/domain/user/service/user_settings_service.go:UnsetSettings(ctx context.Context, userID int64, keys []string)`
   - [x] `querySettings(Long ownerId, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> `internal/domain/user/service/user_settings_service.go:QuerySettings(ctx context.Context, filter bson.M)`
 
 - **GroupBlocklistController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupBlocklistController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupBlocklistController.java))
@@ -1912,9 +1912,9 @@
 - **UserSettingsService.java** ([java/im/turms/service/domain/user/service/UserSettingsService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/service/UserSettingsService.java))
 > [简述功能]
 
-  - [x] `upsertSettings(Long userId, Map<String, Value> settings)` -> `internal/domain/user/repository/user_settings_repository.go:UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{})`
-  - [x] `deleteSettings(Collection<Long> userIds, @Nullable ClientSession clientSession)` -> `internal/domain/user/repository/user_settings_repository.go:DeleteSettings(ctx context.Context, filter interface{})`
-  - [x] `unsetSettings(Long userId, @Nullable Set<String> settingNames)` -> `internal/domain/user/repository/user_settings_repository.go:UnsetSettings(ctx context.Context, userID int64, settingsNames []string)`
+  - [x] `upsertSettings(Long userId, Map<String, Value> settings)` -> `internal/domain/user/service/user_settings_service.go:UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{})`
+  - [x] `deleteSettings(Collection<Long> userIds, @Nullable ClientSession clientSession)` -> `internal/domain/user/repository/user_settings_repository.go:DeleteSettings(ctx context.Context, filter interface{})`, `internal/domain/user/service/user_settings_service.go:DeleteSettings(ctx context.Context, filter bson.M)`
+  - [x] `unsetSettings(Long userId, @Nullable Set<String> settingNames)` -> `internal/domain/user/service/user_settings_service.go:UnsetSettings(ctx context.Context, userID int64, keys []string)`
   - [x] `querySettings(Long userId, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> `internal/domain/user/service/user_settings_service.go:QuerySettings(ctx context.Context, filter bson.M)`
 
 - **UserVersionService.java** ([java/im/turms/service/domain/user/service/UserVersionService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/service/UserVersionService.java))
