@@ -28,10 +28,12 @@ func NewUserSettingsRepository(mongoClient *turmsmongo.Client) UserSettingsRepos
 }
 
 func (r *userSettingsRepository) UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{}) error {
+	setMap := make(map[string]interface{})
+	for k, v := range settings {
+		setMap["s."+k] = v
+	}
 	update := map[string]interface{}{
-		"$set": map[string]interface{}{
-			"s": settings,
-		},
+		"$set": setMap,
 	}
 	opts := options.Update().SetUpsert(true)
 	_, err := r.collection.UpdateOne(ctx, map[string]interface{}{"_id": userID}, update, opts)
