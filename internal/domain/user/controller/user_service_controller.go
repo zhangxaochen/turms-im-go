@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"google.golang.org/protobuf/proto"
 
+	commonservice "im.turms/server/internal/domain/common/service"
 	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/internal/domain/user/service"
@@ -16,6 +17,8 @@ import (
 
 type UserServiceController struct {
 	userService            service.UserService
+	userRelationshipService service.UserRelationshipService
+	outboundMessageService commonservice.OutboundMessageService
 	nearbyUserService      onlineuser.NearbyUserService
 	sessionService         onlineuser.SessionService
 	userStatusService      onlineuser.UserStatusService
@@ -24,6 +27,8 @@ type UserServiceController struct {
 
 func NewUserServiceController(
 	userService service.UserService,
+	userRelationshipService service.UserRelationshipService,
+	outboundMessageService commonservice.OutboundMessageService,
 	nearbyUserService onlineuser.NearbyUserService,
 	sessionService onlineuser.SessionService,
 	userStatusService onlineuser.UserStatusService,
@@ -31,6 +36,8 @@ func NewUserServiceController(
 ) *UserServiceController {
 	return &UserServiceController{
 		userService:            userService,
+		userRelationshipService: userRelationshipService,
+		outboundMessageService: outboundMessageService,
 		nearbyUserService:      nearbyUserService,
 		sessionService:         sessionService,
 		userStatusService:      userStatusService,
@@ -215,10 +222,36 @@ func (c *UserServiceController) HandleUpdateUserLocationRequest(ctx context.Cont
 // HandleUpdateUserOnlineStatusRequest updates the user's online status (invisible, busy, etc.).
 func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateUserOnlineStatusRequest()
-	_, err := c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)
+	updated, err := c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)
 	if err != nil {
 		return nil, err
 	}
+
+	if updated && c.outboundMessageService != nil {
+		// Broadcast the status update to friends
+		isBlocked := false
+		friendIDs, err := c.userRelationshipService.QueryRelatedUserIds(ctx, []int64{s.UserID}, nil, &isBlocked, nil, nil)
+		if err == nil && len(friendIDs) > 0 {
+			notification := &protocol.TurmsNotification{
+				Data: &protocol.TurmsNotification_Data{
+					Kind: &protocol.TurmsNotification_Data_UserOnlineStatuses{
+						UserOnlineStatuses: &protocol.UserOnlineStatuses{
+							Statuses: []*protocol.UserOnlineStatus{
+								{
+									UserId:     s.UserID,
+									UserStatus: updateReq.UserStatus,
+									// In broadcast, we usually just send the new status.
+									// Gateway session info can be added if needed, but Turms defaults to just status.
+								},
+							},
+						},
+					},
+				},
+			}
+			c.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, friendIDs)
+		}
+	}
+
 	return buildSuccessNotification(req.RequestId), nil
 }
 
@@ -250,6 +283,38 @@ func (c *UserServiceController) HandleUpdateUserRequest(ctx context.Context, s *
 	err := c.userService.UpdateUser(ctx, s.UserID, update)
 	if err != nil {
 		return nil, err
+	}
+
+	if c.outboundMessageService != nil {
+		// Broadcast profile update to friends
+		isBlocked := false
+		friendIDs, err := c.userRelationshipService.QueryRelatedUserIds(ctx, []int64{s.UserID}, nil, &isBlocked, nil, nil)
+		if err == nil && len(friendIDs) > 0 {
+			// Query the updated user profile to send in notification
+			users, err := c.userService.QueryUsersProfile(ctx, []int64{s.UserID})
+			if err == nil && len(users) > 0 {
+				u := users[0]
+				notification := &protocol.TurmsNotification{
+					Data: &protocol.TurmsNotification_Data{
+						Kind: &protocol.TurmsNotification_Data_UserInfosWithVersion{
+							UserInfosWithVersion: &protocol.UserInfosWithVersion{
+								UserInfos: []*protocol.UserInfo{
+									{
+										Id:               proto.Int64(u.ID),
+										Name:             proto.String(u.Name),
+										Intro:            proto.String(u.Intro),
+										ProfilePicture:   proto.String(u.ProfilePicture),
+										RegistrationDate: proto.Int64(u.RegistrationDate.UnixMilli()),
+										Active:           proto.Bool(u.IsActive),
+									},
+								},
+							},
+						},
+					},
+				}
+				c.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, friendIDs)
+			}
+		}
 	}
 
 	return buildSuccessNotification(req.RequestId), nil
