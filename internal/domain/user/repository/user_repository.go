@@ -106,4 +106,3 @@ func (r *userRepository) UpdateMany(ctx context.Context, filter bson.M, update b
 func (r *userRepository) Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error) {
 	return r.coll.Aggregate(ctx, pipeline)
 }
-

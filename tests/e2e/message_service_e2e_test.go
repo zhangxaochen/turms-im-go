@@ -11,8 +11,8 @@ import (
 	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/domain/message/repository"
 	"im.turms/server/internal/domain/message/service"
-	"im.turms/server/internal/testingutil"
 	turmsredis "im.turms/server/internal/storage/redis"
+	"im.turms/server/internal/testingutil"
 )
 
 func TestMessageCore_E2E(t *testing.T) {
@@ -30,7 +30,7 @@ func TestMessageCore_E2E(t *testing.T) {
 	seqGen := turmsredis.NewSequenceGenerator(rdb)
 
 	msgRepo := repository.NewMessageRepository(db)
-	
+
 	// Create MessageService (passing nil for user/group relation checks to isolate message testing)
 	msgService := service.NewMessageService(idGen, seqGen, msgRepo, nil, nil, nil)
 	defer msgService.Close()

@@ -23,10 +23,10 @@ func NewIpRequestThrottler(limit rate.Limit, burst int) *IpRequestThrottler {
 		Limit:    limit,
 		Burst:    burst,
 	}
-	
+
 	// Start a background cleanup routine
 	go t.cleanupRoutine()
-	
+
 	return t
 }
 

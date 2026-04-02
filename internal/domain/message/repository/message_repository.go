@@ -131,7 +131,7 @@ func (r *MessageRepository) UpdateMessage(
 	recallDate *time.Time,
 ) error {
 	set := bson.M{}
-	
+
 	if text != nil {
 		set["txt"] = *text
 	}

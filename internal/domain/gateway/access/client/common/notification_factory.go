@@ -20,7 +20,7 @@ func (f *NotificationFactory) Create(requestID *int64, code int32, reason string
 		RequestId: requestID,
 		Code:      proto.Int32(code),
 	}
-	
+
 	if reason != "" {
 		notification.Reason = proto.String(reason)
 	}
