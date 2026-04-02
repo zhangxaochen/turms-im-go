@@ -157,7 +157,7 @@ func (c *UserRelationshipController) HandleQueryFriendRequestsRequest(ctx contex
 
 	protos := make([]*protocol.UserFriendRequest, len(requests))
 	for i, r := range requests {
-		protos[i] = toFriendRequestProto(&r)
+		protos[i] = service.FriendRequestToProto(&r)
 	}
 
 	return &protocol.TurmsNotification{
@@ -222,7 +222,7 @@ func (c *UserRelationshipController) HandleQueryRelationshipGroupsRequest(ctx co
 
 	protos := make([]*protocol.UserRelationshipGroup, len(groups))
 	for i, g := range groups {
-		protos[i] = toRelationshipGroupProto(g)
+		protos[i] = service.RelationshipGroupToProto(g)
 	}
 
 	var lastUpdatedTimeProto *int64
@@ -261,7 +261,7 @@ func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context
 
 	protos := make([]*protocol.UserRelationship, len(relationships))
 	for i, r := range relationships {
-		protos[i] = toRelationshipProto(&r)
+		protos[i] = service.RelationshipToProto(&r)
 	}
 
 	var lastUpdatedTimeProto *int64
@@ -329,74 +329,4 @@ func (c *UserRelationshipController) HandleUpdateRelationshipRequest(ctx context
 	return buildSuccessNotification(req.RequestId), nil
 }
 
-// Helpers
 
-func toFriendRequestProto(r *po.UserFriendRequest) *protocol.UserFriendRequest {
-	var reason *string
-	if r.Reason != nil {
-		reason = r.Reason
-	}
-	// Note: protocol.UserFriendRequest doesn't seem to have ResponseDate in this version of pb.go
-	// It has ExpirationDate. If PO doesn't have ExpirationDate, we skip it or check logic.
-	// For now, mapping based on available fields in pb.go.
-	status := func() protocol.RequestStatus {
-		switch r.Status {
-		case po.RequestStatusPending:
-			return protocol.RequestStatus_PENDING
-		case po.RequestStatusAccepted:
-			return protocol.RequestStatus_ACCEPTED
-		case po.RequestStatusDeclined:
-			return protocol.RequestStatus_DECLINED
-		case po.RequestStatusIgnored:
-			return protocol.RequestStatus_IGNORED
-		case po.RequestStatusExpired:
-			return protocol.RequestStatus_EXPIRED
-		case po.RequestStatusCanceled:
-			return protocol.RequestStatus_CANCELED
-		default:
-			return protocol.RequestStatus_PENDING
-		}
-	}()
-	return &protocol.UserFriendRequest{
-		Id:            proto.Int64(r.ID),
-		CreationDate:  proto.Int64(r.CreationDate.UnixMilli()),
-		Content:       proto.String(r.Content),
-		RequestStatus: &status,
-		Reason:        reason,
-		RequesterId:   proto.Int64(r.RequesterID),
-		RecipientId:   proto.Int64(r.RecipientID),
-	}
-}
-
-func toRelationshipProto(r *po.UserRelationship) *protocol.UserRelationship {
-	var blockDate *int64
-	if r.BlockDate != nil {
-		t := r.BlockDate.UnixMilli()
-		blockDate = &t
-	}
-	var establishmentDate *int64
-	if r.EstablishmentDate != nil {
-		t := r.EstablishmentDate.UnixMilli()
-		establishmentDate = &t
-	}
-	var groupIndex *int64
-	if r.GroupIndex != nil {
-		idx := int64(*r.GroupIndex)
-		groupIndex = &idx
-	}
-	return &protocol.UserRelationship{
-		OwnerId:           proto.Int64(r.ID.OwnerID),
-		RelatedUserId:     proto.Int64(r.ID.RelatedUserID),
-		BlockDate:         blockDate,
-		GroupIndex:        groupIndex,
-		EstablishmentDate: establishmentDate,
-		// protocol.UserRelationship doesn't have Name field in pb.go
-	}
-}
-
-func toRelationshipGroupProto(g *po.UserRelationshipGroup) *protocol.UserRelationshipGroup {
-	return &protocol.UserRelationshipGroup{
-		Index: g.Key.Index,
-		Name:  g.Name,
-	}
-}
