@@ -10,7 +10,7 @@ type Message struct {
 	IsGroupMessage   *bool      `bson:"gm,omitempty"`
 	IsSystemMessage  *bool      `bson:"sm,omitempty"`
 	DeliveryDate     time.Time  `bson:"dyd"`
-	ModificationDate time.Time  `bson:"md,omitempty"`
+	ModificationDate *time.Time `bson:"md,omitempty"`
 	DeletionDate     *time.Time `bson:"dd,omitempty"`
 	RecallDate       *time.Time `bson:"rd,omitempty"`
 	Text             string     `bson:"txt,omitempty"`

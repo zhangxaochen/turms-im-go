@@ -212,3 +212,42 @@ func (s *MessageService) QueryMessages(
 		ascending,
 	)
 }
+
+func (s *MessageService) AuthAndRecallMessage(ctx context.Context, senderID int64, messageID int64) error {
+	// First fetch the message to verify ownership
+	msg, err := s.msgRepo.FindByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("failed to find message: %w", err)
+	}
+
+	if msg.SenderID != senderID {
+		return errors.New("unauthorized to recall another user's message")
+	}
+
+	// For simplicity, skip message age limit (e.g. max 5 minutes) handling in this core layer
+	now := time.Now()
+	if err := s.msgRepo.UpdateMessage(ctx, messageID, nil, nil, &now); err != nil {
+		return fmt.Errorf("failed to recall message in db: %w", err)
+	}
+
+	// Optional: Notify the recipients about the recall using s.outboundDelivery here.
+	return nil
+}
+
+func (s *MessageService) AuthAndUpdateMessageText(ctx context.Context, senderID int64, messageID int64, newText string) error {
+	msg, err := s.msgRepo.FindByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("failed to find message: %w", err)
+	}
+
+	if msg.SenderID != senderID {
+		return errors.New("unauthorized to modify another user's message")
+	}
+
+	now := time.Now()
+	if err := s.msgRepo.UpdateMessage(ctx, messageID, &newText, &now, nil); err != nil {
+		return fmt.Errorf("failed to update message text in db: %w", err)
+	}
+
+	return nil
+}
