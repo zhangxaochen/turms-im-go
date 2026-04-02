@@ -26,29 +26,28 @@ func TestUserRelationshipRepository_BDD(t *testing.T) {
 
 	err := repo.Insert(ctx, &po.UserRelationship{
 		ID:        po.UserRelationshipKey{OwnerID: ownerID, RelatedUserID: friendID},
-		BlockDate: nil,
-	})
+	}, nil)
 	assert.NoError(t, err)
 
 	err = repo.Insert(ctx, &po.UserRelationship{
 		ID:        po.UserRelationshipKey{OwnerID: ownerID, RelatedUserID: blockedID},
 		BlockDate: &now,
-	})
+	}, nil)
 	assert.NoError(t, err)
 
 	// 2. Test HasRelationshipAndNotBlocked
 	// Friend -> true
-	ok, err := repo.HasRelationshipAndNotBlocked(ctx, ownerID, friendID)
+	ok, err := repo.HasRelationshipAndNotBlocked(ctx, ownerID, friendID, nil)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
 	// Blocked -> false
-	ok, err = repo.HasRelationshipAndNotBlocked(ctx, ownerID, blockedID)
+	ok, err = repo.HasRelationshipAndNotBlocked(ctx, ownerID, blockedID, nil)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 
 	// Stranger -> false
-	ok, err = repo.HasRelationshipAndNotBlocked(ctx, ownerID, 999)
+	ok, err = repo.HasRelationshipAndNotBlocked(ctx, ownerID, 999, nil)
 	assert.NoError(t, err)
 	assert.False(t, ok)
 }

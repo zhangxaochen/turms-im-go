@@ -29,7 +29,7 @@ func (s *UserVersionService) QueryRelationshipsLastUpdatedDate(ctx context.Conte
 	return &v.Relationships, nil
 }
 
-func (s *UserVersionService) QuerySentGroupInvitationsLastUpdatedDate(ctx context.Context, userID int64) (*time.Time, error) {
+func (s *UserVersionService) QuerySentGroupInvitationsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := s.versionRepo.FindUserVersion(ctx, userID)
 	if err != nil || v == nil {
 		return nil, err
@@ -37,7 +37,7 @@ func (s *UserVersionService) QuerySentGroupInvitationsLastUpdatedDate(ctx contex
 	return &v.SentGroupInvitations, nil
 }
 
-func (s *UserVersionService) QueryReceivedGroupInvitationsLastUpdatedDate(ctx context.Context, userID int64) (*time.Time, error) {
+func (s *UserVersionService) QueryReceivedGroupInvitationsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := s.versionRepo.FindUserVersion(ctx, userID)
 	if err != nil || v == nil {
 		return nil, err
