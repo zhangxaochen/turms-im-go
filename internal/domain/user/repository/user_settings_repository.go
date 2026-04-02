@@ -28,8 +28,6 @@ func NewUserSettingsRepository(mongoClient *turmsmongo.Client) UserSettingsRepos
 }
 
 // @MappedFrom upsertSettings(Long userId, Map<String, Object> settings)
-// @MappedFrom upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)
-// @MappedFrom upsertSettings(Long userId, Map<String, Value> settings)
 func (r *userSettingsRepository) UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{}) error {
 	setMap := make(map[string]interface{})
 	for k, v := range settings {
@@ -43,8 +41,6 @@ func (r *userSettingsRepository) UpsertSettings(ctx context.Context, userID int6
 	return err
 }
 
-// @MappedFrom deleteSettings(Collection<Long> userIds, @Nullable ClientSession clientSession)
-// @MappedFrom deleteSettings(Collection<Long> ownerIds, @Nullable ClientSession clientSession)
 func (r *userSettingsRepository) DeleteSettings(ctx context.Context, filter interface{}) (int64, error) {
 	res, err := r.collection.DeleteMany(ctx, filter)
 	if err != nil {
@@ -65,10 +61,7 @@ func (r *userSettingsRepository) FindSettings(ctx context.Context, filter interf
 	return settings, nil
 }
 
-// @MappedFrom unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)
-// @MappedFrom unsetSettings(Long userId, @Nullable Set<String> settingNames)
 // @MappedFrom unsetSettings(Long userId, @Nullable Collection<String> settingNames)
-// @MappedFrom unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)
 func (r *userSettingsRepository) UnsetSettings(ctx context.Context, userID int64, settingsNames []string) error {
 	if len(settingsNames) == 0 {
 		return nil
@@ -82,9 +75,7 @@ func (r *userSettingsRepository) UnsetSettings(ctx context.Context, userID int64
 	return err
 }
 
-// @MappedFrom findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)
 // @MappedFrom findByIdAndSettingNames(Long userId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)
-// @MappedFrom findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)
 func (r *userSettingsRepository) FindByIdAndSettingNames(ctx context.Context, userID int64, names []string) (*po.UserSettings, error) {
 	projection := map[string]interface{}{}
 	if len(names) > 0 {
