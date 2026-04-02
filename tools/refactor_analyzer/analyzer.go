@@ -81,12 +81,14 @@ type JavaModule struct {
 }
 
 type JavaFile struct {
+	Root         string
 	RelativePath string
 	ClassName    string
 	Methods      []MethodDef
 }
 
 type JavaConfig struct {
+	Root         string
 	RelativePath string
 	Name         string
 }
@@ -176,6 +178,7 @@ func main() {
 					methods := extractPublicMethods(string(content))
 					if len(methods) > 0 {
 						mod.Files = append(mod.Files, &JavaFile{
+							Root:         root,
 							RelativePath: rel,
 							ClassName:    filepath.Base(path),
 							Methods:      methods,
@@ -184,6 +187,7 @@ func main() {
 				}
 			} else if strings.HasSuffix(path, ".yaml") || strings.HasSuffix(path, ".properties") {
 				mod.Configs = append(mod.Configs, &JavaConfig{
+					Root:         root,
 					RelativePath: rel,
 					Name:         filepath.Base(path),
 				})
@@ -209,7 +213,7 @@ func main() {
 		if len(mod.Configs) > 0 {
 			sb.WriteString("#### Configurations\n\n")
 			for _, cfg := range mod.Configs {
-				sb.WriteString(fmt.Sprintf("- **%s** (`%s`): [简述功能]\n", cfg.Name, cfg.RelativePath))
+				sb.WriteString(fmt.Sprintf("- **%s** ([%s](../%s/%s)): [简述功能]\n", cfg.Name, cfg.RelativePath, cfg.Root, cfg.RelativePath))
 			}
 			sb.WriteString("\n")
 		}
@@ -221,7 +225,7 @@ func main() {
 
 		sb.WriteString("#### Java source tracking\n\n")
 		for _, f := range mod.Files {
-			sb.WriteString(fmt.Sprintf("- **%s** (`%s`)\n", f.ClassName, f.RelativePath))
+			sb.WriteString(fmt.Sprintf("- **%s** ([%s](../%s/%s))\n", f.ClassName, f.RelativePath, f.Root, f.RelativePath))
 			sb.WriteString("> [简述功能]\n\n")
 			for _, m := range f.Methods {
 				goMethods, exists := goMethodMap[strings.ToLower(m.Name)]
