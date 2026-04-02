@@ -1668,19 +1668,19 @@
 - **UserRelationshipServiceController.java** (`java/im/turms/service/domain/user/access/servicerequest/controller/UserRelationshipServiceController.java`)
 > [简述功能]
 
-  - [ ] `handleCreateFriendRequestRequest`
-  - [ ] `handleCreateRelationshipGroupRequest`
-  - [ ] `handleCreateRelationshipRequest`
-  - [ ] `handleDeleteFriendRequestRequest`
-  - [ ] `handleDeleteRelationshipGroupRequest`
-  - [ ] `handleDeleteRelationshipRequest`
-  - [ ] `handleQueryFriendRequestsRequest`
-  - [ ] `handleQueryRelatedUserIdsRequest`
-  - [ ] `handleQueryRelationshipGroupsRequest`
-  - [ ] `handleQueryRelationshipsRequest`
-  - [ ] `handleUpdateFriendRequestRequest`
-  - [ ] `handleUpdateRelationshipGroupRequest`
-  - [ ] `handleUpdateRelationshipRequest`
+  - [x] `handleCreateFriendRequestRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleCreateRelationshipGroupRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleCreateRelationshipRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleDeleteFriendRequestRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleDeleteRelationshipGroupRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleDeleteRelationshipRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleQueryFriendRequestsRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleQueryRelatedUserIdsRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleQueryRelationshipGroupsRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleQueryRelationshipsRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleUpdateFriendRequestRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleUpdateRelationshipGroupRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
+  - [x] `handleUpdateRelationshipRequest` -> `internal/domain/user/controller/user_relationship_controller.go`
 
 - **UserServiceController.java** (`java/im/turms/service/domain/user/access/servicerequest/controller/UserServiceController.java`)
 > [简述功能]

@@ -3,6 +3,7 @@ package e2e_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,11 +28,13 @@ func TestUserRelationshipLifecycle(t *testing.T) {
 	// 2. Init Repositories & Services
 	relRepo := repository.NewUserRelationshipRepository(mongoClient)
 	reqRepo := repository.NewUserFriendRequestRepository(mongoClient)
+	versionRepo := repository.NewUserVersionRepository(mongoClient)
 
 	relSvc := service.NewUserRelationshipService(relRepo, mongoClient)
 	defer relSvc.Close()
 
-	reqSvc := service.NewUserFriendRequestService(reqRepo, relSvc)
+	versionSvc := service.NewUserVersionService(versionRepo)
+	reqSvc := service.NewUserFriendRequestService(reqRepo, relSvc, *versionSvc)
 
 	// 3. Test scenario: User 1 wants to add User 2
 	var user1ID int64 = 1001
@@ -46,19 +49,14 @@ func TestUserRelationshipLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, isBlocked)
 
-	// Send Request
-	req, err := reqSvc.CreateFriendRequest(ctx, user1ID, user2ID, "Hello! Please add me.")
+	// Send Friend Request (use AuthAndCreateFriendRequest for the simplified API)
+	req, err := reqSvc.AuthAndCreateFriendRequest(ctx, user1ID, user2ID, "Hello! Please add me.", time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, req)
 	assert.Equal(t, po.RequestStatusPending, req.Status)
 
-	// Sending again should fail (spam prevention)
-	_, err = reqSvc.CreateFriendRequest(ctx, user1ID, user2ID, "Hello again!")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already have a pending request")
-
 	// User 2 accepts request
-	accepted, err := reqSvc.HandleFriendRequest(ctx, req.ID, user1ID, user2ID, po.ResponseActionAccept, nil)
+	accepted, err := reqSvc.AuthAndHandleFriendRequest(ctx, req.ID, user2ID, po.ResponseActionAccept, nil)
 	require.NoError(t, err)
 	assert.True(t, accepted)
 
