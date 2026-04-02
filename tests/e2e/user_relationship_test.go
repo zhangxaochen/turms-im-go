@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
 	"im.turms/server/internal/domain/user/service"
@@ -29,12 +30,16 @@ func TestUserRelationshipLifecycle(t *testing.T) {
 	relRepo := repository.NewUserRelationshipRepository(mongoClient)
 	reqRepo := repository.NewUserFriendRequestRepository(mongoClient)
 	versionRepo := repository.NewUserVersionRepository(mongoClient)
+	groupRepo := repository.NewUserRelationshipGroupRepository(mongoClient)
+	groupMemberRepo := repository.NewUserRelationshipGroupMemberRepository(mongoClient)
 
-	relSvc := service.NewUserRelationshipService(relRepo, mongoClient)
-	defer relSvc.Close()
+	userVersionSvc := service.NewUserVersionService(versionRepo)
+	groupSvc := service.NewUserRelationshipGroupService(groupRepo, groupMemberRepo, userVersionSvc)
+	relSvc := service.NewUserRelationshipService(relRepo, groupSvc, userVersionSvc, mongoClient)
 
-	versionSvc := service.NewUserVersionService(versionRepo)
-	reqSvc := service.NewUserFriendRequestService(reqRepo, relSvc, *versionSvc)
+	idGen, err := idgen.NewSnowflakeIdGenerator(1, 1)
+	require.NoError(t, err)
+	reqSvc := service.NewUserFriendRequestService(idGen, reqRepo, relSvc, userVersionSvc)
 
 	// 3. Test scenario: User 1 wants to add User 2
 	var user1ID int64 = 1001
@@ -49,7 +54,7 @@ func TestUserRelationshipLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, isBlocked)
 
-	// Send Friend Request (use AuthAndCreateFriendRequest for the simplified API)
+	// Send Friend Request
 	req, err := reqSvc.AuthAndCreateFriendRequest(ctx, user1ID, user2ID, "Hello! Please add me.", time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, req)
