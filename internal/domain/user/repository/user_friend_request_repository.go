@@ -17,6 +17,7 @@ type UserFriendRequestRepository interface {
 	HasPendingFriendRequest(ctx context.Context, requesterID, recipientID int64) (bool, error)
 	UpdateStatusIfPending(ctx context.Context, requestID, recipientID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
 	FindRequestsByRecipientID(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
+	FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
 }
 
 type userFriendRequestRepository struct {
@@ -73,6 +74,22 @@ func (r *userFriendRequestRepository) UpdateStatusIfPending(ctx context.Context,
 
 func (r *userFriendRequestRepository) FindRequestsByRecipientID(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
 	filter := bson.M{"rcid": recipientID}
+	opts := options.Find().SetSort(bson.M{"cd": -1})
+	cursor, err := r.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var reqs []po.UserFriendRequest
+	if err := cursor.All(ctx, &reqs); err != nil {
+		return nil, err
+	}
+	return reqs, nil
+}
+
+func (r *userFriendRequestRepository) FindRequestsByRequesterID(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error) {
+	filter := bson.M{"rqid": requesterID}
 	opts := options.Find().SetSort(bson.M{"cd": -1})
 	cursor, err := r.coll.Find(ctx, filter, opts)
 	if err != nil {
