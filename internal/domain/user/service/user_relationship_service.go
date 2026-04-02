@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"im.turms/server/internal/domain/common/cache"
+	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 )
@@ -19,6 +20,11 @@ type UserRelationshipService interface {
 	IsBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error)
 	FriendTwoUsers(ctx context.Context, user1ID int64, user2ID int64) error
 	DeleteOneSidedRelationship(ctx context.Context, ownerID int64, relatedUserID int64) error
+	UpsertOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error
+	UpdateUserOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error
+	TryDeleteTwoSidedRelationships(ctx context.Context, user1ID, user2ID int64) error
+	QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error)
+	QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error)
 	BlockUser(ctx context.Context, ownerID int64, relatedUserID int64) error
 	Close()
 }
@@ -155,4 +161,41 @@ func (s *userRelationshipService) BlockUser(ctx context.Context, ownerID int64, 
 		s.blockedCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
 	}
 	return err
+}
+
+func (s *userRelationshipService) UpsertOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error {
+	err := s.repo.Upsert(ctx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name, nil)
+	if err == nil {
+		s.relCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
+		s.blockedCache.Delete(fmt.Sprintf("%d:%d", ownerID, relatedUserID))
+	}
+	return err
+}
+
+func (s *userRelationshipService) UpdateUserOneSidedRelationships(ctx context.Context, ownerID int64, relatedUserIDs []int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string) error {
+	// A real implementation might use a bulk update, but for now we loop
+	for _, relatedUserID := range relatedUserIDs {
+		err := s.UpsertOneSidedRelationship(ctx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *userRelationshipService) TryDeleteTwoSidedRelationships(ctx context.Context, user1ID, user2ID int64) error {
+	err1 := s.DeleteOneSidedRelationship(ctx, user1ID, user2ID)
+	err2 := s.DeleteOneSidedRelationship(ctx, user2ID, user1ID)
+	if err1 != nil {
+		return err1
+	}
+	return err2
+}
+
+func (s *userRelationshipService) QueryRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error) {
+	return s.repo.FindRelationships(ctx, ownerIDs, relatedUserIDs)
+}
+
+func (s *userRelationshipService) QueryRelatedUserIds(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error) {
+	return s.repo.FindRelatedUserIDs(ctx, ownerID, isBlocked)
 }

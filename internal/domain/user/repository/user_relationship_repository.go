@@ -17,6 +17,7 @@ type UserRelationshipRepository interface {
 	Insert(ctx context.Context, rel *po.UserRelationship) error
 	UpdateBlockDate(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time) error
 	FindRelatedUserIDs(ctx context.Context, ownerID int64, isBlocked *bool) ([]int64, error)
+	FindRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error)
 	DeleteById(ctx context.Context, ownerID, relatedUserID int64) error
 	Upsert(ctx context.Context, ownerID, relatedUserID int64, blockDate *time.Time, groupIndex *int32, establishmentDate *time.Time, name *string, session mongo.SessionContext) error
 }
@@ -133,4 +134,26 @@ func (r *userRelationshipRepository) Upsert(ctx context.Context, ownerID, relate
 	opts := options.Update().SetUpsert(true)
 	_, err := r.coll.UpdateOne(ctx, filter, update, opts)
 	return err
+}
+
+func (r *userRelationshipRepository) FindRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64) ([]po.UserRelationship, error) {
+	filter := bson.M{}
+	if len(ownerIDs) > 0 {
+		filter["_id.oid"] = bson.M{"$in": ownerIDs}
+	}
+	if len(relatedUserIDs) > 0 {
+		filter["_id.rid"] = bson.M{"$in": relatedUserIDs}
+	}
+
+	cursor, err := r.coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var rels []po.UserRelationship
+	if err := cursor.All(ctx, &rels); err != nil {
+		return nil, err
+	}
+	return rels, nil
 }

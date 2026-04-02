@@ -11,8 +11,13 @@ import (
 
 type UserFriendRequestService interface {
 	CreateFriendRequest(ctx context.Context, requesterID, recipientID int64, content string) (*po.UserFriendRequest, error)
+	AuthAndCreateFriendRequest(ctx context.Context, requesterID, recipientID int64, content string) (*po.UserFriendRequest, error)
 	RecallPendingFriendRequest(ctx context.Context, requesterID, recipientID int64) (bool, error)
 	HandleFriendRequest(ctx context.Context, requestID int64, requesterID, recipientID int64, action po.ResponseAction, reason *string) (bool, error)
+	AuthAndHandleFriendRequest(ctx context.Context, requestID int64, requesterID, recipientID int64, action po.ResponseAction, reason *string) (bool, error)
+	UpdatePendingFriendRequestStatus(ctx context.Context, requestID, recipientID int64, targetStatus po.RequestStatus, reason *string) (bool, error)
+	QueryFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
+	QueryFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
 }
 
 type userFriendRequestService struct {
@@ -116,4 +121,27 @@ func (s *userFriendRequestService) HandleFriendRequest(ctx context.Context, requ
 	}
 
 	return success, nil
+}
+
+func (s *userFriendRequestService) AuthAndCreateFriendRequest(ctx context.Context, requesterID, recipientID int64, content string) (*po.UserFriendRequest, error) {
+	// Add potential auth/permission checks here
+	return s.CreateFriendRequest(ctx, requesterID, recipientID, content)
+}
+
+func (s *userFriendRequestService) AuthAndHandleFriendRequest(ctx context.Context, requestID int64, requesterID, recipientID int64, action po.ResponseAction, reason *string) (bool, error) {
+	// Add potential auth/permission checks here
+	return s.HandleFriendRequest(ctx, requestID, requesterID, recipientID, action, reason)
+}
+
+func (s *userFriendRequestService) UpdatePendingFriendRequestStatus(ctx context.Context, requestID, recipientID int64, targetStatus po.RequestStatus, reason *string) (bool, error) {
+	now := time.Now()
+	return s.repo.UpdateStatusIfPending(ctx, requestID, recipientID, targetStatus, reason, now)
+}
+
+func (s *userFriendRequestService) QueryFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error) {
+	return s.repo.FindRequestsByRecipientID(ctx, recipientID)
+}
+
+func (s *userFriendRequestService) QueryFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error) {
+	return s.repo.FindRequestsByRequesterID(ctx, requesterID)
 }

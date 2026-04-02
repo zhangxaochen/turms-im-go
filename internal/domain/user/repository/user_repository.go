@@ -15,7 +15,11 @@ const CollectionNameUser = "user"
 type UserRepository interface {
 	Insert(ctx context.Context, user *po.User) error
 	FindByID(ctx context.Context, userID int64) (*po.User, error)
+	FindMany(ctx context.Context, filter bson.M) ([]*po.User, error)
 	Update(ctx context.Context, userID int64, update bson.M) error
+	DeleteMany(ctx context.Context, filter bson.M) (int64, error)
+	Count(ctx context.Context, filter bson.M) (int64, error)
+	Exists(ctx context.Context, userID int64) (bool, error)
 }
 
 type userRepository struct {
@@ -46,9 +50,44 @@ func (r *userRepository) FindByID(ctx context.Context, userID int64) (*po.User, 
 	return &user, nil
 }
 
+func (r *userRepository) FindMany(ctx context.Context, filter bson.M) ([]*po.User, error) {
+	cursor, err := r.coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var users []*po.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (r *userRepository) Update(ctx context.Context, userID int64, update bson.M) error {
 	filter := bson.M{"_id": userID}
 	updateBson := bson.M{"$set": update}
 	_, err := r.coll.UpdateOne(ctx, filter, updateBson)
 	return err
+}
+
+func (r *userRepository) DeleteMany(ctx context.Context, filter bson.M) (int64, error) {
+	result, err := r.coll.DeleteMany(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
+}
+
+func (r *userRepository) Count(ctx context.Context, filter bson.M) (int64, error) {
+	return r.coll.CountDocuments(ctx, filter)
+}
+
+func (r *userRepository) Exists(ctx context.Context, userID int64) (bool, error) {
+	filter := bson.M{"_id": userID}
+	count, err := r.coll.CountDocuments(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }

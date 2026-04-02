@@ -1812,17 +1812,17 @@
   - [ ] `removeAllExpiredFriendRequests`
   - [x] `hasPendingFriendRequest` -> `internal/domain/user/repository/user_friend_request_repository.go`
   - [x] `createFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
-  - [ ] `authAndCreateFriendRequest`
+  - [x] `authAndCreateFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [ ] `authAndRecallFriendRequest`
-  - [ ] `updatePendingFriendRequestStatus`
+  - [x] `updatePendingFriendRequestStatus` -> `internal/domain/user/service/user_friend_request_service.go`
   - [ ] `updateFriendRequests`
   - [ ] `queryRecipientId`
   - [ ] `queryRequesterIdAndRecipientIdAndStatus`
   - [ ] `queryRequesterIdAndRecipientIdAndCreationDateAndStatus`
-  - [ ] `authAndHandleFriendRequest`
+  - [x] `authAndHandleFriendRequest` -> `internal/domain/user/service/user_friend_request_service.go`
   - [ ] `queryFriendRequestsWithVersion`
-  - [ ] `queryFriendRequestsByRecipientId`
-  - [ ] `queryFriendRequestsByRequesterId`
+  - [x] `queryFriendRequestsByRecipientId` -> `internal/domain/user/service/user_friend_request_service.go`
+  - [x] `queryFriendRequestsByRequesterId` -> `internal/domain/user/service/user_friend_request_service.go`
   - [ ] `deleteFriendRequests`
   - [ ] `queryFriendRequests`
   - [ ] `countFriendRequests`
@@ -1859,22 +1859,22 @@
   - [ ] `deleteAllRelationships`
   - [ ] `deleteOneSidedRelationships`
   - [x] `deleteOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `tryDeleteTwoSidedRelationships`
+  - [x] `tryDeleteTwoSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `queryRelatedUserIdsWithVersion`
   - [ ] `queryRelationshipsWithVersion`
+  - [x] `queryRelatedUserIds` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `queryRelatedUserIds`
-  - [ ] `queryRelatedUserIds`
-  - [ ] `queryRelationships`
+  - [x] `queryRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `queryMembersRelationships`
   - [ ] `countRelationships`
   - [ ] `countRelationships`
   - [x] `friendTwoUsers` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `upsertOneSidedRelationship`
+  - [x] `upsertOneSidedRelationship` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `isBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `isNotBlocked`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
   - [x] `hasRelationshipAndNotBlocked` -> `internal/domain/user/service/user_relationship_service.go`
-  - [ ] `updateUserOneSidedRelationships`
+  - [x] `updateUserOneSidedRelationships` -> `internal/domain/user/service/user_relationship_service.go`
   - [ ] `hasOneSidedRelationship`
 
 - **UserRoleService.java** (`java/im/turms/service/domain/user/service/UserRoleService.java`)
@@ -1896,16 +1896,16 @@
   - [ ] `addUser`
   - [ ] `isAllowToQueryUserProfile`
   - [ ] `authAndQueryUsersProfile`
-  - [ ] `queryUserName`
-  - [ ] `queryUsersProfile`
+  - [x] `queryUserName` -> `internal/domain/user/service/user_service.go`
+  - [x] `queryUsersProfile` -> `internal/domain/user/service/user_service.go`
   - [ ] `queryUserRoleIdByUserId`
-  - [ ] `deleteUsers`
-  - [ ] `checkIfUserExists`
+  - [x] `deleteUsers` -> `internal/domain/user/service/user_service.go`
+  - [x] `checkIfUserExists` -> `internal/domain/user/service/user_service.go`
   - [x] `updateUser` -> `internal/domain/user/service/user_service.go`
-  - [ ] `queryUsers`
+  - [x] `queryUsers` -> `internal/domain/user/service/user_service.go`
   - [ ] `countRegisteredUsers`
   - [ ] `countDeletedUsers`
-  - [ ] `countUsers`
+  - [x] `countUsers` -> `internal/domain/user/service/user_service.go`
   - [ ] `countUsers`
   - [ ] `updateUsers`
 
