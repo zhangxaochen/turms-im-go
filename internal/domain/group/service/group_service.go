@@ -2,56 +2,66 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 )
 
-type GroupService interface {
-	CreateGroup(ctx context.Context, creatorID int64, ownerID int64, name string, intro string, announcement string, minimumScore int32, isActive bool) (*po.Group, error)
-	FindGroup(ctx context.Context, groupID int64) (*po.Group, error)
-	UpdateGroup(ctx context.Context, groupID int64, update bson.M) error
+var (
+	ErrGroupNotFound = errors.New("group not found")
+	ErrNotGroupOwner = errors.New("not the group owner")
+)
+
+type GroupService struct {
+	groupRepo *repository.GroupRepository
 }
 
-type groupService struct {
-	idGen *idgen.SnowflakeIdGenerator
-	repo  *repository.GroupRepository
-}
-
-func NewGroupService(idGen *idgen.SnowflakeIdGenerator, repo *repository.GroupRepository) GroupService {
-	return &groupService{
-		idGen: idGen,
-		repo:  repo,
+func NewGroupService(groupRepo *repository.GroupRepository) *GroupService {
+	return &GroupService{
+		groupRepo: groupRepo,
 	}
 }
 
-func (s *groupService) CreateGroup(ctx context.Context, creatorID int64, ownerID int64, name string, intro string, announcement string, minimumScore int32, isActive bool) (*po.Group, error) {
-	groupID := s.idGen.NextIncreasingId()
+// CreateGroup creates a new group.
+func (s *GroupService) CreateGroup(ctx context.Context, creatorID, groupID int64, name, intro *string, minimumScore *int32) (*po.Group, error) {
+	now := time.Now()
 	group := &po.Group{
 		ID:           groupID,
-		CreatorID:    creatorID,
-		OwnerID:      ownerID,
+		CreatorID:    &creatorID,
+		OwnerID:      &creatorID,
 		Name:         name,
 		Intro:        intro,
-		Announcement: announcement,
 		MinimumScore: minimumScore,
-		CreationDate: time.Now(),
-		IsActive:     isActive,
+		CreationDate: &now,
 	}
-	err := s.repo.InsertGroup(ctx, group)
+	
+	err := s.groupRepo.InsertGroup(ctx, group)
 	if err != nil {
 		return nil, err
 	}
 	return group, nil
 }
 
-func (s *groupService) FindGroup(ctx context.Context, groupID int64) (*po.Group, error) {
-	return s.repo.FindGroup(ctx, groupID)
-}
+// DeleteGroup performs a soft deletion of the group.
+// Only the owner can delete the group.
+func (s *GroupService) DeleteGroup(ctx context.Context, requesterID, groupID int64) error {
+	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	if ownerID == nil {
+		return ErrGroupNotFound
+	}
 
-func (s *groupService) UpdateGroup(ctx context.Context, groupID int64, update bson.M) error {
-	return s.repo.UpdateGroup(ctx, groupID, update)
+	if *ownerID != requesterID {
+		return ErrNotGroupOwner
+	}
+
+	now := time.Now()
+	update := map[string]interface{}{}
+	update["dd"] = now
+
+	return s.groupRepo.UpdateGroup(ctx, groupID, update)
 }
