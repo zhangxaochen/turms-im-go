@@ -1,0 +1,17 @@
+rules:
+  - id: turms-missing-timestamp-in-notification
+    message: "Critical: The Timestamp field is mandatory for TurmsNotification signaling. Please ensure Timestamp: proto.Int64(...) or similar."
+    languages:
+      - go
+    severity: ERROR
+    pattern-either:
+      - pattern: |
+          &protocol.TurmsNotification{
+            ...
+          }
+    pattern-not: |
+      &protocol.TurmsNotification{
+        ...,
+        Timestamp: $ANYTHING,
+        ...
+      }
