@@ -11,10 +11,11 @@ import (
 )
 
 type UserRelationshipGroupRepository interface {
-	InsertGroup(ctx context.Context, group *po.UserRelationshipGroup) error
+	Insert(ctx context.Context, group *po.UserRelationshipGroup, session *mongo.Session) error
+	DeleteByIds(ctx context.Context, keys []po.UserRelationshipGroupKey, session *mongo.Session) (int64, error)
 	DeleteAllRelationshipGroups(ctx context.Context, ownerIDs []int64, session *mongo.Session) (int64, error)
 	DeleteRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, session *mongo.Session) (int64, error)
-	UpdateRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, newName string, session *mongo.Session) (int64, error)
+	UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName string, session *mongo.Session) (int64, error)
 	UpdateRelationshipGroupName(ctx context.Context, ownerID int64, groupIndex int32, newName string, session *mongo.Session) (int64, error)
 	CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error)
 	FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error)
@@ -31,9 +32,45 @@ func NewUserRelationshipGroupRepository(mongoClient *turmsmongo.Client) UserRela
 	}
 }
 
-func (r *userRelationshipGroupRepository) InsertGroup(ctx context.Context, group *po.UserRelationshipGroup) error {
-	_, err := r.collection.InsertOne(ctx, group)
+func (r *userRelationshipGroupRepository) Insert(ctx context.Context, group *po.UserRelationshipGroup, session *mongo.Session) error {
+	var err error
+	if session != nil {
+		err = mongo.WithSession(ctx, *session, func(sc mongo.SessionContext) error {
+			_, err = r.collection.InsertOne(sc, group)
+			return err
+		})
+	} else {
+		_, err = r.collection.InsertOne(ctx, group)
+	}
 	return err
+}
+
+func (r *userRelationshipGroupRepository) DeleteByIds(ctx context.Context, keys []po.UserRelationshipGroupKey, session *mongo.Session) (int64, error) {
+	if len(keys) == 0 {
+		return 0, nil
+	}
+	filters := make([]bson.M, len(keys))
+	for i, key := range keys {
+		filters[i] = bson.M{
+			"_id.oid":  key.OwnerID,
+			"_id.gidx": key.Index,
+		}
+	}
+	filter := bson.M{"$or": filters}
+	var res *mongo.DeleteResult
+	var err error
+	if session != nil {
+		err = mongo.WithSession(ctx, *session, func(sc mongo.SessionContext) error {
+			res, err = r.collection.DeleteMany(sc, filter)
+			return err
+		})
+	} else {
+		res, err = r.collection.DeleteMany(ctx, filter)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return res.DeletedCount, nil
 }
 
 func (r *userRelationshipGroupRepository) DeleteAllRelationshipGroups(ctx context.Context, ownerIDs []int64, session *mongo.Session) (int64, error) {
@@ -82,13 +119,18 @@ func (r *userRelationshipGroupRepository) DeleteRelationshipGroups(ctx context.C
 	return res.DeletedCount, nil
 }
 
-func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, newName string, session *mongo.Session) (int64, error) {
-	filter := bson.M{
-		"_id.oid": ownerID,
+func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName string, session *mongo.Session) (int64, error) {
+	if len(keys) == 0 {
+		return 0, nil
 	}
-	if len(groupIndexes) > 0 {
-		filter["_id.gidx"] = bson.M{"$in": groupIndexes}
+	filters := make([]bson.M, len(keys))
+	for i, key := range keys {
+		filters[i] = bson.M{
+			"_id.oid":  key.OwnerID,
+			"_id.gidx": key.Index,
+		}
 	}
+	filter := bson.M{"$or": filters}
 	update := bson.M{
 		"$set": bson.M{"n": newName},
 	}

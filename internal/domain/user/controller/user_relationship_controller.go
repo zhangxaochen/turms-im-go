@@ -67,15 +67,7 @@ func (c *UserRelationshipController) HandleCreateFriendRequestRequest(ctx contex
 func (c *UserRelationshipController) HandleCreateRelationshipGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateRelationshipGroupRequest()
 
-	group := &po.UserRelationshipGroup{
-		Key: po.UserRelationshipGroupKey{
-			OwnerID: s.UserID,
-		},
-		Name:         createReq.GetName(),
-		CreationDate: time.Now(),
-	}
-
-	err := c.userRelationshipGroupService.CreateRelationshipGroup(ctx, group)
+	group, err := c.userRelationshipGroupService.CreateRelationshipGroup(ctx, s.UserID, nil, createReq.GetName(), nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +77,7 @@ func (c *UserRelationshipController) HandleCreateRelationshipGroupRequest(ctx co
 		Code:      proto.Int32(1000),
 		Data: &protocol.TurmsNotification_Data{
 			Kind: &protocol.TurmsNotification_Data_Long{
-				Long: int64(group.Key.Index), // Optional, just returning index if any
+				Long: int64(group.Key.Index),
 			},
 		},
 	}, nil
@@ -125,7 +117,7 @@ func (c *UserRelationshipController) HandleDeleteRelationshipGroupRequest(ctx co
 			return nil, err
 		}
 	} else {
-		_, err := c.userRelationshipGroupService.DeleteRelationshipGroups(ctx, s.UserID, []int32{deleteReq.GetGroupIndex()})
+		_, err := c.userRelationshipGroupService.DeleteRelationshipGroups(ctx, s.UserID, []int32{deleteReq.GetGroupIndex()}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -136,13 +128,13 @@ func (c *UserRelationshipController) HandleDeleteRelationshipGroupRequest(ctx co
 func (c *UserRelationshipController) HandleDeleteRelationshipRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteRelationshipRequest()
 
-	if deleteReq.GetTargetGroupIndex() != 0 || deleteReq.TargetGroupIndex != nil { // Wait, generated getter returns 0 if nil, handled by pointer
-		err := c.userRelationshipGroupService.MoveRelatedUserToNewGroup(ctx, s.UserID, deleteReq.GetUserId(), deleteReq.GetTargetGroupIndex())
+	if deleteReq.GetTargetGroupIndex() != 0 || deleteReq.TargetGroupIndex != nil {
+		err := c.userRelationshipGroupService.MoveRelatedUserToNewGroup(ctx, s.UserID, deleteReq.GetUserId(), deleteReq.GetGroupIndex(), deleteReq.GetTargetGroupIndex(), true, nil)
 		if err != nil {
 			return nil, err
 		}
 	} else if deleteReq.GetGroupIndex() != 0 || deleteReq.GroupIndex != nil {
-		_, err := c.userRelationshipGroupService.DeleteRelatedUserFromRelationshipGroup(ctx, s.UserID, deleteReq.GetUserId(), deleteReq.GetGroupIndex())
+		_, err := c.userRelationshipGroupService.DeleteRelatedUserFromRelationshipGroup(ctx, s.UserID, deleteReq.GetUserId(), deleteReq.GetGroupIndex(), nil, true)
 		if err != nil {
 			return nil, err
 		}
@@ -194,15 +186,20 @@ func (c *UserRelationshipController) HandleQueryRelatedUserIdsRequest(ctx contex
 }
 
 func (c *UserRelationshipController) HandleQueryRelationshipGroupsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// queryReq available for future version-aware logic
-	_ = req.GetQueryRelationshipGroupsRequest()
+	queryReq := req.GetQueryRelationshipGroupsRequest()
+	var lastUpdatedDate *time.Time
+	if queryReq.LastUpdatedDate != nil {
+		t := time.UnixMilli(queryReq.GetLastUpdatedDate())
+		lastUpdatedDate = &t
+	}
 
-	groups, err := c.userRelationshipGroupService.QueryRelationshipGroupsInfosWithVersion(ctx, s.UserID)
+	groups, version, err := c.userRelationshipGroupService.QueryRelationshipGroupsInfosWithVersion(ctx, s.UserID, lastUpdatedDate)
 	if err != nil {
 		return nil, err
 	}
 
 	_ = groups
+	_ = version
 	return buildSuccessNotification(req.RequestId), nil
 }
 
@@ -239,7 +236,7 @@ func (c *UserRelationshipController) HandleUpdateFriendRequestRequest(ctx contex
 func (c *UserRelationshipController) HandleUpdateRelationshipGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateRelationshipGroupRequest()
 
-	_, err := c.userRelationshipGroupService.UpdateRelationshipGroupName(ctx, s.UserID, updateReq.GetGroupIndex(), updateReq.GetNewName())
+	err := c.userRelationshipGroupService.UpdateRelationshipGroupName(ctx, s.UserID, updateReq.GetGroupIndex(), updateReq.GetNewName())
 	if err != nil {
 		return nil, err
 	}
