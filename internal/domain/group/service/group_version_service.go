@@ -48,3 +48,13 @@ func (s *GroupVersionService) QueryGroupInvitationsVersion(ctx context.Context, 
 	}
 	return v.Invitations, nil
 }
+
+// Upsert creates or updates all group version records.
+func (s *GroupVersionService) Upsert(ctx context.Context, groupID int64, timestamp time.Time) error {
+	return s.groupVersionRepo.Upsert(ctx, groupID, timestamp)
+}
+
+// Delete deletes group versions by group IDs.
+func (s *GroupVersionService) Delete(ctx context.Context, groupIDs []int64) error {
+	return s.groupVersionRepo.DeleteByIds(ctx, groupIDs)
+}

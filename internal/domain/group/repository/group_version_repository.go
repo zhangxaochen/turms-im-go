@@ -75,6 +75,32 @@ func (r *GroupVersionRepository) UpdateJoinQuestionsVersion(ctx context.Context,
 func (r *GroupVersionRepository) UpdateInvitationsVersion(ctx context.Context, groupID int64) error {
 	return r.UpdateVersion(ctx, groupID, "invt")
 }
+// Upsert creates or updates all group version records.
+func (r *GroupVersionRepository) Upsert(ctx context.Context, groupID int64, timestamp time.Time) error {
+	filter := bson.M{"_id": groupID}
+	update := bson.M{
+		"$set": bson.M{
+			"mbr":  timestamp,
+			"bl":   timestamp,
+			"jr":   timestamp,
+			"jq":   timestamp,
+			"invt": timestamp,
+		},
+	}
+	opts := options.Update().SetUpsert(true)
+	_, err := r.col.UpdateOne(ctx, filter, update, opts)
+	return err
+}
+
+// DeleteByIds deletes group versions by group IDs.
+func (r *GroupVersionRepository) DeleteByIds(ctx context.Context, groupIDs []int64) error {
+	if len(groupIDs) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": groupIDs}}
+	_, err := r.col.DeleteMany(ctx, filter)
+	return err
+}
 
 // FindVersion retrieves the group versions.
 func (r *GroupVersionRepository) FindVersion(ctx context.Context, groupID int64) (*po.GroupVersion, error) {

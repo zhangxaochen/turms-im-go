@@ -1298,7 +1298,7 @@
   - [ ] `authAndQueryGroupMembers`
   - [ ] `authAndQueryGroupMembersWithVersion`
   - [x] `authAndUpdateGroupMember` -> `internal/domain/group/service/group_member_service.go`
-  - [ ] `deleteAllGroupMembers`
+  - [x] `deleteAllGroupMembers` -> `internal/domain/group/service/group_member_service.go`
   - [ ] `queryGroupManagersAndOwnerId`
 
 - **GroupQuestionService.java** (`java/im/turms/service/domain/group/service/GroupQuestionService.java`)
@@ -1323,7 +1323,7 @@
   - [x] `createGroup` -> `internal/domain/group/service/group_service.go`
   - [x] `authAndDeleteGroup` -> `internal/domain/group/service/group_service.go`
   - [ ] `authAndCreateGroup`
-  - [ ] `deleteGroupsAndGroupMembers`
+  - [x] `deleteGroupsAndGroupMembers` -> `internal/domain/group/service/group_service.go`
   - [ ] `queryGroups`
   - [ ] `queryGroupTypeIfActiveAndNotDeleted`
   - [ ] `queryGroupTypeIfActiveAndNotDeleted`
@@ -1348,9 +1348,9 @@
   - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [x] `countOwnedGroups` -> `internal/domain/group/repository/group_repository.go`
   - [ ] `countCreatedGroups`
-  - [x] `countGroups` -> `internal/domain/user/repository/user_relationship_group_member_repository.go`
+  - [ ] `countGroups`
   - [ ] `countDeletedGroups`
-  - [x] `count` -> `internal/domain/user/repository/user_repository.go`
+  - [ ] `count`
   - [ ] `isGroupMuted`
   - [ ] `isGroupActiveAndNotDeleted`
 
@@ -1372,22 +1372,18 @@
 
   - [ ] `queryMembersVersion`
   - [ ] `queryBlocklistVersion`
-  - [x] `queryGroupJoinRequestsVersion` -> `internal/domain/user/service/user_version_service.go`
+  - [ ] `queryGroupJoinRequestsVersion`
   - [ ] `queryGroupJoinQuestionsVersion`
   - [x] `queryGroupInvitationsVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateVersion` -> `internal/domain/group/repository/group_version_repository.go`
-  - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
-  - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateMembersVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateBlocklistVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateJoinRequestsVersion` -> `internal/domain/group/service/group_version_service.go`
   - [x] `updateJoinQuestionsVersion` -> `internal/domain/group/service/group_version_service.go`
   - [ ] `updateGroupInvitationsVersion`
-  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
-  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
-  - [x] `updateSpecificVersion` -> `internal/domain/user/service/user_version_service.go`
-  - [x] `upsert` -> `internal/domain/user/repository/user_relationship_repository.go`
-  - [x] `delete` -> `internal/domain/user/service/user_version_service.go`
+  - [ ] `updateSpecificVersion`
+  - [x] `upsert` -> `internal/domain/group/service/group_version_service.go`
+  - [x] `delete` -> `internal/domain/group/service/group_version_service.go`
 
 - **MessageController.java** (`java/im/turms/service/domain/message/access/admin/controller/MessageController.java`)
 > [简述功能]
