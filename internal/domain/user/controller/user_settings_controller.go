@@ -29,12 +29,25 @@ func (c *UserSettingsController) RegisterRoutes(r *router.Router) {
 
 // HandleUpdateUserSettingsRequest updates user settings.
 func (c *UserSettingsController) HandleUpdateUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// TODO: Implementation depends on Protobuf definitions for client-side settings requests
+	// In the future, we'll parse the actual settings from the request.
+	// For now, this is a placeholder for the logic.
+	// settings := req.GetUpdateUserSettingsRequest().GetSettings() 
+	
+	// Example logic assuming we have user ID from session
+	// err := c.userSettingsService.UpsertSettings(ctx, s.UserID, settings)
+	// if err != nil {
+	//     return nil, err
+	// }
+	
 	return buildSuccessNotification(req.RequestId), nil
 }
 
 // HandleQueryUserSettingsRequest queries user settings.
 func (c *UserSettingsController) HandleQueryUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
-	// TODO: Implementation depends on Protobuf definitions for client-side settings requests
+	// queryReq := req.GetQueryUserSettingsRequest()
+	// settings, err := c.userSettingsService.QuerySetting(ctx, s.UserID, queryReq.GetNames())
+	
+	// Placeholder return
 	return buildSuccessNotification(req.RequestId), nil
 }
+
