@@ -16,9 +16,11 @@ import (
 	"im.turms/server/internal/domain/common/infra/cluster/rpc/codec"
 	"im.turms/server/internal/domain/common/infra/idgen"
 	gatewayServer "im.turms/server/internal/domain/gateway/access/server"
+	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
 
 	grouppo "im.turms/server/internal/domain/group/po"
+	messagecontroller "im.turms/server/internal/domain/message/controller"
 	messagepo "im.turms/server/internal/domain/message/po"
 	messagerepo "im.turms/server/internal/domain/message/repository"
 	messageservice "im.turms/server/internal/domain/message/service"
@@ -165,79 +167,13 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 		&localDelivery{svc: sessionSvc},
 	)
 
-	// 4. Gateway Handler (Simulating Turms-Gateway Dispatcher connecting to Turms-Service)
-	handler := func(hCtx context.Context, s *session.UserSession, payload []byte) {
-		req := &protocol.TurmsRequest{}
-		if err := proto.Unmarshal(payload, req); err != nil {
-			s.Conn.WriteMessage([]byte("MALFORMED"))
-			return
-		}
+	// 4. Gateway Dispatcher and Controllers
+	msgController := messagecontroller.NewMessageController(msgSvc)
+	
+	r := router.NewRouter(sessionSvc)
+	r.RegisterController(&protocol.TurmsRequest_CreateMessageRequest{}, msgController.HandleCreateMessageRequest)
 
-		if s.UserID == 0 && req.GetCreateSessionRequest() != nil {
-			loginReq := req.GetCreateSessionRequest()
-			s.UserID = loginReq.UserId
-			s.DeviceType = loginReq.DeviceType
-			err := sessionSvc.RegisterSession(hCtx, s)
-
-			// Mock response TurmsNotification
-			resp := &protocol.TurmsNotification{
-				RequestId: req.RequestId,
-				Code:      proto.Int32(1000),
-			}
-			if err != nil {
-				resp.Code = proto.Int32(1100)
-			}
-			respBytes, _ := proto.Marshal(resp)
-			s.Conn.WriteMessage(respBytes)
-			return
-		}
-
-		// Require Auth
-		if s.UserID == 0 {
-			resp := &protocol.TurmsNotification{
-				RequestId: req.RequestId,
-				Code:      proto.Int32(1200), // unauthed
-			}
-			respBytes, _ := proto.Marshal(resp)
-			s.Conn.WriteMessage(respBytes)
-			return
-		}
-
-		// Message Request
-		if msgReq := req.GetCreateMessageRequest(); msgReq != nil {
-			var targetID int64
-			var isGroupMessage bool
-			if msgReq.RecipientId != nil {
-				targetID = *msgReq.RecipientId
-				isGroupMessage = false
-			} else if msgReq.GroupId != nil {
-				targetID = *msgReq.GroupId
-				isGroupMessage = true
-			}
-
-			msg, err := msgSvc.AuthAndSaveAndSendMessage(hCtx, isGroupMessage, s.UserID, targetID, *msgReq.Text)
-			resp := &protocol.TurmsNotification{
-				RequestId: req.RequestId,
-			}
-			if err != nil {
-				resp.Code = proto.Int32(1300)
-				resp.Reason = proto.String(err.Error())
-			} else {
-				resp.Code = proto.Int32(1000)
-				resp.Data = &protocol.TurmsNotification_Data{
-					Kind: &protocol.TurmsNotification_Data_LongsWithVersion{
-						LongsWithVersion: &protocol.LongsWithVersion{
-							Longs: []int64{msg.ID},
-						},
-					},
-				}
-			}
-			respBytes, _ := proto.Marshal(resp)
-			s.Conn.WriteMessage(respBytes)
-		}
-	}
-
-	tcpServer := gatewayServer.NewTCPServer("127.0.0.1:0", sessionSvc, handler)
+	tcpServer := gatewayServer.NewTCPServer("127.0.0.1:0", sessionSvc, r.HandleMessage)
 	err := tcpServer.Start()
 	require.NoError(t, err)
 	defer tcpServer.Stop()
@@ -281,13 +217,11 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int32(1000), privMsgResp.GetCode())
 
-	ids := privMsgResp.GetData().GetLongsWithVersion().GetLongs()
-	require.NotNil(t, ids)
-	assert.Len(t, ids, 1)
-	assert.Greater(t, ids[0], int64(0), "Message ID generated should be valid")
+	id := privMsgResp.GetData().GetLong()
+	assert.Greater(t, id, int64(0), "Message ID generated should be valid")
 
 	// Verify Message is saved to MongoDB
-	savedMsg, err := msgRepo.FindByID(ctx, ids[0])
+	savedMsg, err := msgRepo.FindByID(ctx, id)
 	require.NoError(t, err)
 	assert.NotNil(t, savedMsg)
 	assert.Equal(t, "Hello friend!", savedMsg.Text)
@@ -310,11 +244,10 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int32(1000), grpMsgResp.GetCode())
 
-	grpIds := grpMsgResp.GetData().GetLongsWithVersion().GetLongs()
-	require.NotNil(t, grpIds)
-	assert.Len(t, grpIds, 1)
+	grpId := grpMsgResp.GetData().GetLong()
+	assert.Greater(t, grpId, int64(0))
 
-	savedGrpMsg, err := msgRepo.FindByID(ctx, grpIds[0])
+	savedGrpMsg, err := msgRepo.FindByID(ctx, grpId)
 	require.NoError(t, err)
 	assert.NotNil(t, savedGrpMsg)
 	assert.Equal(t, "Hello group!", savedGrpMsg.Text)
@@ -334,7 +267,7 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 
 	unauthResp, err := client.ReadTurmsNotification(t)
 	require.NoError(t, err)
-	assert.Equal(t, int32(1300), unauthResp.GetCode())
+	assert.Equal(t, int32(1100), unauthResp.GetCode())
 	assert.NotNil(t, unauthResp.Reason)
 	assert.Contains(t, *unauthResp.Reason, "not a member of the target group")
 }
