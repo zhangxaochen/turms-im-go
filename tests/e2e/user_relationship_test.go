@@ -92,4 +92,3 @@ func TestUserRelationshipLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, hasRelAfterDelete)
 }
-

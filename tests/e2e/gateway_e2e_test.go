@@ -17,7 +17,7 @@ import (
 	"im.turms/server/internal/domain/common/infra/idgen"
 	gatewayServer "im.turms/server/internal/domain/gateway/access/server"
 	"im.turms/server/internal/domain/gateway/session"
-	
+
 	grouppo "im.turms/server/internal/domain/group/po"
 	messagepo "im.turms/server/internal/domain/message/po"
 	messagerepo "im.turms/server/internal/domain/message/repository"
@@ -99,7 +99,7 @@ func (c *mockTurmsE2EClient) Close() {
 }
 
 // Minimal stub for E2E
-type mockUserRelService struct {}
+type mockUserRelService struct{}
 
 func (m *mockUserRelService) HasRelationshipAndNotBlocked(ctx context.Context, ownerID int64, relatedUserID int64) (bool, error) {
 	return true, nil // Always true for test
@@ -113,7 +113,7 @@ func (m *mockUserRelService) BlockUser(ctx context.Context, ownerID int64, block
 	return nil
 }
 
-type mockGroupMemService struct {}
+type mockGroupMemService struct{}
 
 func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error) {
 	return groupID == 1, nil // Member of group 1, not of group 99
@@ -178,7 +178,7 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 			s.UserID = loginReq.UserId
 			s.DeviceType = loginReq.DeviceType
 			err := sessionSvc.RegisterSession(hCtx, s)
-			
+
 			// Mock response TurmsNotification
 			resp := &protocol.TurmsNotification{
 				RequestId: req.RequestId,
@@ -270,9 +270,9 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 		RequestId: proto.Int64(2),
 		Kind: &protocol.TurmsRequest_CreateMessageRequest{
 			CreateMessageRequest: &protocol.CreateMessageRequest{
-				RecipientId:      proto.Int64(200),
-				Text:             proto.String("Hello friend!"),
-				DeliveryDate:     proto.Int64(time.Now().UnixMilli()),
+				RecipientId:  proto.Int64(200),
+				Text:         proto.String("Hello friend!"),
+				DeliveryDate: proto.Int64(time.Now().UnixMilli()),
 			},
 		},
 	})
@@ -280,7 +280,7 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	privMsgResp, err := client.ReadTurmsNotification(t)
 	require.NoError(t, err)
 	assert.Equal(t, int32(1000), privMsgResp.GetCode())
-	
+
 	ids := privMsgResp.GetData().GetLongsWithVersion().GetLongs()
 	require.NotNil(t, ids)
 	assert.Len(t, ids, 1)
@@ -313,7 +313,7 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	grpIds := grpMsgResp.GetData().GetLongsWithVersion().GetLongs()
 	require.NotNil(t, grpIds)
 	assert.Len(t, grpIds, 1)
-	
+
 	savedGrpMsg, err := msgRepo.FindByID(ctx, grpIds[0])
 	require.NoError(t, err)
 	assert.NotNil(t, savedGrpMsg)

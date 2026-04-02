@@ -92,7 +92,7 @@ func main() {
 		if _, err := os.Stat(root); os.IsNotExist(err) {
 			continue // skip if orig repo isn't cloned
 		}
-		
+
 		modName := "turms-service"
 		if strings.Contains(root, "turms-gateway") {
 			modName = "turms-gateway"

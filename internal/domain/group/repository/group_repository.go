@@ -37,7 +37,7 @@ func (r *GroupRepository) FindGroups(ctx context.Context, groupIDs []int64) ([]*
 		"_id": bson.M{"$in": groupIDs},
 		"dd":  bson.M{"$exists": false}, // Ensure DeletionDate does not exist
 	}
-	
+
 	cursor, err := r.col.Find(ctx, filter)
 	if err != nil {
 		return nil, err

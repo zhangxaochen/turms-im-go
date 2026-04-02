@@ -20,7 +20,7 @@ func NewGroupJoinRequestService(joinReqRepo repository.GroupJoinRequestRepositor
 
 func (s *GroupJoinRequestService) CreateJoinRequest(ctx context.Context, groupID int64, requesterID int64, content string) (*po.GroupJoinRequest, error) {
 	now := time.Now()
-	
+
 	id := now.UnixNano()
 
 	req := &po.GroupJoinRequest{

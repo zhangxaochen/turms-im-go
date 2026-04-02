@@ -88,7 +88,7 @@ func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID 
 	if err != nil {
 		return false, err
 	}
-	
+
 	isMember := role != nil
 	s.memberCache.Set(cacheKey, isMember)
 	return isMember, nil

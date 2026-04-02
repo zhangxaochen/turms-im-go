@@ -34,7 +34,7 @@ type SessionService struct {
 func NewSessionService() *SessionService {
 	// Let's assume 256 shards is sufficient for a moderately high traffic gateway node
 	return &SessionService{
-		shardedMap:      NewShardedUserSessionsMap(256),
+		shardedMap:       NewShardedUserSessionsMap(256),
 		ConflictStrategy: KickExisting,
 	}
 }
@@ -63,7 +63,7 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 
 	// Wait! Even across different devices, there might be constraints,
 	// but default IMs usually allow Desktop + Mobile.
-	
+
 	manager.Sessions[session.DeviceType] = session
 	return nil
 }
@@ -76,13 +76,13 @@ func (s *SessionService) UnregisterSession(userID int64, deviceType protocol.Dev
 	}
 
 	manager.mu.Lock()
-	
+
 	existing, exists := manager.Sessions[deviceType]
 	if !exists {
 		manager.mu.Unlock()
 		return
 	}
-	
+
 	// Ensure we only remove if it's the exact same connection object (prevent removing replaced sessions)
 	if existing.Conn == conn {
 		delete(manager.Sessions, deviceType)
@@ -103,7 +103,7 @@ func (s *SessionService) GetUserSession(userID int64, deviceType protocol.Device
 	if !ok {
 		return nil, false
 	}
-	
+
 	session := manager.GetSession(deviceType)
 	return session, session != nil
 }

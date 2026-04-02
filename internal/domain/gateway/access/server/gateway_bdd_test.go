@@ -107,11 +107,13 @@ func TestGateway_BDD_ClientConnectionAndKick(t *testing.T) {
 				// We don't write back error strictly in this dummy
 				return
 			}
-			// Write success back 
+			// Write success back
 			s.Conn.WriteMessage([]byte("SUCCESS"))
 		} else {
 			// Normal message echo
-			if c == 999 { t.Log("noop") }
+			if c == 999 {
+				t.Log("noop")
+			}
 			s.Conn.WriteMessage([]byte("ECHO: " + str))
 		}
 	}

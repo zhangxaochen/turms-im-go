@@ -11,21 +11,21 @@ import (
 
 // UserSession encapsulates the network connection and the user state.
 type UserSession struct {
-	ID        int
-	Version   int
-	UserID    int64
+	ID         int
+	Version    int
+	UserID     int64
 	DeviceType protocol.DeviceType
-	
+
 	// IP address of the client (for tracking/rate-limiting)
 	IP net.IP
 
 	LoginDate time.Time
-	
+
 	// Holds the actual transport wrapper (TCP/WebSocket)
 	Conn Connection
 
 	lastHeartbeat int64 // Use atomic operations if accessed concurrently
-	
+
 	// Channel to cleanly shutdown the connection loops
 	CloseChan chan struct{}
 }
@@ -46,10 +46,10 @@ type Connection interface {
 	// Send raw Protobuf notification to the client. The implementation handles
 	// wrapping it in Varint length prefix (if TCP) or raw binary frame (if WS).
 	WriteMessage(payload []byte) error
-	
+
 	// Close cleanly terminates the socket
 	Close() error
-	
+
 	// RemoteAddr returns the client's network address
 	RemoteAddr() net.Addr
 }

@@ -95,9 +95,9 @@ func (s *WSServer) handleHTTPFunc(w http.ResponseWriter, r *http.Request) {
 
 func (s *WSServer) handleConnection(conn *websocket.Conn, r *http.Request) {
 	defer s.wg.Done()
-	
+
 	wsConn := &WSConnection{conn: conn}
-	
+
 	ipStr, _, _ := net.SplitHostPort(r.RemoteAddr)
 
 	userSession := &session.UserSession{

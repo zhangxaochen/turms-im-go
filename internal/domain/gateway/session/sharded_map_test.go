@@ -4,8 +4,8 @@ import (
 	"sync"
 	"testing"
 
-	"im.turms/server/pkg/protocol"
 	"github.com/stretchr/testify/assert"
+	"im.turms/server/pkg/protocol"
 )
 
 func TestShardedUserSessionsMap_GetOrAdd(t *testing.T) {
@@ -23,11 +23,11 @@ func TestShardedUserSessionsMap_GetOrAdd(t *testing.T) {
 
 func TestShardedUserSessionsMap_CountOnlineUsers(t *testing.T) {
 	smap := NewShardedUserSessionsMap(16)
-	
+
 	smap.GetOrAdd(1)
 	smap.GetOrAdd(2)
 	smap.GetOrAdd(3)
-	
+
 	count := smap.CountOnlineUsers()
 	assert.Equal(t, 3, count)
 }
@@ -51,7 +51,7 @@ func TestShardedUserSessionsMap_RemoveIfEmpty(t *testing.T) {
 	// Remove the session, then RemoveIfEmpty
 	manager.RemoveSession(protocol.DeviceType_DESKTOP)
 	smap.RemoveIfEmpty(userID)
-	
+
 	_, ok = smap.Get(userID)
 	assert.False(t, ok)
 }
