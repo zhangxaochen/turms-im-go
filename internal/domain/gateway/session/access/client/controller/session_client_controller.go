@@ -55,7 +55,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	}
 
 	deviceType := req.DeviceType
-	// Go doesn't inherently have UNRECOGNIZED on generated pb unless using protoc-gen-go specific output. 
+	// Go doesn't inherently have UNRECOGNIZED on generated pb unless using protoc-gen-go specific output.
 	// The protoc generated enum unknown case usually maps to whatever default is or UNKNOWN.
 	if deviceType == protocol.DeviceType(5) { // Assuming 5 is UNKNOWN
 		deviceType = protocol.DeviceType_UNKNOWN
@@ -65,7 +65,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	deviceDetails := req.DeviceDetails
 
 	// TODO: Map CreateSessionRequest.Location to the internal Location BO
-	// location := req.Location 
+	// location := req.Location
 
 	// TODO: sessionService.handleLoginRequest needs a real implementation. Currently returning mock user session.
 	session, err := c.sessionService.HandleLoginRequest(
@@ -84,7 +84,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		return nil, err
 	}
 
-	// The sessionEstablishTimeout task cancellation logic from Java 
+	// The sessionEstablishTimeout task cancellation logic from Java
 	// (sessionEstablishTimeout == null || sessionEstablishTimeout.cancel())
 	// In Go, timeouts are usually managed via Context or custom connection layer timers.
 	// TODO: Check if session establish timeout expired via wrapper or connection layer context.
@@ -99,13 +99,13 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	isConnectionAlive := true
 	if isConnectionAlive {
 		sessionWrapper.SetUserSession(session)
-		
+
 		// TODO: Complete `getUserSessionsManager` properly instead of `any` type constraint.
 		userSessionsManager := c.sessionService.GetUserSessionsManager(ctx, userID)
-		
+
 		// Fire session established hooks
 		c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)
-		
+
 		// Invoke online handlers (plugins)
 		// TODO: Ensure we track and log the error via Logger.Errorf(ERROR_INVOKE_GO_ONLINE, err)
 		c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)

@@ -185,8 +185,15 @@ func (r *groupJoinRequestRepository) FindRequests(ctx context.Context,
 	return reqs, nil
 }
 
-
-func (r *groupJoinRequestRepository) UpdateRequests(ctx context.Context, requestIds []int64, requesterId, responderId *int64, content *string, status any, creationDate, responseDate *time.Time) error { return nil }
-func (r *groupJoinRequestRepository) CountRequests(ctx context.Context, ids, groupIds, requesterIds, responderIds []int64, statuses []int, creationDateRange, responseDateRange, expirationDateRange any) (int64, error) { return 0, nil }
-func (r *groupJoinRequestRepository) FindGroupId(ctx context.Context, requestId int64) (int64, error) { return 0, nil }
-func (r *groupJoinRequestRepository) FindRequesterIdAndStatusAndGroupId(ctx context.Context, requestId int64) (any, error) { return nil, nil }
+func (r *groupJoinRequestRepository) UpdateRequests(ctx context.Context, requestIds []int64, requesterId, responderId *int64, content *string, status any, creationDate, responseDate *time.Time) error {
+	return nil
+}
+func (r *groupJoinRequestRepository) CountRequests(ctx context.Context, ids, groupIds, requesterIds, responderIds []int64, statuses []int, creationDateRange, responseDateRange, expirationDateRange any) (int64, error) {
+	return 0, nil
+}
+func (r *groupJoinRequestRepository) FindGroupId(ctx context.Context, requestId int64) (int64, error) {
+	return 0, nil
+}
+func (r *groupJoinRequestRepository) FindRequesterIdAndStatusAndGroupId(ctx context.Context, requestId int64) (any, error) {
+	return nil, nil
+}

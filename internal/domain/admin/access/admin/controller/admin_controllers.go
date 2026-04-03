@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"im.turms/server/internal/domain/admin/permission"
 	admindto "im.turms/server/internal/domain/admin/access/admin/dto"
+	"im.turms/server/internal/domain/admin/permission"
 	"im.turms/server/internal/domain/admin/service"
 	commondto "im.turms/server/internal/domain/common/dto"
 )
@@ -59,7 +59,7 @@ func NewAdminPermissionController() *AdminPermissionController {
 
 // @MappedFrom queryAdminPermissions
 func (c *AdminPermissionController) QueryAdminPermissions() *commondto.RequestHandlerResult {
-    // Should return permission.AllAdminPermissions mapping to PermissionDTO
+	// Should return permission.AllAdminPermissions mapping to PermissionDTO
 	return nil
 }
 

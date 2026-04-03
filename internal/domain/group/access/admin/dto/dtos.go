@@ -12,17 +12,17 @@ type AddGroupBlockedUserDTO struct {
 
 // @MappedFrom AddGroupDTO
 type AddGroupDTO struct {
-	TypeId        *int64     `json:"typeId"`
-	CreatorId     *int64     `json:"creatorId"`
-	OwnerId       *int64     `json:"ownerId"`
-	Name          *string    `json:"name"`
-	Intro         *string    `json:"intro"`
-	Announcement  *string    `json:"announcement"`
-	MinimumScore  *int       `json:"minimumScore"`
-	CreationDate  *time.Time `json:"creationDate"`
-	DeletionDate  *time.Time `json:"deletionDate"`
-	MuteEndDate   *time.Time `json:"muteEndDate"`
-	IsActive      *bool      `json:"isActive"`
+	TypeId       *int64     `json:"typeId"`
+	CreatorId    *int64     `json:"creatorId"`
+	OwnerId      *int64     `json:"ownerId"`
+	Name         *string    `json:"name"`
+	Intro        *string    `json:"intro"`
+	Announcement *string    `json:"announcement"`
+	MinimumScore *int       `json:"minimumScore"`
+	CreationDate *time.Time `json:"creationDate"`
+	DeletionDate *time.Time `json:"deletionDate"`
+	MuteEndDate  *time.Time `json:"muteEndDate"`
+	IsActive     *bool      `json:"isActive"`
 }
 
 // @MappedFrom AddGroupInvitationDTO
@@ -39,10 +39,10 @@ type AddGroupInvitationDTO struct {
 
 // @MappedFrom AddGroupJoinQuestionDTO
 type AddGroupJoinQuestionDTO struct {
-	GroupId *int64   `json:"groupId"`
-	Question *string `json:"question"`
-	Answers []string `json:"answers"`
-	Score *int       `json:"score"`
+	GroupId  *int64   `json:"groupId"`
+	Question *string  `json:"question"`
+	Answers  []string `json:"answers"`
+	Score    *int     `json:"score"`
 }
 
 // @MappedFrom AddGroupJoinRequestDTO
@@ -70,16 +70,16 @@ type AddGroupMemberDTO struct {
 
 // @MappedFrom AddGroupTypeDTO
 type AddGroupTypeDTO struct {
-	Name                       *string `json:"name"`
-	GroupSizeLimit             *int    `json:"groupSizeLimit"`
-	InvitationStrategy         any     `json:"invitationStrategy"`
-	JoinStrategy               any     `json:"joinStrategy"`
-	GroupInfoUpdateStrategy    any     `json:"groupInfoUpdateStrategy"`
-	MemberInfoUpdateStrategy   any     `json:"memberInfoUpdateStrategy"`
-	GuestSpeakable             *bool   `json:"guestSpeakable"`
-	SelfInfoUpdatable          *bool   `json:"selfInfoUpdatable"`
-	EnableReadReceipt          *bool   `json:"enableReadReceipt"`
-	MessageEditable            *bool   `json:"messageEditable"`
+	Name                     *string `json:"name"`
+	GroupSizeLimit           *int    `json:"groupSizeLimit"`
+	InvitationStrategy       any     `json:"invitationStrategy"`
+	JoinStrategy             any     `json:"joinStrategy"`
+	GroupInfoUpdateStrategy  any     `json:"groupInfoUpdateStrategy"`
+	MemberInfoUpdateStrategy any     `json:"memberInfoUpdateStrategy"`
+	GuestSpeakable           *bool   `json:"guestSpeakable"`
+	SelfInfoUpdatable        *bool   `json:"selfInfoUpdatable"`
+	EnableReadReceipt        *bool   `json:"enableReadReceipt"`
+	MessageEditable          *bool   `json:"messageEditable"`
 }
 
 // @MappedFrom UpdateGroupBlockedUserDTO
@@ -145,24 +145,24 @@ type UpdateGroupMemberDTO struct {
 
 // @MappedFrom UpdateGroupTypeDTO
 type UpdateGroupTypeDTO struct {
-	Name                       *string `json:"name"`
-	GroupSizeLimit             *int    `json:"groupSizeLimit"`
-	InvitationStrategy         any     `json:"invitationStrategy"`
-	JoinStrategy               any     `json:"joinStrategy"`
-	GroupInfoUpdateStrategy    any     `json:"groupInfoUpdateStrategy"`
-	MemberInfoUpdateStrategy   any     `json:"memberInfoUpdateStrategy"`
-	GuestSpeakable             *bool   `json:"guestSpeakable"`
-	SelfInfoUpdatable          *bool   `json:"selfInfoUpdatable"`
-	EnableReadReceipt          *bool   `json:"enableReadReceipt"`
-	MessageEditable            *bool   `json:"messageEditable"`
+	Name                     *string `json:"name"`
+	GroupSizeLimit           *int    `json:"groupSizeLimit"`
+	InvitationStrategy       any     `json:"invitationStrategy"`
+	JoinStrategy             any     `json:"joinStrategy"`
+	GroupInfoUpdateStrategy  any     `json:"groupInfoUpdateStrategy"`
+	MemberInfoUpdateStrategy any     `json:"memberInfoUpdateStrategy"`
+	GuestSpeakable           *bool   `json:"guestSpeakable"`
+	SelfInfoUpdatable        *bool   `json:"selfInfoUpdatable"`
+	EnableReadReceipt        *bool   `json:"enableReadReceipt"`
+	MessageEditable          *bool   `json:"messageEditable"`
 }
 
 // @MappedFrom GroupStatisticsDTO
 type GroupStatisticsDTO struct {
-	DeletedGroups               *int64 `json:"deletedGroups"`
-	GroupsThatSentMessages      *int64 `json:"groupsThatSentMessages"`
-	CreatedGroups               *int64 `json:"createdGroups"`
-	DeletedGroupsRecords        []any  `json:"deletedGroupsRecords"`
+	DeletedGroups                 *int64 `json:"deletedGroups"`
+	GroupsThatSentMessages        *int64 `json:"groupsThatSentMessages"`
+	CreatedGroups                 *int64 `json:"createdGroups"`
+	DeletedGroupsRecords          []any  `json:"deletedGroupsRecords"`
 	GroupsThatSentMessagesRecords []any  `json:"groupsThatSentMessagesRecords"`
-	CreatedGroupsRecords        []any  `json:"createdGroupsRecords"`
+	CreatedGroupsRecords          []any  `json:"createdGroupsRecords"`
 }

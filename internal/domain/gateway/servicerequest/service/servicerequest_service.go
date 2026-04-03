@@ -24,15 +24,15 @@ func (s *ServiceRequestService) HandleServiceRequest(ctx context.Context, defaul
 	defaultSession.SetLastRequestTimestampToNow()
 
 	// TODO: Obtain buffer from serviceRequest and retain it (like serviceRequest.getTurmsRequestBuffer().retain())
-	
+
 	// TODO: Construct HandleServiceRequest wrapper
 	// request := newHandleServiceRequest(serviceRequest)
-	
+
 	// TODO: Replace with proper RPC call when 'Node' cluster infra is implemented
-	// Example port: 
+	// Example port:
 	// response, err := s.node.GetRpcService().RequestResponse(request)
 	// if err != nil { return nil, err }
-	
+
 	// TODO: defer release buffer
 	// defer serviceRequest.getTurmsRequestBuffer().release()
 

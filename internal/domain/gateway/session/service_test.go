@@ -30,7 +30,7 @@ func (m *MockConnection) RemoteAddr() net.Addr {
 func (m *MockConnection) TryNotifyClientToRecover() {}
 
 func TestSessionService_RegisterAndUnregister(t *testing.T) {
-	svc := NewSessionService()
+	svc := NewSessionService(nil, "test-server-id")
 
 	conn := &MockConnection{}
 	session := &UserSession{
@@ -56,7 +56,7 @@ func TestSessionService_RegisterAndUnregister(t *testing.T) {
 }
 
 func TestSessionService_ConflictKick(t *testing.T) {
-	svc := NewSessionService()
+	svc := NewSessionService(nil, "test-server-id")
 
 	conn1 := &MockConnection{}
 	session1 := &UserSession{
@@ -91,7 +91,7 @@ func TestSessionService_ConflictKick(t *testing.T) {
 }
 
 func TestSessionService_DifferentDevices(t *testing.T) {
-	svc := NewSessionService()
+	svc := NewSessionService(nil, "test-server-id")
 	svc.ConflictStrategy = KickExisting // Which only applies to the EXACT same device type currently
 
 	conn1 := &MockConnection{}

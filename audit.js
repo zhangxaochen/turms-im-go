@@ -37,7 +37,10 @@ function checkClass() {
 
 Identify any missing core logic, missing field assignments, or differences in behavior compared to the Java version.
 If the Go code implements the Java logic flawlessly for these specific methods, reply with EXACTLY 'NO_BUGS'.
-Otherwise, list the specific bugs clearly in markdown format. Do not include introductory or sign-off text.`;
+Otherwise, list the specific bugs clearly in markdown format following these rules strictly:
+1. For each method that has bugs, create a level 2 heading with the method name (e.g., '## MethodName').
+2. List the bugs under the corresponding method heading as a checklist item starting with '- [ ] '.
+Do not include introductory or sign-off text.`;
 
     let success = false;
     let attempts = 0;
@@ -65,7 +68,7 @@ Otherwise, list the specific bugs clearly in markdown format. Do not include int
                     attempts++;
                 } else {
                     console.error(`  [Unexpected Error] Exit code: ${result.status}\nStderr: ${stderr}\nStdout: ${output}`);
-                    let errText = `\n### ${currentClass} (Error checking)\n${stderr || output || 'Unknown execution error'}\n`;
+                    let errText = `\n# ${currentClass} (Error checking)\n${stderr || output || 'Unknown execution error'}\n`;
                     pendingBugs += errText;
                     fs.appendFileSync(path.join(rootDir, 'docs', 'pending_bugs.md'), errText);
                     success = true; // Error wasn't 429, skip to next
@@ -74,7 +77,7 @@ Otherwise, list the specific bugs clearly in markdown format. Do not include int
                 // Success
                 if (!output.includes('NO_BUGS')) {
                     console.log(`  [Issue Found] ${currentClass}`);
-                    let bugText = `\n### ${currentClass}\nChecked methods: ${checkedMethods.join(', ')}\n${output.trim()}\n`;
+                    let bugText = `\n# ${currentClass}\n*Checked methods: ${checkedMethods.join(', ')}*\n\n${output.trim()}\n`;
                     pendingBugs += bugText;
                     fs.appendFileSync(path.join(rootDir, 'docs', 'pending_bugs.md'), bugText);
                 } else {
@@ -84,7 +87,7 @@ Otherwise, list the specific bugs clearly in markdown format. Do not include int
             }
         } catch (e) {
             console.error(`  [Fatal Error] ${e.message}`);
-            let fatalText = `\n### ${currentClass} (Fatal error)\n${e.message}\n`;
+            let fatalText = `\n# ${currentClass} (Fatal error)\n${e.message}\n`;
             pendingBugs += fatalText;
             fs.appendFileSync(path.join(rootDir, 'docs', 'pending_bugs.md'), fatalText);
             success = true; // Skip to next class
