@@ -139,3 +139,66 @@ func (s *GroupQuestionService) QueryJoinQuestions(ctx context.Context, groupID i
 func (s *GroupQuestionService) QueryJoinQuestionsWithAnswers(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error) {
 	return s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
 }
+
+func (s *GroupQuestionService) CheckQuestionAnswerAndGetScore(ctx context.Context, questionId int64, answer string, groupID *int64) (int, error) {
+	q, err := s.questionRepo.FindByID(ctx, questionId)
+	if err != nil {
+		return 0, err
+	}
+	if q == nil || (groupID != nil && q.GroupID != *groupID) {
+		return 0, exception.NewTurmsError(int32(constant.ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED), "Question not found or disabled")
+	}
+
+	for _, ans := range q.Answers {
+		if ans == answer {
+			return q.Score, nil
+		}
+	}
+	return 0, nil
+}
+
+func (s *GroupQuestionService) CountQuestions(ctx context.Context, ids []int64, groupIds []int64) (int64, error) {
+	return s.questionRepo.CountQuestions(ctx, ids, groupIds)
+}
+
+func (s *GroupQuestionService) FindQuestions(ctx context.Context, ids []int64, groupIds []int64, page *int, size *int, withAnswers bool) ([]po.GroupJoinQuestion, error) {
+	questions, err := s.questionRepo.FindQuestions(ctx, ids, groupIds, page, size)
+	if err != nil {
+		return nil, err
+	}
+	if !withAnswers {
+		for i := range questions {
+			questions[i].Answers = nil
+		}
+	}
+	return questions, nil
+}
+
+func (s *GroupQuestionService) UpdateQuestions(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int) error {
+	var gidsToUpdate []int64
+	if groupID != nil {
+		gidsToUpdate = append(gidsToUpdate, *groupID)
+	} else if len(ids) > 0 {
+		qs, err := s.questionRepo.FindQuestions(ctx, ids, nil, nil, nil)
+		if err != nil {
+			return err
+		}
+		seen := make(map[int64]bool)
+		for _, q := range qs {
+			if !seen[q.GroupID] {
+				seen[q.GroupID] = true
+				gidsToUpdate = append(gidsToUpdate, q.GroupID)
+			}
+		}
+	}
+
+	err := s.questionRepo.UpdateQuestions(ctx, ids, groupID, question, answers, score)
+	if err != nil {
+		return err
+	}
+
+	for _, gid := range gidsToUpdate {
+		_ = s.groupVersionService.UpdateJoinQuestionsVersion(ctx, gid)
+	}
+	return nil
+}

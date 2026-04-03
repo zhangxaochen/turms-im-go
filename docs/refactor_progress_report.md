@@ -1306,18 +1306,18 @@
 - **GroupQuestionService.java** ([java/im/turms/service/domain/group/service/GroupQuestionService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/service/GroupQuestionService.java))
 > [简述功能]
 
-  - [ ] `checkGroupQuestionAnswerAndGetScore(@NotNull Long questionId, @NotNull String answer, @Nullable Long groupId)`
+  - [x] `checkGroupQuestionAnswerAndGetScore(@NotNull Long questionId, @NotNull String answer, @Nullable Long groupId)` -> [internal/domain/group/service/group_question_service.go:CheckQuestionAnswerAndGetScore(ctx context.Context, questionId int64, answer string, groupID *int64)](../internal/domain/group/service/group_question_service.go)
   - [ ] `authAndCheckGroupQuestionAnswerAndJoin(@NotNull Long requesterId, @NotNull @ValidGroupQuestionIdAndAnswer Map<Long, String> questionIdToAnswer)`
   - [ ] `authAndCreateGroupJoinQuestions(@NotNull Long requesterId, @NotNull Long groupId, @NotNull List<NewGroupQuestion> questions)`
   - [ ] `createGroupJoinQuestions(@NotNull Long groupId, @NotNull List<NewGroupQuestion> questions)`
   - [ ] `queryGroupId(@NotNull Long questionId)`
   - [ ] `authAndDeleteGroupJoinQuestions(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Set<Long> questionIds)`
-  - [x] `queryGroupJoinQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Integer page, @Nullable Integer size, boolean withAnswers)` ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
-  - [ ] `countGroupJoinQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds)`
+  - [x] `queryGroupJoinQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Integer page, @Nullable Integer size, boolean withAnswers)` -> [internal/domain/group/service/group_question_service.go:FindQuestions(ctx context.Context, ids []int64, groupIds []int64, page *int, size *int, withAnswers bool)](../internal/domain/group/service/group_question_service.go)
+  - [x] `countGroupJoinQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds)` -> [internal/domain/group/service/group_question_service.go:CountQuestions(ctx context.Context, ids []int64, groupIds []int64)](../internal/domain/group/service/group_question_service.go)
   - [x] `deleteGroupJoinQuestions(@Nullable Set<Long> ids)` ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
   - [ ] `authAndQueryGroupJoinQuestionsWithVersion(@NotNull Long requesterId, @NotNull Long groupId, boolean withAnswers, @Nullable Date lastUpdatedDate)`
   - [ ] `authAndUpdateGroupJoinQuestion(@NotNull Long requesterId, @NotNull Long questionId, @Nullable String question, @Nullable Set<String> answers, @Nullable @Min(0)`
-  - [x] `updateGroupJoinQuestions(@NotEmpty Set<Long> ids, @Nullable Long groupId, @Nullable String question, @Nullable Set<String> answers, @Nullable @Min(0)` ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+  - [x] `updateGroupJoinQuestions(@NotEmpty Set<Long> ids, @Nullable Long groupId, @Nullable String question, @Nullable Set<String> answers, @Nullable @Min(0)` -> [internal/domain/group/service/group_question_service.go:UpdateQuestions(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int)](../internal/domain/group/service/group_question_service.go)
 
 - **GroupService.java** ([java/im/turms/service/domain/group/service/GroupService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/service/GroupService.java))
 > [简述功能]
