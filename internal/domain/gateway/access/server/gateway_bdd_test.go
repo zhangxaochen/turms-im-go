@@ -80,7 +80,7 @@ func (c *mockTurmsClient) Close() {
 // BDD Scenario: Handling Client Connections and Multi-device Kicks
 func TestGateway_BDD_ClientConnectionAndKick(t *testing.T) {
 	// GIVEN a running Gateway TCP Server with KickExisting strategy
-	svc := session.NewSessionService(nil, nil, nil, nil, "test-server-id")
+	svc := session.NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 	svc.ConflictStrategy = session.KickExisting
 
 	handlerCount := 0

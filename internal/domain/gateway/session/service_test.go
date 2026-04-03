@@ -34,7 +34,7 @@ func (m *MockConnection) IsActive() bool {
 }
 
 func TestSessionService_RegisterAndUnregister(t *testing.T) {
-	svc := NewSessionService(nil, nil, nil, nil, "test-server-id")
+	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 
 	conn := &MockConnection{}
 	session := &UserSession{
@@ -60,7 +60,7 @@ func TestSessionService_RegisterAndUnregister(t *testing.T) {
 }
 
 func TestSessionService_ConflictKick(t *testing.T) {
-	svc := NewSessionService(nil, nil, nil, nil, "test-server-id")
+	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 
 	conn1 := &MockConnection{}
 	session1 := &UserSession{
@@ -95,7 +95,7 @@ func TestSessionService_ConflictKick(t *testing.T) {
 }
 
 func TestSessionService_DifferentDevices(t *testing.T) {
-	svc := NewSessionService(nil, nil, nil, nil, "test-server-id")
+	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 	svc.ConflictStrategy = KickExisting // Which only applies to the EXACT same device type currently
 
 	conn1 := &MockConnection{}
