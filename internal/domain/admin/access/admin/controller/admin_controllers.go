@@ -14,6 +14,10 @@ func (c *AdminController) AddAdmin() {
 }
 
 // @MappedFrom queryAdmins(@QueryParam(required = false)
+func (c *AdminController) QueryAdminsWithQuery() {
+}
+
+// @MappedFrom queryAdmins()
 func (c *AdminController) QueryAdmins() {
 }
 
@@ -44,6 +48,10 @@ func (c *AdminRoleController) AddAdminRole() {
 }
 
 // @MappedFrom queryAdminRoles(@QueryParam(required = false)
+func (c *AdminRoleController) QueryAdminRolesWithQuery() {
+}
+
+// @MappedFrom queryAdminRoles()
 func (c *AdminRoleController) QueryAdminRoles() {
 }
 
