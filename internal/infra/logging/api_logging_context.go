@@ -19,3 +19,9 @@ func (c *ApiLoggingContext) ShouldLogNotification(requestType int) bool {
 	// Stub implementation
 	return true
 }
+
+// @MappedFrom shouldLogHeartbeatRequest()
+func (c *ApiLoggingContext) ShouldLogHeartbeatRequest() bool {
+	// Stub implementation
+	return true
+}
