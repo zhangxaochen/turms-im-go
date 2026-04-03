@@ -121,7 +121,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 			d.BlocklistService.TryBlockUserIdForCorruptedRequest(sessionWrapper.UserSession.UserID)
 		}
 		d.BlocklistService.TryBlockIpForCorruptedRequest(sessionWrapper.GetIPStr())
-		if req != nil && req.RequestId != nil {
+		if req.RequestId != nil {
 			requestID = *req.RequestId
 		}
 		

@@ -27,9 +27,8 @@ func NewServiceAvailabilityChannelHandler(
 // @MappedFrom channelRegistered(ChannelHandlerContext ctx)
 // HandleConnection answers whether the connection should be kept open based on service availability and blocklists.
 func (h *ServiceAvailabilityChannelHandler) HandleConnection(conn net.Conn) bool {
-	// Dummy availability check mapping
-	// serviceAvailability := h.serverStatusManager.GetServiceAvailability() // Not fully migrated
-	available := true
+	serviceAvailability := h.serverStatusManager.GetServiceAvailability()
+	available := serviceAvailability.Available
 
 	if available {
 		addr := conn.RemoteAddr()
