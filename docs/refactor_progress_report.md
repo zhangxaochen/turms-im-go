@@ -299,98 +299,98 @@
 - **UserService.java** ([java/im/turms/gateway/domain/session/service/UserService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/service/UserService.java))
 > [简述功能]
 
-  - [ ] `authenticate(@NotNull Long userId, @Nullable String rawPassword)`
+  - [x] `authenticate(@NotNull Long userId, @Nullable String rawPassword)` -> [internal/domain/gateway/session/user_service.go:Authenticate(ctx context.Context, userID int64, rawPassword string)](../internal/domain/gateway/session/user_service.go)
   - [x] `isActiveAndNotDeleted(@NotNull Long userId)` -> [internal/domain/user/repository/user_repository.go:IsActiveAndNotDeleted(ctx context.Context, userID int64)](../internal/domain/user/repository/user_repository.go)
 
 - **UserSimultaneousLoginService.java** ([java/im/turms/gateway/domain/session/service/UserSimultaneousLoginService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/service/UserSimultaneousLoginService.java))
 > [简述功能]
 
-  - [ ] `getConflictedDeviceTypes(@NotNull @ValidDeviceType DeviceType deviceType)`
-  - [ ] `isForbiddenDeviceType(DeviceType deviceType)`
-  - [ ] `shouldDisconnectLoggingInDeviceIfConflicts()`
+  - [x] `getConflictedDeviceTypes(@NotNull @ValidDeviceType DeviceType deviceType)` -> [internal/domain/gateway/session/manager/user_simultaneous_login_service.go:GetConflictedDeviceTypes(deviceType protocol.DeviceType)](../internal/domain/gateway/session/manager/user_simultaneous_login_service.go)
+  - [x] `isForbiddenDeviceType(DeviceType deviceType)` -> [internal/domain/gateway/session/manager/user_simultaneous_login_service.go:IsForbiddenDeviceType(deviceType protocol.DeviceType)](../internal/domain/gateway/session/manager/user_simultaneous_login_service.go)
+  - [x] `shouldDisconnectLoggingInDeviceIfConflicts()` -> [internal/domain/gateway/session/manager/user_simultaneous_login_service.go:ShouldDisconnectLoggingInDeviceIfConflicts()](../internal/domain/gateway/session/manager/user_simultaneous_login_service.go)
 
 - **ServiceAddressManager.java** ([java/im/turms/gateway/infra/address/ServiceAddressManager.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/address/ServiceAddressManager.java))
 > [简述功能]
 
-  - [ ] `getWsAddress()`
-  - [ ] `getTcpAddress()`
-  - [ ] `getUdpAddress()`
+  - [x] `getWsAddress()` -> [internal/infra/address/service_address_manager.go:GetWsAddress()](../internal/infra/address/service_address_manager.go)
+  - [x] `getTcpAddress()` -> [internal/infra/address/service_address_manager.go:GetTcpAddress()](../internal/infra/address/service_address_manager.go)
+  - [x] `getUdpAddress()` -> [internal/infra/address/service_address_manager.go:GetUdpAddress()](../internal/infra/address/service_address_manager.go)
 
 - **LdapClient.java** ([java/im/turms/gateway/infra/ldap/LdapClient.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/LdapClient.java))
 > [简述功能]
 
   - [x] `isConnected()` -> [internal/domain/gateway/session/connection.go:IsConnected()](../internal/domain/gateway/session/connection.go)
-  - [ ] `connect()`
-  - [ ] `bind(boolean useFastBind, String dn, String password)`
+  - [x] `connect()` -> [internal/infra/ldap/ldap_client.go:Connect()](../internal/infra/ldap/ldap_client.go)
+  - [x] `bind(boolean useFastBind, String dn, String password)` -> [internal/infra/ldap/ldap_client.go:Bind(useFastBind bool, dn string, password string)](../internal/infra/ldap/ldap_client.go)
   - [x] `search(String baseDn, Scope scope, DerefAliases derefAliases, int sizeLimit, int timeLimit, boolean typeOnly, List<String> attributes, String filter)` -> [internal/storage/elasticsearch/elasticsearch_client.go:Search(ctx context.Context)](../internal/storage/elasticsearch/elasticsearch_client.go)
-  - [ ] `modify(String dn, List<ModifyOperationChange> changes)`
+  - [x] `modify(String dn, List<ModifyOperationChange> changes)` -> [internal/infra/ldap/ldap_client.go:Modify(dn string, changes []any)](../internal/infra/ldap/ldap_client.go)
 
 - **BerBuffer.java** ([java/im/turms/gateway/infra/ldap/asn1/BerBuffer.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/asn1/BerBuffer.java))
 > [简述功能]
 
-  - [ ] `skipTag()`
-  - [ ] `skipTagAndLength()`
-  - [ ] `skipTagAndLengthAndValue()`
-  - [ ] `readTag()`
-  - [ ] `peekAndCheckTag(int tag)`
-  - [ ] `skipLength()`
-  - [ ] `skipLengthAndValue()`
-  - [ ] `writeLength(int length)`
-  - [ ] `readLength()`
-  - [ ] `tryReadLengthIfReadable()`
-  - [ ] `beginSequence()`
-  - [ ] `beginSequence(int tag)`
-  - [ ] `endSequence()`
-  - [ ] `writeBoolean(boolean value)`
-  - [ ] `writeBoolean(int tag, boolean value)`
-  - [ ] `readBoolean()`
-  - [ ] `writeInteger(int value)`
-  - [ ] `writeInteger(int tag, int value)`
-  - [ ] `readInteger()`
-  - [ ] `readIntWithTag(int tag)`
-  - [ ] `writeOctetString(String value)`
-  - [ ] `writeOctetString(byte[] value)`
-  - [ ] `writeOctetString(int tag, byte[] value)`
-  - [ ] `writeOctetString(byte[] value, int start, int length)`
-  - [ ] `writeOctetString(int tag, byte[] value, int start, int length)`
-  - [ ] `writeOctetString(int tag, String value)`
-  - [ ] `writeOctetStrings(List<String> values)`
-  - [ ] `readOctetString()`
-  - [ ] `readOctetStringWithTag(int tag)`
-  - [ ] `readOctetStringWithLength(int length)`
-  - [ ] `writeEnumeration(int value)`
-  - [ ] `readEnumeration()`
-  - [ ] `getBytes()`
-  - [ ] `skipBytes(int length)`
+  - [x] `skipTag()` -> [internal/infra/ldap/asn1/ber_buffer.go:SkipTag()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `skipTagAndLength()` -> [internal/infra/ldap/asn1/ber_buffer.go:SkipTagAndLength()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `skipTagAndLengthAndValue()` -> [internal/infra/ldap/asn1/ber_buffer.go:SkipTagAndLengthAndValue()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readTag()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadTag()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `peekAndCheckTag(int tag)` -> [internal/infra/ldap/asn1/ber_buffer.go:PeekAndCheckTag(tag int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `skipLength()` -> [internal/infra/ldap/asn1/ber_buffer.go:SkipLength()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `skipLengthAndValue()` -> [internal/infra/ldap/asn1/ber_buffer.go:SkipLengthAndValue()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeLength(int length)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteLength(length int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readLength()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadLength()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `tryReadLengthIfReadable()` -> [internal/infra/ldap/asn1/ber_buffer.go:TryReadLengthIfReadable()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `beginSequence()` -> [internal/infra/ldap/asn1/ber_buffer.go:BeginSequence()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `beginSequence(int tag)` -> [internal/infra/ldap/asn1/ber_buffer.go:BeginSequenceWithTag(tag int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `endSequence()` -> [internal/infra/ldap/asn1/ber_buffer.go:EndSequence()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeBoolean(boolean value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteBoolean(value bool)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeBoolean(int tag, boolean value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteBooleanWithTag(tag int, value bool)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readBoolean()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadBoolean()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeInteger(int value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteInteger(value int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeInteger(int tag, int value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteIntegerWithTag(tag int, value int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readInteger()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadInteger()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readIntWithTag(int tag)` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadIntWithTag(tag int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetString(String value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetString(value string)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetString(byte[] value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytes(value []byte)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetString(int tag, byte[] value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytesWithTag(tag int, value []byte)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetString(byte[] value, int start, int length)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytesRange(value []byte, start int, length int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetString(int tag, byte[] value, int start, int length)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytesRangeWithTag(tag int, value []byte, start int, length int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetString(int tag, String value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringWithTag(tag int, value string)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeOctetStrings(List<String> values)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStrings(values []string)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readOctetString()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadOctetString()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readOctetStringWithTag(int tag)` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadOctetStringWithTag(tag int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readOctetStringWithLength(int length)` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadOctetStringWithLength(length int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `writeEnumeration(int value)` -> [internal/infra/ldap/asn1/ber_buffer.go:WriteEnumeration(value int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readEnumeration()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReadEnumeration()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `getBytes()` -> [internal/infra/ldap/asn1/ber_buffer.go:GetBytes()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `skipBytes(int length)` -> [internal/infra/ldap/asn1/ber_buffer.go:SkipBytes(length int)](../internal/infra/ldap/asn1/ber_buffer.go)
   - [x] `close()` -> [internal/domain/common/cache/ttl_cache.go:Close()](../internal/domain/common/cache/ttl_cache.go)
-  - [ ] `refCnt()`
-  - [ ] `retain()`
-  - [ ] `retain(int increment)`
-  - [ ] `touch()`
-  - [ ] `touch(Object hint)`
-  - [ ] `release()`
-  - [ ] `release(int decrement)`
-  - [ ] `isReadable(int length)`
-  - [ ] `isReadable()`
-  - [ ] `isReadableWithEnd(int end)`
-  - [ ] `readerIndex()`
+  - [x] `refCnt()` -> [internal/infra/ldap/asn1/ber_buffer.go:RefCnt()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `retain()` -> [internal/infra/ldap/asn1/ber_buffer.go:Retain()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `retain(int increment)` -> [internal/infra/ldap/asn1/ber_buffer.go:RetainIncrement(increment int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `touch()` -> [internal/infra/ldap/asn1/ber_buffer.go:Touch()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `touch(Object hint)` -> [internal/infra/ldap/asn1/ber_buffer.go:TouchWithHint(hint any)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `release()` -> [internal/infra/ldap/asn1/ber_buffer.go:Release()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `release(int decrement)` -> [internal/infra/ldap/asn1/ber_buffer.go:ReleaseDecrement(decrement int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `isReadable(int length)` -> [internal/infra/ldap/asn1/ber_buffer.go:IsReadableLen(length int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `isReadable()` -> [internal/infra/ldap/asn1/ber_buffer.go:IsReadable()](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `isReadableWithEnd(int end)` -> [internal/infra/ldap/asn1/ber_buffer.go:IsReadableWithEnd(end int)](../internal/infra/ldap/asn1/ber_buffer.go)
+  - [x] `readerIndex()` -> [internal/infra/ldap/asn1/ber_buffer.go:ReaderIndex()](../internal/infra/ldap/asn1/ber_buffer.go)
 
 - **Attribute.java** ([java/im/turms/gateway/infra/ldap/element/common/Attribute.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/common/Attribute.java))
 > [简述功能]
 
   - [x] `isEmpty()` -> [internal/domain/gateway/session/sharded_map.go:IsEmpty()](../internal/domain/gateway/session/sharded_map.go)
-  - [ ] `decode(BerBuffer buffer)`
+  - [x] `decode(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go:Decode(buffer *asn1.BerBuffer)](../internal/infra/ldap/element/elements.go)
 
 - **LdapMessage.java** ([java/im/turms/gateway/infra/ldap/element/common/LdapMessage.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/common/LdapMessage.java))
 > [简述功能]
 
-  - [ ] `estimateSize()`
-  - [ ] `writeTo(BerBuffer buffer)`
+  - [x] `estimateSize()` -> [internal/infra/ldap/element/elements.go:EstimateSize()](../internal/infra/ldap/element/elements.go)
+  - [x] `writeTo(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go:WriteTo(buffer *asn1.BerBuffer)](../internal/infra/ldap/element/elements.go)
 
 - **LdapResult.java** ([java/im/turms/gateway/infra/ldap/element/common/LdapResult.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/common/LdapResult.java))
 > [简述功能]
 
-  - [ ] `isSuccess()`
+  - [x] `isSuccess()` -> [internal/infra/ldap/element/elements.go:IsSuccess()](../internal/infra/ldap/element/elements.go)
 
 - **Control.java** ([java/im/turms/gateway/infra/ldap/element/common/control/Control.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/common/control/Control.java))
 > [简述功能]
@@ -422,7 +422,7 @@
 - **Filter.java** ([java/im/turms/gateway/infra/ldap/element/operation/search/Filter.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/search/Filter.java))
 > [简述功能]
 
-  - [ ] `write(BerBuffer buffer, String filter)`
+  - [x] `write(BerBuffer buffer, String filter)` -> [internal/infra/ldap/element/elements.go:Write(buffer *asn1.BerBuffer, filter string)](../internal/infra/ldap/element/elements.go)
 
 - **SearchRequest.java** ([java/im/turms/gateway/infra/ldap/element/operation/search/SearchRequest.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/search/SearchRequest.java))
 > [简述功能]
@@ -434,12 +434,12 @@
 > [简述功能]
 
   - [ ] `decode(BerBuffer buffer)`
-  - [ ] `isComplete()`
+  - [x] `isComplete()` -> [internal/infra/ldap/element/elements.go:IsComplete()](../internal/infra/ldap/element/elements.go)
 
 - **ApiLoggingContext.java** ([java/im/turms/gateway/infra/logging/ApiLoggingContext.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/logging/ApiLoggingContext.java))
 > [简述功能]
 
-  - [ ] `shouldLogHeartbeatRequest()`
+  - [x] `shouldLogHeartbeatRequest()` -> [internal/infra/logging/api_logging_context.go:ShouldLogHeartbeatRequest()](../internal/infra/logging/api_logging_context.go)
   - [x] `shouldLogRequest(TurmsRequest.KindCase requestType)` -> [internal/infra/logging/api_logging_context.go:ShouldLogRequest(requestType int)](../internal/infra/logging/api_logging_context.go)
   - [x] `shouldLogNotification(TurmsRequest.KindCase requestType)` -> [internal/infra/logging/api_logging_context.go:ShouldLogNotification(requestType int)](../internal/infra/logging/api_logging_context.go)
 
@@ -458,23 +458,23 @@
 - **SimpleTurmsNotification.java** ([java/im/turms/gateway/infra/proto/SimpleTurmsNotification.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/proto/SimpleTurmsNotification.java))
 > [简述功能]
 
-  - [ ] `SimpleTurmsNotification(long requesterId, Integer closeStatus, TurmsRequest.KindCase relayedRequestType)`
+  - [x] `SimpleTurmsNotification(long requesterId, Integer closeStatus, TurmsRequest.KindCase relayedRequestType)` -> [internal/infra/proto/proto_parser.go:NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRequestType *protocol.TurmsRequest_Kind)](../internal/infra/proto/proto_parser.go)
 
 - **SimpleTurmsRequest.java** ([java/im/turms/gateway/infra/proto/SimpleTurmsRequest.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/proto/SimpleTurmsRequest.java))
 > [简述功能]
 
-  - [ ] `SimpleTurmsRequest(long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest)`
+  - [x] `SimpleTurmsRequest(long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest)` -> [internal/infra/proto/proto_parser.go:NewSimpleTurmsRequest(requestID int64, reqType *protocol.TurmsRequest_Kind, createSessionReq *protocol.CreateSessionRequest)](../internal/infra/proto/proto_parser.go)
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
 
 - **TurmsNotificationParser.java** ([java/im/turms/gateway/infra/proto/TurmsNotificationParser.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/proto/TurmsNotificationParser.java))
 > [简述功能]
 
-  - [ ] `parseSimpleNotification(CodedInputStream turmsRequestInputStream)`
+  - [x] `parseSimpleNotification(CodedInputStream turmsRequestInputStream)` -> [internal/infra/proto/proto_parser.go:ParseSimpleNotification(turmsRequestInputStream []byte)](../internal/infra/proto/proto_parser.go)
 
 - **TurmsRequestParser.java** ([java/im/turms/gateway/infra/proto/TurmsRequestParser.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/proto/TurmsRequestParser.java))
 > [简述功能]
 
-  - [ ] `parseSimpleRequest(CodedInputStream turmsRequestInputStream)`
+  - [x] `parseSimpleRequest(CodedInputStream turmsRequestInputStream)` -> [internal/infra/proto/proto_parser.go:ParseSimpleRequest(turmsRequestInputStream []byte)](../internal/infra/proto/proto_parser.go)
 
 - **MongoConfig.java** ([java/im/turms/gateway/storage/mongo/MongoConfig.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/storage/mongo/MongoConfig.java))
 > [简述功能]
@@ -510,18 +510,18 @@
 > [简述功能]
 
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
-  - [ ] `turmsRequest()`
-  - [ ] `userId()`
-  - [ ] `deviceType()`
-  - [ ] `clientIp()`
-  - [ ] `requestId()`
-  - [ ] `equals(Object obj)`
-  - [ ] `hashCode()`
+  - [x] `turmsRequest()` -> [internal/domain/common/dto/client_request.go:TurmsRequest()](../internal/domain/common/dto/client_request.go)
+  - [x] `userId()` -> [internal/domain/common/dto/client_request.go:UserId()](../internal/domain/common/dto/client_request.go)
+  - [x] `deviceType()` -> [internal/domain/common/dto/client_request.go:DeviceType()](../internal/domain/common/dto/client_request.go)
+  - [x] `clientIp()` -> [internal/domain/common/dto/client_request.go:ClientIp()](../internal/domain/common/dto/client_request.go)
+  - [x] `requestId()` -> [internal/domain/common/dto/client_request.go:RequestId()](../internal/domain/common/dto/client_request.go)
+  - [x] `equals(Object obj)` -> [internal/domain/common/dto/client_request.go:Equals(obj interface{})](../internal/domain/common/dto/client_request.go)
+  - [x] `hashCode()` -> [internal/domain/common/dto/client_request.go:HashCode()](../internal/domain/common/dto/client_request.go)
 
 - **RequestHandlerResult.java** ([java/im/turms/service/access/servicerequest/dto/RequestHandlerResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dto/RequestHandlerResult.java))
 > [简述功能]
 
-  - [ ] `RequestHandlerResult(ResponseStatusCode code, @Nullable String reason, @Nullable TurmsNotification.Data response, List<Notification> notifications)`
+  - [x] `RequestHandlerResult(ResponseStatusCode code, @Nullable String reason, @Nullable TurmsNotification.Data response, List<Notification> notifications)` -> [internal/domain/common/dto/request_handler_result.go:NewRequestHandlerResult(...)](../internal/domain/common/dto/request_handler_result.go)
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
   - [ ] `of(@NotNull ResponseStatusCode code)`
   - [ ] `of(@NotNull ResponseStatusCode code, @Nullable String reason)`
@@ -553,91 +553,91 @@
 - **AdminController.java** ([java/im/turms/service/domain/admin/access/admin/controller/AdminController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/controller/AdminController.java))
 > [简述功能]
 
-  - [ ] `checkLoginNameAndPassword()`
-  - [ ] `addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO)`
+  - [x] `checkLoginNameAndPassword()` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:CheckLoginNameAndPassword()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
+  - [x] `addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:AddAdmin()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
+  - [x] `queryAdmins(@QueryParam(required = false)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdmins()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [ ] `queryAdmins(@QueryParam(required = false)`
-  - [ ] `queryAdmins(@QueryParam(required = false)`
-  - [ ] `updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO)`
-  - [ ] `deleteAdmins(RequestContext requestContext, Set<Long> ids)`
+  - [x] `updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:UpdateAdmins()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
+  - [x] `deleteAdmins(RequestContext requestContext, Set<Long> ids)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:DeleteAdmins()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
 
 - **AdminPermissionController.java** ([java/im/turms/service/domain/admin/access/admin/controller/AdminPermissionController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/controller/AdminPermissionController.java))
 > [简述功能]
 
-  - [ ] `queryAdminPermissions()`
+  - [x] `queryAdminPermissions()` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminPermissions()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
 
 - **AdminRoleController.java** ([java/im/turms/service/domain/admin/access/admin/controller/AdminRoleController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/controller/AdminRoleController.java))
 > [简述功能]
 
-  - [ ] `addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO)`
+  - [x] `addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:AddAdminRole()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
+  - [x] `queryAdminRoles(@QueryParam(required = false)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminRoles()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [ ] `queryAdminRoles(@QueryParam(required = false)`
-  - [ ] `queryAdminRoles(@QueryParam(required = false)`
-  - [ ] `updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO)`
-  - [ ] `deleteAdminRoles(RequestContext requestContext, Set<Long> ids)`
+  - [x] `updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:UpdateAdminRole()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
+  - [x] `deleteAdminRoles(RequestContext requestContext, Set<Long> ids)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:DeleteAdminRoles()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
 
 - **AddAdminDTO.java** ([java/im/turms/service/domain/admin/access/admin/dto/request/AddAdminDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/dto/request/AddAdminDTO.java))
 > [简述功能]
 
-  - [ ] `AddAdminDTO(String loginName, @SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)`
+  - [x] `AddAdminDTO(String loginName, @SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` -> [internal/domain/admin/access/admin/dto/admin_dtos.go:AddAdminDTO](../internal/domain/admin/access/admin/dto/admin_dtos.go)
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
 
 - **AddAdminRoleDTO.java** ([java/im/turms/service/domain/admin/access/admin/dto/request/AddAdminRoleDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/dto/request/AddAdminRoleDTO.java))
 > [简述功能]
 
-  - [ ] `AddAdminRoleDTO(Long id, String name, Set<String> permissions, Integer rank)`
+  - [x] `AddAdminRoleDTO(Long id, String name, Set<String> permissions, Integer rank)` -> [internal/domain/admin/access/admin/dto/admin_dtos.go:AddAdminRoleDTO](../internal/domain/admin/access/admin/dto/admin_dtos.go)
 
 - **UpdateAdminDTO.java** ([java/im/turms/service/domain/admin/access/admin/dto/request/UpdateAdminDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/dto/request/UpdateAdminDTO.java))
 > [简述功能]
 
-  - [ ] `UpdateAdminDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)`
+  - [x] `UpdateAdminDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` -> [internal/domain/admin/access/admin/dto/admin_dtos.go:UpdateAdminDTO](../internal/domain/admin/access/admin/dto/admin_dtos.go)
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
 
 - **UpdateAdminRoleDTO.java** ([java/im/turms/service/domain/admin/access/admin/dto/request/UpdateAdminRoleDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/dto/request/UpdateAdminRoleDTO.java))
 > [简述功能]
 
-  - [ ] `UpdateAdminRoleDTO(String name, Set<String> permissions, Integer rank)`
+  - [x] `UpdateAdminRoleDTO(String name, Set<String> permissions, Integer rank)` -> [internal/domain/admin/access/admin/dto/admin_dtos.go:UpdateAdminRoleDTO](../internal/domain/admin/access/admin/dto/admin_dtos.go)
 
 - **PermissionDTO.java** ([java/im/turms/service/domain/admin/access/admin/dto/response/PermissionDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/dto/response/PermissionDTO.java))
 > [简述功能]
 
-  - [ ] `PermissionDTO(String group, AdminPermission permission)`
+  - [x] `PermissionDTO(String group, AdminPermission permission)` -> [internal/domain/admin/access/admin/dto/admin_dtos.go:PermissionDTO](../internal/domain/admin/access/admin/dto/admin_dtos.go)
 
 - **AdminRepository.java** ([java/im/turms/service/domain/admin/repository/AdminRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/repository/AdminRepository.java))
 > [简述功能]
 
-  - [ ] `updateAdmins(Set<Long> ids, @Nullable byte[] password, @Nullable String displayName, @Nullable Set<Long> roleIds)`
-  - [ ] `countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)`
-  - [ ] `findAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)`
+  - [x] `updateAdmins(Set<Long> ids, @Nullable byte[] password, @Nullable String displayName, @Nullable Set<Long> roleIds)` -> [internal/domain/admin/repository/admin_repository.go:UpdateAdmins()](../internal/domain/admin/repository/admin_repository.go)
+  - [x] `countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)` -> [internal/domain/admin/repository/admin_repository.go:CountAdmins()](../internal/domain/admin/repository/admin_repository.go)
+  - [x] `findAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)` -> [internal/domain/admin/repository/admin_repository.go:FindAdmins()](../internal/domain/admin/repository/admin_repository.go)
 
 - **AdminRoleRepository.java** ([java/im/turms/service/domain/admin/repository/AdminRoleRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/repository/AdminRoleRepository.java))
 > [简述功能]
 
-  - [ ] `updateAdminRoles(Set<Long> roleIds, String newName, @Nullable Set<AdminPermission> permissions, @Nullable Integer rank)`
-  - [ ] `countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)`
-  - [ ] `findAdminRoles(@Nullable Set<Long> roleIds, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)`
-  - [ ] `findAdminRolesByIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @Nullable Integer rankGreaterThan)`
-  - [ ] `findHighestRankByRoleIds(Set<Long> roleIds)`
+  - [x] `updateAdminRoles(Set<Long> roleIds, String newName, @Nullable Set<AdminPermission> permissions, @Nullable Integer rank)` -> [internal/domain/admin/repository/admin_role_repository.go:UpdateAdminRoles()](../internal/domain/admin/repository/admin_role_repository.go)
+  - [x] `countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)` -> [internal/domain/admin/repository/admin_role_repository.go:CountAdminRoles()](../internal/domain/admin/repository/admin_role_repository.go)
+  - [x] `findAdminRoles(@Nullable Set<Long> roleIds, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)` -> [internal/domain/admin/repository/admin_role_repository.go:FindAdminRoles()](../internal/domain/admin/repository/admin_role_repository.go)
+  - [x] `findAdminRolesByIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @Nullable Integer rankGreaterThan)` -> [internal/domain/admin/repository/admin_role_repository.go:FindAdminRolesByIdsAndRankGreaterThan()](../internal/domain/admin/repository/admin_role_repository.go)
+  - [x] `findHighestRankByRoleIds(Set<Long> roleIds)` -> [internal/domain/admin/repository/admin_role_repository.go:FindHighestRankByRoleIds()](../internal/domain/admin/repository/admin_role_repository.go)
 
 - **AdminRoleService.java** ([java/im/turms/service/domain/admin/service/AdminRoleService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/service/AdminRoleService.java))
 > [简述功能]
 
-  - [ ] `authAndAddAdminRole(@NotNull Long requesterId, @NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)`
-  - [ ] `addAdminRole(@NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)`
-  - [ ] `authAndDeleteAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds)`
-  - [ ] `deleteAdminRoles(@NotEmpty Set<Long> roleIds)`
-  - [ ] `authAndUpdateAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)`
-  - [ ] `updateAdminRole(@NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)`
-  - [ ] `queryAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)`
-  - [ ] `queryAndCacheRolesByRoleIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @NotNull Integer rankGreaterThan)`
-  - [ ] `countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)`
-  - [ ] `queryHighestRankByAdminId(@NotNull Long adminId)`
-  - [ ] `queryHighestRankByRoleIds(@NotNull Set<Long> roleIds)`
-  - [ ] `isAdminRankHigherThanRank(@NotNull Long adminId, @NotNull Integer rank)`
-  - [ ] `queryPermissions(@NotNull Long adminId)`
+  - [x] `authAndAddAdminRole(@NotNull Long requesterId, @NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)` -> [internal/domain/admin/service/admin_services.go:AuthAndAddAdminRole()](../internal/domain/admin/service/admin_services.go)
+  - [x] `addAdminRole(@NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)` -> [internal/domain/admin/service/admin_services.go:AddAdminRole()](../internal/domain/admin/service/admin_services.go)
+  - [x] `authAndDeleteAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds)` -> [internal/domain/admin/service/admin_services.go:AuthAndDeleteAdminRoles()](../internal/domain/admin/service/admin_services.go)
+  - [x] `deleteAdminRoles(@NotEmpty Set<Long> roleIds)` -> [internal/domain/admin/service/admin_services.go:DeleteAdminRoles()](../internal/domain/admin/service/admin_services.go)
+  - [x] `authAndUpdateAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)` -> [internal/domain/admin/service/admin_services.go:AuthAndUpdateAdminRoles()](../internal/domain/admin/service/admin_services.go)
+  - [x] `updateAdminRole(@NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)` -> [internal/domain/admin/service/admin_services.go:UpdateAdminRole()](../internal/domain/admin/service/admin_services.go)
+  - [x] `queryAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)` -> [internal/domain/admin/service/admin_services.go:QueryAdminRoles()](../internal/domain/admin/service/admin_services.go)
+  - [x] `queryAndCacheRolesByRoleIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @NotNull Integer rankGreaterThan)` -> [internal/domain/admin/service/admin_services.go:QueryAndCacheRolesByRoleIdsAndRankGreaterThan()](../internal/domain/admin/service/admin_services.go)
+  - [x] `countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)` -> [internal/domain/admin/service/admin_services.go:CountAdminRoles()](../internal/domain/admin/service/admin_services.go)
+  - [x] `queryHighestRankByAdminId(@NotNull Long adminId)` -> [internal/domain/admin/service/admin_services.go:QueryHighestRankByAdminId()](../internal/domain/admin/service/admin_services.go)
+  - [x] `queryHighestRankByRoleIds(@NotNull Set<Long> roleIds)` -> [internal/domain/admin/service/admin_services.go:QueryHighestRankByRoleIds()](../internal/domain/admin/service/admin_services.go)
+  - [x] `isAdminRankHigherThanRank(@NotNull Long adminId, @NotNull Integer rank)` -> [internal/domain/admin/service/admin_services.go:IsAdminRankHigherThanRank()](../internal/domain/admin/service/admin_services.go)
+  - [x] `queryPermissions(@NotNull Long adminId)` -> [internal/domain/admin/service/admin_services.go:QueryPermissions()](../internal/domain/admin/service/admin_services.go)
 
 - **AdminService.java** ([java/im/turms/service/domain/admin/service/AdminService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/service/AdminService.java))
 > [简述功能]
 
-  - [ ] `queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds)`
+  - [x] `queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds)` -> [internal/domain/admin/service/admin_services.go:QueryRoleIdsByAdminIds()](../internal/domain/admin/service/admin_services.go)
   - [ ] `authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)`
   - [ ] `addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)`
   - [ ] `queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)`
