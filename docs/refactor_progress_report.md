@@ -190,7 +190,7 @@
 - **ServiceRequestService.java** ([java/im/turms/gateway/domain/servicerequest/service/ServiceRequestService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/servicerequest/service/ServiceRequestService.java))
 > [简述功能]
 
-  - [ ] `handleServiceRequest(UserSession session, ServiceRequest serviceRequest)`
+  - [x] `handleServiceRequest(UserSession session, ServiceRequest serviceRequest)` -> [internal/domain/gateway/servicerequest/service/servicerequest_service.go:HandleServiceRequest](../internal/domain/gateway/servicerequest/service/servicerequest_service.go)
 
 - **SessionController.java** ([java/im/turms/gateway/domain/session/access/admin/controller/SessionController.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/access/admin/controller/SessionController.java))
 > [简述功能]
@@ -200,8 +200,8 @@
 - **SessionClientController.java** ([java/im/turms/gateway/domain/session/access/client/controller/SessionClientController.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/access/client/controller/SessionClientController.java))
 > [简述功能]
 
-  - [ ] `handleDeleteSessionRequest(UserSessionWrapper sessionWrapper)`
-  - [ ] `handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)`
+  - [x] `handleDeleteSessionRequest(UserSessionWrapper sessionWrapper)` -> [internal/domain/gateway/session/access/client/controller/session_client_controller.go:HandleDeleteSessionRequest](../internal/domain/gateway/session/access/client/controller/session_client_controller.go)
+  - [x] `handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)` -> [internal/domain/gateway/session/access/client/controller/session_client_controller.go:HandleCreateSessionRequest](../internal/domain/gateway/session/access/client/controller/session_client_controller.go)
 
 - **UserLoginInfo.java** ([java/im/turms/gateway/domain/session/bo/UserLoginInfo.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/bo/UserLoginInfo.java))
 > [简述功能]

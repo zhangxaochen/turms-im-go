@@ -7,14 +7,18 @@ const (
 	ResponseStatusCode_OK ResponseStatusCode = 1000
 
 	// Client Error
-	ResponseStatusCode_INVALID_REQUEST  ResponseStatusCode = 1100
-	ResponseStatusCode_ILLEGAL_ARGUMENT ResponseStatusCode = 1102
+	ResponseStatusCode_INVALID_REQUEST            ResponseStatusCode = 1100
+	ResponseStatusCode_CLIENT_REQUESTS_TOO_FREQUENT ResponseStatusCode = 1101
+	ResponseStatusCode_ILLEGAL_ARGUMENT           ResponseStatusCode = 1102
 
 	// Server Error
 	ResponseStatusCode_SERVER_INTERNAL_ERROR ResponseStatusCode = 1200
+	ResponseStatusCode_SERVER_UNAVAILABLE    ResponseStatusCode = 1201
 
 	// Session
-	ResponseStatusCode_CREATE_EXISTING_SESSION ResponseStatusCode = 2001 // Add other session codes as requested
+	ResponseStatusCode_CREATE_EXISTING_SESSION                  ResponseStatusCode = 2001 // Add other session codes as requested
+	ResponseStatusCode_LOGIN_TIMEOUT                            ResponseStatusCode = 2010
+	ResponseStatusCode_UPDATE_HEARTBEAT_OF_NONEXISTENT_SESSION ResponseStatusCode = 2011
 
 	// Group Error
 	ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP                ResponseStatusCode = 3000
