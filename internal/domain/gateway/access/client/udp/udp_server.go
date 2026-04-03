@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/pkg/protocol"
 )
@@ -120,4 +121,21 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
 	// Pending implementation: read UDP packet bytes
 	return nil
+}
+
+// @MappedFrom get(ResponseStatusCode code)
+func (d *UdpRequestDispatcher) GetBufferFromStatusCode(code constant.ResponseStatusCode) []byte {
+	if code == constant.ResponseStatusCode_OK {
+		return []byte{}
+	}
+	// Simplified mock: return 2 bytes representing the business code
+	// Usually this would use encoding/binary byte order
+	val := uint16(code)
+	return []byte{byte(val >> 8), byte(val)}
+}
+
+// @MappedFrom get(UdpNotificationType type)
+func (d *UdpRequestDispatcher) GetBufferFromNotificationType(t UdpNotificationType) []byte {
+	// ordinal + 1 per the Java implementation
+	return []byte{byte(t) + 1}
 }

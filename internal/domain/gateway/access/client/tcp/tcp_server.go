@@ -36,6 +36,9 @@ func (c *TcpConnection) Send(ctx context.Context, buffer []byte) error {
 
 // @MappedFrom close(CloseReason closeReason)
 func (c *TcpConnection) CloseWithReason(reason common.CloseReason) error {
+	if !c.IsConnected() {
+		return nil
+	}
 	c.BaseNetConnection.CloseWithReason(reason)
 	// Pending logic to send notification before closing, similar to Java
 	return c.conn.Close()
@@ -43,6 +46,9 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) error {
 
 // @MappedFrom close()
 func (c *TcpConnection) Close() error {
+	if !c.IsConnected() {
+		return nil
+	}
 	c.BaseNetConnection.Close()
 	return c.conn.Close()
 }
@@ -70,16 +76,24 @@ type TcpUserSessionAssembler struct {
 func NewTcpUserSessionAssembler() *TcpUserSessionAssembler {
 	return &TcpUserSessionAssembler{
 		Enabled: false,
+		Host:    "",
+		Port:    -1,
 	}
 }
 
 // @MappedFrom getHost()
 func (a *TcpUserSessionAssembler) GetHost() string {
+	if !a.Enabled {
+		panic("TCP server is disabled")
+	}
 	return a.Host
 }
 
 // @MappedFrom getPort()
 func (a *TcpUserSessionAssembler) GetPort() int {
+	if !a.Enabled {
+		panic("TCP server is disabled")
+	}
 	return a.Port
 }
 

@@ -68,7 +68,7 @@ func (b *BaseNetConnection) Close() error {
 
 // @MappedFrom switchToUdp()
 func (b *BaseNetConnection) SwitchToUdp() {
-	b.CloseWithReason(NewCloseReason(constant.SessionCloseStatus_SERVER_CLOSED))
+	b.CloseWithReason(NewCloseReason(constant.SessionCloseStatus_SWITCH))
 }
 
 // @MappedFrom tryNotifyClientToRecover()
