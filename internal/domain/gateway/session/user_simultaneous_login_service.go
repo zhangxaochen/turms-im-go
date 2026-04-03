@@ -150,6 +150,15 @@ func (s *UserSimultaneousLoginService) GetConflictedDeviceTypes(deviceType proto
 	return conflicted
 }
 
+func (s *UserSimultaneousLoginService) IsConflicted(deviceType, existingDeviceType protocol.DeviceType) bool {
+	exclusiveTypes, ok := s.deviceTypeToExclusiveDeviceTypes[deviceType]
+	if !ok {
+		return false
+	}
+	_, conflicted := exclusiveTypes[existingDeviceType]
+	return conflicted
+}
+
 // @MappedFrom isForbiddenDeviceType(DeviceType deviceType)
 func (s *UserSimultaneousLoginService) IsForbiddenDeviceType(deviceType protocol.DeviceType) bool {
 	_, forbidden := s.forbiddenDeviceTypes[deviceType]

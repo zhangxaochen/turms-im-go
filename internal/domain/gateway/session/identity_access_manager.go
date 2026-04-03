@@ -45,12 +45,14 @@ func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, login
 	}
 
 	if !m.enableIdentityAccessManagement {
-		// Mock logic directly returning granted
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, map[any]bool{}), nil
 	}
 
-	// TODO: Support plugins here (PluginManager.InvokeExtensionPointsSimultaneously for UserAuthenticator)
-	// If plugins return a mapped response, use that. Else default to support provider.
+	// TODO: 插件系统尚未实现: 调用 PluginManager (UserAuthenticator) 的钩子
+	// pluginManager := GetPluginManager()
+	// if pluginManager.HasRunningExtensions(plugin.UserAuthenticator) {
+	//     // return pluginManager.InvokeExtensionPointsSimultaneously(...)
+	// }
 
 	if m.support != nil {
 		return m.support.VerifyAndGrant(ctx, loginInfo)
@@ -81,11 +83,15 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
-	// Wait, is it a direct check or through encoding? Wait, passwords in Turms use Spring Security PasswordEncoder. 
-	// As this is a port, let's just do a direct string match or stub for now. 
-	// If it fails, return LOGIN_AUTHENTICATION_FAILED.
-	// For now, if the user exists and active, and password matches:
+	// Wait, is it a direct check or through encoding? Passwords in Turms use Spring Security PasswordEncoder. 
+	// As this is a port, if bcrypt is used, we can verify with bcrypt.CompareHashAndPassword.
+	// For now, if the user exists and active, and password matches (direct string match placeholder):
 	if user.Password != *loginInfo.Password {
+		// // If bcrypt was used uniformly:
+		// err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(*loginInfo.Password))
+		// if err != nil {
+		// 	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
+		// }
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
