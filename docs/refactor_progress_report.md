@@ -395,29 +395,29 @@
 - **Control.java** ([java/im/turms/gateway/infra/ldap/element/common/control/Control.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/common/control/Control.java))
 > [简述功能]
 
-  - [ ] `decode(BerBuffer buffer)`
+  - [x] `decode(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
 
 - **BindRequest.java** ([java/im/turms/gateway/infra/ldap/element/operation/bind/BindRequest.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/bind/BindRequest.java))
 > [简述功能]
 
-  - [ ] `estimateSize()`
-  - [ ] `writeTo(BerBuffer buffer)`
+  - [x] `estimateSize()` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
+  - [x] `writeTo(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
 
 - **BindResponse.java** ([java/im/turms/gateway/infra/ldap/element/operation/bind/BindResponse.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/bind/BindResponse.java))
 > [简述功能]
 
-  - [ ] `decode(BerBuffer buffer)`
+  - [x] `decode(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
 
 - **ModifyRequest.java** ([java/im/turms/gateway/infra/ldap/element/operation/modify/ModifyRequest.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/modify/ModifyRequest.java))
 > [简述功能]
 
-  - [ ] `estimateSize()`
-  - [ ] `writeTo(BerBuffer buffer)`
+  - [x] `estimateSize()` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
+  - [x] `writeTo(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
 
 - **ModifyResponse.java** ([java/im/turms/gateway/infra/ldap/element/operation/modify/ModifyResponse.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/modify/ModifyResponse.java))
 > [简述功能]
 
-  - [ ] `decode(BerBuffer buffer)`
+  - [x] `decode(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
 
 - **Filter.java** ([java/im/turms/gateway/infra/ldap/element/operation/search/Filter.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/search/Filter.java))
 > [简述功能]
@@ -427,13 +427,13 @@
 - **SearchRequest.java** ([java/im/turms/gateway/infra/ldap/element/operation/search/SearchRequest.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/search/SearchRequest.java))
 > [简述功能]
 
-  - [ ] `estimateSize()`
-  - [ ] `writeTo(BerBuffer buffer)`
+  - [x] `estimateSize()` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
+  - [x] `writeTo(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
 
 - **SearchResult.java** ([java/im/turms/gateway/infra/ldap/element/operation/search/SearchResult.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/ldap/element/operation/search/SearchResult.java))
 > [简述功能]
 
-  - [ ] `decode(BerBuffer buffer)`
+  - [x] `decode(BerBuffer buffer)` -> [internal/infra/ldap/element/elements.go](../internal/infra/ldap/element/elements.go)
   - [x] `isComplete()` -> [internal/infra/ldap/element/elements.go:IsComplete()](../internal/infra/ldap/element/elements.go)
 
 - **ApiLoggingContext.java** ([java/im/turms/gateway/infra/logging/ApiLoggingContext.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/infra/logging/ApiLoggingContext.java))
@@ -481,7 +481,7 @@
 
   - [x] `adminMongoClient(TurmsPropertiesManager propertiesManager)` -> [internal/storage/mongo/mongo_config.go:AdminMongoClient()](../internal/storage/mongo/mongo_config.go)
   - [x] `userMongoClient(TurmsPropertiesManager propertiesManager)` -> [internal/storage/mongo/mongo_config.go:UserMongoClient()](../internal/storage/mongo/mongo_config.go)
-  - [ ] `mongoDataGenerator()`
+  - [x] `mongoDataGenerator()` -> [internal/infra/mongo/mongo_data_generator.go](../internal/infra/mongo/mongo_data_generator.go)
 
 ### turms-service
 
@@ -523,31 +523,31 @@
 
   - [x] `RequestHandlerResult(ResponseStatusCode code, @Nullable String reason, @Nullable TurmsNotification.Data response, List<Notification> notifications)` -> [internal/domain/common/dto/request_handler_result.go:NewRequestHandlerResult(...)](../internal/domain/common/dto/request_handler_result.go)
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
-  - [ ] `of(@NotNull ResponseStatusCode code)`
-  - [ ] `of(@NotNull ResponseStatusCode code, @Nullable String reason)`
-  - [ ] `of(@NotNull TurmsNotification.Data response)`
-  - [ ] `of(boolean forwardNotificationsToRequesterOtherOnlineSessions, @NotNull TurmsRequest notification)`
-  - [ ] `of(boolean forwardNotificationsToRequesterOtherOnlineSessions, @NotNull Long recipientId, @NotNull TurmsRequest notification)`
-  - [ ] `of(@NotNull Long recipientId, @NotNull TurmsRequest notification)`
-  - [ ] `of(@NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest dataForRecipient)`
-  - [ ] `of(boolean forwardNotificationToRequesterOtherOnlineSessions, @NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notification)`
-  - [ ] `of(TurmsNotification.Data response, @NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notificationForRecipients, @NotNull TurmsRequest notificationForRequesterOtherOnlineSessions)`
-  - [ ] `of(@NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notificationForRecipients, @NotNull TurmsRequest notificationForRequesterOtherOnlineSessions)`
-  - [ ] `of(TurmsNotification.Data response, boolean forwardNotificationToRequesterOtherOnlineSessions, @NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notification)`
-  - [ ] `of(@NotNull ResponseStatusCode code, @NotNull Long recipientId, @NotNull TurmsRequest notification)`
-  - [ ] `of(@NotNull ResponseStatusCode code, boolean forwardNotificationToRequesterOtherOnlineSessions, @NotNull Long recipientId, @NotNull TurmsRequest notification)`
-  - [ ] `of(@NotNull List<Notification> notifications)`
-  - [ ] `of(@NotNull Notification notification)`
-  - [ ] `ofDataLong(@NotNull Long value)`
-  - [ ] `ofDataLong(@NotNull Long value, @NotNull Long recipientId, @NotNull TurmsRequest notification)`
-  - [ ] `ofDataLong(@NotNull Long value, boolean forwardNotificationToRequesterOtherOnlineSessions, @NotNull Long recipientId, @NotNull TurmsRequest notification)`
-  - [ ] `ofDataLong(@NotNull Long value, boolean forwardDataForRecipientsToRequesterOtherOnlineSessions, @NotNull TurmsRequest notification)`
-  - [ ] `ofDataLong(@NotNull Long value, boolean forwardNotificationsToRequesterOtherOnlineSessions, @NotEmpty Set<Long> recipients, TurmsRequest notification)`
-  - [ ] `ofDataLongs(@NotNull Collection<Long> values)`
-  - [ ] `Notification(boolean forwardToRequesterOtherOnlineSessions, Set<Long> recipients, TurmsRequest notification)`
-  - [ ] `of(boolean forwardToRequesterOtherOnlineSessions, Set<Long> recipients, TurmsRequest notification)`
-  - [ ] `of(boolean forwardToRequesterOtherOnlineSessions, Long recipient, TurmsRequest notification)`
-  - [ ] `of(boolean forwardToRequesterOtherOnlineSessions, TurmsRequest notification)`
+  - [x] `of(@NotNull ResponseStatusCode code)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull ResponseStatusCode code, @Nullable String reason)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull TurmsNotification.Data response)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(boolean forwardNotificationsToRequesterOtherOnlineSessions, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(boolean forwardNotificationsToRequesterOtherOnlineSessions, @NotNull Long recipientId, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull Long recipientId, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest dataForRecipient)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(boolean forwardNotificationToRequesterOtherOnlineSessions, @NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(TurmsNotification.Data response, @NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notificationForRecipients, @NotNull TurmsRequest notificationForRequesterOtherOnlineSessions)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notificationForRecipients, @NotNull TurmsRequest notificationForRequesterOtherOnlineSessions)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(TurmsNotification.Data response, boolean forwardNotificationToRequesterOtherOnlineSessions, @NotEmpty Set<Long> recipientIds, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull ResponseStatusCode code, @NotNull Long recipientId, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull ResponseStatusCode code, boolean forwardNotificationToRequesterOtherOnlineSessions, @NotNull Long recipientId, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull List<Notification> notifications)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(@NotNull Notification notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `ofDataLong(@NotNull Long value)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `ofDataLong(@NotNull Long value, @NotNull Long recipientId, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `ofDataLong(@NotNull Long value, boolean forwardNotificationToRequesterOtherOnlineSessions, @NotNull Long recipientId, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `ofDataLong(@NotNull Long value, boolean forwardDataForRecipientsToRequesterOtherOnlineSessions, @NotNull TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `ofDataLong(@NotNull Long value, boolean forwardNotificationsToRequesterOtherOnlineSessions, @NotEmpty Set<Long> recipients, TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `ofDataLongs(@NotNull Collection<Long> values)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `Notification(boolean forwardToRequesterOtherOnlineSessions, Set<Long> recipients, TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(boolean forwardToRequesterOtherOnlineSessions, Set<Long> recipients, TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(boolean forwardToRequesterOtherOnlineSessions, Long recipient, TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
+  - [x] `of(boolean forwardToRequesterOtherOnlineSessions, TurmsRequest notification)` -> [internal/domain/common/dto/request_handler_result.go](../internal/domain/common/dto/request_handler_result.go)
   - [x] `toString()` -> [internal/domain/gateway/session/connection.go:ToString()](../internal/domain/gateway/session/connection.go)
 
 - **AdminController.java** ([java/im/turms/service/domain/admin/access/admin/controller/AdminController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/admin/access/admin/controller/AdminController.java))
@@ -556,7 +556,7 @@
   - [x] `checkLoginNameAndPassword()` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:CheckLoginNameAndPassword()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:AddAdmin()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `queryAdmins(@QueryParam(required = false)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdmins()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
-  - [ ] `queryAdmins(@QueryParam(required = false)`
+  - [x] `queryAdmins(@QueryParam(required = false)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminsWithQuery](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:UpdateAdmins()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `deleteAdmins(RequestContext requestContext, Set<Long> ids)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:DeleteAdmins()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
 
@@ -570,7 +570,7 @@
 
   - [x] `addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:AddAdminRole()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `queryAdminRoles(@QueryParam(required = false)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminRoles()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
-  - [ ] `queryAdminRoles(@QueryParam(required = false)`
+  - [x] `queryAdminRoles(@QueryParam(required = false)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminRolesWithQuery](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:UpdateAdminRole()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
   - [x] `deleteAdminRoles(RequestContext requestContext, Set<Long> ids)` -> [internal/domain/admin/access/admin/controller/admin_controllers.go:DeleteAdminRoles()](../internal/domain/admin/access/admin/controller/admin_controllers.go)
 
