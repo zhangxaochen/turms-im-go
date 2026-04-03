@@ -9,6 +9,7 @@ import (
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
+	"im.turms/server/internal/domain/gateway/access/client/udp"
 )
 
 // @MappedFrom TcpConnection
@@ -82,7 +83,7 @@ func (c *TcpConnection) Close() error {
 	if !c.IsConnected() {
 		return nil
 	}
-	c.BaseNetConnection.Close()
+	// Java's TcpConnection.close() does NOT call super.close() - we preserve the volatile semantics
 	err := c.conn.Close()
 	if err != nil {
 		log.Printf("Failed to close the TCP connection %s: %v", c.GetAddress(), err)
@@ -150,5 +151,11 @@ func (a *TcpUserSessionAssembler) GetPort() (int, error) {
 
 // @MappedFrom createConnection(Connection connection, Duration closeTimeout)
 func (a *TcpUserSessionAssembler) CreateConnection(conn net.Conn, closeTimeout time.Duration) common.NetConnection {
-	return NewTcpConnection(conn, true, closeTimeout)
+	c := NewTcpConnection(conn, true, closeTimeout)
+	c.SetUdpSignalDispatcher(func(addr *net.UDPAddr) {
+		if udp.Instance != nil {
+			udp.Instance.SendSignal(addr, udp.OpenConnectionNotification)
+		}
+	})
+	return c
 }

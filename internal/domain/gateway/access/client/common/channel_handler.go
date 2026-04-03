@@ -2,8 +2,11 @@ package common
 
 import (
 	"errors"
+	"log"
 	"net"
 )
+
+var ErrOutOfMemory = errors.New("out of direct memory / fatal memory error")
 
 // @MappedFrom ServiceAvailabilityHandler
 type ServiceAvailabilityChannelHandler struct {
@@ -58,5 +61,15 @@ func (h *ServiceAvailabilityChannelHandler) HandleException(conn net.Conn, cause
 				h.blocklistService.TryBlockUserIdForCorruptedFrame(s.UserID)
 			}
 		}
+		// Java: ctx.fireExceptionCaught(...) followed by potential close upstream or here.
+		// Corrupted frames should force close the connection because the stream is no longer valid.
+		conn.Close()
+	} else if errors.Is(cause, ErrOutOfMemory) {
+		log.Printf("Fatal memory error caught on connection %v: %v", conn.RemoteAddr(), cause)
+		conn.Close()
+		// In Go, usually we'd allow panics to bubble up, but if we catch it, we must close.
+	} else {
+		// Log or handle the connection exception
+		log.Printf("Connection exception caught on %v: %v", conn.RemoteAddr(), cause)
 	}
 }

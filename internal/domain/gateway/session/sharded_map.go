@@ -128,7 +128,7 @@ func (m *ShardedUserSessionsMap) GetOrAdd(userID int64) *UserSessionsManager {
 	return manager
 }
 
-func (m *ShardedUserSessionsMap) RemoveIfEmpty(userID int64) {
+func (m *ShardedUserSessionsMap) RemoveIfEmpty(userID int64) *UserSessionsManager {
 	shard := m.getShard(userID)
 	shard.Lock()
 	defer shard.Unlock()
@@ -136,7 +136,9 @@ func (m *ShardedUserSessionsMap) RemoveIfEmpty(userID int64) {
 		if manager.IsEmpty() {
 			delete(shard.m, userID)
 		}
+		return manager
 	}
+	return nil
 }
 
 func (m *ShardedUserSessionsMap) CountOnlineUsers() int {
@@ -148,3 +150,21 @@ func (m *ShardedUserSessionsMap) CountOnlineUsers() int {
 	}
 	return count
 }
+
+func (m *ShardedUserSessionsMap) Range(f func(int64, *UserSessionsManager) bool) {
+	for _, shard := range m.shards {
+		shard.RLock()
+		managers := make([]*UserSessionsManager, 0, len(shard.m))
+		for _, manager := range shard.m {
+			managers = append(managers, manager)
+		}
+		shard.RUnlock()
+
+		for _, manager := range managers {
+			if !f(manager.UserID, manager) {
+				return
+			}
+		}
+	}
+}
+

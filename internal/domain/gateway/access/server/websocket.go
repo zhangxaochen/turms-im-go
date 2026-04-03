@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pires/go-proxyproto"
 	"im.turms/server/internal/domain/gateway/session"
 )
 
@@ -44,6 +45,10 @@ func (c *WSConnection) RemoteAddr() net.Addr {
 
 func (c *WSConnection) TryNotifyClientToRecover() {}
 
+func (c *WSConnection) IsActive() bool {
+	return c.conn != nil
+}
+
 type WSServer struct {
 	addr           string
 	httpServer     *http.Server
@@ -75,9 +80,16 @@ func (s *WSServer) Start() error {
 		Handler: mux,
 	}
 
+	ln, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		return err
+	}
+
+	proxyListener := &proxyproto.Listener{Listener: ln}
+
 	go func() {
-		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("WSServer ListenAndServe error: %v", err)
+		if err := s.httpServer.Serve(proxyListener); err != nil && err != http.ErrServerClosed {
+			log.Printf("WSServer Serve error: %v", err)
 		}
 	}()
 
