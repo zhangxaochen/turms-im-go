@@ -1,20 +1,18 @@
 package bo
 
 import (
-	"reflect"
-
 	"im.turms/server/internal/domain/common/constant"
 )
 
 // UserPermissionInfo represents the permissions granted to a user session.
 type UserPermissionInfo struct {
 	AuthenticationCode constant.ResponseStatusCode
-	Permissions        map[reflect.Type]struct{} // Set of TurmsRequest.KindCase
+	Permissions        map[any]bool // Set of TurmsRequest.KindCase
 }
 
 // NewUserPermissionInfo creates a new UserPermissionInfo.
 // @MappedFrom UserPermissionInfo(ResponseStatusCode authenticationCode, Set<TurmsRequest.KindCase> permissions)
-func NewUserPermissionInfo(authenticationCode constant.ResponseStatusCode, permissions map[reflect.Type]struct{}) *UserPermissionInfo {
+func NewUserPermissionInfo(authenticationCode constant.ResponseStatusCode, permissions map[any]bool) *UserPermissionInfo {
 	return &UserPermissionInfo{
 		AuthenticationCode: authenticationCode,
 		Permissions:        permissions,
@@ -26,7 +24,7 @@ func NewUserPermissionInfo(authenticationCode constant.ResponseStatusCode, permi
 func NewUserPermissionInfoCodeOnly(authenticationCode constant.ResponseStatusCode) *UserPermissionInfo {
 	return &UserPermissionInfo{
 		AuthenticationCode: authenticationCode,
-		Permissions:        make(map[reflect.Type]struct{}),
+		Permissions:        make(map[any]bool),
 	}
 }
 

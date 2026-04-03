@@ -77,6 +77,9 @@ type Connection interface {
 
 	// TryNotifyClientToRecover stops the connection recovery status
 	TryNotifyClientToRecover()
+
+	// IsActive returns true if the connection is active
+	IsActive() bool
 }
 
 // Handler defines how incoming raw payloads (post-frame decoding) are processed.

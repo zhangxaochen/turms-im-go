@@ -1,4 +1,4 @@
-package manager
+package session
 
 import "im.turms/server/pkg/protocol"
 

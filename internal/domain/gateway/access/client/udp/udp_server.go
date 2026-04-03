@@ -73,6 +73,10 @@ func (t UdpRequestType) GetNumber() int {
 	return int(t) + 1
 }
 
+var (
+	Instance *UdpRequestDispatcher
+)
+
 // @MappedFrom UdpRequestDispatcher
 type UdpRequestDispatcher struct {
 	sessionService   *session.SessionService
@@ -104,6 +108,8 @@ func NewUdpRequestDispatcher(sessionService *session.SessionService, enabled boo
 
 	go d.readLoop()
 	go d.writeLoop()
+
+	Instance = d
 
 	return d
 }

@@ -10,6 +10,7 @@ import (
 
 	"im.turms/server/internal/domain/common/infra/cluster/rpc/codec"
 	"im.turms/server/internal/domain/gateway/session"
+	"github.com/pires/go-proxyproto"
 )
 
 // TCPConnection wraps net.Conn to implement session.Connection
@@ -39,6 +40,10 @@ func (c *TCPConnection) RemoteAddr() net.Addr {
 }
 
 func (c *TCPConnection) TryNotifyClientToRecover() {}
+
+func (c *TCPConnection) IsActive() bool {
+	return c.conn != nil
+}
 
 // TCPServer listens for incoming TCP connections and handles them.
 type TCPServer struct {
@@ -72,10 +77,11 @@ func (s *TCPServer) ListenerAddr() string {
 
 func (s *TCPServer) Start() error {
 	var err error
-	s.listener, err = net.Listen("tcp", s.addr)
+	l, err := net.Listen("tcp", s.addr)
 	if err != nil {
 		return err
 	}
+	s.listener = &proxyproto.Listener{Listener: l}
 
 	go s.acceptLoop()
 	return nil
