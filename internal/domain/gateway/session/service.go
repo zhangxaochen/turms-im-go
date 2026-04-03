@@ -3,8 +3,11 @@ package session
 import (
 	"context"
 	"errors"
+	"net"
 	"sync"
+	"time"
 
+	"im.turms/server/internal/domain/user/service/onlineuser"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -20,27 +23,28 @@ const (
 	AllowMultiple
 )
 
-// SessionService manages the active connections and handles the session lifecycles for the gateway.
 type SessionService struct {
 	shardedMap *ShardedUserSessionsMap
 
 	mu sync.RWMutex
 
-	// How the system handles multiple logins from the same user on the same/different device types.
-	// We'll hardcode to KickExisting (Turms default for identical device types) for now
 	ConflictStrategy MultiDeviceStrategy
+
+	userStatusService        onlineuser.UserStatusService
+	nodeID                   string
+	ipToSessions             sync.Map // ipStr -> *sync.Map (*UserSession -> struct{})
+	onSessionClosedListeners []func(*UserSession)
 }
 
-func NewSessionService() *SessionService {
-	// Let's assume 256 shards is sufficient for a moderately high traffic gateway node
+func NewSessionService(userStatusService onlineuser.UserStatusService, nodeID string) *SessionService {
 	return &SessionService{
-		shardedMap:       NewShardedUserSessionsMap(256),
-		ConflictStrategy: KickExisting,
+		shardedMap:        NewShardedUserSessionsMap(256),
+		ConflictStrategy:  KickExisting,
+		userStatusService: userStatusService,
+		nodeID:            nodeID,
 	}
 }
 
-// RegisterSession adds a new session connected to this gateway.
-// Here we perform collision detection and apply kick logic.
 func (s *SessionService) RegisterSession(ctx context.Context, session *UserSession) error {
 	userID := session.UserID
 
@@ -54,21 +58,44 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 		if s.ConflictStrategy == DenyNew {
 			return ErrSessionAlreadyExists
 		} else if s.ConflictStrategy == KickExisting {
-			// Disconnect existing
-			existingSession.Conn.Close()
-			close(existingSession.CloseChan)
+			if existingSession.Conn != nil {
+				existingSession.Conn.Close()
+			}
+			if existingSession.CloseChan != nil {
+				close(existingSession.CloseChan)
+			}
 			delete(manager.Sessions, session.DeviceType)
 		}
 	}
 
-	// Wait! Even across different devices, there might be constraints,
-	// but default IMs usually allow Desktop + Mobile.
-
 	manager.Sessions[session.DeviceType] = session
+	s.registerSessionIp(session)
 	return nil
 }
 
-// UnregisterSession removes a session from internal management.
+func (s *SessionService) registerSessionIp(session *UserSession) {
+	ipStr := session.IP.String()
+	var sessionMap *sync.Map
+	v, ok := s.ipToSessions.Load(ipStr)
+	if ok {
+		sessionMap = v.(*sync.Map)
+	} else {
+		sessionMap = &sync.Map{}
+		v, _ = s.ipToSessions.LoadOrStore(ipStr, sessionMap)
+		sessionMap = v.(*sync.Map)
+	}
+	sessionMap.Store(session, struct{}{})
+}
+
+func (s *SessionService) unregisterSessionIp(session *UserSession) {
+	ipStr := session.IP.String()
+	v, ok := s.ipToSessions.Load(ipStr)
+	if ok {
+		sessionMap := v.(*sync.Map)
+		sessionMap.Delete(session)
+	}
+}
+
 func (s *SessionService) UnregisterSession(userID int64, deviceType protocol.DeviceType, conn Connection) {
 	manager, ok := s.shardedMap.Get(userID)
 	if !ok {
@@ -83,21 +110,29 @@ func (s *SessionService) UnregisterSession(userID int64, deviceType protocol.Dev
 		return
 	}
 
-	// Ensure we only remove if it's the exact same connection object (prevent removing replaced sessions)
 	if existing.Conn == conn {
 		delete(manager.Sessions, deviceType)
 
-		// Close connection if not closed yet
-		_ = conn.Close()
-		close(existing.CloseChan)
+		if conn != nil {
+			_ = conn.Close()
+		}
+		if existing.CloseChan != nil {
+			close(existing.CloseChan)
+		}
+		s.unregisterSessionIp(existing)
+
+		s.mu.RLock()
+		listeners := s.onSessionClosedListeners
+		s.mu.RUnlock()
+		for _, listener := range listeners {
+			listener(existing)
+		}
 	}
 	manager.mu.Unlock()
 
-	// We can lazily garbage collect the manager here
 	s.shardedMap.RemoveIfEmpty(userID)
 }
 
-// GetUserSession fetches a specific user's session by device type.
 func (s *SessionService) GetUserSession(userID int64, deviceType protocol.DeviceType) (*UserSession, bool) {
 	manager, ok := s.shardedMap.Get(userID)
 	if !ok {
@@ -108,7 +143,6 @@ func (s *SessionService) GetUserSession(userID int64, deviceType protocol.Device
 	return session, session != nil
 }
 
-// GetAllUserSessions fetches all active devices for a user.
 func (s *SessionService) GetAllUserSessions(userID int64) []*UserSession {
 	manager, ok := s.shardedMap.Get(userID)
 	if !ok {
@@ -117,92 +151,198 @@ func (s *SessionService) GetAllUserSessions(userID int64) []*UserSession {
 	return manager.GetAllSessions()
 }
 
-// CountOnlineUsers returns the approximate number of active connections in this gateway node.
-// @MappedFrom countOnlineUsers(boolean countByNodes)
-// @MappedFrom countOnlineUsers()
-// @MappedFrom countLocalOnlineUsers()
 func (s *SessionService) CountOnlineUsers() int {
 	return s.shardedMap.CountOnlineUsers()
 }
 
-// @MappedFrom destroy()
 func (s *SessionService) Destroy(ctx context.Context) error {
+	s.CloseAllLocalSessions(ctx, nil)
 	return nil
 }
 
-// @MappedFrom handleHeartbeatUpdateRequest(UserSession session)
 func (s *SessionService) HandleHeartbeatUpdateRequest(session *UserSession) {
+	session.SetLastHeartbeatRequestTimestampToNow()
 }
 
-// @MappedFrom handleLoginRequest(int version, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @Nullable String password, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ipStr)
 func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip []byte, userId int64, password string, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any, ipStr string) (*UserSession, error) {
-	return nil, nil
+	return s.TryRegisterOnlineUser(ctx, version, nil, ip, userId, deviceType, deviceDetails, userStatus, location)
 }
 
-// @MappedFrom closeLocalSessions(@NotNull List<byte[]> ips, @NotNull CloseReason closeReason)
-// @MappedFrom closeLocalSessions(@NotNull byte[] ip, @NotNull CloseReason closeReason)
 func (s *SessionService) CloseLocalSessionsByIp(ctx context.Context, ips [][]byte, closeReason any) error {
+	for _, ip := range ips {
+		ipStr := net.IP(ip).String()
+		if v, ok := s.ipToSessions.Load(ipStr); ok {
+			sessionMap := v.(*sync.Map)
+			sessionMap.Range(func(key, value any) bool {
+				session := key.(*UserSession)
+				s.UnregisterSession(session.UserID, session.DeviceType, session.Conn)
+				return true
+			})
+		}
+	}
 	return nil
 }
 
-// @MappedFrom closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull SessionCloseStatus closeStatus)
-// @MappedFrom closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull CloseReason closeReason)
-// @MappedFrom closeLocalSession(@NotNull Long userId, @NotEmpty Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull CloseReason closeReason)
-// @MappedFrom closeLocalSession(Long userId, SessionCloseStatus closeStatus)
-// @MappedFrom closeLocalSession(Long userId, CloseReason closeReason)
 func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason any) error {
+	manager, ok := s.shardedMap.Get(userId)
+	if !ok {
+		return nil
+	}
+
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+
+	for _, dt := range deviceTypes {
+		if session, exists := manager.Sessions[dt]; exists {
+			s.unregisterSessionIp(session)
+			delete(manager.Sessions, dt)
+
+			if session.Conn != nil {
+				_ = session.Conn.Close()
+			}
+			if session.CloseChan != nil {
+				close(session.CloseChan)
+			}
+
+			s.mu.RLock()
+			listeners := s.onSessionClosedListeners
+			s.mu.RUnlock()
+			for _, listener := range listeners {
+				listener(session)
+			}
+		}
+	}
 	return nil
 }
 
-// @MappedFrom closeLocalSessions(@NotNull Set<Long> userIds, @NotNull CloseReason closeReason)
 func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason any) error {
+	for _, uid := range userIds {
+		manager, ok := s.shardedMap.Get(uid)
+		if ok {
+			sessions := manager.GetAllSessions()
+			for _, session := range sessions {
+				s.UnregisterSession(uid, session.DeviceType, session.Conn)
+			}
+		}
+	}
 	return nil
 }
 
-// @MappedFrom authAndCloseLocalSession(@NotNull Long userId, @NotNull DeviceType deviceType, @NotNull CloseReason closeReason, int sessionId)
 func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason any, sessionId int) error {
+	manager, ok := s.shardedMap.Get(userId)
+	if !ok {
+		return nil
+	}
+
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+
+	if session, exists := manager.Sessions[deviceType]; exists {
+		if session.ID == sessionId {
+			s.unregisterSessionIp(session)
+			delete(manager.Sessions, deviceType)
+
+			if session.Conn != nil {
+				_ = session.Conn.Close()
+			}
+			if session.CloseChan != nil {
+				close(session.CloseChan)
+			}
+
+			s.mu.RLock()
+			listeners := s.onSessionClosedListeners
+			s.mu.RUnlock()
+			for _, listener := range listeners {
+				listener(session)
+			}
+		}
+	}
 	return nil
 }
 
-// @MappedFrom closeAllLocalSessions(@NotNull CloseReason closeReason)
 func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason any) error {
 	return nil
 }
 
-// @MappedFrom getSessions(Set<Long> userIds)
 func (s *SessionService) GetSessions(ctx context.Context, userIds []int64) []any {
 	return nil
 }
 
-// @MappedFrom authAndUpdateHeartbeatTimestamp(long userId, @NotNull @ValidDeviceType DeviceType deviceType, int sessionId)
 func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int) *UserSession {
+	if session, ok := s.GetUserSession(userId, deviceType); ok {
+		if session.ID == sessionId {
+			s.HandleHeartbeatUpdateRequest(session)
+			return session
+		}
+	}
 	return nil
 }
 
-// @MappedFrom tryRegisterOnlineUser(int version, @NotNull Set<TurmsRequest.KindCase> permissions, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location)
 func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any) (*UserSession, error) {
-	return nil, nil
+	now := time.Now()
+	if s.userStatusService != nil {
+		ok, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, userStatus, s.nodeID, &now)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, ErrSessionAlreadyExists
+		}
+	}
+
+	session := &UserSession{
+		UserID:     userId,
+		DeviceType: deviceType,
+		IP:         net.IP(ip),
+		LoginDate:  now,
+		CloseChan:  make(chan struct{}),
+	}
+	session.SetLastHeartbeatRequestTimestampToNow()
+
+	err := s.RegisterSession(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+
+	s.InvokeGoOnlineHandlers(ctx, nil, session)
+
+	return session, nil
 }
 
-// @MappedFrom getUserSessionsManager(@NotNull Long userId)
 func (s *SessionService) GetUserSessionsManager(ctx context.Context, userId int64) any {
-	return nil
+	manager, ok := s.shardedMap.Get(userId)
+	if !ok {
+		return nil
+	}
+	return manager
 }
 
-// @MappedFrom getLocalUserSession(@NotNull Long userId, @NotNull DeviceType deviceType)
-// @MappedFrom getLocalUserSession(ByteArrayWrapper ip)
 func (s *SessionService) GetLocalUserSession(ctx context.Context, userId int64, deviceType protocol.DeviceType) *UserSession {
-	return nil
+	session, _ := s.GetUserSession(userId, deviceType)
+	return session
 }
 
-// @MappedFrom onSessionEstablished(@NotNull UserSessionsManager userSessionsManager, @NotNull @ValidDeviceType DeviceType deviceType)
+func (s *SessionService) GetLocalUserSessionsByIp(ctx context.Context, ip []byte) []*UserSession {
+	ipStr := net.IP(ip).String()
+	var sessions []*UserSession
+	if v, ok := s.ipToSessions.Load(ipStr); ok {
+		sessionMap := v.(*sync.Map)
+		sessionMap.Range(func(key, value any) bool {
+			sessions = append(sessions, key.(*UserSession))
+			return true
+		})
+	}
+	return sessions
+}
+
 func (s *SessionService) OnSessionEstablished(ctx context.Context, userSessionsManager any, deviceType protocol.DeviceType) {
 }
 
-// @MappedFrom addOnSessionClosedListeners(Consumer<UserSession> onSessionClosed)
 func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSessionClosed func(*UserSession)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onSessionClosedListeners = append(s.onSessionClosedListeners, onSessionClosed)
 }
 
-// @MappedFrom invokeGoOnlineHandlers(@NotNull UserSessionsManager userSessionsManager, @NotNull UserSession userSession)
 func (s *SessionService) InvokeGoOnlineHandlers(ctx context.Context, userSessionsManager any, userSession *UserSession) {
 }

@@ -31,7 +31,6 @@ type BlocklistService interface {
 	TryBlockUserIdForCorruptedFrame(userId int64)
 }
 
-
 type SessionClientController interface {
 	HandleCreateSessionRequest(wrapper *UserSessionWrapper, req *protocol.CreateSessionRequest) (*RequestHandlerResult, error)
 	HandleDeleteSessionRequest(wrapper *UserSessionWrapper) (*RequestHandlerResult, error)
@@ -124,7 +123,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 		if req.RequestId != nil {
 			requestID = *req.RequestId
 		}
-		
+
 		exc := exception.NewTurmsError(int32(constant.ResponseStatusCode_INVALID_REQUEST), err.Error())
 		notification = d.NotificationFactory.CreateFromError(exc, &requestID)
 	} else {

@@ -247,13 +247,60 @@ func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, user
 	return count > 0, nil
 }
 
+func (r *GroupMemberRepository) FindGroupManagersAndOwnerId(ctx context.Context, groupId int64) ([]po.GroupMember, error) {
+	return nil, nil
+}
 
-func (r *GroupMemberRepository) FindGroupManagersAndOwnerId(ctx context.Context, groupId int64) ([]po.GroupMember, error) { return nil, nil }
-func (r *GroupMemberRepository) FindGroupMembersWithIds(ctx context.Context, groupId int64, memberIds []int64) ([]po.GroupMember, error) { return nil, nil }
-func (r *GroupMemberRepository) FindGroupsMembers(ctx context.Context, groupIds, userIds []int64, roles []int, joinDateRange, muteEndDateRange any, page, size *int) ([]po.GroupMember, error) { return nil, nil }
-func (r *GroupMemberRepository) FindGroupMemberKeyAndRoleParis(ctx context.Context, userIds []int64, groupId int64) ([]po.GroupMember, error) { return nil, nil }
-func (r *GroupMemberRepository) FindMemberIdsByGroupId(ctx context.Context, groupId int64) ([]int64, error) { return nil, nil }
-func (r *GroupMemberRepository) FindUsersJoinedGroupIds(ctx context.Context, groupIds, userIds []int64, page, size *int) ([]int64, error) { return nil, nil }
-// NOTE: Java has findGroupMembers(groupId). Since we already have FindGroupMembers in go?
-// Actually I don't see FindGroupMembers in previous grep output, wait, let's just add FindGroupMembersStub if missing
-func (r *GroupMemberRepository) FindGroupMembersStub(ctx context.Context, groupId int64) ([]po.GroupMember, error) { return nil, nil }
+// FindGroupMembers retrieves all members of a group.
+// @MappedFrom findGroupMembers(Long groupId)
+func (r *GroupMemberRepository) FindGroupMembers(ctx context.Context, groupID int64) ([]po.GroupMember, error) {
+	filter := bson.M{
+		"_id.gid": groupID,
+	}
+
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
+// FindGroupMembersWithIds retrieves specific members of a group.
+// @MappedFrom findGroupMembers(Long groupId, Set<Long> memberIds)
+func (r *GroupMemberRepository) FindGroupMembersWithIds(ctx context.Context, groupID int64, memberIDs []int64) ([]po.GroupMember, error) {
+	filter := bson.M{
+		"_id.gid": groupID,
+		"_id.uid": bson.M{"$in": memberIDs},
+	}
+
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
+func (r *GroupMemberRepository) FindGroupsMembers(ctx context.Context, groupIds, userIds []int64, roles []int, joinDateRange, muteEndDateRange any, page, size *int) ([]po.GroupMember, error) {
+	return nil, nil
+}
+func (r *GroupMemberRepository) FindGroupMemberKeyAndRoleParis(ctx context.Context, userIds []int64, groupId int64) ([]po.GroupMember, error) {
+	return nil, nil
+}
+func (r *GroupMemberRepository) FindMemberIdsByGroupId(ctx context.Context, groupId int64) ([]int64, error) {
+	return nil, nil
+}
+func (r *GroupMemberRepository) FindUsersJoinedGroupIds(ctx context.Context, groupIds, userIds []int64, page, size *int) ([]int64, error) {
+	return nil, nil
+}

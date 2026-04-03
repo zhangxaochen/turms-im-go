@@ -5,15 +5,15 @@ import "im.turms/server/pkg/protocol"
 // SimpleTurmsNotification maps to SimpleTurmsNotification in Java.
 // @MappedFrom SimpleTurmsNotification
 type SimpleTurmsNotification struct {
-	RequesterID       int64
-	CloseStatus       *int32
+	RequesterID        int64
+	CloseStatus        *int32
 	RelayedRequestType any
 }
 
 func NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRequestType any) *SimpleTurmsNotification {
 	return &SimpleTurmsNotification{
-		RequesterID:       requesterID,
-		CloseStatus:       closeStatus,
+		RequesterID:        requesterID,
+		CloseStatus:        closeStatus,
 		RelayedRequestType: relayedRequestType,
 	}
 }

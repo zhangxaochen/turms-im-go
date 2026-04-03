@@ -10,14 +10,14 @@ type CheckGroupQuestionAnswerResult struct {
 
 // @MappedFrom HandleHandleGroupInvitationResult
 type HandleHandleGroupInvitationResult struct {
-	GroupInvitation             any  `json:"groupInvitation"`
-	RequesterAddedAsNewMember   bool `json:"requesterAddedAsNewMember"`
+	GroupInvitation           any  `json:"groupInvitation"`
+	RequesterAddedAsNewMember bool `json:"requesterAddedAsNewMember"`
 }
 
 // @MappedFrom HandleHandleGroupJoinRequestResult
 type HandleHandleGroupJoinRequestResult struct {
-	GroupJoinRequest            any  `json:"groupJoinRequest"`
-	RequesterAddedAsNewMember   bool `json:"requesterAddedAsNewMember"`
+	GroupJoinRequest          any  `json:"groupJoinRequest"`
+	RequesterAddedAsNewMember bool `json:"requesterAddedAsNewMember"`
 }
 
 // @MappedFrom NewGroupQuestion

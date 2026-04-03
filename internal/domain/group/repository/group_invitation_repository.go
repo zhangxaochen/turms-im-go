@@ -261,5 +261,6 @@ func (r *groupInvitationRepository) buildFilter(groupID, inviterID, inviteeID *i
 	return filter
 }
 
-
-func (r *groupInvitationRepository) FindInvitationsByInviterId(ctx context.Context, inviterId int64) ([]po.GroupInvitation, error) { return nil, nil }
+func (r *groupInvitationRepository) FindInvitationsByInviterId(ctx context.Context, inviterId int64) ([]po.GroupInvitation, error) {
+	return nil, nil
+}

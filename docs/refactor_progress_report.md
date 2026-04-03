@@ -974,79 +974,80 @@
 - **AddGroupBlockedUserDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupBlockedUserDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupBlockedUserDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupBlockedUserDTO(Long groupId, Long userId, Date blockDate, Long requesterId)`
+  - [x] `AddGroupBlockedUserDTO(Long groupId, Long userId, Date blockDate, Long requesterId)`
 
 - **AddGroupDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupDTO(Long typeId, Long creatorId, Long ownerId, String name, String intro, String announcement, Integer minimumScore, Date creationDate, Date deletionDate, Date muteEndDate, Boolean isActive)`
+  - [x] `AddGroupDTO(Long typeId, Long creatorId, Long ownerId, String name, String intro, String announcement, Integer minimumScore, Date creationDate, Date deletionDate, Date muteEndDate, Boolean isActive)`
 
 - **AddGroupInvitationDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupInvitationDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupInvitationDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupInvitationDTO(Long id, String content, RequestStatus status, Date creationDate, Date responseDate, Long groupId, Long inviterId, Long inviteeId)`
+  - [x] `AddGroupInvitationDTO(Long id, String content, RequestStatus status, Date creationDate, Date responseDate, Long groupId, Long inviterId, Long inviteeId)`
 
 - **AddGroupJoinQuestionDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupJoinQuestionDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupJoinQuestionDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupJoinQuestionDTO(Long groupId, String question, LinkedHashSet<String> answers, Integer score)`
+  - [x] `AddGroupJoinQuestionDTO(Long groupId, String question, LinkedHashSet<String> answers, Integer score)`
 
 - **AddGroupJoinRequestDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupJoinRequestDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupJoinRequestDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupJoinRequestDTO(Long id, String content, RequestStatus status, Date creationDate, Date responseDate, String responseReason, Long groupId, Long requesterId, Long responderId)`
+  - [x] `AddGroupJoinRequestDTO(Long id, String content, RequestStatus status, Date creationDate, Date responseDate, String responseReason, Long groupId, Long requesterId, Long responderId)`
 
 - **AddGroupMemberDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupMemberDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupMemberDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupMemberDTO(Long groupId, Long userId, String name, GroupMemberRole role, Date joinDate, Date muteEndDate)`
+  - [x] `AddGroupMemberDTO(Long groupId, Long userId, String name, GroupMemberRole role, Date joinDate, Date muteEndDate)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **AddGroupTypeDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupTypeDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupTypeDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `AddGroupTypeDTO(String name, Integer groupSizeLimit, GroupInvitationStrategy invitationStrategy, GroupJoinStrategy joinStrategy, GroupUpdateStrategy groupInfoUpdateStrategy, GroupUpdateStrategy memberInfoUpdateStrategy, Boolean guestSpeakable, Boolean selfInfoUpdatable, Boolean enableReadReceipt, Boolean messageEditable)`
+  - [x] `AddGroupTypeDTO(String name, Integer groupSizeLimit, GroupInvitationStrategy invitationStrategy, GroupJoinStrategy joinStrategy, GroupUpdateStrategy groupInfoUpdateStrategy, GroupUpdateStrategy memberInfoUpdateStrategy, Boolean guestSpeakable, Boolean selfInfoUpdatable, Boolean enableReadReceipt, Boolean messageEditable)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupBlockedUserDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupBlockedUserDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupBlockedUserDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupBlockedUserDTO(Date blockDate, Long requesterId)`
+  - [x] `UpdateGroupBlockedUserDTO(Date blockDate, Long requesterId)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupDTO(Long typeId, Long creatorId, Long ownerId, String name, String intro, String announcement, Integer minimumScore, Boolean isActive, Date creationDate, Date deletionDate, Date muteEndDate, Long successorId, Boolean quitAfterTransfer)`
+  - [x] `UpdateGroupDTO(Long typeId, Long creatorId, Long ownerId, String name, String intro, String announcement, Integer minimumScore, Boolean isActive, Date creationDate, Date deletionDate, Date muteEndDate, Long successorId, Boolean quitAfterTransfer)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupInvitationDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupInvitationDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupInvitationDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupInvitationDTO(String content, RequestStatus status, Date creationDate, Date responseDate, Long groupId, Long inviterId, Long inviteeId)`
+  - [x] `UpdateGroupInvitationDTO(String content, RequestStatus status, Date creationDate, Date responseDate, Long groupId, Long inviterId, Long inviteeId)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupJoinQuestionDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupJoinQuestionDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupJoinQuestionDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupJoinQuestionDTO(Long groupId, String question, Set<String> answers, Integer score)`
+  - [x] `UpdateGroupJoinQuestionDTO(Long groupId, String question, Set<String> answers, Integer score)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupJoinRequestDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupJoinRequestDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupJoinRequestDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupJoinRequestDTO(String content, RequestStatus status, Date creationDate, Date responseDate, Long groupId, Long requesterId, Long responderId)`
+  - [x] `UpdateGroupJoinRequestDTO(String content, RequestStatus status, Date creationDate, Date responseDate, Long groupId, Long requesterId, Long responderId)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupMemberDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupMemberDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupMemberDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupMemberDTO(String name, GroupMemberRole role, Date joinDate, Date muteEndDate)`
+  - [x] `UpdateGroupMemberDTO(String name, GroupMemberRole role, Date joinDate, Date muteEndDate)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **UpdateGroupTypeDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupTypeDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/UpdateGroupTypeDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `UpdateGroupTypeDTO(String name, Integer groupSizeLimit, GroupInvitationStrategy invitationStrategy, GroupJoinStrategy joinStrategy, GroupUpdateStrategy groupInfoUpdateStrategy, GroupUpdateStrategy memberInfoUpdateStrategy, Boolean guestSpeakable, Boolean selfInfoUpdatable, Boolean enableReadReceipt, Boolean messageEditable)`
+  - [x] `UpdateGroupTypeDTO(String name, Integer groupSizeLimit, GroupInvitationStrategy invitationStrategy, GroupJoinStrategy joinStrategy, GroupUpdateStrategy groupInfoUpdateStrategy, GroupUpdateStrategy memberInfoUpdateStrategy, Boolean guestSpeakable, Boolean selfInfoUpdatable, Boolean enableReadReceipt, Boolean messageEditable)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **GroupStatisticsDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/response/GroupStatisticsDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/response/GroupStatisticsDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `GroupStatisticsDTO(Long deletedGroups, Long groupsThatSentMessages, Long createdGroups, List<StatisticsRecordDTO> deletedGroupsRecords, List<StatisticsRecordDTO> groupsThatSentMessagesRecords, List<StatisticsRecordDTO> createdGroupsRecords)`
+  - [x] `GroupStatisticsDTO(Long deletedGroups, Long groupsThatSentMessages, Long createdGroups, List<StatisticsRecordDTO> deletedGroupsRecords, List<StatisticsRecordDTO> groupsThatSentMessagesRecords, List<StatisticsRecordDTO> createdGroupsRecords)` -> [internal/domain/group/access/admin/dto/dtos.go](../internal/domain/group/access/admin/dto/dtos.go)
 
 - **GroupServiceController.java** ([java/im/turms/service/domain/group/access/servicerequest/controller/GroupServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/servicerequest/controller/GroupServiceController.java)) ➡️ [`internal/domain/group/access/servicerequest/controller/group_service_controller.go`](../internal/domain/group/access/servicerequest/controller/group_service_controller.go)
+
 > [简述功能]
 
   - [x] `handleCreateGroupRequest()` -> [internal/domain/group/controller/group_service_controller.go:HandleCreateGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/group/controller/group_service_controller.go)
@@ -1080,7 +1081,7 @@
 - **CheckGroupQuestionAnswerResult.java** ([java/im/turms/service/domain/group/bo/CheckGroupQuestionAnswerResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/bo/CheckGroupQuestionAnswerResult.java)) ➡️ [`internal/domain/group/dto/dtos.go`](../internal/domain/group/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `CheckGroupQuestionAnswerResult(boolean joined, Long groupId, List<Long> questionIds, Integer score)`
+  - [x] `CheckGroupQuestionAnswerResult(boolean joined, Long groupId, List<Long> questionIds, Integer score)` -> [internal/domain/group/dto/dtos.go](../internal/domain/group/dto/dtos.go)
 
 - **GroupInvitationStrategy.java** ([java/im/turms/service/domain/group/bo/GroupInvitationStrategy.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/bo/GroupInvitationStrategy.java))
 > [简述功能]
@@ -1090,14 +1091,15 @@
 - **HandleHandleGroupInvitationResult.java** ([java/im/turms/service/domain/group/bo/HandleHandleGroupInvitationResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/bo/HandleHandleGroupInvitationResult.java)) ➡️ [`internal/domain/group/dto/dtos.go`](../internal/domain/group/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `HandleHandleGroupInvitationResult(GroupInvitation groupInvitation, boolean requesterAddedAsNewMember)`
+  - [x] `HandleHandleGroupInvitationResult(GroupInvitation groupInvitation, boolean requesterAddedAsNewMember)` -> [internal/domain/group/dto/dtos.go](../internal/domain/group/dto/dtos.go)
 
 - **HandleHandleGroupJoinRequestResult.java** ([java/im/turms/service/domain/group/bo/HandleHandleGroupJoinRequestResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/bo/HandleHandleGroupJoinRequestResult.java)) ➡️ [`internal/domain/group/dto/dtos.go`](../internal/domain/group/dto/dtos.go)
 > [简述功能]
 
-  - [ ] `HandleHandleGroupJoinRequestResult(GroupJoinRequest groupJoinRequest, boolean requesterAddedAsNewMember)`
+  - [x] `HandleHandleGroupJoinRequestResult(GroupJoinRequest groupJoinRequest, boolean requesterAddedAsNewMember)` -> [internal/domain/group/dto/dtos.go](../internal/domain/group/dto/dtos.go)
 
 - **NewGroupQuestion.java** ([java/im/turms/service/domain/group/bo/NewGroupQuestion.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/bo/NewGroupQuestion.java)) ➡️ [`internal/domain/group/dto/dtos.go`](../internal/domain/group/dto/dtos.go)
+
 > [简述功能]
 
   - [x] `NewGroupQuestion(String question, LinkedHashSet<String> answers, Integer score)` ➡️ [`internal/infra/validator/validator.go`](../internal/infra/validator/validator.go)
@@ -1146,8 +1148,8 @@
   - [x] `countMembers(Long groupId)` -> [internal/domain/group/repository/group_member_repository.go:CountMembers(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_member_repository.go)
   - [x] `countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)` -> [internal/domain/group/repository/group_member_repository.go:CountMembers(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_member_repository.go)
   - [x] `findGroupManagersAndOwnerId(Long groupId)` ➡️ [`internal/domain/group/repository/group_member_repository.go`](../internal/domain/group/repository/group_member_repository.go)
-  - [ ] `findGroupMembers(Long groupId)`
-  - [ ] `findGroupMembers(Long groupId, Set<Long> memberIds)`
+  - [x] `findGroupMembers(Long groupId)` -> [internal/domain/group/repository/group_member_repository.go:FindGroupMembers(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_member_repository.go)
+  - [x] `findGroupMembers(Long groupId, Set<Long> memberIds)` -> [internal/domain/group/repository/group_member_repository.go:FindGroupMembersWithIds(ctx context.Context, groupID int64, memberIDs []int64)](../internal/domain/group/repository/group_member_repository.go)
   - [x] `findGroupsMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<@ValidGroupMemberRole GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size)` ➡️ [`internal/domain/group/repository/group_member_repository.go`](../internal/domain/group/repository/group_member_repository.go)
   - [x] `findGroupMemberIds(Long groupId)` -> [internal/domain/group/repository/group_member_repository.go:FindGroupMemberIDs(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_member_repository.go)
   - [x] `findGroupMemberIds(Set<Long> groupIds)` -> [internal/domain/group/repository/group_member_repository.go:FindGroupMemberIDs(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_member_repository.go)
@@ -1418,10 +1420,10 @@
 > [简述功能]
 
   - [x] `handleCreateMessageRequest()` -> [internal/domain/message/controller/message_controller.go:HandleCreateMessageRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/message/controller/message_controller.go)
-  - [ ] `handleQueryMessagesRequest()`
-  - [ ] `handleUpdateMessageRequest()`
-  - [ ] `handleCreateMessageReactionsRequest()`
-  - [ ] `handleDeleteMessageReactionsRequest()`
+  - [x] `handleQueryMessagesRequest()` -> [internal/domain/message/controller/message_controller.go:HandleQueryMessagesRequest(...)](../internal/domain/message/controller/message_controller.go)
+  - [x] `handleUpdateMessageRequest()` -> [internal/domain/message/controller/message_controller.go:HandleUpdateMessageRequest(...)](../internal/domain/message/controller/message_controller.go)
+  - [x] `handleCreateMessageReactionsRequest()` -> [internal/domain/message/controller/message_controller.go:HandleCreateMessageReactionsRequest(...)](../internal/domain/message/controller/message_controller.go)
+  - [x] `handleDeleteMessageReactionsRequest()` -> [internal/domain/message/controller/message_controller.go:HandleDeleteMessageReactionsRequest(...)](../internal/domain/message/controller/message_controller.go)
 
 - **MessageAndRecipientIds.java** ([java/im/turms/service/domain/message/bo/MessageAndRecipientIds.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/message/bo/MessageAndRecipientIds.java))
 > [简述功能]
@@ -1494,11 +1496,11 @@
 - **StorageServiceController.java** ([java/im/turms/service/domain/storage/access/servicerequest/controller/StorageServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/storage/access/servicerequest/controller/StorageServiceController.java))
 > [简述功能]
 
-  - [ ] `handleDeleteResourceRequest()`
-  - [ ] `handleQueryResourceUploadInfoRequest()`
-  - [ ] `handleQueryResourceDownloadInfoRequest()`
-  - [ ] `handleUpdateMessageAttachmentInfoRequest()`
-  - [ ] `handleQueryMessageAttachmentInfosRequest()`
+  - [x] `handleDeleteResourceRequest()` -> [internal/domain/storage/controller/storage_controller.go:HandleDeleteResourceRequest](../internal/domain/storage/controller/storage_controller.go)
+  - [x] `handleQueryResourceUploadInfoRequest()` -> [internal/domain/storage/controller/storage_controller.go:HandleQueryResourceUploadInfoRequest](../internal/domain/storage/controller/storage_controller.go)
+  - [x] `handleQueryResourceDownloadInfoRequest()` -> [internal/domain/storage/controller/storage_controller.go:HandleQueryResourceDownloadInfoRequest](../internal/domain/storage/controller/storage_controller.go)
+  - [x] `handleUpdateMessageAttachmentInfoRequest()` -> [internal/domain/storage/controller/storage_controller.go:HandleUpdateMessageAttachmentInfoRequest](../internal/domain/storage/controller/storage_controller.go)
+  - [x] `handleQueryMessageAttachmentInfosRequest()` -> [internal/domain/storage/controller/storage_controller.go:HandleQueryMessageAttachmentInfosRequest](../internal/domain/storage/controller/storage_controller.go)
 
 - **StorageResourceInfo.java** ([java/im/turms/service/domain/storage/bo/StorageResourceInfo.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/storage/bo/StorageResourceInfo.java))
 > [简述功能]

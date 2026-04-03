@@ -13,7 +13,7 @@ import (
 )
 
 func TestTCPServer_Lifecycle(t *testing.T) {
-	svc := session.NewSessionService()
+	svc := session.NewSessionService(nil, "test-server-id")
 	ts := NewTCPServer("127.0.0.1:0", svc, func(ctx context.Context, session *session.UserSession, payload []byte) {
 		// handle
 	})
@@ -33,7 +33,7 @@ func TestTCPServer_Lifecycle(t *testing.T) {
 }
 
 func TestWSServer_Lifecycle(t *testing.T) {
-	svc := session.NewSessionService()
+	svc := session.NewSessionService(nil, "test-server-id")
 
 	ws := NewWSServer("127.0.0.1:0", svc, func(ctx context.Context, session *session.UserSession, payload []byte) {
 		// handle
