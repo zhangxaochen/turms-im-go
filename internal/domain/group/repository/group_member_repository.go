@@ -231,6 +231,7 @@ func (r *GroupMemberRepository) FindGroupMemberKeyAndRolePairs(ctx context.Conte
 	}
 	return members, nil
 }
+
 // IsGroupMember checks if a user is a member of a group.
 // @MappedFrom isGroupMember(@NotNull Long groupId, @NotNull Long userId, boolean preferCache)
 // @MappedFrom isGroupMember(@NotEmpty Set<Long> groupIds, @NotNull Long userId)

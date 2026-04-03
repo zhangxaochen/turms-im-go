@@ -2,10 +2,10 @@ package redis
 
 const (
 	// Keys
-	KeyLocation             = "l"
-	KeyGroupMessageSequence = "gs"
+	KeyLocation               = "l"
+	KeyGroupMessageSequence   = "gs"
 	KeyPrivateMessageSequence = "ps"
-	KeyRelatedUserIds      = "ru"
+	KeyRelatedUserIds         = "ru"
 
 	// Hash Fields
 	FieldSessionsStatus = "$"

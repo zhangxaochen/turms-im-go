@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/protobuf/proto"
 
+	"go.mongodb.org/mongo-driver/mongo"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/internal/domain/user/bo"
 	"im.turms/server/internal/domain/user/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/protocol"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Mock services
@@ -293,12 +293,12 @@ func TestUserRelationshipController_HandleQueryRelationshipsRequest(t *testing.T
 
 	ctx := context.Background()
 	s := &session.UserSession{UserID: 1}
-	
+
 	now := time.Now()
 	mockRelSvc.On("QueryRelationshipsWithVersion", ctx, int64(1), []int64{2}, []int32(nil), (*bool)(nil), (*time.Time)(nil)).
 		Return([]po.UserRelationship{
 			{
-				ID: po.UserRelationshipKey{OwnerID: 1, RelatedUserID: 2},
+				ID:                po.UserRelationshipKey{OwnerID: 1, RelatedUserID: 2},
 				EstablishmentDate: &now,
 			},
 		}, &now, nil)
@@ -316,7 +316,7 @@ func TestUserRelationshipController_HandleQueryRelationshipsRequest(t *testing.T
 
 	assert.NoError(t, err)
 	assert.Equal(t, int32(1000), *resp.Code)
-	
+
 	data := resp.GetData().GetUserRelationshipsWithVersion()
 	assert.NotNil(t, data)
 	assert.Len(t, data.UserRelationships, 1)

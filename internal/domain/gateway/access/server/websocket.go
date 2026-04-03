@@ -42,6 +42,8 @@ func (c *WSConnection) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
+func (c *WSConnection) TryNotifyClientToRecover() {}
+
 type WSServer struct {
 	addr           string
 	httpServer     *http.Server

@@ -41,6 +41,8 @@ func (r *userSettingsRepository) UpsertSettings(ctx context.Context, userID int6
 	return err
 }
 
+// @MappedFrom deleteSettings(Collection<Long> ownerIds, @Nullable ClientSession clientSession)
+// @MappedFrom deleteSettings(Collection<Long> userIds, @Nullable ClientSession clientSession)
 func (r *userSettingsRepository) DeleteSettings(ctx context.Context, filter interface{}) (int64, error) {
 	res, err := r.collection.DeleteMany(ctx, filter)
 	if err != nil {

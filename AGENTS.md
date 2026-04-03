@@ -47,5 +47,14 @@
 When porting/refactoring code from Java to Go, you MUST NOT just translate method signatures blindly.
 BEFORE committing any ported struct/service, you MUST complete this implicit checklist:
 1. **Config Audit**: Which configuration/Properties was the Java version reading? You must read the SAME property in Go using dependency injection. If it does not exist, explicitly mock it or flag it.
-2. **Overload Audit**: Java might have multiple overloaded methods with the same name. Go does not have method overloading. You MUST create multiple explicit Go functions (e.g., `NewX`, `NewXWithReason`, `NewXFromError`) to catch EVERY original path and ensure parity.
+2. **Overload Audit**: Java might have multiple overloaded methods with the same name. Go does not have method overloading. You MUST create multiple explicit Go functions (e.g., `NewX`, `NewXWithReason`, `NewXFromError`) to catch EVERY original path. 
+   - **Exception**: If a single Go function uses variadic arguments or generic `interface{}` to encapsulate the permutations (e.g. `UpsertSettings`), it is **expected and required** to stack multiple `// @MappedFrom` annotations above that single Go function to track all Java counterparts.
 3. **Data Loss Audit**: Ensure all object field assignments via chained Builders in Java (e.g., `.setTimestamp(...)`) are exactly represented in the Go struct literal. Do not drop implicit assignments like system timestamps.
+
+## 自动化重构工具 (Automation Tools)
+
+为了追踪映射进度并进行双向挂载，本项目基于 `docs/refactor_progress_report.md` 构建了半自动流水线：
+
+1. **Markdown 链接规范**: 在 `refactor_progress_report.md` 中记录映射关系时，Go 代码的路径和方法必须使用相对路径的 Markdown 链接（例如 `- [x] `javaMethod()` -> [internal/xxx.go:Method()](../internal/xxx.go)`），严禁使用反引号。这允许 GitHub 和 IDE 的直接点击跳转。
+2. **自动注入脚本 (`inject_mapped_from.py`)**: 无论何时更新了 `refactor_progress_report.md`，都应该在根目录运行 `python3 inject_mapped_from.py`。该脚本会解析报告中的映射，并自动在对应的 Go 文件函数上方扫描并注入或更新 `// @MappedFrom` 注解，彻底免除手动双写同步的烦恼。
+3. **批量刷图脚本 (`reformat_report.py`)**: 当出现旧格式的遗留反引号时，可以通过这个脚本自动升级 `refactor_progress_report.md` 中的所有 Go 引用格式。

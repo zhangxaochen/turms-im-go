@@ -25,7 +25,7 @@ func TestUserRelationshipRepository_BDD(t *testing.T) {
 	now := time.Now()
 
 	err := repo.Insert(ctx, &po.UserRelationship{
-		ID:        po.UserRelationshipKey{OwnerID: ownerID, RelatedUserID: friendID},
+		ID: po.UserRelationshipKey{OwnerID: ownerID, RelatedUserID: friendID},
 	}, nil)
 	assert.NoError(t, err)
 

@@ -8,13 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/domain/group/service"
 	user_repository "im.turms/server/internal/domain/user/repository"
 	user_service "im.turms/server/internal/domain/user/service"
-	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/testingutil"
 	"im.turms/server/pkg/protocol"
 )
@@ -80,10 +80,10 @@ func TestGroupRelationshipService(t *testing.T) {
 	isActive := true
 	typeID := int64(0)
 	err = groupRepo.InsertGroup(ctx, &po.Group{
-		ID:        groupID,
-		TypeID:    &typeID,
-		OwnerID:   &adminID,
-		IsActive:  &isActive,
+		ID:       groupID,
+		TypeID:   &typeID,
+		OwnerID:  &adminID,
+		IsActive: &isActive,
 	})
 	require.NoError(t, err)
 
@@ -94,7 +94,7 @@ func TestGroupRelationshipService(t *testing.T) {
 			GroupID: groupID,
 			UserID:  adminID,
 		},
-		Role: protocol.GroupMemberRole_OWNER,
+		Role:     protocol.GroupMemberRole_OWNER,
 		JoinDate: &now,
 	})
 	require.NoError(t, err)

@@ -82,7 +82,7 @@ func TestNotificationFactory_CreateWithReason(t *testing.T) {
 
 func TestNotificationFactory_CreateFromError(t *testing.T) {
 	requestID := int64(67890)
-	
+
 	tests := []struct {
 		name         string
 		props        *config.GatewayProperties
@@ -93,40 +93,40 @@ func TestNotificationFactory_CreateFromError(t *testing.T) {
 		isServerErr  bool
 	}{
 		{
-			name: "TurmsError - Client Error",
-			props: &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: false}},
-			requestID: &requestID,
-			err: exception.NewTurmsError(int32(constant.ResponseStatusCode_INVALID_REQUEST), "Bad input"),
-			expectCode: constant.ResponseStatusCode_INVALID_REQUEST,
+			name:         "TurmsError - Client Error",
+			props:        &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: false}},
+			requestID:    &requestID,
+			err:          exception.NewTurmsError(int32(constant.ResponseStatusCode_INVALID_REQUEST), "Bad input"),
+			expectCode:   constant.ResponseStatusCode_INVALID_REQUEST,
 			expectReason: "Bad input",
-			isServerErr: false,
+			isServerErr:  false,
 		},
 		{
-			name: "TurmsError - Server Error - Masked",
-			props: &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: false}},
-			requestID: &requestID,
-			err: exception.NewTurmsError(int32(constant.ResponseStatusCode_SERVER_INTERNAL_ERROR), "Internal crash"),
-			expectCode: constant.ResponseStatusCode_SERVER_INTERNAL_ERROR,
+			name:         "TurmsError - Server Error - Masked",
+			props:        &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: false}},
+			requestID:    &requestID,
+			err:          exception.NewTurmsError(int32(constant.ResponseStatusCode_SERVER_INTERNAL_ERROR), "Internal crash"),
+			expectCode:   constant.ResponseStatusCode_SERVER_INTERNAL_ERROR,
 			expectReason: "",
-			isServerErr: true,
+			isServerErr:  true,
 		},
 		{
-			name: "Native Error - Acts As Server Error - Masked",
-			props: &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: false}},
-			requestID: &requestID,
-			err: errors.New("Unknown panic"),
-			expectCode: constant.ResponseStatusCode_SERVER_INTERNAL_ERROR,
+			name:         "Native Error - Acts As Server Error - Masked",
+			props:        &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: false}},
+			requestID:    &requestID,
+			err:          errors.New("Unknown panic"),
+			expectCode:   constant.ResponseStatusCode_SERVER_INTERNAL_ERROR,
 			expectReason: "",
-			isServerErr: true,
+			isServerErr:  true,
 		},
 		{
-			name: "Native Error - Acts As Server Error - Not Masked",
-			props: &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: true}},
-			requestID: &requestID,
-			err: errors.New("Unknown panic"),
-			expectCode: constant.ResponseStatusCode_SERVER_INTERNAL_ERROR,
+			name:         "Native Error - Acts As Server Error - Not Masked",
+			props:        &config.GatewayProperties{ClientAPI: &config.ClientAPIProperties{ReturnReasonForServerError: true}},
+			requestID:    &requestID,
+			err:          errors.New("Unknown panic"),
+			expectCode:   constant.ResponseStatusCode_SERVER_INTERNAL_ERROR,
 			expectReason: "Unknown panic",
-			isServerErr: true,
+			isServerErr:  true,
 		},
 	}
 

@@ -162,6 +162,7 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 		return s.groupMemberService.UpdateGroupMemberRole(ctx, groupID, requesterID, protocol.GroupMemberRole_MEMBER, session)
 	}
 }
+
 // AuthAndDeleteGroup deletes a group after authorization check.
 // @MappedFrom authAndDeleteGroup(boolean queryGroupMemberIds, @NotNull Long requesterId, @NotNull Long groupId)
 func (s *GroupService) AuthAndDeleteGroup(ctx context.Context, requesterID int64, groupID int64) error {

@@ -95,6 +95,7 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, groupID int64, update
 	_, err := r.col.UpdateOne(ctx, filter, bson.M{"$set": update})
 	return err
 }
+
 // DeleteGroup removes a group from MongoDB.
 func (r *GroupRepository) DeleteGroup(ctx context.Context, groupID int64) error {
 	filter := bson.M{"_id": groupID}

@@ -36,6 +36,7 @@ type UserRepository interface {
 	FindUsersProfile(ctx context.Context, userIDs []int64) ([]*po.User, error)
 	FindUserRoleID(ctx context.Context, userID int64) (*int64, error)
 	IsActiveAndNotDeleted(ctx context.Context, userID int64) (bool, error)
+	FindPassword(ctx context.Context, userID int64) (*string, error)
 }
 
 type userRepository struct {
@@ -277,4 +278,16 @@ func (r *userRepository) IsActiveAndNotDeleted(ctx context.Context, userID int64
 
 func (r *userRepository) Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error) {
 	return r.coll.Aggregate(ctx, pipeline)
+}
+
+// @MappedFrom findPassword(Long userId)
+func (r *userRepository) FindPassword(ctx context.Context, userID int64) (*string, error) {
+	user, err := r.FindByID(ctx, userID)
+	if err != nil || user == nil {
+		return nil, err
+	}
+	if user.Password == "" {
+		return nil, nil // Return empty or nil depending on DB layout
+	}
+	return &user.Password, nil
 }

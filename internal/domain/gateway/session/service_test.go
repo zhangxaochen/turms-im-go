@@ -27,6 +27,8 @@ func (m *MockConnection) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1234}
 }
 
+func (m *MockConnection) TryNotifyClientToRecover() {}
+
 func TestSessionService_RegisterAndUnregister(t *testing.T) {
 	svc := NewSessionService()
 

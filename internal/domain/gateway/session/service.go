@@ -120,6 +120,89 @@ func (s *SessionService) GetAllUserSessions(userID int64) []*UserSession {
 // CountOnlineUsers returns the approximate number of active connections in this gateway node.
 // @MappedFrom countOnlineUsers(boolean countByNodes)
 // @MappedFrom countOnlineUsers()
+// @MappedFrom countLocalOnlineUsers()
 func (s *SessionService) CountOnlineUsers() int {
 	return s.shardedMap.CountOnlineUsers()
+}
+
+// @MappedFrom destroy()
+func (s *SessionService) Destroy(ctx context.Context) error {
+	return nil
+}
+
+// @MappedFrom handleHeartbeatUpdateRequest(UserSession session)
+func (s *SessionService) HandleHeartbeatUpdateRequest(session *UserSession) {
+}
+
+// @MappedFrom handleLoginRequest(int version, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @Nullable String password, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ipStr)
+func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip []byte, userId int64, password string, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any, ipStr string) (*UserSession, error) {
+	return nil, nil
+}
+
+// @MappedFrom closeLocalSessions(@NotNull List<byte[]> ips, @NotNull CloseReason closeReason)
+// @MappedFrom closeLocalSessions(@NotNull byte[] ip, @NotNull CloseReason closeReason)
+func (s *SessionService) CloseLocalSessionsByIp(ctx context.Context, ips [][]byte, closeReason any) error {
+	return nil
+}
+
+// @MappedFrom closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull SessionCloseStatus closeStatus)
+// @MappedFrom closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull CloseReason closeReason)
+// @MappedFrom closeLocalSession(@NotNull Long userId, @NotEmpty Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull CloseReason closeReason)
+// @MappedFrom closeLocalSession(Long userId, SessionCloseStatus closeStatus)
+// @MappedFrom closeLocalSession(Long userId, CloseReason closeReason)
+func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason any) error {
+	return nil
+}
+
+// @MappedFrom closeLocalSessions(@NotNull Set<Long> userIds, @NotNull CloseReason closeReason)
+func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason any) error {
+	return nil
+}
+
+// @MappedFrom authAndCloseLocalSession(@NotNull Long userId, @NotNull DeviceType deviceType, @NotNull CloseReason closeReason, int sessionId)
+func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason any, sessionId int) error {
+	return nil
+}
+
+// @MappedFrom closeAllLocalSessions(@NotNull CloseReason closeReason)
+func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason any) error {
+	return nil
+}
+
+// @MappedFrom getSessions(Set<Long> userIds)
+func (s *SessionService) GetSessions(ctx context.Context, userIds []int64) []any {
+	return nil
+}
+
+// @MappedFrom authAndUpdateHeartbeatTimestamp(long userId, @NotNull @ValidDeviceType DeviceType deviceType, int sessionId)
+func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int) *UserSession {
+	return nil
+}
+
+// @MappedFrom tryRegisterOnlineUser(int version, @NotNull Set<TurmsRequest.KindCase> permissions, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location)
+func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any) (*UserSession, error) {
+	return nil, nil
+}
+
+// @MappedFrom getUserSessionsManager(@NotNull Long userId)
+func (s *SessionService) GetUserSessionsManager(ctx context.Context, userId int64) any {
+	return nil
+}
+
+// @MappedFrom getLocalUserSession(@NotNull Long userId, @NotNull DeviceType deviceType)
+// @MappedFrom getLocalUserSession(ByteArrayWrapper ip)
+func (s *SessionService) GetLocalUserSession(ctx context.Context, userId int64, deviceType protocol.DeviceType) *UserSession {
+	return nil
+}
+
+// @MappedFrom onSessionEstablished(@NotNull UserSessionsManager userSessionsManager, @NotNull @ValidDeviceType DeviceType deviceType)
+func (s *SessionService) OnSessionEstablished(ctx context.Context, userSessionsManager any, deviceType protocol.DeviceType) {
+}
+
+// @MappedFrom addOnSessionClosedListeners(Consumer<UserSession> onSessionClosed)
+func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSessionClosed func(*UserSession)) {
+}
+
+// @MappedFrom invokeGoOnlineHandlers(@NotNull UserSessionsManager userSessionsManager, @NotNull UserSession userSession)
+func (s *SessionService) InvokeGoOnlineHandlers(ctx context.Context, userSessionsManager any, userSession *UserSession) {
 }

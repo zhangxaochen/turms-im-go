@@ -321,4 +321,3 @@ func (s *GroupInvitationService) ReplyToInvitation(ctx context.Context, invitati
 	err := s.AuthAndHandleInvitation(ctx, inviteeID, invitationID, status, "")
 	return err == nil, err
 }
-

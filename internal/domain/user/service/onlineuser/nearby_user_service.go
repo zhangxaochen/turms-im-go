@@ -5,11 +5,11 @@ import (
 
 	"fmt"
 
+	goredis "github.com/redis/go-redis/v9"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/service"
 	"im.turms/server/internal/storage/redis"
 	"im.turms/server/pkg/protocol"
-	goredis "github.com/redis/go-redis/v9"
 )
 
 type NearbyUser struct {
@@ -81,7 +81,7 @@ func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, 
 		if parseErr != nil {
 			continue
 		}
-		
+
 		if uid == userID {
 			continue
 		}

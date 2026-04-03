@@ -84,6 +84,7 @@ func (r *GroupVersionRepository) UpdateJoinQuestionsVersion(ctx context.Context,
 func (r *GroupVersionRepository) UpdateInvitationsVersion(ctx context.Context, groupID int64) error {
 	return r.UpdateVersion(ctx, groupID, "invt")
 }
+
 // Upsert creates or updates all group version records.
 // @MappedFrom upsert(Long groupId, Collection<Long> memberIds, Date readDate)
 // @MappedFrom upsert(Long groupId, Long memberId, Date readDate, boolean allowMoveReadDateForward)

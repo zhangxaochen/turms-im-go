@@ -5,10 +5,10 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"im.turms/server/pkg/protocol"
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/infra/exception"
+	"im.turms/server/pkg/protocol"
 )
 
 // NotificationFactory standardizes the creation of TurmsNotification objects
@@ -18,6 +18,7 @@ type NotificationFactory struct {
 }
 
 // NewNotificationFactory enforces configuration dependency injection.
+// @MappedFrom init(TurmsPropertiesManager propertiesManager)
 func NewNotificationFactory(props *config.GatewayProperties) *NotificationFactory {
 	if props == nil {
 		props = config.NewGatewayProperties()
@@ -29,7 +30,6 @@ func NewNotificationFactory(props *config.GatewayProperties) *NotificationFactor
 
 // Create generates a generic Notification payload.
 // @MappedFrom create(ResponseStatusCode code, long requestId)
-// @MappedFrom create(ThrowableInfo info, long requestId)
 func (f *NotificationFactory) Create(requestID *int64, code constant.ResponseStatusCode) *protocol.TurmsNotification {
 	return f.CreateWithReason(requestID, code, "")
 }

@@ -30,6 +30,8 @@ func (m *mockConnection) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 12345}
 }
 
+func (m *mockConnection) TryNotifyClientToRecover() {}
+
 func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()
 

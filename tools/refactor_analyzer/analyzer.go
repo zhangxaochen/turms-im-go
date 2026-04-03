@@ -112,7 +112,7 @@ func main() {
 		"clone":    true,
 	}
 
-	goRoots := []string{"internal", "pkg", "tests"}
+	goRoots := []string{"internal", "pkg", "tests", "cmd"}
 	for _, root := range goRoots {
 		filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err == nil && !d.IsDir() && strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
@@ -130,7 +130,7 @@ func main() {
 								continue
 							}
 						}
-						
+
 						lowerM := strings.ToLower(m.Name)
 						if !ignoreMethods[lowerM] {
 							m.Path = path
