@@ -20,9 +20,26 @@ func NewSessionController(sessionService *session.SessionService) *SessionContro
 // DeleteSessions deletes sessions based on the provided user IDs and/or IPs.
 // @MappedFrom deleteSessions(@QueryParam(required = false) Set<Long> ids, @QueryParam(required = false) Set<String> ips)
 func (c *SessionController) DeleteSessions(ctx context.Context, ids []int64, ips []string) (int, error) {
-	// In the future, this should integrate with Gin/Fiber HTTP request handlers
-	// For now, it's a stub demonstrating the mapping
 	count := 0
-	// ... Logic omitted for now until SessionService.CloseLocalSessions is fully implemented in Go.
+	if len(ids) > 0 {
+		err := c.sessionService.CloseLocalSessionsByUserIds(ctx, ids, nil) // TODO: map proper CloseReason
+		if err != nil {
+			return 0, err
+		}
+		count += len(ids)
+	}
+
+	if len(ips) > 0 {
+		var byteIps [][]byte
+		for _, ip := range ips {
+			byteIps = append(byteIps, []byte(ip))
+		}
+		err := c.sessionService.CloseLocalSessionsByIp(ctx, byteIps, nil)
+		if err != nil {
+			return 0, err
+		}
+		count += len(ips)
+	}
+
 	return count, nil
 }

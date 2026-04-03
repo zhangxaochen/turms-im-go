@@ -180,12 +180,12 @@
 - **NotificationService.java** ([java/im/turms/gateway/domain/notification/service/NotificationService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/notification/service/NotificationService.java))
 > [简述功能]
 
-  - [ ] `sendNotificationToLocalClients(TracingContext tracingContext, ByteBuf notificationData, Set<Long> recipientIds, Set<UserSessionId> excludedUserSessionIds, @Nullable DeviceType excludedDeviceType)`
+  - [x] `sendNotificationToLocalClients(TracingContext tracingContext, ByteBuf notificationData, Set<Long> recipientIds, Set<UserSessionId> excludedUserSessionIds, @Nullable DeviceType excludedDeviceType)` -> [internal/domain/gateway/notification/service/notification_service.go:SendNotificationToLocalClients](../internal/domain/gateway/notification/service/notification_service.go)
 
 - **StatisticsService.java** ([java/im/turms/gateway/domain/observation/service/StatisticsService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/observation/service/StatisticsService.java))
 > [简述功能]
 
-  - [ ] `countLocalOnlineUsers()`
+  - [x] `countLocalOnlineUsers()` -> [internal/domain/gateway/observation/service/statistics_service.go:CountLocalOnlineUsers](../internal/domain/gateway/observation/service/statistics_service.go)
 
 - **ServiceRequestService.java** ([java/im/turms/gateway/domain/servicerequest/service/ServiceRequestService.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/servicerequest/service/ServiceRequestService.java))
 > [简述功能]
@@ -195,7 +195,7 @@
 - **SessionController.java** ([java/im/turms/gateway/domain/session/access/admin/controller/SessionController.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/access/admin/controller/SessionController.java))
 > [简述功能]
 
-  - [ ] `deleteSessions(@QueryParam(required = false)`
+  - [x] `deleteSessions(@QueryParam(required = false)` -> [internal/domain/gateway/session/access/admin/controller/session_controller.go:DeleteSessions](../internal/domain/gateway/session/access/admin/controller/session_controller.go)
 
 - **SessionClientController.java** ([java/im/turms/gateway/domain/session/access/client/controller/SessionClientController.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/access/client/controller/SessionClientController.java))
 > [简述功能]
@@ -206,36 +206,36 @@
 - **UserLoginInfo.java** ([java/im/turms/gateway/domain/session/bo/UserLoginInfo.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/bo/UserLoginInfo.java))
 > [简述功能]
 
-  - [ ] `UserLoginInfo(int version, Long userId, String password, DeviceType loggingInDeviceType, Map<String, String> deviceDetails, UserStatus userStatus, Location location, String ip)`
+  - [x] `UserLoginInfo(...)` -> [internal/domain/gateway/session/bo/user_login_info.go:UserLoginInfo](../internal/domain/gateway/session/bo/user_login_info.go)
 
 - **UserPermissionInfo.java** ([java/im/turms/gateway/domain/session/bo/UserPermissionInfo.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/bo/UserPermissionInfo.java))
 > [简述功能]
 
-  - [ ] `UserPermissionInfo(ResponseStatusCode authenticationCode, Set<TurmsRequest.KindCase> permissions)`
+  - [x] `UserPermissionInfo(...)` -> [internal/domain/gateway/session/bo/user_permission_info.go:UserPermissionInfo](../internal/domain/gateway/session/bo/user_permission_info.go)
 
 - **HeartbeatManager.java** ([java/im/turms/gateway/domain/session/manager/HeartbeatManager.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/manager/HeartbeatManager.java))
 > [简述功能]
 
-  - [ ] `setCloseIdleSessionAfterSeconds(int closeIdleSessionAfterSeconds)`
-  - [ ] `setClientHeartbeatIntervalSeconds(int clientHeartbeatIntervalSeconds)`
-  - [ ] `destroy()`
-  - [ ] `estimatedSize()`
-  - [ ] `next()`
+  - [x] `setCloseIdleSessionAfterSeconds(int closeIdleSessionAfterSeconds)` -> [internal/domain/gateway/session/manager/heartbeat_manager.go:SetCloseIdleSessionAfterSeconds](../internal/domain/gateway/session/manager/heartbeat_manager.go)
+  - [x] `setClientHeartbeatIntervalSeconds(int clientHeartbeatIntervalSeconds)` -> [internal/domain/gateway/session/manager/heartbeat_manager.go:SetClientHeartbeatIntervalSeconds](../internal/domain/gateway/session/manager/heartbeat_manager.go)
+  - [x] `destroy()` -> [internal/domain/gateway/session/manager/heartbeat_manager.go:Destroy](../internal/domain/gateway/session/manager/heartbeat_manager.go)
+  - [x] `estimatedSize()` -> [internal/domain/gateway/session/manager/heartbeat_manager.go:EstimatedSize](../internal/domain/gateway/session/manager/heartbeat_manager.go)
+  - [x] `next()` -> [internal/domain/gateway/session/manager/heartbeat_manager.go:Next](../internal/domain/gateway/session/manager/heartbeat_manager.go)
 
 - **UserSessionsManager.java** ([java/im/turms/gateway/domain/session/manager/UserSessionsManager.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/manager/UserSessionsManager.java))
 > [简述功能]
 
-  - [ ] `addSessionIfAbsent(int version, Set<TurmsRequest.KindCase> permissions, DeviceType loggingInDeviceType, Map<String, String> deviceDetails, @Nullable Location location)`
-  - [ ] `closeSession(@NotNull DeviceType deviceType, @NotNull CloseReason closeReason)`
-  - [ ] `pushSessionNotification(DeviceType deviceType, String serverId)`
+  - [x] `addSessionIfAbsent(int version, Set<TurmsRequest.KindCase> permissions, DeviceType loggingInDeviceType, Map<String, String> deviceDetails, @Nullable Location location)` -> [internal/domain/gateway/session/manager/user_sessions_manager.go:AddSessionIfAbsent](../internal/domain/gateway/session/manager/user_sessions_manager.go)
+  - [x] `closeSession(@NotNull DeviceType deviceType, @NotNull CloseReason closeReason)` -> [internal/domain/gateway/session/manager/user_sessions_manager.go:CloseSession](../internal/domain/gateway/session/manager/user_sessions_manager.go)
+  - [x] `pushSessionNotification(DeviceType deviceType, String serverId)` -> [internal/domain/gateway/session/manager/user_sessions_manager.go:PushSessionNotification](../internal/domain/gateway/session/manager/user_sessions_manager.go)
   - [x] `getSession(@NotNull DeviceType deviceType)` -> [internal/domain/gateway/session/sharded_map.go:GetSession(deviceType protocol.DeviceType)](../internal/domain/gateway/session/sharded_map.go)
-  - [ ] `countSessions()`
-  - [ ] `getLoggedInDeviceTypes()`
+  - [x] `countSessions()` -> [internal/domain/gateway/session/manager/user_sessions_manager.go:CountSessions](../internal/domain/gateway/session/manager/user_sessions_manager.go)
+  - [x] `getLoggedInDeviceTypes()` -> [internal/domain/gateway/session/manager/user_sessions_manager.go:GetLoggedInDeviceTypes](../internal/domain/gateway/session/manager/user_sessions_manager.go)
 
 - **UserRepository.java** ([java/im/turms/gateway/domain/session/repository/UserRepository.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/repository/UserRepository.java))
 > [简述功能]
 
-  - [ ] `findPassword(Long userId)`
+  - [x] `findPassword(Long userId)` -> [internal/domain/user/repository/user_repository.go:FindPassword](../internal/domain/user/repository/user_repository.go)
   - [x] `isActiveAndNotDeleted(Long userId)` -> [internal/domain/user/repository/user_repository.go:IsActiveAndNotDeleted(ctx context.Context, userID int64)](../internal/domain/user/repository/user_repository.go)
 
 - **HttpSessionIdentityAccessManager.java** ([java/im/turms/gateway/domain/session/service/HttpSessionIdentityAccessManager.java](../turms-orig/turms-gateway/src/main/java/im/turms/gateway/domain/session/service/HttpSessionIdentityAccessManager.java))
