@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session/bo"
 )
 
@@ -49,8 +50,7 @@ type NoopSessionIdentityAccessManager struct{}
 // @MappedFrom verifyAndGrant(UserLoginInfo userLoginInfo)
 // @MappedFrom verifyAndGrant(int version, Long userId, @Nullable String password, DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ip)
 func (m *NoopSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
-	// Stub implementation
-	return nil, nil
+	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil), nil
 }
 
 // PasswordSessionIdentityAccessManager maps to PasswordSessionIdentityAccessManager in Java.
@@ -59,8 +59,8 @@ type PasswordSessionIdentityAccessManager struct{}
 // @MappedFrom verifyAndGrant(UserLoginInfo userLoginInfo)
 // @MappedFrom verifyAndGrant(int version, Long userId, @Nullable String password, DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ip)
 func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
-	// Stub implementation
-	return nil, nil
+	// TODO: implement with UserRepository
+	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_SERVER_INTERNAL_ERROR, nil), nil
 }
 
 // @MappedFrom updateGlobalProperties(TurmsProperties properties)

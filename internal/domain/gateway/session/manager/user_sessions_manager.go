@@ -93,3 +93,14 @@ func (m *UserSessionsManager) CountSessions() int {
 	})
 	return count
 }
+
+// GetLoggedInDeviceTypes returns the device types that have an active session.
+// @MappedFrom getLoggedInDeviceTypes()
+func (m *UserSessionsManager) GetLoggedInDeviceTypes() []protocol.DeviceType {
+	var deviceTypes []protocol.DeviceType
+	m.deviceTypeToSession.Range(func(key, value interface{}) bool {
+		deviceTypes = append(deviceTypes, key.(protocol.DeviceType))
+		return true
+	})
+	return deviceTypes
+}

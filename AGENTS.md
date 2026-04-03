@@ -50,6 +50,7 @@ BEFORE committing any ported struct/service, you MUST complete this implicit che
 2. **Overload Audit**: Java might have multiple overloaded methods with the same name. Go does not have method overloading. You MUST create multiple explicit Go functions (e.g., `NewX`, `NewXWithReason`, `NewXFromError`) to catch EVERY original path. 
    - **Exception**: If a single Go function uses variadic arguments or generic `interface{}` to encapsulate the permutations (e.g. `UpsertSettings`), it is **expected and required** to stack multiple `// @MappedFrom` annotations above that single Go function to track all Java counterparts.
 3. **Data Loss Audit**: Ensure all object field assignments via chained Builders in Java (e.g., `.setTimestamp(...)`) are exactly represented in the Go struct literal. Do not drop implicit assignments like system timestamps.
+4. **Context Stubbing (TODOs)**: If underlying infrastructure (e.g. cluster RPC, plugins, complex session states) is not yet ported, do NOT just omit the original Java logic implicitly to save time. You MUST add explicit `TODO` comments detailing exactly what Java logic was bypassed and what needs to be wired up later.
 
 ## 自动化重构工具 (Automation Tools)
 
