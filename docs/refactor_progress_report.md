@@ -638,50 +638,50 @@
 > [简述功能]
 
   - [x] `queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds)` -> [internal/domain/admin/service/admin_services.go:QueryRoleIdsByAdminIds()](../internal/domain/admin/service/admin_services.go)
-  - [ ] `authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)`
-  - [ ] `addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)`
-  - [ ] `queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)`
-  - [ ] `authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds)`
-  - [ ] `authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)`
-  - [ ] `updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)`
-  - [ ] `countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)`
-  - [ ] `errorRequesterNotExist()`
+  - [x] `authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)` -> [internal/domain/admin/service/admin_services.go:AuthAndAddAdmin()](../internal/domain/admin/service/admin_services.go)
+  - [x] `addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)` -> [internal/domain/admin/service/admin_services.go:AddAdmin()](../internal/domain/admin/service/admin_services.go)
+  - [x] `queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)` -> [internal/domain/admin/service/admin_services.go:QueryAdmins()](../internal/domain/admin/service/admin_services.go)
+  - [x] `authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds)` -> [internal/domain/admin/service/admin_services.go:AuthAndDeleteAdmins()](../internal/domain/admin/service/admin_services.go)
+  - [x] `authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)` -> [internal/domain/admin/service/admin_services.go:AuthAndUpdateAdmins()](../internal/domain/admin/service/admin_services.go)
+  - [x] `updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)` -> [internal/domain/admin/service/admin_services.go:UpdateAdmins()](../internal/domain/admin/service/admin_services.go)
+  - [x] `countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)` -> [internal/domain/admin/service/admin_services.go:CountAdmins()](../internal/domain/admin/service/admin_services.go)
+  - [x] `errorRequesterNotExist()` -> [internal/domain/admin/service/admin_services.go:ErrorRequesterNotExist()](../internal/domain/admin/service/admin_services.go)
 
 - **IpBlocklistController.java** ([java/im/turms/service/domain/blocklist/access/admin/controller/IpBlocklistController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/access/admin/controller/IpBlocklistController.java))
 > [简述功能]
 
-  - [ ] `addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO)`
-  - [ ] `queryBlockedIps(Set<String> ids)`
-  - [ ] `queryBlockedIps(int page, @QueryParam(required = false)`
-  - [ ] `deleteBlockedIps(@QueryParam(required = false)`
+  - [x] `addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO)` -> [internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:AddBlockedIps()](../internal/domain/blocklist/access/admin/controller/blocklist_controllers.go)
+  - [x] `queryBlockedIps(Set<String> ids)` -> [internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:QueryBlockedIpsByIds()](../internal/domain/blocklist/access/admin/controller/blocklist_controllers.go)
+  - [x] `queryBlockedIps(int page, @QueryParam(required = false)` -> [internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:QueryBlockedIpsByPage()](../internal/domain/blocklist/access/admin/controller/blocklist_controllers.go)
+  - [x] `deleteBlockedIps(@QueryParam(required = false)` -> [internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:DeleteBlockedIps()](../internal/domain/blocklist/access/admin/controller/blocklist_controllers.go)
 
 - **UserBlocklistController.java** ([java/im/turms/service/domain/blocklist/access/admin/controller/UserBlocklistController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/access/admin/controller/UserBlocklistController.java))
 > [简述功能]
 
-  - [ ] `addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO)`
+  - [x] `addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO)` -> [internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:AddBlockedUserIds()](../internal/domain/blocklist/access/admin/controller/blocklist_controllers.go)
   - [x] `queryBlockedUsers(Set<Long> ids)` -> [internal/domain/group/service/group_blocklist_service.go:QueryBlockedUsers(ctx context.Context, groupID int64)](../internal/domain/group/service/group_blocklist_service.go)
   - [x] `queryBlockedUsers(int page, @QueryParam(required = false)` -> [internal/domain/group/service/group_blocklist_service.go:QueryBlockedUsers(ctx context.Context, groupID int64)](../internal/domain/group/service/group_blocklist_service.go)
-  - [ ] `deleteBlockedUserIds(@QueryParam(required = false)`
+  - [x] `deleteBlockedUserIds(@QueryParam(required = false)` -> [internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:DeleteBlockedUserIds()](../internal/domain/blocklist/access/admin/controller/blocklist_controllers.go)
 
 - **AddBlockedIpsDTO.java** ([java/im/turms/service/domain/blocklist/access/admin/dto/request/AddBlockedIpsDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/access/admin/dto/request/AddBlockedIpsDTO.java))
 > [简述功能]
 
-  - [ ] `AddBlockedIpsDTO(Set<String> ids, long blockDurationMillis)`
+  - [x] `AddBlockedIpsDTO(Set<String> ids, long blockDurationMillis)` -> [internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:AddBlockedIpsDTO](../internal/domain/blocklist/access/admin/dto/blocklist_dtos.go)
 
 - **AddBlockedUserIdsDTO.java** ([java/im/turms/service/domain/blocklist/access/admin/dto/request/AddBlockedUserIdsDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/access/admin/dto/request/AddBlockedUserIdsDTO.java))
 > [简述功能]
 
-  - [ ] `AddBlockedUserIdsDTO(Set<Long> ids, long blockDurationMillis)`
+  - [x] `AddBlockedUserIdsDTO(Set<Long> ids, long blockDurationMillis)` -> [internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:AddBlockedUserIdsDTO](../internal/domain/blocklist/access/admin/dto/blocklist_dtos.go)
 
 - **BlockedIpDTO.java** ([java/im/turms/service/domain/blocklist/access/admin/dto/response/BlockedIpDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/access/admin/dto/response/BlockedIpDTO.java))
 > [简述功能]
 
-  - [ ] `BlockedIpDTO(String id, Date blockEndTime)`
+  - [x] `BlockedIpDTO(String id, Date blockEndTime)` -> [internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:BlockedIpDTO](../internal/domain/blocklist/access/admin/dto/blocklist_dtos.go)
 
 - **BlockedUserDTO.java** ([java/im/turms/service/domain/blocklist/access/admin/dto/response/BlockedUserDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/access/admin/dto/response/BlockedUserDTO.java))
 > [简述功能]
 
-  - [ ] `BlockedUserDTO(Long id, Date blockEndTime)`
+  - [x] `BlockedUserDTO(Long id, Date blockEndTime)` -> [internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:BlockedUserDTO](../internal/domain/blocklist/access/admin/dto/blocklist_dtos.go)
 
 - **BlockedClientSerializer.java** ([java/im/turms/service/domain/blocklist/codec/BlockedClientSerializer.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/blocklist/codec/BlockedClientSerializer.java))
 > [简述功能]
@@ -691,61 +691,61 @@
 - **MemberController.java** ([java/im/turms/service/domain/cluster/access/admin/controller/MemberController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/cluster/access/admin/controller/MemberController.java))
 > [简述功能]
 
-  - [ ] `queryMembers()`
-  - [ ] `removeMembers(List<String> ids)`
-  - [ ] `addMember(@RequestBody AddMemberDTO addMemberDTO)`
-  - [ ] `updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO)`
-  - [ ] `queryLeader()`
-  - [ ] `electNewLeader(@QueryParam(required = false)`
+  - [x] `queryMembers()` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryMembers()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `removeMembers(List<String> ids)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:RemoveMembers()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `addMember(@RequestBody AddMemberDTO addMemberDTO)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:AddMember()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:UpdateMember()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `queryLeader()` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryLeader()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `electNewLeader(@QueryParam(required = false)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:ElectNewLeader()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
 
 - **SettingController.java** ([java/im/turms/service/domain/cluster/access/admin/controller/SettingController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/cluster/access/admin/controller/SettingController.java))
 > [简述功能]
 
-  - [ ] `queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable)`
-  - [ ] `updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false)`
-  - [ ] `queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)`
+  - [x] `queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryClusterSettings()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:UpdateClusterSettings()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
+  - [x] `queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)` -> [internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryClusterConfigMetadata()](../internal/domain/cluster/access/admin/controller/cluster_controllers.go)
 
 - **AddMemberDTO.java** ([java/im/turms/service/domain/cluster/access/admin/dto/request/AddMemberDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/cluster/access/admin/dto/request/AddMemberDTO.java))
 > [简述功能]
 
-  - [ ] `AddMemberDTO(String nodeId, String zone, String name, NodeType nodeType, String version, boolean isSeed, boolean isLeaderEligible, Date registrationDate, int priority, String memberHost, int memberPort, String adminApiAddress, String wsAddress, String tcpAddress, String udpAddress, boolean isActive, boolean isHealthy)`
+  - [x] `AddMemberDTO(String nodeId, String zone, String name, NodeType nodeType, String version, boolean isSeed, boolean isLeaderEligible, Date registrationDate, int priority, String memberHost, int memberPort, String adminApiAddress, String wsAddress, String tcpAddress, String udpAddress, boolean isActive, boolean isHealthy)` -> [internal/domain/cluster/access/admin/dto/cluster_dtos.go:AddMemberDTO](../internal/domain/cluster/access/admin/dto/cluster_dtos.go)
 
 - **UpdateMemberDTO.java** ([java/im/turms/service/domain/cluster/access/admin/dto/request/UpdateMemberDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/cluster/access/admin/dto/request/UpdateMemberDTO.java))
 > [简述功能]
 
-  - [ ] `UpdateMemberDTO(String zone, String name, Boolean isSeed, Boolean isLeaderEligible, Boolean isActive, Integer priority)`
+  - [x] `UpdateMemberDTO(String zone, String name, Boolean isSeed, Boolean isLeaderEligible, Boolean isActive, Integer priority)` -> [internal/domain/cluster/access/admin/dto/cluster_dtos.go:UpdateMemberDTO](../internal/domain/cluster/access/admin/dto/cluster_dtos.go)
 
 - **SettingsDTO.java** ([java/im/turms/service/domain/cluster/access/admin/dto/response/SettingsDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/cluster/access/admin/dto/response/SettingsDTO.java))
 > [简述功能]
 
-  - [ ] `SettingsDTO(int schemaVersion, Map<String, Object> settings)`
+  - [x] `SettingsDTO(int schemaVersion, Map<String, Object> settings)` -> [internal/domain/cluster/access/admin/dto/cluster_dtos.go:SettingsDTO](../internal/domain/cluster/access/admin/dto/cluster_dtos.go)
 
 - **BaseController.java** ([java/im/turms/service/domain/common/access/admin/controller/BaseController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/access/admin/controller/BaseController.java))
 > [简述功能]
 
-  - [ ] `getPageSize(@Nullable Integer size)`
-  - [ ] `queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)`
-  - [ ] `queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)`
-  - [ ] `checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)`
-  - [ ] `checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)`
+  - [x] `getPageSize(@Nullable Integer size)` -> [internal/domain/common/access/admin/controller/base_controller.go:GetPageSize()](../internal/domain/common/access/admin/controller/base_controller.go)
+  - [x] `queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)` -> [internal/domain/common/access/admin/controller/base_controller.go:QueryBetweenDate()](../internal/domain/common/access/admin/controller/base_controller.go)
+  - [x] `queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)` -> [internal/domain/common/access/admin/controller/base_controller.go:QueryBetweenDateFunc()](../internal/domain/common/access/admin/controller/base_controller.go)
+  - [x] `checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)` -> [internal/domain/common/access/admin/controller/base_controller.go:CheckAndQueryBetweenDate()](../internal/domain/common/access/admin/controller/base_controller.go)
+  - [x] `checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)` -> [internal/domain/common/access/admin/controller/base_controller.go:CheckAndQueryBetweenDateFunc()](../internal/domain/common/access/admin/controller/base_controller.go)
 
 - **StatisticsRecordDTO.java** ([java/im/turms/service/domain/common/access/admin/dto/response/StatisticsRecordDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/access/admin/dto/response/StatisticsRecordDTO.java))
 > [简述功能]
 
-  - [ ] `StatisticsRecordDTO(Date date, Long total)`
+  - [x] `StatisticsRecordDTO(Date date, Long total)` -> [internal/domain/common/access/admin/dto/common_dtos.go:StatisticsRecordDTO](../internal/domain/common/access/admin/dto/common_dtos.go)
 
 - **ServicePermission.java** ([java/im/turms/service/domain/common/permission/ServicePermission.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/permission/ServicePermission.java))
 > [简述功能]
 
-  - [ ] `ServicePermission(ResponseStatusCode code, String reason)`
+  - [x] `ServicePermission(ResponseStatusCode code, String reason)` -> [internal/domain/common/permission/service_permission.go:NewServicePermission()](../internal/domain/common/permission/service_permission.go)
   - [x] `get(ResponseStatusCode code)` -> [internal/domain/common/cache/sharded_map.go:Get(key K)](../internal/domain/common/cache/sharded_map.go)
   - [x] `get(ResponseStatusCode code, String reason)` -> [internal/domain/common/cache/sharded_map.go:Get(key K)](../internal/domain/common/cache/sharded_map.go)
 
 - **ExpirableEntityRepository.java** ([java/im/turms/service/domain/common/repository/ExpirableEntityRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/repository/ExpirableEntityRepository.java))
 > [简述功能]
 
-  - [ ] `isExpired(long creationDate)`
-  - [ ] `getEntityExpirationDate()`
+  - [x] `isExpired(long creationDate)` -> [internal/domain/common/repository/expirable_entity_repository.go:IsExpired()](../internal/domain/common/repository/expirable_entity_repository.go)
+  - [x] `getEntityExpirationDate()` -> [internal/domain/common/service/common_services.go:GetEntityExpirationDate()](../internal/domain/common/service/common_services.go)
   - [x] `deleteExpiredData(String creationDateFieldName, Date expirationDate)` -> [internal/domain/user/repository/user_friend_request_repository.go:DeleteExpiredData(ctx context.Context, expirationDate time.Time)](../internal/domain/user/repository/user_friend_request_repository.go)
   - [x] `findMany(Filter filter)` -> [internal/domain/user/repository/user_repository.go:FindMany(ctx context.Context, filter bson.M)](../internal/domain/user/repository/user_repository.go)
   - [x] `findMany(Filter filter, QueryOptions options)` -> [internal/domain/user/repository/user_repository.go:FindMany(ctx context.Context, filter bson.M)](../internal/domain/user/repository/user_repository.go)
@@ -753,156 +753,156 @@
 - **ExpirableEntityService.java** ([java/im/turms/service/domain/common/service/ExpirableEntityService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/service/ExpirableEntityService.java))
 > [简述功能]
 
-  - [ ] `getEntityExpirationDate()`
+  - [x] `getEntityExpirationDate()` -> [internal/domain/common/repository/expirable_entity_repository.go:GetEntityExpirationDate()](../internal/domain/common/repository/expirable_entity_repository.go)
 
 - **UserDefinedAttributesService.java** ([java/im/turms/service/domain/common/service/UserDefinedAttributesService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/service/UserDefinedAttributesService.java))
 > [简述功能]
 
-  - [ ] `updateGlobalProperties(UserDefinedAttributesProperties properties)`
-  - [ ] `parseAttributesForUpsert(Map<String, Value> userDefinedAttributes)`
+  - [x] `updateGlobalProperties(UserDefinedAttributesProperties properties)` -> [internal/domain/common/service/common_services.go:UpdateGlobalProperties()](../internal/domain/common/service/common_services.go)
+  - [x] `parseAttributesForUpsert(Map<String, Value> userDefinedAttributes)` -> [internal/domain/common/service/common_services.go:ParseAttributesForUpsert()](../internal/domain/common/service/common_services.go)
 
 - **ExpirableRequestInspector.java** ([java/im/turms/service/domain/common/util/ExpirableRequestInspector.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/util/ExpirableRequestInspector.java))
 > [简述功能]
 
-  - [ ] `isProcessedByResponder(@Nullable RequestStatus status)`
+  - [x] `isProcessedByResponder(@Nullable RequestStatus status)` -> [internal/domain/common/util/expirable_request_inspector.go:IsProcessedByResponder()](../internal/domain/common/util/expirable_request_inspector.go)
 
 - **DataValidator.java** ([java/im/turms/service/domain/common/validation/DataValidator.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/validation/DataValidator.java))
 > [简述功能]
 
   - [x] `validRequestStatus(RequestStatus status)` -> [internal/infra/validator/validator.go:ValidRequestStatus(status interface{}, name string)](../internal/infra/validator/validator.go)
-  - [ ] `validResponseAction(ResponseAction action)`
-  - [ ] `validDeviceType(DeviceType deviceType)`
-  - [ ] `validProfileAccess(ProfileAccessStrategy value)`
-  - [ ] `validRelationshipKey(UserRelationship.Key key)`
-  - [ ] `validRelationshipGroupKey(UserRelationshipGroup.Key key)`
-  - [ ] `validGroupMemberKey(GroupMember.Key key)`
-  - [ ] `validGroupMemberRole(GroupMemberRole role)`
-  - [ ] `validGroupBlockedUserKey(GroupBlockedUser.Key key)`
-  - [ ] `validNewGroupQuestion(NewGroupQuestion question)`
-  - [ ] `validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)`
+  - [x] `validResponseAction(ResponseAction action)` -> [internal/infra/validator/validator.go:ValidResponseAction()](../internal/infra/validator/validator.go)
+  - [x] `validDeviceType(DeviceType deviceType)` -> [internal/infra/validator/validator.go:ValidDeviceType()](../internal/infra/validator/validator.go)
+  - [x] `validProfileAccess(ProfileAccessStrategy value)` -> [internal/infra/validator/validator.go:ValidProfileAccess()](../internal/infra/validator/validator.go)
+  - [x] `validRelationshipKey(UserRelationship.Key key)` -> [internal/infra/validator/validator.go:ValidRelationshipKey()](../internal/infra/validator/validator.go)
+  - [x] `validRelationshipGroupKey(UserRelationshipGroup.Key key)` -> [internal/infra/validator/validator.go:ValidRelationshipGroupKey()](../internal/infra/validator/validator.go)
+  - [x] `validGroupMemberKey(GroupMember.Key key)` -> [internal/infra/validator/validator.go:ValidGroupMemberKey()](../internal/infra/validator/validator.go)
+  - [x] `validGroupMemberRole(GroupMemberRole role)` -> [internal/infra/validator/validator.go:ValidGroupMemberRole()](../internal/infra/validator/validator.go)
+  - [x] `validGroupBlockedUserKey(GroupBlockedUser.Key key)` -> [internal/infra/validator/validator.go:ValidGroupBlockedUserKey()](../internal/infra/validator/validator.go)
+  - [x] `validNewGroupQuestion(NewGroupQuestion question)` -> [internal/infra/validator/validator.go:ValidNewGroupQuestion()](../internal/infra/validator/validator.go)
+  - [x] `validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)` -> [internal/infra/validator/validator.go:ValidGroupQuestionIdAndAnswer()](../internal/infra/validator/validator.go)
 
 - **CancelMeetingResult.java** ([java/im/turms/service/domain/conference/bo/CancelMeetingResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/bo/CancelMeetingResult.java))
 > [简述功能]
 
-  - [ ] `CancelMeetingResult(boolean success, @Nullable Meeting meeting)`
+  - [x] `CancelMeetingResult(boolean success, @Nullable Meeting meeting)` -> [internal/domain/conference/bo/conference_bos.go:CancelMeetingResult](../internal/domain/conference/bo/conference_bos.go)
 
 - **UpdateMeetingInvitationResult.java** ([java/im/turms/service/domain/conference/bo/UpdateMeetingInvitationResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/bo/UpdateMeetingInvitationResult.java))
 > [简述功能]
 
-  - [ ] `UpdateMeetingInvitationResult(boolean updated, @Nullable String accessToken, @Nullable Meeting meeting)`
+  - [x] `UpdateMeetingInvitationResult(boolean updated, @Nullable String accessToken, @Nullable Meeting meeting)` -> [internal/domain/conference/bo/conference_bos.go:UpdateMeetingInvitationResult](../internal/domain/conference/bo/conference_bos.go)
 
 - **UpdateMeetingResult.java** ([java/im/turms/service/domain/conference/bo/UpdateMeetingResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/bo/UpdateMeetingResult.java))
 > [简述功能]
 
-  - [ ] `UpdateMeetingResult(boolean success, @Nullable Meeting meeting)`
+  - [x] `UpdateMeetingResult(boolean success, @Nullable Meeting meeting)` -> [internal/domain/conference/bo/conference_bos.go:UpdateMeetingResult](../internal/domain/conference/bo/conference_bos.go)
 
 - **ConferenceServiceController.java** ([java/im/turms/service/domain/conference/controller/ConferenceServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/controller/ConferenceServiceController.java))
 > [简述功能]
 
-  - [ ] `handleCreateMeetingRequest()`
-  - [ ] `handleDeleteMeetingRequest()`
-  - [ ] `handleUpdateMeetingRequest()`
-  - [ ] `handleQueryMeetingsRequest()`
-  - [ ] `handleUpdateMeetingInvitationRequest()`
+  - [x] `handleCreateMeetingRequest()` -> [internal/domain/conference/controller/conference_controller.go:HandleCreateMeetingRequest()](../internal/domain/conference/controller/conference_controller.go)
+  - [x] `handleDeleteMeetingRequest()` -> [internal/domain/conference/controller/conference_controller.go:HandleDeleteMeetingRequest()](../internal/domain/conference/controller/conference_controller.go)
+  - [x] `handleUpdateMeetingRequest()` -> [internal/domain/conference/controller/conference_controller.go:HandleUpdateMeetingRequest()](../internal/domain/conference/controller/conference_controller.go)
+  - [x] `handleQueryMeetingsRequest()` -> [internal/domain/conference/controller/conference_controller.go:HandleQueryMeetingsRequest()](../internal/domain/conference/controller/conference_controller.go)
+  - [x] `handleUpdateMeetingInvitationRequest()` -> [internal/domain/conference/controller/conference_controller.go:HandleUpdateMeetingInvitationRequest()](../internal/domain/conference/controller/conference_controller.go)
 
 - **MeetingRepository.java** ([java/im/turms/service/domain/conference/repository/MeetingRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/repository/MeetingRepository.java))
 > [简述功能]
 
-  - [ ] `updateEndDate(Long meetingId, Date endDate)`
-  - [ ] `updateCancelDateIfNotCanceled(Long meetingId, Date cancelDate)`
-  - [ ] `updateMeeting(Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)`
-  - [ ] `find(@Nullable Collection<Long> ids, @Nullable Collection<Long> creatorIds, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)`
-  - [ ] `find(@Nullable Collection<Long> ids, @NotNull Long creatorId, @NotNull Long userId, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)`
+  - [x] `updateEndDate(Long meetingId, Date endDate)` -> [internal/domain/conference/repository/meeting_repository.go:UpdateEndDate()](../internal/domain/conference/repository/meeting_repository.go)
+  - [x] `updateCancelDateIfNotCanceled(Long meetingId, Date cancelDate)` -> [internal/domain/conference/repository/meeting_repository.go:UpdateCancelDateIfNotCanceled()](../internal/domain/conference/repository/meeting_repository.go)
+  - [x] `updateMeeting(Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)` -> [internal/domain/conference/repository/meeting_repository.go:UpdateMeeting()](../internal/domain/conference/repository/meeting_repository.go)
+  - [x] `find(@Nullable Collection<Long> ids, @Nullable Collection<Long> creatorIds, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)` -> [internal/domain/conference/repository/meeting_repository.go:Find()](../internal/domain/conference/repository/meeting_repository.go)
+  - [x] `find(@Nullable Collection<Long> ids, @NotNull Long creatorId, @NotNull Long userId, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)` -> [internal/domain/conference/repository/meeting_repository.go:FindByCreatorAndUser()](../internal/domain/conference/repository/meeting_repository.go)
 
 - **ConferenceService.java** ([java/im/turms/service/domain/conference/service/ConferenceService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/service/ConferenceService.java))
 > [简述功能]
 
-  - [ ] `onExtensionStarted(ConferenceServiceProvider extension)`
-  - [ ] `authAndCancelMeeting(@NotNull Long requesterId, @NotNull Long meetingId)`
-  - [ ] `queryMeetingParticipants(@Nullable Long userId, @Nullable Long groupId)`
-  - [ ] `authAndUpdateMeeting(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)`
-  - [ ] `authAndUpdateMeetingInvitation(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String password, @NotNull ResponseAction responseAction)`
-  - [ ] `authAndQueryMeetings(@NotNull Long requesterId, @Nullable Set<Long> ids, @Nullable Set<Long> creatorIds, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)`
+  - [x] `onExtensionStarted(ConferenceServiceProvider extension)` -> [internal/domain/conference/service/conference_service.go:OnExtensionStarted()](../internal/domain/conference/service/conference_service.go)
+  - [x] `authAndCancelMeeting(@NotNull Long requesterId, @NotNull Long meetingId)` -> [internal/domain/conference/service/conference_service.go:AuthAndCancelMeeting()](../internal/domain/conference/service/conference_service.go)
+  - [x] `queryMeetingParticipants(@Nullable Long userId, @Nullable Long groupId)` -> [internal/domain/conference/service/conference_service.go:QueryMeetingParticipants()](../internal/domain/conference/service/conference_service.go)
+  - [x] `authAndUpdateMeeting(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)` -> [internal/domain/conference/service/conference_service.go:AuthAndUpdateMeeting()](../internal/domain/conference/service/conference_service.go)
+  - [x] `authAndUpdateMeetingInvitation(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String password, @NotNull ResponseAction responseAction)` -> [internal/domain/conference/service/conference_service.go:AuthAndUpdateMeetingInvitation()](../internal/domain/conference/service/conference_service.go)
+  - [x] `authAndQueryMeetings(@NotNull Long requesterId, @Nullable Set<Long> ids, @Nullable Set<Long> creatorIds, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)` -> [internal/domain/conference/service/conference_service.go:AuthAndQueryMeetings()](../internal/domain/conference/service/conference_service.go)
 
 - **ConversationController.java** ([java/im/turms/service/domain/conversation/access/admin/controller/ConversationController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/access/admin/controller/ConversationController.java))
 > [简述功能]
 
-  - [ ] `queryConversations(@QueryParam(required = false)`
-  - [ ] `deleteConversations(@QueryParam(required = false)`
-  - [ ] `updateConversations(@QueryParam(required = false)`
+  - [x] `queryConversations(@QueryParam(required = false)` -> [internal/domain/conversation/access/admin/controller/conversation_controller.go:QueryConversations()](../internal/domain/conversation/access/admin/controller/conversation_controller.go)
+  - [x] `deleteConversations(@QueryParam(required = false)` -> [internal/domain/conversation/access/admin/controller/conversation_controller.go:DeleteConversations()](../internal/domain/conversation/access/admin/controller/conversation_controller.go)
+  - [x] `updateConversations(@QueryParam(required = false)` -> [internal/domain/conversation/access/admin/controller/conversation_controller.go:UpdateConversations()](../internal/domain/conversation/access/admin/controller/conversation_controller.go)
 
 - **UpdateConversationDTO.java** ([java/im/turms/service/domain/conversation/access/admin/dto/request/UpdateConversationDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/access/admin/dto/request/UpdateConversationDTO.java))
 > [简述功能]
 
-  - [ ] `UpdateConversationDTO(Date readDate)`
+  - [x] `UpdateConversationDTO(Date readDate)` -> [internal/domain/conversation/access/admin/dto/conversation_dtos.go:UpdateConversationDTO](../internal/domain/conversation/access/admin/dto/conversation_dtos.go)
 
 - **ConversationsDTO.java** ([java/im/turms/service/domain/conversation/access/admin/dto/response/ConversationsDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/access/admin/dto/response/ConversationsDTO.java))
 > [简述功能]
 
-  - [ ] `ConversationsDTO(List<PrivateConversation> privateConversations, List<GroupConversation> groupConversations)`
+  - [x] `ConversationsDTO(List<PrivateConversation> privateConversations, List<GroupConversation> groupConversations)` -> [internal/domain/conversation/access/admin/dto/conversation_dtos.go:ConversationsDTO](../internal/domain/conversation/access/admin/dto/conversation_dtos.go)
 
 - **ConversationServiceController.java** ([java/im/turms/service/domain/conversation/access/servicerequest/controller/ConversationServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/access/servicerequest/controller/ConversationServiceController.java))
 > [简述功能]
 
-  - [ ] `handleQueryConversationsRequest()`
-  - [ ] `handleUpdateTypingStatusRequest()`
-  - [ ] `handleUpdateConversationRequest()`
+  - [x] `handleQueryConversationsRequest()` -> [internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleQueryConversationsRequest()](../internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go)
+  - [x] `handleUpdateTypingStatusRequest()` -> [internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleUpdateTypingStatusRequest()](../internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go)
+  - [x] `handleUpdateConversationRequest()` -> [internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleUpdateConversationRequest()](../internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go)
 
 - **ConversationSettingsServiceController.java** ([java/im/turms/service/domain/conversation/access/servicerequest/controller/ConversationSettingsServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/access/servicerequest/controller/ConversationSettingsServiceController.java))
 > [简述功能]
 
-  - [ ] `handleUpdateConversationSettingsRequest()`
-  - [ ] `handleDeleteConversationSettingsRequest()`
-  - [ ] `handleQueryConversationSettingsRequest()`
+  - [x] `handleUpdateConversationSettingsRequest()` -> [internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleUpdateConversationSettingsRequest()](../internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go)
+  - [x] `handleDeleteConversationSettingsRequest()` -> [internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleDeleteConversationSettingsRequest()](../internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go)
+  - [x] `handleQueryConversationSettingsRequest()` -> [internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleQueryConversationSettingsRequest()](../internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go)
 
 - **ConversationSettingsRepository.java** ([java/im/turms/service/domain/conversation/repository/ConversationSettingsRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/repository/ConversationSettingsRepository.java))
 > [简述功能]
 
   - [x] `upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` -> [internal/domain/user/service/user_settings_service.go:UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{})](../internal/domain/user/service/user_settings_service.go)
   - [x] `unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)` -> [internal/domain/user/service/user_settings_service.go:UnsetSettings(ctx context.Context, userID int64, keys []string)](../internal/domain/user/service/user_settings_service.go)
-  - [ ] `findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)`
-  - [ ] `findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)`
-  - [ ] `findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields)`
-  - [ ] `deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)`
+  - [x] `findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> [internal/domain/conversation/repository/conversation_settings_repository.go:FindByIdAndSettingNames()](../internal/domain/conversation/repository/conversation_settings_repository.go)
+  - [x] `findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> [internal/domain/conversation/repository/conversation_settings_repository.go:FindByIdAndSettingNamesWithKeys()](../internal/domain/conversation/repository/conversation_settings_repository.go)
+  - [x] `findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields)` -> [internal/domain/conversation/repository/conversation_settings_repository.go:FindSettingFields()](../internal/domain/conversation/repository/conversation_settings_repository.go)
+  - [x] `deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)` -> [internal/domain/conversation/repository/conversation_settings_repository.go:DeleteByOwnerIds()](../internal/domain/conversation/repository/conversation_settings_repository.go)
 
 - **GroupConversationRepository.java** ([java/im/turms/service/domain/conversation/repository/GroupConversationRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/repository/GroupConversationRepository.java))
 > [简述功能]
 
   - [x] `upsert(Long groupId, Long memberId, Date readDate, boolean allowMoveReadDateForward)` -> [internal/domain/group/repository/group_version_repository.go:Upsert(ctx context.Context, groupID int64, timestamp time.Time)](../internal/domain/group/repository/group_version_repository.go)
   - [x] `upsert(Long groupId, Collection<Long> memberIds, Date readDate)` -> [internal/domain/group/repository/group_version_repository.go:Upsert(ctx context.Context, groupID int64, timestamp time.Time)](../internal/domain/group/repository/group_version_repository.go)
-  - [ ] `deleteMemberConversations(Collection<Long> groupIds, Long memberId, ClientSession session)`
+  - [x] `deleteMemberConversations(Collection<Long> groupIds, Long memberId, ClientSession session)` -> [internal/domain/conversation/repository/group_conversation_repository.go:DeleteMemberConversations()](../internal/domain/conversation/repository/group_conversation_repository.go)
 
 - **PrivateConversationRepository.java** ([java/im/turms/service/domain/conversation/repository/PrivateConversationRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/repository/PrivateConversationRepository.java))
 > [简述功能]
 
   - [x] `upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward)` -> [internal/domain/group/repository/group_version_repository.go:Upsert(ctx context.Context, groupID int64, timestamp time.Time)](../internal/domain/group/repository/group_version_repository.go)
-  - [ ] `deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session)`
-  - [ ] `findConversations(Collection<Long> ownerIds)`
+  - [x] `deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session)` -> [internal/domain/conversation/repository/private_conversation_repository.go:DeleteConversationsByOwnerIds()](../internal/domain/conversation/repository/private_conversation_repository.go)
+  - [x] `findConversations(Collection<Long> ownerIds)` -> [internal/domain/conversation/repository/private_conversation_repository.go:FindConversations()](../internal/domain/conversation/repository/private_conversation_repository.go)
 
 - **ConversationService.java** ([java/im/turms/service/domain/conversation/service/ConversationService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/service/ConversationService.java))
 > [简述功能]
 
-  - [ ] `authAndUpsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)`
-  - [ ] `authAndUpsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)`
-  - [ ] `upsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)`
-  - [ ] `upsertGroupConversationsReadDate(@NotNull Set<GroupConversation.GroupConversionMemberKey> keys, @Nullable @PastOrPresent Date readDate)`
-  - [ ] `upsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)`
-  - [ ] `upsertPrivateConversationsReadDate(@NotNull Set<PrivateConversation.Key> keys, @Nullable @PastOrPresent Date readDate)`
+  - [x] `authAndUpsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)` -> [internal/domain/conversation/service/conversation_service.go:AuthAndUpsertGroupConversationReadDate()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `authAndUpsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)` -> [internal/domain/conversation/service/conversation_service.go:AuthAndUpsertPrivateConversationReadDate()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `upsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)` -> [internal/domain/conversation/service/conversation_service.go:UpsertGroupConversationReadDate()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `upsertGroupConversationsReadDate(@NotNull Set<GroupConversation.GroupConversionMemberKey> keys, @Nullable @PastOrPresent Date readDate)` -> [internal/domain/conversation/service/conversation_service.go:UpsertGroupConversationsReadDate()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `upsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)` -> [internal/domain/conversation/service/conversation_service.go:UpsertPrivateConversationReadDate()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `upsertPrivateConversationsReadDate(@NotNull Set<PrivateConversation.Key> keys, @Nullable @PastOrPresent Date readDate)` -> [internal/domain/conversation/service/conversation_service.go:UpsertPrivateConversationsReadDate()](../internal/domain/conversation/service/conversation_service.go)
   - [x] `queryGroupConversations(@NotNull Collection<Long> groupIds)` -> [internal/domain/conversation/repository/group_conversation_repository.go:QueryGroupConversations(ctx context.Context, groupIDs []int64)](../internal/domain/conversation/repository/group_conversation_repository.go)
-  - [ ] `queryPrivateConversationsByOwnerIds(@NotNull Set<Long> ownerIds)`
+  - [x] `queryPrivateConversationsByOwnerIds(@NotNull Set<Long> ownerIds)` -> [internal/domain/conversation/service/conversation_service.go:QueryPrivateConversationsByOwnerIds()](../internal/domain/conversation/service/conversation_service.go)
   - [x] `queryPrivateConversations(@NotNull Collection<Long> ownerIds, @NotNull Long targetId)` -> [internal/domain/conversation/repository/private_conversation_repository.go:QueryPrivateConversations(ctx context.Context, ownerIDs []int64)](../internal/domain/conversation/repository/private_conversation_repository.go)
   - [x] `queryPrivateConversations(@NotNull Set<PrivateConversation.Key> keys)` -> [internal/domain/conversation/repository/private_conversation_repository.go:QueryPrivateConversations(ctx context.Context, ownerIDs []int64)](../internal/domain/conversation/repository/private_conversation_repository.go)
-  - [ ] `deletePrivateConversations(@NotNull Set<PrivateConversation.Key> keys)`
-  - [ ] `deletePrivateConversations(@NotNull Set<Long> userIds, @Nullable ClientSession session)`
-  - [ ] `deleteGroupConversations(@Nullable Set<Long> groupIds, @Nullable ClientSession session)`
-  - [ ] `deleteGroupMemberConversations(@NotNull Collection<Long> userIds, @Nullable ClientSession session)`
-  - [ ] `authAndUpdateTypingStatus(@NotNull Long requesterId, boolean isGroupMessage, @NotNull Long toId)`
+  - [x] `deletePrivateConversations(@NotNull Set<PrivateConversation.Key> keys)` -> [internal/domain/conversation/service/conversation_service.go:DeletePrivateConversationsByKeys()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `deletePrivateConversations(@NotNull Set<Long> userIds, @Nullable ClientSession session)` -> [internal/domain/conversation/service/conversation_service.go:DeletePrivateConversationsByUserIds()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `deleteGroupConversations(@Nullable Set<Long> groupIds, @Nullable ClientSession session)` -> [internal/domain/conversation/service/conversation_service.go:DeleteGroupConversations()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `deleteGroupMemberConversations(@NotNull Collection<Long> userIds, @Nullable ClientSession session)` -> [internal/domain/conversation/service/conversation_service.go:DeleteGroupMemberConversations()](../internal/domain/conversation/service/conversation_service.go)
+  - [x] `authAndUpdateTypingStatus(@NotNull Long requesterId, boolean isGroupMessage, @NotNull Long toId)` -> [internal/domain/conversation/service/conversation_service.go:AuthAndUpdateTypingStatus()](../internal/domain/conversation/service/conversation_service.go)
 
 - **ConversationSettingsService.java** ([java/im/turms/service/domain/conversation/service/ConversationSettingsService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/service/ConversationSettingsService.java))
 > [简述功能]
 
-  - [ ] `upsertPrivateConversationSettings(Long ownerId, Long userId, Map<String, Value> settings)`
-  - [ ] `upsertGroupConversationSettings(Long ownerId, Long groupId, Map<String, Value> settings)`
+  - [x] `upsertPrivateConversationSettings(Long ownerId, Long userId, Map<String, Value> settings)` -> [internal/domain/conversation/service/conversation_settings_service.go:UpsertPrivateConversationSettings()](../internal/domain/conversation/service/conversation_settings_service.go)
+  - [x] `upsertGroupConversationSettings(Long ownerId, Long groupId, Map<String, Value> settings)` -> [internal/domain/conversation/service/conversation_settings_service.go:UpsertGroupConversationSettings()](../internal/domain/conversation/service/conversation_settings_service.go)
   - [x] `deleteSettings(Collection<Long> ownerIds, @Nullable ClientSession clientSession)` -> [internal/domain/user/repository/user_settings_repository.go:DeleteSettings(ctx context.Context, filter interface{})](../internal/domain/user/repository/user_settings_repository.go)
   - [x] `unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)` -> [internal/domain/user/service/user_settings_service.go:UnsetSettings(ctx context.Context, userID int64, keys []string)](../internal/domain/user/service/user_settings_service.go)
   - [x] `querySettings(Long ownerId, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)` -> [internal/domain/user/service/user_settings_service.go:QuerySettings(ctx context.Context, filter bson.M)](../internal/domain/user/service/user_settings_service.go)

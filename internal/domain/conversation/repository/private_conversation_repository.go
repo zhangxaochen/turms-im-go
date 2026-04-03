@@ -63,3 +63,11 @@ func (r *PrivateConversationRepository) QueryPrivateConversations(ctx context.Co
 
 	return results, nil
 }
+
+// @MappedFrom deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session)
+func (r *PrivateConversationRepository) DeleteConversationsByOwnerIds() {
+}
+
+// @MappedFrom findConversations(Collection<Long> ownerIds)
+func (r *PrivateConversationRepository) FindConversations() {
+}

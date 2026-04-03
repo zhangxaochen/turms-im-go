@@ -82,3 +82,43 @@ func PastOrPresent(date *time.Time, name string) error {
 func ValidRequestStatus(status interface{}, name string) error {
 	return nil
 }
+
+// @MappedFrom validResponseAction(ResponseAction action)
+func ValidResponseAction() {
+}
+
+// @MappedFrom validDeviceType(DeviceType deviceType)
+func ValidDeviceType() {
+}
+
+// @MappedFrom validProfileAccess(ProfileAccessStrategy value)
+func ValidProfileAccess() {
+}
+
+// @MappedFrom validRelationshipKey(UserRelationship.Key key)
+func ValidRelationshipKey() {
+}
+
+// @MappedFrom validRelationshipGroupKey(UserRelationshipGroup.Key key)
+func ValidRelationshipGroupKey() {
+}
+
+// @MappedFrom validGroupMemberKey(GroupMember.Key key)
+func ValidGroupMemberKey() {
+}
+
+// @MappedFrom validGroupMemberRole(GroupMemberRole role)
+func ValidGroupMemberRole() {
+}
+
+// @MappedFrom validGroupBlockedUserKey(GroupBlockedUser.Key key)
+func ValidGroupBlockedUserKey() {
+}
+
+// @MappedFrom validNewGroupQuestion(NewGroupQuestion question)
+func ValidNewGroupQuestion() {
+}
+
+// @MappedFrom validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)
+func ValidGroupQuestionIdAndAnswer() {
+}

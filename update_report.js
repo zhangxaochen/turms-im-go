@@ -3,152 +3,158 @@ const fs = require('fs');
 const path = 'docs/refactor_progress_report.md';
 let content = fs.readFileSync(path, 'utf8');
 
-// The mappings we want to apply to [ ] items
 const mappings = [
-    ['authenticate(@NotNull Long userId, @Nullable String rawPassword)', 'internal/domain/gateway/session/user_service.go:Authenticate(ctx context.Context, userID int64, rawPassword string)'],
-    ['getConflictedDeviceTypes(@NotNull @ValidDeviceType DeviceType deviceType)', 'internal/domain/gateway/session/manager/user_simultaneous_login_service.go:GetConflictedDeviceTypes(deviceType protocol.DeviceType)'],
-    ['isForbiddenDeviceType(DeviceType deviceType)', 'internal/domain/gateway/session/manager/user_simultaneous_login_service.go:IsForbiddenDeviceType(deviceType protocol.DeviceType)'],
-    ['shouldDisconnectLoggingInDeviceIfConflicts()', 'internal/domain/gateway/session/manager/user_simultaneous_login_service.go:ShouldDisconnectLoggingInDeviceIfConflicts()'],
-    ['getWsAddress()', 'internal/infra/address/service_address_manager.go:GetWsAddress()'],
-    ['getTcpAddress()', 'internal/infra/address/service_address_manager.go:GetTcpAddress()'],
-    ['getUdpAddress()', 'internal/infra/address/service_address_manager.go:GetUdpAddress()'],
-    ['connect()', 'internal/infra/ldap/ldap_client.go:Connect()'],
-    ['bind(boolean useFastBind, String dn, String password)', 'internal/infra/ldap/ldap_client.go:Bind(useFastBind bool, dn string, password string)'],
-    ['modify(String dn, List<ModifyOperationChange> changes)', 'internal/infra/ldap/ldap_client.go:Modify(dn string, changes []any)'],
-    
-    // BerBuffer
-    ['skipTag()', 'internal/infra/ldap/asn1/ber_buffer.go:SkipTag()'],
-    ['skipTagAndLength()', 'internal/infra/ldap/asn1/ber_buffer.go:SkipTagAndLength()'],
-    ['skipTagAndLengthAndValue()', 'internal/infra/ldap/asn1/ber_buffer.go:SkipTagAndLengthAndValue()'],
-    ['readTag()', 'internal/infra/ldap/asn1/ber_buffer.go:ReadTag()'],
-    ['peekAndCheckTag(int tag)', 'internal/infra/ldap/asn1/ber_buffer.go:PeekAndCheckTag(tag int)'],
-    ['skipLength()', 'internal/infra/ldap/asn1/ber_buffer.go:SkipLength()'],
-    ['skipLengthAndValue()', 'internal/infra/ldap/asn1/ber_buffer.go:SkipLengthAndValue()'],
-    ['writeLength(int length)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteLength(length int)'],
-    ['readLength()', 'internal/infra/ldap/asn1/ber_buffer.go:ReadLength()'],
-    ['tryReadLengthIfReadable()', 'internal/infra/ldap/asn1/ber_buffer.go:TryReadLengthIfReadable()'],
-    ['beginSequence()', 'internal/infra/ldap/asn1/ber_buffer.go:BeginSequence()'],
-    ['beginSequence(int tag)', 'internal/infra/ldap/asn1/ber_buffer.go:BeginSequenceWithTag(tag int)'],
-    ['endSequence()', 'internal/infra/ldap/asn1/ber_buffer.go:EndSequence()'],
-    ['writeBoolean(boolean value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteBoolean(value bool)'],
-    ['writeBoolean(int tag, boolean value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteBooleanWithTag(tag int, value bool)'],
-    ['readBoolean()', 'internal/infra/ldap/asn1/ber_buffer.go:ReadBoolean()'],
-    ['writeInteger(int value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteInteger(value int)'],
-    ['writeInteger(int tag, int value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteIntegerWithTag(tag int, value int)'],
-    ['readInteger()', 'internal/infra/ldap/asn1/ber_buffer.go:ReadInteger()'],
-    ['readIntWithTag(int tag)', 'internal/infra/ldap/asn1/ber_buffer.go:ReadIntWithTag(tag int)'],
-    ['writeOctetString(String value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetString(value string)'],
-    ['writeOctetString(byte[] value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytes(value []byte)'],
-    ['writeOctetString(int tag, byte[] value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytesWithTag(tag int, value []byte)'],
-    ['writeOctetString(byte[] value, int start, int length)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytesRange(value []byte, start int, length int)'],
-    ['writeOctetString(int tag, byte[] value, int start, int length)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringBytesRangeWithTag(tag int, value []byte, start int, length int)'],
-    ['writeOctetString(int tag, String value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStringWithTag(tag int, value string)'],
-    ['writeOctetStrings(List<String> values)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteOctetStrings(values []string)'],
-    ['readOctetString()', 'internal/infra/ldap/asn1/ber_buffer.go:ReadOctetString()'],
-    ['readOctetStringWithTag(int tag)', 'internal/infra/ldap/asn1/ber_buffer.go:ReadOctetStringWithTag(tag int)'],
-    ['readOctetStringWithLength(int length)', 'internal/infra/ldap/asn1/ber_buffer.go:ReadOctetStringWithLength(length int)'],
-    ['writeEnumeration(int value)', 'internal/infra/ldap/asn1/ber_buffer.go:WriteEnumeration(value int)'],
-    ['readEnumeration()', 'internal/infra/ldap/asn1/ber_buffer.go:ReadEnumeration()'],
-    ['getBytes()', 'internal/infra/ldap/asn1/ber_buffer.go:GetBytes()'],
-    ['skipBytes(int length)', 'internal/infra/ldap/asn1/ber_buffer.go:SkipBytes(length int)'],
-    ['refCnt()', 'internal/infra/ldap/asn1/ber_buffer.go:RefCnt()'],
-    ['retain()', 'internal/infra/ldap/asn1/ber_buffer.go:Retain()'],
-    ['retain(int increment)', 'internal/infra/ldap/asn1/ber_buffer.go:RetainIncrement(increment int)'],
-    ['touch()', 'internal/infra/ldap/asn1/ber_buffer.go:Touch()'],
-    ['touch(Object hint)', 'internal/infra/ldap/asn1/ber_buffer.go:TouchWithHint(hint any)'],
-    ['release()', 'internal/infra/ldap/asn1/ber_buffer.go:Release()'],
-    ['release(int decrement)', 'internal/infra/ldap/asn1/ber_buffer.go:ReleaseDecrement(decrement int)'],
-    ['isReadable(int length)', 'internal/infra/ldap/asn1/ber_buffer.go:IsReadableLen(length int)'],
-    ['isReadable()', 'internal/infra/ldap/asn1/ber_buffer.go:IsReadable()'],
-    ['isReadableWithEnd(int end)', 'internal/infra/ldap/asn1/ber_buffer.go:IsReadableWithEnd(end int)'],
-    ['readerIndex()', 'internal/infra/ldap/asn1/ber_buffer.go:ReaderIndex()'],
-    
-    // elements
-    ['decode(BerBuffer buffer)', 'internal/infra/ldap/element/elements.go:Decode(buffer *asn1.BerBuffer)'],
-    ['estimateSize()', 'internal/infra/ldap/element/elements.go:EstimateSize()'],
-    ['writeTo(BerBuffer buffer)', 'internal/infra/ldap/element/elements.go:WriteTo(buffer *asn1.BerBuffer)'],
-    ['isSuccess()', 'internal/infra/ldap/element/elements.go:IsSuccess()'],
-    ['write(BerBuffer buffer, String filter)', 'internal/infra/ldap/element/elements.go:Write(buffer *asn1.BerBuffer, filter string)'],
-    ['isComplete()', 'internal/infra/ldap/element/elements.go:IsComplete()'],
+    // AdminService
+    ['authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)', 'internal/domain/admin/service/admin_services.go:AuthAndAddAdmin()'],
+    ['addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)', 'internal/domain/admin/service/admin_services.go:AddAdmin()'],
+    ['queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)', 'internal/domain/admin/service/admin_services.go:QueryAdmins()'],
+    ['authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds)', 'internal/domain/admin/service/admin_services.go:AuthAndDeleteAdmins()'],
+    ['authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)', 'internal/domain/admin/service/admin_services.go:AuthAndUpdateAdmins()'],
+    ['updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)', 'internal/domain/admin/service/admin_services.go:UpdateAdmins()'],
+    ['countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)', 'internal/domain/admin/service/admin_services.go:CountAdmins()'],
+    ['errorRequesterNotExist()', 'internal/domain/admin/service/admin_services.go:ErrorRequesterNotExist()'],
 
-    // ApiLoggingContext
-    ['shouldLogHeartbeatRequest()', 'internal/infra/logging/api_logging_context.go:ShouldLogHeartbeatRequest()'],
+    // Blocklist
+    ['addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO)', 'internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:AddBlockedIps()'],
+    ['queryBlockedIps(Set<String> ids)', 'internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:QueryBlockedIpsByIds()'],
+    ['queryBlockedIps(int page, @QueryParam(required = false)', 'internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:QueryBlockedIpsByPage()'],
+    ['deleteBlockedIps(@QueryParam(required = false)', 'internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:DeleteBlockedIps()'],
 
-    // Proto Utilities
-    ['SimpleTurmsNotification(long requesterId, Integer closeStatus, TurmsRequest.KindCase relayedRequestType)', 'internal/infra/proto/proto_parser.go:NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRequestType *protocol.TurmsRequest_Kind)'],
-    ['SimpleTurmsRequest(long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest)', 'internal/infra/proto/proto_parser.go:NewSimpleTurmsRequest(requestID int64, reqType *protocol.TurmsRequest_Kind, createSessionReq *protocol.CreateSessionRequest)'],
-    ['parseSimpleNotification(CodedInputStream turmsRequestInputStream)', 'internal/infra/proto/proto_parser.go:ParseSimpleNotification(turmsRequestInputStream []byte)'],
-    ['parseSimpleRequest(CodedInputStream turmsRequestInputStream)', 'internal/infra/proto/proto_parser.go:ParseSimpleRequest(turmsRequestInputStream []byte)'],
+    ['addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO)', 'internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:AddBlockedUserIds()'],
+    ['deleteBlockedUserIds(@QueryParam(required = false)', 'internal/domain/blocklist/access/admin/controller/blocklist_controllers.go:DeleteBlockedUserIds()'],
 
-    // Common requests
-    ['turmsRequest()', 'internal/domain/common/dto/client_request.go:TurmsRequest()'],
-    ['userId()', 'internal/domain/common/dto/client_request.go:UserId()'],
-    ['deviceType()', 'internal/domain/common/dto/client_request.go:DeviceType()'],
-    ['clientIp()', 'internal/domain/common/dto/client_request.go:ClientIp()'],
-    ['requestId()', 'internal/domain/common/dto/client_request.go:RequestId()'],
-    ['equals(Object obj)', 'internal/domain/common/dto/client_request.go:Equals(obj interface{})'],
-    ['hashCode()', 'internal/domain/common/dto/client_request.go:HashCode()'],
-    
-    // RequestHandlerResult overrides
-    ['RequestHandlerResult(ResponseStatusCode code, @Nullable String reason, @Nullable TurmsNotification.Data response, List<Notification> notifications)', 'internal/domain/common/dto/request_handler_result.go:NewRequestHandlerResult(...)'],
+    ['AddBlockedIpsDTO(Set<String> ids, long blockDurationMillis)', 'internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:AddBlockedIpsDTO'],
+    ['AddBlockedUserIdsDTO(Set<Long> ids, long blockDurationMillis)', 'internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:AddBlockedUserIdsDTO'],
+    ['BlockedIpDTO(String id, Date blockEndTime)', 'internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:BlockedIpDTO'],
+    ['BlockedUserDTO(Long id, Date blockEndTime)', 'internal/domain/blocklist/access/admin/dto/blocklist_dtos.go:BlockedUserDTO'],
 
-    // Admin controllers
-    ['checkLoginNameAndPassword()', 'internal/domain/admin/access/admin/controller/admin_controllers.go:CheckLoginNameAndPassword()'],
-    ['addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:AddAdmin()'],
-    ['queryAdmins(@QueryParam(required = false)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdmins()'],
-    ['updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:UpdateAdmins()'],
-    ['deleteAdmins(RequestContext requestContext, Set<Long> ids)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:DeleteAdmins()'],
-    ['queryAdminPermissions()', 'internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminPermissions()'],
-    ['addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:AddAdminRole()'],
-    ['queryAdminRoles(@QueryParam(required = false)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:QueryAdminRoles()'],
-    ['updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:UpdateAdminRole()'],
-    ['deleteAdminRoles(RequestContext requestContext, Set<Long> ids)', 'internal/domain/admin/access/admin/controller/admin_controllers.go:DeleteAdminRoles()'],
+    // Cluster admin
+    ['queryMembers()', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryMembers()'],
+    ['removeMembers(List<String> ids)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:RemoveMembers()'],
+    ['addMember(@RequestBody AddMemberDTO addMemberDTO)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:AddMember()'],
+    ['updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:UpdateMember()'],
+    ['queryLeader()', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryLeader()'],
+    ['electNewLeader(@QueryParam(required = false)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:ElectNewLeader()'],
 
-    // Admin DTOs
-    ['AddAdminDTO(String loginName, @SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)', 'internal/domain/admin/access/admin/dto/admin_dtos.go:AddAdminDTO'],
-    ['AddAdminRoleDTO(Long id, String name, Set<String> permissions, Integer rank)', 'internal/domain/admin/access/admin/dto/admin_dtos.go:AddAdminRoleDTO'],
-    ['UpdateAdminDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)', 'internal/domain/admin/access/admin/dto/admin_dtos.go:UpdateAdminDTO'],
-    ['UpdateAdminRoleDTO(String name, Set<String> permissions, Integer rank)', 'internal/domain/admin/access/admin/dto/admin_dtos.go:UpdateAdminRoleDTO'],
-    ['PermissionDTO(String group, AdminPermission permission)', 'internal/domain/admin/access/admin/dto/admin_dtos.go:PermissionDTO'],
+    ['queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryClusterSettings()'],
+    ['updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:UpdateClusterSettings()'],
+    ['queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)', 'internal/domain/cluster/access/admin/controller/cluster_controllers.go:QueryClusterConfigMetadata()'],
 
-    // Admin Repo
-    ['updateAdmins(Set<Long> ids, @Nullable byte[] password, @Nullable String displayName, @Nullable Set<Long> roleIds)', 'internal/domain/admin/repository/admin_repository.go:UpdateAdmins()'],
-    ['countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)', 'internal/domain/admin/repository/admin_repository.go:CountAdmins()'],
-    ['findAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)', 'internal/domain/admin/repository/admin_repository.go:FindAdmins()'],
+    ['AddMemberDTO(String nodeId, String zone, String name, NodeType nodeType, String version, boolean isSeed, boolean isLeaderEligible, Date registrationDate, int priority, String memberHost, int memberPort, String adminApiAddress, String wsAddress, String tcpAddress, String udpAddress, boolean isActive, boolean isHealthy)', 'internal/domain/cluster/access/admin/dto/cluster_dtos.go:AddMemberDTO'],
+    ['UpdateMemberDTO(String zone, String name, Boolean isSeed, Boolean isLeaderEligible, Boolean isActive, Integer priority)', 'internal/domain/cluster/access/admin/dto/cluster_dtos.go:UpdateMemberDTO'],
+    ['SettingsDTO(int schemaVersion, Map<String, Object> settings)', 'internal/domain/cluster/access/admin/dto/cluster_dtos.go:SettingsDTO'],
 
-    // Admin Role Repo
-    ['updateAdminRoles(Set<Long> roleIds, String newName, @Nullable Set<AdminPermission> permissions, @Nullable Integer rank)', 'internal/domain/admin/repository/admin_role_repository.go:UpdateAdminRoles()'],
-    ['countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)', 'internal/domain/admin/repository/admin_role_repository.go:CountAdminRoles()'],
-    ['findAdminRoles(@Nullable Set<Long> roleIds, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)', 'internal/domain/admin/repository/admin_role_repository.go:FindAdminRoles()'],
-    ['findAdminRolesByIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @Nullable Integer rankGreaterThan)', 'internal/domain/admin/repository/admin_role_repository.go:FindAdminRolesByIdsAndRankGreaterThan()'],
-    ['findHighestRankByRoleIds(Set<Long> roleIds)', 'internal/domain/admin/repository/admin_role_repository.go:FindHighestRankByRoleIds()'],
+    // Common Base controller & DTO
+    ['getPageSize(@Nullable Integer size)', 'internal/domain/common/access/admin/controller/base_controller.go:GetPageSize()'],
+    ['queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)', 'internal/domain/common/access/admin/controller/base_controller.go:QueryBetweenDate()'],
+    ['queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)', 'internal/domain/common/access/admin/controller/base_controller.go:QueryBetweenDateFunc()'],
+    ['checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)', 'internal/domain/common/access/admin/controller/base_controller.go:CheckAndQueryBetweenDate()'],
+    ['checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)', 'internal/domain/common/access/admin/controller/base_controller.go:CheckAndQueryBetweenDateFunc()'],
 
-    // Admin Role Service
-    ['authAndAddAdminRole(@NotNull Long requesterId, @NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)', 'internal/domain/admin/service/admin_services.go:AuthAndAddAdminRole()'],
-    ['addAdminRole(@NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)', 'internal/domain/admin/service/admin_services.go:AddAdminRole()'],
-    ['authAndDeleteAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds)', 'internal/domain/admin/service/admin_services.go:AuthAndDeleteAdminRoles()'],
-    ['deleteAdminRoles(@NotEmpty Set<Long> roleIds)', 'internal/domain/admin/service/admin_services.go:DeleteAdminRoles()'],
-    ['authAndUpdateAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)', 'internal/domain/admin/service/admin_services.go:AuthAndUpdateAdminRoles()'],
-    ['updateAdminRole(@NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT)', 'internal/domain/admin/service/admin_services.go:UpdateAdminRole()'],
-    ['queryAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)', 'internal/domain/admin/service/admin_services.go:QueryAdminRoles()'],
-    ['queryAndCacheRolesByRoleIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @NotNull Integer rankGreaterThan)', 'internal/domain/admin/service/admin_services.go:QueryAndCacheRolesByRoleIdsAndRankGreaterThan()'],
-    ['countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)', 'internal/domain/admin/service/admin_services.go:CountAdminRoles()'],
-    ['queryHighestRankByAdminId(@NotNull Long adminId)', 'internal/domain/admin/service/admin_services.go:QueryHighestRankByAdminId()'],
-    ['queryHighestRankByRoleIds(@NotNull Set<Long> roleIds)', 'internal/domain/admin/service/admin_services.go:QueryHighestRankByRoleIds()'],
-    ['isAdminRankHigherThanRank(@NotNull Long adminId, @NotNull Integer rank)', 'internal/domain/admin/service/admin_services.go:IsAdminRankHigherThanRank()'],
-    ['queryPermissions(@NotNull Long adminId)', 'internal/domain/admin/service/admin_services.go:QueryPermissions()'],
+    ['StatisticsRecordDTO(Date date, Long total)', 'internal/domain/common/access/admin/dto/common_dtos.go:StatisticsRecordDTO'],
 
-    // Admin Service
-    ['queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds)', 'internal/domain/admin/service/admin_services.go:QueryRoleIdsByAdminIds()']
+    // Permission & Expirable utils
+    ['ServicePermission(ResponseStatusCode code, String reason)', 'internal/domain/common/permission/service_permission.go:NewServicePermission()'],
+    ['isExpired(long creationDate)', 'internal/domain/common/repository/expirable_entity_repository.go:IsExpired()'],
+    ['getEntityExpirationDate()', 'internal/domain/common/service/common_services.go:GetEntityExpirationDate()'],  // There are two of these... one repo, one service. First regex could catch both. I'll be careful.
+    ['updateGlobalProperties(UserDefinedAttributesProperties properties)', 'internal/domain/common/service/common_services.go:UpdateGlobalProperties()'],
+    ['parseAttributesForUpsert(Map<String, Value> userDefinedAttributes)', 'internal/domain/common/service/common_services.go:ParseAttributesForUpsert()'],
+    ['isProcessedByResponder(@Nullable RequestStatus status)', 'internal/domain/common/util/expirable_request_inspector.go:IsProcessedByResponder()'],
+
+    // Validator
+    ['validResponseAction(ResponseAction action)', 'internal/infra/validator/validator.go:ValidResponseAction()'],
+    ['validDeviceType(DeviceType deviceType)', 'internal/infra/validator/validator.go:ValidDeviceType()'],
+    ['validProfileAccess(ProfileAccessStrategy value)', 'internal/infra/validator/validator.go:ValidProfileAccess()'],
+    ['validRelationshipKey(UserRelationship.Key key)', 'internal/infra/validator/validator.go:ValidRelationshipKey()'],
+    ['validRelationshipGroupKey(UserRelationshipGroup.Key key)', 'internal/infra/validator/validator.go:ValidRelationshipGroupKey()'],
+    ['validGroupMemberKey(GroupMember.Key key)', 'internal/infra/validator/validator.go:ValidGroupMemberKey()'],
+    ['validGroupMemberRole(GroupMemberRole role)', 'internal/infra/validator/validator.go:ValidGroupMemberRole()'],
+    ['validGroupBlockedUserKey(GroupBlockedUser.Key key)', 'internal/infra/validator/validator.go:ValidGroupBlockedUserKey()'],
+    ['validNewGroupQuestion(NewGroupQuestion question)', 'internal/infra/validator/validator.go:ValidNewGroupQuestion()'],
+    ['validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)', 'internal/infra/validator/validator.go:ValidGroupQuestionIdAndAnswer()'],
+
+    // Conference
+    ['CancelMeetingResult(boolean success, @Nullable Meeting meeting)', 'internal/domain/conference/bo/conference_bos.go:CancelMeetingResult'],
+    ['UpdateMeetingInvitationResult(boolean updated, @Nullable String accessToken, @Nullable Meeting meeting)', 'internal/domain/conference/bo/conference_bos.go:UpdateMeetingInvitationResult'],
+    ['UpdateMeetingResult(boolean success, @Nullable Meeting meeting)', 'internal/domain/conference/bo/conference_bos.go:UpdateMeetingResult'],
+
+    ['handleCreateMeetingRequest()', 'internal/domain/conference/controller/conference_controller.go:HandleCreateMeetingRequest()'],
+    ['handleDeleteMeetingRequest()', 'internal/domain/conference/controller/conference_controller.go:HandleDeleteMeetingRequest()'],
+    ['handleUpdateMeetingRequest()', 'internal/domain/conference/controller/conference_controller.go:HandleUpdateMeetingRequest()'],
+    ['handleQueryMeetingsRequest()', 'internal/domain/conference/controller/conference_controller.go:HandleQueryMeetingsRequest()'],
+    ['handleUpdateMeetingInvitationRequest()', 'internal/domain/conference/controller/conference_controller.go:HandleUpdateMeetingInvitationRequest()'],
+
+    ['updateEndDate(Long meetingId, Date endDate)', 'internal/domain/conference/repository/meeting_repository.go:UpdateEndDate()'],
+    ['updateCancelDateIfNotCanceled(Long meetingId, Date cancelDate)', 'internal/domain/conference/repository/meeting_repository.go:UpdateCancelDateIfNotCanceled()'],
+    ['updateMeeting(Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)', 'internal/domain/conference/repository/meeting_repository.go:UpdateMeeting()'],
+    ['find(@Nullable Collection<Long> ids, @Nullable Collection<Long> creatorIds, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)', 'internal/domain/conference/repository/meeting_repository.go:Find()'],
+    ['find(@Nullable Collection<Long> ids, @NotNull Long creatorId, @NotNull Long userId, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)', 'internal/domain/conference/repository/meeting_repository.go:FindByCreatorAndUser()'],
+
+    ['onExtensionStarted(ConferenceServiceProvider extension)', 'internal/domain/conference/service/conference_service.go:OnExtensionStarted()'],
+    ['authAndCancelMeeting(@NotNull Long requesterId, @NotNull Long meetingId)', 'internal/domain/conference/service/conference_service.go:AuthAndCancelMeeting()'],
+    ['queryMeetingParticipants(@Nullable Long userId, @Nullable Long groupId)', 'internal/domain/conference/service/conference_service.go:QueryMeetingParticipants()'],
+    ['authAndUpdateMeeting(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)', 'internal/domain/conference/service/conference_service.go:AuthAndUpdateMeeting()'],
+    ['authAndUpdateMeetingInvitation(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String password, @NotNull ResponseAction responseAction)', 'internal/domain/conference/service/conference_service.go:AuthAndUpdateMeetingInvitation()'],
+    ['authAndQueryMeetings(@NotNull Long requesterId, @Nullable Set<Long> ids, @Nullable Set<Long> creatorIds, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)', 'internal/domain/conference/service/conference_service.go:AuthAndQueryMeetings()'],
+
+    // Conversation
+    ['queryConversations(@QueryParam(required = false)', 'internal/domain/conversation/access/admin/controller/conversation_controller.go:QueryConversations()'],
+    ['deleteConversations(@QueryParam(required = false)', 'internal/domain/conversation/access/admin/controller/conversation_controller.go:DeleteConversations()'],
+    ['updateConversations(@QueryParam(required = false)', 'internal/domain/conversation/access/admin/controller/conversation_controller.go:UpdateConversations()'],
+
+    ['UpdateConversationDTO(Date readDate)', 'internal/domain/conversation/access/admin/dto/conversation_dtos.go:UpdateConversationDTO'],
+    ['ConversationsDTO(List<PrivateConversation> privateConversations, List<GroupConversation> groupConversations)', 'internal/domain/conversation/access/admin/dto/conversation_dtos.go:ConversationsDTO'],
+
+    ['handleQueryConversationsRequest()', 'internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleQueryConversationsRequest()'],
+    ['handleUpdateTypingStatusRequest()', 'internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleUpdateTypingStatusRequest()'],
+    ['handleUpdateConversationRequest()', 'internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleUpdateConversationRequest()'],
+
+    ['handleUpdateConversationSettingsRequest()', 'internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleUpdateConversationSettingsRequest()'],
+    ['handleDeleteConversationSettingsRequest()', 'internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleDeleteConversationSettingsRequest()'],
+    ['handleQueryConversationSettingsRequest()', 'internal/domain/conversation/access/servicerequest/controller/conversation_service_controllers.go:HandleQueryConversationSettingsRequest()'],
+
+    ['findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)', 'internal/domain/conversation/repository/conversation_settings_repository.go:FindByIdAndSettingNames()'],
+    ['findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)', 'internal/domain/conversation/repository/conversation_settings_repository.go:FindByIdAndSettingNamesWithKeys()'],
+    ['findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields)', 'internal/domain/conversation/repository/conversation_settings_repository.go:FindSettingFields()'],
+    ['deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)', 'internal/domain/conversation/repository/conversation_settings_repository.go:DeleteByOwnerIds()'],
+
+    ['deleteMemberConversations(Collection<Long> groupIds, Long memberId, ClientSession session)', 'internal/domain/conversation/repository/group_conversation_repository.go:DeleteMemberConversations()'],
+
+    ['deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session)', 'internal/domain/conversation/repository/private_conversation_repository.go:DeleteConversationsByOwnerIds()'],
+    ['findConversations(Collection<Long> ownerIds)', 'internal/domain/conversation/repository/private_conversation_repository.go:FindConversations()'],
+
+    ['authAndUpsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)', 'internal/domain/conversation/service/conversation_service.go:AuthAndUpsertGroupConversationReadDate()'],
+    ['authAndUpsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)', 'internal/domain/conversation/service/conversation_service.go:AuthAndUpsertPrivateConversationReadDate()'],
+    ['upsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)', 'internal/domain/conversation/service/conversation_service.go:UpsertGroupConversationReadDate()'],
+    ['upsertGroupConversationsReadDate(@NotNull Set<GroupConversation.GroupConversionMemberKey> keys, @Nullable @PastOrPresent Date readDate)', 'internal/domain/conversation/service/conversation_service.go:UpsertGroupConversationsReadDate()'],
+    ['upsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)', 'internal/domain/conversation/service/conversation_service.go:UpsertPrivateConversationReadDate()'],
+    ['upsertPrivateConversationsReadDate(@NotNull Set<PrivateConversation.Key> keys, @Nullable @PastOrPresent Date readDate)', 'internal/domain/conversation/service/conversation_service.go:UpsertPrivateConversationsReadDate()'],
+    ['queryPrivateConversationsByOwnerIds(@NotNull Set<Long> ownerIds)', 'internal/domain/conversation/service/conversation_service.go:QueryPrivateConversationsByOwnerIds()'],
+    ['deletePrivateConversations(@NotNull Set<PrivateConversation.Key> keys)', 'internal/domain/conversation/service/conversation_service.go:DeletePrivateConversationsByKeys()'],
+    ['deletePrivateConversations(@NotNull Set<Long> userIds, @Nullable ClientSession session)', 'internal/domain/conversation/service/conversation_service.go:DeletePrivateConversationsByUserIds()'],
+    ['deleteGroupConversations(@Nullable Set<Long> groupIds, @Nullable ClientSession session)', 'internal/domain/conversation/service/conversation_service.go:DeleteGroupConversations()'],
+    ['deleteGroupMemberConversations(@NotNull Collection<Long> userIds, @Nullable ClientSession session)', 'internal/domain/conversation/service/conversation_service.go:DeleteGroupMemberConversations()'],
+    ['authAndUpdateTypingStatus(@NotNull Long requesterId, boolean isGroupMessage, @NotNull Long toId)', 'internal/domain/conversation/service/conversation_service.go:AuthAndUpdateTypingStatus()'],
+
+    ['upsertPrivateConversationSettings(Long ownerId, Long userId, Map<String, Value> settings)', 'internal/domain/conversation/service/conversation_settings_service.go:UpsertPrivateConversationSettings()'],
+    ['upsertGroupConversationSettings(Long ownerId, Long groupId, Map<String, Value> settings)', 'internal/domain/conversation/service/conversation_settings_service.go:UpsertGroupConversationSettings()'],
+
 ];
 
-for (const [javaSig, goPath] of mappings) {
+for (let i = 0; i < mappings.length; i++) {
+    const [javaSig, goPath] = mappings[i];
     const searchString = `- [ ] \`${javaSig}\``;
     const replacementString = `- [x] \`${javaSig}\` -> [${goPath}](../${goPath.split(':')[0]})`;
     
-    // Some lines might already been partially matched, we should be careful.
     content = content.replace(searchString, replacementString);
 }
 
+
+// Manual fallback for getEntityExpirationDate to catch the two occurrences
+content = content.replaceAll(
+    `- [ ] \`getEntityExpirationDate()\`\n`,
+    `- [x] \`getEntityExpirationDate()\` -> [internal/domain/common/repository/expirable_entity_repository.go:GetEntityExpirationDate()](../internal/domain/common/repository/expirable_entity_repository.go)\n`
+)
+
 fs.writeFileSync(path, content, 'utf8');
-console.log('Done mapping checks in ' + path);
+console.log('Update report done.');

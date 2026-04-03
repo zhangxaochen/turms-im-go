@@ -7,10 +7,10 @@ import "im.turms/server/pkg/protocol"
 type SimpleTurmsNotification struct {
 	RequesterID       int64
 	CloseStatus       *int32
-	RelayedRequestType *protocol.TurmsRequest_Kind
+	RelayedRequestType any
 }
 
-func NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRequestType *protocol.TurmsRequest_Kind) *SimpleTurmsNotification {
+func NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRequestType any) *SimpleTurmsNotification {
 	return &SimpleTurmsNotification{
 		RequesterID:       requesterID,
 		CloseStatus:       closeStatus,
@@ -22,11 +22,11 @@ func NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRe
 // @MappedFrom SimpleTurmsRequest
 type SimpleTurmsRequest struct {
 	RequestID            int64
-	Type                 *protocol.TurmsRequest_Kind
+	Type                 any
 	CreateSessionRequest *protocol.CreateSessionRequest
 }
 
-func NewSimpleTurmsRequest(requestID int64, reqType *protocol.TurmsRequest_Kind, createSessionReq *protocol.CreateSessionRequest) *SimpleTurmsRequest {
+func NewSimpleTurmsRequest(requestID int64, reqType any, createSessionReq *protocol.CreateSessionRequest) *SimpleTurmsRequest {
 	return &SimpleTurmsRequest{
 		RequestID:            requestID,
 		Type:                 reqType,
