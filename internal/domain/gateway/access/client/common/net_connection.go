@@ -38,12 +38,20 @@ type BaseNetConnection struct {
 	isSwitchingToUdp       bool
 	isConnectionRecovering bool
 	mu                     sync.RWMutex
+	udpSignalDispatcher    func(*net.UDPAddr) // Injectable callback to notify via UDP
 }
 
 func NewBaseNetConnection(connected bool) *BaseNetConnection {
 	return &BaseNetConnection{
 		isConnected: connected,
 	}
+}
+
+// SetUdpSignalDispatcher sets the callback to send recovery signals
+func (b *BaseNetConnection) SetUdpSignalDispatcher(dispatcher func(*net.UDPAddr)) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.udpSignalDispatcher = dispatcher
 }
 
 // @MappedFrom close(CloseReason closeReason)
@@ -76,8 +84,9 @@ func (b *BaseNetConnection) TryNotifyClientToRecover() {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.isConnected && !b.isConnectionRecovering && b.udpAddress != nil {
-		// Mock logic: UdpRequestDispatcher.instance.sendSignal
-		// udpdispatcher.SendSignal(b.udpAddress, udp.OPEN_CONNECTION)
+		if b.udpSignalDispatcher != nil {
+			b.udpSignalDispatcher(b.udpAddress)
+		}
 		b.isConnectionRecovering = true
 	}
 }

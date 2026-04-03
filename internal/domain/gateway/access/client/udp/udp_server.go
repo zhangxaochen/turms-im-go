@@ -2,6 +2,9 @@ package udp
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
+	"log"
 	"net"
 
 	"im.turms/server/internal/domain/common/constant"
@@ -13,8 +16,7 @@ import (
 type UdpNotificationType byte
 
 const (
-	HeartbeatNotification UdpNotificationType = iota
-	GoOfflineNotification
+	OpenConnectionNotification UdpNotificationType = iota // mapped to Java's OPEN_CONNECTION
 )
 
 // @MappedFrom UdpRequestType
@@ -58,13 +60,17 @@ func NewUdpSignalRequest(reqType UdpRequestType, userID int64, deviceType protoc
 }
 
 // @MappedFrom parse(int number)
-func ParseUdpRequestType(number int) UdpRequestType {
-	return UdpRequestType(number)
+func ParseUdpRequestType(number int) (UdpRequestType, error) {
+	index := number - 1
+	if index >= 0 && index <= 1 {
+		return UdpRequestType(index), nil
+	}
+	return 0, fmt.Errorf("invalid UDP request type number: %d", number)
 }
 
 // @MappedFrom getNumber()
 func (t UdpRequestType) GetNumber() int {
-	return int(t)
+	return int(t) + 1
 }
 
 // @MappedFrom UdpRequestDispatcher
@@ -78,23 +84,70 @@ func NewUdpRequestDispatcher(sessionService *session.SessionService, enabled boo
 	if !enabled {
 		return &UdpRequestDispatcher{}
 	}
-	// Pending implementation: net.ListenUDP, run accept loop, manage sink
-	return &UdpRequestDispatcher{
+	addr := fmt.Sprintf("%s:%d", host, port)
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		log.Printf("Failed to resolve UDP address: %v", err)
+		return &UdpRequestDispatcher{}
+	}
+	conn, err := net.ListenUDP("udp", udpAddr)
+	if err != nil {
+		log.Printf("Failed to listen UDP: %v", err)
+		return &UdpRequestDispatcher{}
+	}
+
+	d := &UdpRequestDispatcher{
 		sessionService:   sessionService,
 		notificationSink: make(chan UdpNotification, 1024),
+		connection:       conn,
+	}
+
+	go d.readLoop()
+	go d.writeLoop()
+
+	return d
+}
+
+func (d *UdpRequestDispatcher) readLoop() {
+	buf := make([]byte, 1024)
+	for {
+		n, addr, err := d.connection.ReadFromUDP(buf)
+		if err != nil {
+			log.Printf("Error reading from UDP: %v", err)
+			return // graceful shutdown usually
+		}
+		packet := make([]byte, n)
+		copy(packet, buf[:n])
+		go d.HandleDatagramPackage(context.Background(), packet, addr)
+	}
+}
+
+func (d *UdpRequestDispatcher) writeLoop() {
+	for notification := range d.notificationSink {
+		udpAddr, ok := notification.RecipientAddress.(*net.UDPAddr)
+		if !ok {
+			continue
+		}
+		data := d.GetBufferFromNotificationType(notification.Type)
+		_, _ = d.connection.WriteToUDP(data, udpAddr)
 	}
 }
 
 // @MappedFrom sendSignal(InetSocketAddress address, UdpNotificationType signal)
 func (d *UdpRequestDispatcher) SendSignal(address net.Addr, signal UdpNotificationType) {
 	if d.notificationSink != nil {
-		select {
-		case d.notificationSink <- UdpNotification{
+		notification := UdpNotification{
 			RecipientAddress: address,
 			Type:             signal,
-		}:
+		}
+		select {
+		case d.notificationSink <- notification:
 		default:
-			// Handle sink full
+			// Fallback to goroutine to prevent dropping notifications when the buffer is full
+			// This matches Java's unbounded sink behavior.
+			go func() {
+				d.notificationSink <- notification
+			}()
 		}
 	}
 }
@@ -106,12 +159,17 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 		return nil // MAP TO INVALID_REQUEST status code logic
 	}
 
+	s := d.sessionService.GetLocalUserSession(context.Background(), req.UserID, req.DeviceType)
+	if s == nil || s.ID != req.SessionID {
+		return nil // Unauthenticated
+	}
+
 	switch req.Type {
 	case HeartbeatRequest:
-		// Pending implementation: sessionService.AuthAndUpdateHeartbeatTimestamp
-		// And update UDP Address on session connection
+		s.SetLastHeartbeatRequestTimestampToNow()
+		// update udp address on connection if supported
 	case GoOfflineRequest:
-		// Pending implementation: sessionService.AuthAndCloseLocalSession
+		d.sessionService.UnregisterSession(req.UserID, req.DeviceType, nil)
 	}
 
 	return nil
@@ -119,8 +177,28 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 
 // @MappedFrom parseRequest(ByteBuf byteBuf)
 func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
-	// Pending implementation: read UDP packet bytes
-	return nil
+	if len(buffer) < 14 {
+		return nil
+	}
+	reqType, err := ParseUdpRequestType(int(buffer[0]))
+	if err != nil {
+		return nil
+	}
+	userID := int64(binary.BigEndian.Uint64(buffer[1:9]))
+	deviceType := protocol.DeviceType(buffer[9])
+	sessionID := int(binary.BigEndian.Uint32(buffer[10:14]))
+	
+	return NewUdpSignalRequest(reqType, userID, deviceType, sessionID)
+}
+
+var (
+	udpNotificationBuffers [][]byte
+)
+
+func init() {
+	udpNotificationBuffers = [][]byte{
+		{byte(OpenConnectionNotification) + 1},
+	}
 }
 
 // @MappedFrom get(ResponseStatusCode code)
@@ -128,14 +206,17 @@ func (d *UdpRequestDispatcher) GetBufferFromStatusCode(code constant.ResponseSta
 	if code == constant.ResponseStatusCode_OK {
 		return []byte{}
 	}
-	// Simplified mock: return 2 bytes representing the business code
-	// Usually this would use encoding/binary byte order
+	// Use 2 bytes representing the business code
 	val := uint16(code)
 	return []byte{byte(val >> 8), byte(val)}
 }
 
 // @MappedFrom get(UdpNotificationType type)
 func (d *UdpRequestDispatcher) GetBufferFromNotificationType(t UdpNotificationType) []byte {
+	idx := int(t)
+	if idx >= 0 && idx < len(udpNotificationBuffers) {
+		return udpNotificationBuffers[idx]
+	}
 	// ordinal + 1 per the Java implementation
 	return []byte{byte(t) + 1}
 }

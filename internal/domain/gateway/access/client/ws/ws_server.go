@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"im.turms/server/internal/domain/gateway/access/server"
 	"im.turms/server/internal/domain/gateway/session"
 )
 
@@ -9,12 +10,17 @@ type HttpForwardedHeaderHandler struct{}
 
 // @MappedFrom apply(ConnectionInfo connectionInfo, HttpRequest request)
 func (h *HttpForwardedHeaderHandler) Apply(connectionInfo any, request any) any {
+	// Pending implementation for Forwarded / X-Forwarded-For parsing
 	return nil
 }
 
 // @MappedFrom WebSocketServerFactory
 type WebSocketServerFactory struct{}
 
-// @MappedFrom create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)
-func (f *WebSocketServerFactory) Create(webSocketProperties any, blocklistService any, serverStatusManager any, sessionService *session.SessionService, connectionListener any, maxFramePayloadLength int) {
+// @MappedFrom create(...)
+func (f *WebSocketServerFactory) Create(addr string, handler session.MessageHandler, sessionService *session.SessionService) *server.WSServer {
+	// Note: Replaced multiple Spring/Reactor specifics with actual Go WSServer setup
+	wsServer := server.NewWSServer(addr, sessionService, handler)
+	_ = wsServer.Start()
+	return wsServer
 }

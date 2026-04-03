@@ -142,11 +142,9 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 			}
 		}
 
-		if notification == nil {
-			notification, err = d.HandleServiceRequest(ctx, sessionWrapper, req, serviceRequestBuffer)
-			if err != nil {
-				notification = d.NotificationFactory.CreateFromError(err, &requestID)
-			}
+		notification, err = d.HandleServiceRequest(ctx, sessionWrapper, req, serviceRequestBuffer)
+		if err != nil {
+			notification = d.NotificationFactory.CreateFromError(err, &requestID)
 		}
 
 		finalCanLogRequest := canLogRequest
