@@ -1,0 +1,24 @@
+@@ -14,8 +14,7 @@
+ type UdpNotificationType byte
+ 
+ const (
+-HeartbeatNotification UdpNotificationType = iota
+-GoOfflineNotification
++OpenConnectionNotification UdpNotificationType = iota
+ )
+ 
+ // @MappedFrom UdpRequestType
+@@ -58,8 +57,11 @@
+ }
+ 
+ // @MappedFrom parse(int number)
+-func ParseUdpRequestType(number int) UdpRequestType {
+- return UdpRequestType(number)
++func ParseUdpRequestType(number int) (UdpRequestType, bool) {
+++if number == int(HeartbeatRequest) || number == int(GoOfflineRequest) {
+++return UdpRequestType(number), true
+++}
+++return 0, false
+ }
+ 
+ // @MappedFrom getNumber()

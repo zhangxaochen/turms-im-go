@@ -124,5 +124,5 @@ func (r *SearchResult) Decode(buffer *asn1.BerBuffer) {
 
 // @MappedFrom isComplete()
 func (r *SearchResult) IsComplete() bool {
-	return false
+	return true
 }
