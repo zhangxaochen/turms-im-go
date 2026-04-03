@@ -1,8 +1,8 @@
 package controller
 
 import (
-	"im.turms/server/pkg/protocol"
 	"google.golang.org/protobuf/proto"
+	"im.turms/server/pkg/protocol"
 )
 
 func buildSuccessNotification(reqID *int64) *protocol.TurmsNotification {

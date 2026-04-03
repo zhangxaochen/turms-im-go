@@ -1,0 +1,32 @@
+package bo
+
+import (
+	"im.turms/server/pkg/protocol"
+)
+
+// UserLoginInfo represents the login information provided by the user during connection establishment.
+type UserLoginInfo struct {
+	Version             int
+	UserID              int64
+	Password            *string
+	LoggingInDeviceType protocol.DeviceType
+	DeviceDetails       map[string]string
+	UserStatus          *protocol.UserStatus
+	// Location       *Location      // Location domain object when migrated
+	IP string
+}
+
+// NewUserLoginInfo creates a new UserLoginInfo.
+// @MappedFrom UserLoginInfo(int version, Long userId, String password, DeviceType loggingInDeviceType, Map<String, String> deviceDetails, UserStatus userStatus, Location location, String ip)
+func NewUserLoginInfo(version int, userID int64, password *string, loggingInDeviceType protocol.DeviceType, deviceDetails map[string]string, userStatus *protocol.UserStatus /*, location *Location */, ip string) *UserLoginInfo {
+	return &UserLoginInfo{
+		Version:             version,
+		UserID:              userID,
+		Password:            password,
+		LoggingInDeviceType: loggingInDeviceType,
+		DeviceDetails:       deviceDetails,
+		UserStatus:          userStatus,
+		// Location: location,
+		IP: ip,
+	}
+}

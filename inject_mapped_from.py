@@ -15,19 +15,42 @@ updates = {}  # file_path -> { method_name -> set(java_signatures) }
 for line in lines:
     line = line.strip()
     if line.startswith("- [x] "):
-        # Example line: - [x] `verifyAndGrant(UserLoginInfo userLoginInfo)` -> `internal/domain/gateway/access/client/common/ip_request_throttler.go:VerifyAndGrant(ctx context.Context, u int)`
-        # Note: Sometimes it has full Go signature: `internal/.../file.go:MethodName(abc)`
-        m = re.match(r'- \[x\] `(.*?)` -> `(.*?):([A-Za-z0-9_]+)(?:\(.*?\))?`', line)
-        if m:
-            java_sig = m.group(1)
-            go_file = m.group(2)
-            go_method = m.group(3)
+        # Format 1 (backticks): - [x] `verify(UserLoginInfo)` -> `internal/file.go:Verify()`
+        # Format 2 (markdown link): - [x] `verify(UserLoginInfo)` -> [internal/file.go:Verify()](../internal/file.go)
+        # We can extract the Java side from inside backticks.
+        java_match = re.search(r'- \[x\] `(.*?)` \-> ', line)
+        if not java_match:
+            continue
+        java_sig = java_match.group(1)
+        
+        # Now try to extract the Go file and method
+        # It could be `internal/file.go:MethodName(...)` OR [internal/file.go:MethodName(...)](...)
+        go_side_match = re.search(r'->\s+\[?(.*?):([A-Za-z0-9_]+)(?:\(.*?\))?\]?\(?.*?\)?', line)
+        
+        # We need a more precise match
+        go_side_str = line[java_match.end():].strip()
+        
+        # Try markdown link format: [file.go:MethodName(args...)](...)
+        mlink_match = re.match(r'\[(.*?):([A-Za-z0-9_]+)(?:\(.*?\))?\]\(.*?\)', go_side_str)
+        
+        # Try backtick format: `file.go:MethodName(args...)`
+        btick_match = re.match(r'`(.*?):([A-Za-z0-9_]+)(?:\(.*?\))?`', go_side_str)
+        
+        if mlink_match:
+            go_file = mlink_match.group(1)
+            go_method = mlink_match.group(2)
+        elif btick_match:
+            go_file = btick_match.group(1)
+            go_method = btick_match.group(2)
+        else:
+            print(f"Failed to parse Go side in line: {line}")
+            continue
             
-            if go_file not in updates:
-                updates[go_file] = {}
-            if go_method not in updates[go_file]:
-                updates[go_file][go_method] = set()
-            updates[go_file][go_method].add(java_sig)
+        if go_file not in updates:
+            updates[go_file] = {}
+        if go_method not in updates[go_file]:
+            updates[go_file][go_method] = set()
+        updates[go_file][go_method].add(java_sig)
 
 for go_file, methods in updates.items():
     if not os.path.exists(go_file):

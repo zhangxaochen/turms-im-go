@@ -70,7 +70,7 @@ func (s *sessionService) QueryUserSessions(ctx context.Context, userIDs []int64)
 		if err != nil {
 			continue
 		}
-		
+
 		var sessions []UserSessionInfo
 		for dtype, sessInfo := range status.OnlineDeviceTypeToSessionInfo {
 			if sessInfo.IsActive {
@@ -79,7 +79,7 @@ func (s *sessionService) QueryUserSessions(ctx context.Context, userIDs []int64)
 				})
 			}
 		}
-		
+
 		infos = append(infos, &UserSessionsInfo{
 			UserID:   uid,
 			Status:   status.UserStatus,

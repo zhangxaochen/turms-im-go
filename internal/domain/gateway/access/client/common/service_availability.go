@@ -38,3 +38,13 @@ func (sa *ServiceAvailabilityHandler) GetStatus() ServerStatus {
 func (sa *ServiceAvailabilityHandler) IsAvailable() bool {
 	return sa.GetStatus() == StatusRunning
 }
+
+// @MappedFrom channelRegistered(ChannelHandlerContext ctx)
+func (sa *ServiceAvailabilityHandler) ChannelRegistered(isAvailable bool) bool {
+	return isAvailable
+}
+
+// @MappedFrom exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
+func (sa *ServiceAvailabilityHandler) ExceptionCaught(err error) {
+	// Log or handle the connection exception
+}

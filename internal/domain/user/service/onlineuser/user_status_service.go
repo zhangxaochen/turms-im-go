@@ -104,7 +104,7 @@ func (s *userStatusService) FetchUserSessionsStatus(ctx context.Context, userID 
 
 	status := bo.UserSessionsStatus{
 		UserID:                        userID,
-		UserStatus:                   protocol.UserStatus_AVAILABLE, // Default if not found
+		UserStatus:                    protocol.UserStatus_AVAILABLE, // Default if not found
 		OnlineDeviceTypeToSessionInfo: make(map[protocol.DeviceType]bo.UserDeviceSessionInfo),
 	}
 

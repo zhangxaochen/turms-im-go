@@ -258,4 +258,3 @@ func (r *groupInvitationRepository) buildFilter(groupID, inviterID, inviteeID *i
 	}
 	return filter
 }
-

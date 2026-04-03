@@ -16,13 +16,13 @@ import (
 )
 
 type UserServiceController struct {
-	userService            service.UserService
+	userService             service.UserService
 	userRelationshipService service.UserRelationshipService
-	outboundMessageService commonservice.OutboundMessageService
-	nearbyUserService      onlineuser.NearbyUserService
-	sessionService         onlineuser.SessionService
-	userStatusService      onlineuser.UserStatusService
-	sessionLocationService onlineuser.SessionLocationService
+	outboundMessageService  commonservice.OutboundMessageService
+	nearbyUserService       onlineuser.NearbyUserService
+	sessionService          onlineuser.SessionService
+	userStatusService       onlineuser.UserStatusService
+	sessionLocationService  onlineuser.SessionLocationService
 }
 
 func NewUserServiceController(
@@ -35,13 +35,13 @@ func NewUserServiceController(
 	sessionLocationService onlineuser.SessionLocationService,
 ) *UserServiceController {
 	return &UserServiceController{
-		userService:            userService,
+		userService:             userService,
 		userRelationshipService: userRelationshipService,
-		outboundMessageService: outboundMessageService,
-		nearbyUserService:      nearbyUserService,
-		sessionService:         sessionService,
-		userStatusService:      userStatusService,
-		sessionLocationService: sessionLocationService,
+		outboundMessageService:  outboundMessageService,
+		nearbyUserService:       nearbyUserService,
+		sessionService:          sessionService,
+		userStatusService:       userStatusService,
+		sessionLocationService:  sessionLocationService,
 	}
 }
 

@@ -38,6 +38,8 @@ func (c *TCPConnection) RemoteAddr() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
+func (c *TCPConnection) TryNotifyClientToRecover() {}
+
 // TCPServer listens for incoming TCP connections and handles them.
 type TCPServer struct {
 	addr           string

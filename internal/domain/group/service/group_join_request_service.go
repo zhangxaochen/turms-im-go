@@ -13,12 +13,12 @@ import (
 )
 
 type GroupJoinRequestService struct {
-	joinReqRepo         repository.GroupJoinRequestRepository
-	groupMemberService  *GroupMemberService
+	joinReqRepo           repository.GroupJoinRequestRepository
+	groupMemberService    *GroupMemberService
 	groupBlocklistService *GroupBlocklistService
-	groupService        *GroupService
-	groupTypeService    *GroupTypeService
-	groupVersionService *GroupVersionService
+	groupService          *GroupService
+	groupTypeService      *GroupTypeService
+	groupVersionService   *GroupVersionService
 }
 
 func NewGroupJoinRequestService(
@@ -30,12 +30,12 @@ func NewGroupJoinRequestService(
 	groupVersionService *GroupVersionService,
 ) *GroupJoinRequestService {
 	return &GroupJoinRequestService{
-		joinReqRepo:         joinReqRepo,
-		groupMemberService:  groupMemberService,
+		joinReqRepo:           joinReqRepo,
+		groupMemberService:    groupMemberService,
 		groupBlocklistService: groupBlocklistService,
-		groupService:        groupService,
-		groupTypeService:    groupTypeService,
-		groupVersionService: groupVersionService,
+		groupService:          groupService,
+		groupTypeService:      groupTypeService,
+		groupVersionService:   groupVersionService,
 	}
 }
 

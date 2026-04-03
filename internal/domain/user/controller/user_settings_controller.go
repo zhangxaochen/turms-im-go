@@ -40,4 +40,3 @@ func (c *UserSettingsController) HandleQueryUserSettingsRequest(ctx context.Cont
 	// TODO: Implementation depends on protocol.QueryUserSettingsRequest
 	return buildSuccessNotification(req.RequestId), nil
 }
-

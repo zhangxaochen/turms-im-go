@@ -48,7 +48,6 @@ func (c *UserRelationshipController) RegisterRoutes(r *router.Router) {
 	r.RegisterController(&protocol.TurmsRequest_UpdateRelationshipRequest{}, c.HandleUpdateRelationshipRequest)
 }
 
-
 // @MappedFrom handleCreateFriendRequestRequest()
 func (c *UserRelationshipController) HandleCreateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateFriendRequestRequest()
@@ -150,7 +149,7 @@ func (c *UserRelationshipController) HandleDeleteRelationshipRequest(ctx context
 // @MappedFrom handleQueryFriendRequestsRequest()
 func (c *UserRelationshipController) HandleQueryFriendRequestsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryFriendRequestsRequest()
-	
+
 	var lastUpdatedTime *time.Time
 	if queryReq.LastUpdatedDate != nil {
 		t := time.UnixMilli(queryReq.GetLastUpdatedDate())
@@ -341,5 +340,3 @@ func (c *UserRelationshipController) HandleUpdateRelationshipRequest(ctx context
 
 	return buildSuccessNotification(req.RequestId), nil
 }
-
-

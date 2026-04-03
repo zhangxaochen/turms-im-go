@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"go.mongodb.org/mongo-driver/bson"
+	common "im.turms/server/internal/domain/common/service"
 	"im.turms/server/internal/domain/user/po"
 	"im.turms/server/internal/domain/user/repository"
-	common "im.turms/server/internal/domain/common/service"
 )
 
 var (
@@ -37,6 +37,8 @@ func NewUserSettingsService(
 	}
 }
 
+// @MappedFrom upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)
+// @MappedFrom upsertSettings(Long userId, Map<String, Value> settings)
 func (s *userSettingsService) UpsertSettings(ctx context.Context, userID int64, settings map[string]interface{}) error {
 	if len(settings) == 0 {
 		return nil
@@ -83,6 +85,9 @@ func (s *userSettingsService) DeleteSettings(ctx context.Context, filter bson.M)
 	return s.settingsRepo.DeleteSettings(ctx, filter)
 }
 
+// @MappedFrom unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)
+// @MappedFrom unsetSettings(Long userId, @Nullable Set<String> settingNames)
+// @MappedFrom unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)
 func (s *userSettingsService) UnsetSettings(ctx context.Context, userID int64, keys []string) error {
 	if len(keys) == 0 {
 		return nil
@@ -106,4 +111,3 @@ func (s *userSettingsService) QuerySetting(ctx context.Context, userID int64, na
 	}
 	return s.settingsRepo.FindByIdAndSettingNames(ctx, userID, nameStrs)
 }
-
