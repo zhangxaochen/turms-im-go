@@ -1,26 +1,181 @@
 package repository
 
-// AdminRoleRepository maps to AdminRoleRepository in Java.
-// @MappedFrom AdminRoleRepository
-type AdminRoleRepository struct {
+import (
+	"context"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"im.turms/server/internal/domain/admin/permission"
+	"im.turms/server/internal/domain/admin/po"
+	turmsmongo "im.turms/server/internal/storage/mongo"
+)
+
+type AdminRoleRepository interface {
+	Insert(ctx context.Context, adminRole *po.AdminRole) error
+	UpdateAdminRoles(ctx context.Context, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error)
+	CountAdminRoles(ctx context.Context, ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int) (int64, error)
+	FindAdminRoles(ctx context.Context, roleIds []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int, page *int, size *int) ([]*po.AdminRole, error)
+	FindAdminRolesByIdsAndRankGreaterThan(ctx context.Context, roleIds []int64, rankGreaterThan *int) ([]*po.AdminRole, error)
+	FindHighestRankByRoleIds(ctx context.Context, roleIds []int64) (*int, error)
+	DeleteAdminRoles(ctx context.Context, ids []int64) (int64, error)
 }
 
-// @MappedFrom updateAdminRoles(Set<Long> roleIds, String newName, @Nullable Set<AdminPermission> permissions, @Nullable Integer rank)
-func (r *AdminRoleRepository) UpdateAdminRoles() {
+type adminRoleRepository struct {
+	coll *mongo.Collection
 }
 
-// @MappedFrom countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks)
-func (r *AdminRoleRepository) CountAdminRoles() {
+func NewAdminRoleRepository(client *turmsmongo.Client) AdminRoleRepository {
+	return &adminRoleRepository{
+		coll: client.Collection(po.CollectionNameAdminRole),
+	}
 }
 
-// @MappedFrom findAdminRoles(@Nullable Set<Long> roleIds, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size)
-func (r *AdminRoleRepository) FindAdminRoles() {
+func (r *adminRoleRepository) Insert(ctx context.Context, adminRole *po.AdminRole) error {
+	_, err := r.coll.InsertOne(ctx, adminRole)
+	return err
 }
 
-// @MappedFrom findAdminRolesByIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @Nullable Integer rankGreaterThan)
-func (r *AdminRoleRepository) FindAdminRolesByIdsAndRankGreaterThan() {
+func (r *adminRoleRepository) UpdateAdminRoles(ctx context.Context, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error) {
+	filter := bson.M{}
+	if len(roleIds) > 0 {
+		filter[po.AdminRoleFieldID] = bson.M{"$in": roleIds}
+	}
+
+	set := bson.M{}
+	unset := bson.M{}
+
+	if newName != nil {
+		set[po.AdminRoleFieldName] = *newName
+	}
+	if permissions != nil {
+		if len(permissions) == 0 {
+			unset[po.AdminRoleFieldPermissions] = ""
+		} else {
+			set[po.AdminRoleFieldPermissions] = permissions
+		}
+	}
+	if rank != nil {
+		set[po.AdminRoleFieldRank] = *rank
+	}
+
+	update := bson.M{}
+	if len(set) > 0 {
+		update["$set"] = set
+	}
+	if len(unset) > 0 {
+		update["$unset"] = unset
+	}
+
+	if len(update) == 0 {
+		return 0, nil
+	}
+
+	res, err := r.coll.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+	return res.ModifiedCount, nil
 }
 
-// @MappedFrom findHighestRankByRoleIds(Set<Long> roleIds)
-func (r *AdminRoleRepository) FindHighestRankByRoleIds() {
+func (r *adminRoleRepository) CountAdminRoles(ctx context.Context, ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int) (int64, error) {
+	filter := r.buildFilter(ids, names, includedPermissions, ranks)
+	return r.coll.CountDocuments(ctx, filter)
+}
+
+func (r *adminRoleRepository) FindAdminRoles(ctx context.Context, roleIds []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int, page *int, size *int) ([]*po.AdminRole, error) {
+	filter := r.buildFilter(roleIds, names, includedPermissions, ranks)
+
+	findOptions := options.Find()
+	if size != nil {
+		findOptions.SetLimit(int64(*size))
+		if page != nil {
+			findOptions.SetSkip(int64(*page * *size))
+		}
+	}
+
+	cursor, err := r.coll.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var roles []*po.AdminRole
+	if err = cursor.All(ctx, &roles); err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (r *adminRoleRepository) FindAdminRolesByIdsAndRankGreaterThan(ctx context.Context, roleIds []int64, rankGreaterThan *int) ([]*po.AdminRole, error) {
+	filter := bson.M{}
+	if len(roleIds) > 0 {
+		filter[po.AdminRoleFieldID] = bson.M{"$in": roleIds}
+	}
+	if rankGreaterThan != nil {
+		filter[po.AdminRoleFieldRank] = bson.M{"$gt": *rankGreaterThan}
+	}
+
+	cursor, err := r.coll.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var roles []*po.AdminRole
+	if err = cursor.All(ctx, &roles); err != nil {
+		return nil, err
+	}
+	return roles, nil
+}
+
+func (r *adminRoleRepository) FindHighestRankByRoleIds(ctx context.Context, roleIds []int64) (*int, error) {
+	if len(roleIds) == 0 {
+		return nil, nil
+	}
+
+	filter := bson.M{
+		po.AdminRoleFieldID: bson.M{"$in": roleIds},
+	}
+
+	findOptions := options.FindOne().SetSort(bson.M{po.AdminRoleFieldRank: -1})
+	var role po.AdminRole
+	err := r.coll.FindOne(ctx, filter, findOptions).Decode(&role)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &role.Rank, nil
+}
+
+func (r *adminRoleRepository) DeleteAdminRoles(ctx context.Context, ids []int64) (int64, error) {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter[po.AdminRoleFieldID] = bson.M{"$in": ids}
+	}
+	res, err := r.coll.DeleteMany(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+	return res.DeletedCount, nil
+}
+
+func (r *adminRoleRepository) buildFilter(ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int) bson.M {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter[po.AdminRoleFieldID] = bson.M{"$in": ids}
+	}
+	if len(names) > 0 {
+		filter[po.AdminRoleFieldName] = bson.M{"$in": names}
+	}
+	if len(includedPermissions) > 0 {
+		filter[po.AdminRoleFieldPermissions] = bson.M{"$in": includedPermissions}
+	}
+	if len(ranks) > 0 {
+		filter[po.AdminRoleFieldRank] = bson.M{"$in": ranks}
+	}
+	return filter
 }

@@ -58,4 +58,10 @@ BEFORE committing any ported struct/service, you MUST complete this implicit che
 
 1. **Markdown 链接规范**: 在 `refactor_progress_report.md` 中记录映射关系时，Go 代码的路径和方法必须使用相对路径的 Markdown 链接（例如 `- [x] `javaMethod()` -> [internal/xxx.go:Method()](../internal/xxx.go)`），严禁使用反引号。这允许 GitHub 和 IDE 的直接点击跳转。
 2. **自动注入脚本 (`inject_mapped_from.py`)**: 无论何时更新了 `refactor_progress_report.md`，都应该在根目录运行 `python3 inject_mapped_from.py`。该脚本会解析报告中的映射，并自动在对应的 Go 文件函数上方扫描并注入或更新 `// @MappedFrom` 注解，彻底免除手动双写同步的烦恼。
-3. **批量刷图脚本 (`reformat_report.py`)**: 当出现旧格式的遗留反引号时，可以通过这个脚本自动升级 `refactor_progress_report.md` 中的所有 Go 引用格式。
+5. **批量审计脚本 (`audit.js`)**: 用于在本地批量验证 `refactor_progress_report.md` 中的所有已打钩项。由于 `gemini` CLI 会遭遇 `429 Too Many Requests` API 频率限制，该脚本通过延时重试策略进行单次 Query 的并行控制，检测出的问题会自动归档到 `pending_bugs.md`。
+
+## 代码映射排坑经验 (Gotchas & Insights)
+
+- **避免单体 Stub 文件**: 在映射原本庞大且分散的 Repository 或 Controller 时，**绝不能**使用一个集中的巨石文件（例如 `group_repositories_stubs.go`）来堆砌所有接口存根。必须精准将映射还原到其属于的特定 Domain Repository 文件（例如 `group_blocked_user_repository.go`），以保证依赖层次与 Java 原始设计解耦的初衷完全一致。
+- **批量查询限流**: 在编写或运行利用大型语言模型代理（如使用 gemini CLI）进行自动化架构校验的脚本时，切记限制并发请求并结合失败/限流（429 报错）时的长时间回退重试（Exponential Backoff）。建议不要把整个代码库压缩到一个 Prompt 中，应当以 Class 为单位发起单次 Query (`-p` 参数)，降低单请求上下文并保证稳定性。
+- **命令行工具代理读取**: 使用 `gemini` CLI 进行自动化文件比对或审核时，**严禁通过 `cat` 或 `stdin` 将文件内容拼接到 Prompt 中**（极易触发 Node `execSync` 缓存限制或 Shell 字符数限制）。正确做法是直接在 Prompt 字符串中提供文件的绝对路径（如 `gemini -p "Read /path/a and /path/b..."`），使 AI Agent 借助内置的 `view_file` tool 自行读取文件，极大提升脚本稳定性和安全裕度。
