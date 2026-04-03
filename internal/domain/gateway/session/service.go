@@ -315,8 +315,47 @@ func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason 
 	return nil
 }
 
-func (s *SessionService) GetSessions(ctx context.Context, userIds []int64) []any {
-	return nil
+func (s *SessionService) GetSessions(ctx context.Context, userIds []int64) []*sessionbo.UserSessionsInfo {
+	if len(userIds) == 0 {
+		return nil
+	}
+
+	var result []*sessionbo.UserSessionsInfo
+	for _, uid := range userIds {
+		manager, ok := s.shardedMap.Get(uid)
+		if !ok {
+			continue
+		}
+
+		sessions := manager.GetAllSessions()
+		if len(sessions) == 0 {
+			continue
+		}
+
+		var sessionInfos []sessionbo.UserSessionInfo
+		for _, sess := range sessions {
+			var loc *sessionbo.UserLocation
+			if sess.Location != nil {
+				loc = &sessionbo.UserLocation{
+					Longitude: sess.Location.Longitude,
+					Latitude:  sess.Location.Latitude,
+				}
+			}
+			sessionInfos = append(sessionInfos, sessionbo.UserSessionInfo{
+				ID:         sess.ID,
+				Version:    sess.Version,
+				DeviceType: sess.DeviceType,
+				LoginDate:  sess.LoginDate.UnixMilli(),
+				Location:   loc,
+			})
+		}
+
+		result = append(result, &sessionbo.UserSessionsInfo{
+			UserID:   uid,
+			Sessions: sessionInfos,
+		})
+	}
+	return result
 }
 
 func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int) *UserSession {
@@ -390,8 +429,24 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 }
 
 func (s *SessionService) closeSessionsWithConflictedDeviceTypes(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionsStatus *userbo.UserSessionsStatus) (bool, error) {
-	// Stub for RPC: assume true until RPC cluster is built
-	// TODO: Iterate over conflicting nodes and send RPC requests to close them.
+	if sessionsStatus == nil || len(sessionsStatus.OnlineDeviceTypeToSessionInfo) == 0 {
+		return true, nil
+	}
+
+	for existingDeviceType, info := range sessionsStatus.OnlineDeviceTypeToSessionInfo {
+		if !info.IsActive {
+			continue
+		}
+		// Based on MultiDeviceStrategy, if we are KickExisting and there's a conflict
+		if s.userSimultaneousLoginService.IsConflicted(deviceType, existingDeviceType) {
+			if info.NodeID == s.nodeID {
+				// Handled locally beforehand
+				continue
+			}
+			// TODO: Send RPC to `info.NodeID` to kick `existingDeviceType` for `userId`
+			// e.g. s.rpcService.requestResponse(...)
+		}
+	}
 	return true, nil
 }
 
@@ -413,6 +468,15 @@ func (s *SessionService) addOnlineDeviceIfAbsent(ctx context.Context, version in
 		IP:         net.IP(ip),
 		LoginDate:  now,
 		CloseChan:  make(chan struct{}),
+	}
+	if location != nil {
+		loc, ok := location.(*protocol.UserLocation)
+		if ok {
+			session.Location = &sessionbo.UserLocation{
+				Longitude: loc.Longitude,
+				Latitude:  loc.Latitude,
+			}
+		}
 	}
 	session.SetLastHeartbeatRequestTimestampToNow()
 
@@ -460,6 +524,8 @@ func (s *SessionService) GetLocalUserSessionsByIp(ctx context.Context, ip []byte
 }
 
 func (s *SessionService) OnSessionEstablished(ctx context.Context, userSessionsManager any, deviceType protocol.DeviceType) {
+	// TODO: Increment metrics (e.g. LoggedInUsersCounter, OnlineUsersGauge)
+	// TODO: Notify clients of session info if properties.Gateway.Session.NotifyClientsOfSessionInfoAfterConnected is true
 }
 
 func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSessionClosed func(*UserSession)) {
@@ -469,7 +535,9 @@ func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSess
 }
 
 func (s *SessionService) InvokeGoOnlineHandlers(ctx context.Context, userSessionsManager any, userSession *UserSession) {
+	// TODO: 插件系统尚未实现: 调用 PluginManager (UserOnlineStatusChangeHandler.goOnline)
 }
 
 func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessionsManager *UserSessionsManager, closeReason any) {
+	// TODO: 插件系统尚未实现: 调用 PluginManager (UserOnlineStatusChangeHandler.goOffline)
 }

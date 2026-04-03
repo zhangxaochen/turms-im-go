@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"im.turms/server/pkg/protocol"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 )
 
 // UserSession encapsulates the network connection and the user state.
@@ -20,6 +21,7 @@ type UserSession struct {
 	IP net.IP
 
 	LoginDate time.Time
+	Location  *sessionbo.UserLocation
 
 	// Holds the actual transport wrapper (TCP/WebSocket)
 	Conn Connection
