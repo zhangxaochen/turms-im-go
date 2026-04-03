@@ -64,3 +64,7 @@ func (r *GroupConversationRepository) QueryGroupConversations(ctx context.Contex
 
 	return results, nil
 }
+
+// @MappedFrom deleteMemberConversations(Collection<Long> groupIds, Long memberId, ClientSession session)
+func (r *GroupConversationRepository) DeleteMemberConversations() {
+}

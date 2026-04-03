@@ -65,3 +65,35 @@ type AdminService struct {
 // @MappedFrom queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds)
 func (s *AdminService) QueryRoleIdsByAdminIds() {
 }
+
+// @MappedFrom authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)
+func (s *AdminService) AuthAndAddAdmin() {
+}
+
+// @MappedFrom addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT)
+func (s *AdminService) AddAdmin() {
+}
+
+// @MappedFrom queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size)
+func (s *AdminService) QueryAdmins() {
+}
+
+// @MappedFrom authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds)
+func (s *AdminService) AuthAndDeleteAdmins() {
+}
+
+// @MappedFrom authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)
+func (s *AdminService) AuthAndUpdateAdmins() {
+}
+
+// @MappedFrom updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT)
+func (s *AdminService) UpdateAdmins() {
+}
+
+// @MappedFrom countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds)
+func (s *AdminService) CountAdmins() {
+}
+
+// @MappedFrom errorRequesterNotExist()
+func (s *AdminService) ErrorRequesterNotExist() {
+}
