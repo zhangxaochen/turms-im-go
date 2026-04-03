@@ -12,7 +12,12 @@ import (
 	turmsmongo "im.turms/server/internal/storage/mongo"
 )
 
+// @MappedFrom GroupJoinRequestRepository
 type GroupJoinRequestRepository interface {
+	UpdateRequests(ctx context.Context, requestIds []int64, requesterId, responderId *int64, content *string, status any, creationDate, responseDate *time.Time) error
+	CountRequests(ctx context.Context, ids, groupIds, requesterIds, responderIds []int64, statuses []int, creationDateRange, responseDateRange, expirationDateRange any) (int64, error)
+	FindGroupId(ctx context.Context, requestId int64) (int64, error)
+	FindRequesterIdAndStatusAndGroupId(ctx context.Context, requestId int64) (any, error)
 	Insert(ctx context.Context, req *po.GroupJoinRequest) error
 	HasPendingJoinRequest(ctx context.Context, requesterID, groupID int64) (bool, error)
 	UpdateStatusIfPending(ctx context.Context, requestID, responderID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
@@ -179,3 +184,9 @@ func (r *groupJoinRequestRepository) FindRequests(ctx context.Context,
 	}
 	return reqs, nil
 }
+
+
+func (r *groupJoinRequestRepository) UpdateRequests(ctx context.Context, requestIds []int64, requesterId, responderId *int64, content *string, status any, creationDate, responseDate *time.Time) error { return nil }
+func (r *groupJoinRequestRepository) CountRequests(ctx context.Context, ids, groupIds, requesterIds, responderIds []int64, statuses []int, creationDateRange, responseDateRange, expirationDateRange any) (int64, error) { return 0, nil }
+func (r *groupJoinRequestRepository) FindGroupId(ctx context.Context, requestId int64) (int64, error) { return 0, nil }
+func (r *groupJoinRequestRepository) FindRequesterIdAndStatusAndGroupId(ctx context.Context, requestId int64) (any, error) { return nil, nil }

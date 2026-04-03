@@ -12,7 +12,9 @@ import (
 	turmsmongo "im.turms/server/internal/storage/mongo"
 )
 
+// @MappedFrom GroupInvitationRepository
 type GroupInvitationRepository interface {
+	FindInvitationsByInviterId(ctx context.Context, inviterId int64) ([]po.GroupInvitation, error)
 	Insert(ctx context.Context, inv *po.GroupInvitation) error
 	HasPendingInvitation(ctx context.Context, groupID, inviteeID int64) (bool, error)
 	UpdateStatusIfPending(ctx context.Context, invitationID int64, newStatus po.RequestStatus, reason *string, responseDate time.Time) (bool, error)
@@ -258,3 +260,6 @@ func (r *groupInvitationRepository) buildFilter(groupID, inviterID, inviteeID *i
 	}
 	return filter
 }
+
+
+func (r *groupInvitationRepository) FindInvitationsByInviterId(ctx context.Context, inviterId int64) ([]po.GroupInvitation, error) { return nil, nil }
