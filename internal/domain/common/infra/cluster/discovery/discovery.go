@@ -301,6 +301,13 @@ func (s *DiscoveryService) GetMembers() []*Member {
 	return members
 }
 
+func (s *DiscoveryService) GetLocalNodeID() string {
+	if s.localMember != nil {
+		return s.localMember.NodeID
+	}
+	return ""
+}
+
 func (s *DiscoveryService) GetLeaderID() string {
 	s.leaderMu.RLock()
 	defer s.leaderMu.RUnlock()

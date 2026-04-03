@@ -11,6 +11,7 @@ import (
 	userbo "im.turms/server/internal/domain/user/bo"
 	"im.turms/server/internal/domain/user/service/onlineuser"
 	"im.turms/server/pkg/protocol"
+	"im.turms/server/internal/domain/common/infra/cluster/rpc"
 )
 
 var (
@@ -39,6 +40,7 @@ type SessionService struct {
 	nodeID                       string
 	ipToSessions                 sync.Map // ipStr -> *sync.Map (*UserSession -> struct{})
 	onSessionClosedListeners     []func(*UserSession)
+	rpcService                   *rpc.RpcService
 }
 
 func NewSessionService(
@@ -47,6 +49,7 @@ func NewSessionService(
 	userSimultaneousLoginService *UserSimultaneousLoginService,
 	sessionAuthenticationManager *SessionIdentityAccessManager,
 	nodeID string,
+	rpcService *rpc.RpcService,
 ) *SessionService {
 	return &SessionService{
 		shardedMap:                   NewShardedUserSessionsMap(256),
@@ -56,6 +59,7 @@ func NewSessionService(
 		userSimultaneousLoginService: userSimultaneousLoginService,
 		sessionAuthenticationManager: sessionAuthenticationManager,
 		nodeID:                       nodeID,
+		rpcService:                   rpcService,
 	}
 }
 
@@ -441,10 +445,16 @@ func (s *SessionService) closeSessionsWithConflictedDeviceTypes(ctx context.Cont
 		if s.userSimultaneousLoginService.IsConflicted(deviceType, existingDeviceType) {
 			if info.NodeID == s.nodeID {
 				// Handled locally beforehand
+				// SetLocalSessionOfflineByUserIdAndDeviceExists here if full logic was present.
 				continue
 			}
-			// TODO: Send RPC to `info.NodeID` to kick `existingDeviceType` for `userId`
-			// e.g. s.rpcService.requestResponse(...)
+			
+			// Send RPC to `info.NodeID` to kick `existingDeviceType` for `userId`
+			// Use the new RpcService skeleton.
+			// TODO: Actually implement SetSessionOfflineRequest in /dto
+			if s.rpcService != nil {
+				_, _ = s.rpcService.RequestResponse(ctx, info.NodeID, nil) // passing nil request struct temporarily
+			}
 		}
 	}
 	return true, nil
