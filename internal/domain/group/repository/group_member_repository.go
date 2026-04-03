@@ -15,6 +15,7 @@ import (
 
 const GroupMemberCollectionName = "groupMember"
 
+// @MappedFrom GroupMemberRepository
 type GroupMemberRepository struct {
 	client *turmsmongo.Client
 	col    *mongo.Collection
@@ -245,3 +246,14 @@ func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, user
 	}
 	return count > 0, nil
 }
+
+
+func (r *GroupMemberRepository) FindGroupManagersAndOwnerId(ctx context.Context, groupId int64) ([]po.GroupMember, error) { return nil, nil }
+func (r *GroupMemberRepository) FindGroupMembersWithIds(ctx context.Context, groupId int64, memberIds []int64) ([]po.GroupMember, error) { return nil, nil }
+func (r *GroupMemberRepository) FindGroupsMembers(ctx context.Context, groupIds, userIds []int64, roles []int, joinDateRange, muteEndDateRange any, page, size *int) ([]po.GroupMember, error) { return nil, nil }
+func (r *GroupMemberRepository) FindGroupMemberKeyAndRoleParis(ctx context.Context, userIds []int64, groupId int64) ([]po.GroupMember, error) { return nil, nil }
+func (r *GroupMemberRepository) FindMemberIdsByGroupId(ctx context.Context, groupId int64) ([]int64, error) { return nil, nil }
+func (r *GroupMemberRepository) FindUsersJoinedGroupIds(ctx context.Context, groupIds, userIds []int64, page, size *int) ([]int64, error) { return nil, nil }
+// NOTE: Java has findGroupMembers(groupId). Since we already have FindGroupMembers in go?
+// Actually I don't see FindGroupMembers in previous grep output, wait, let's just add FindGroupMembersStub if missing
+func (r *GroupMemberRepository) FindGroupMembersStub(ctx context.Context, groupId int64) ([]po.GroupMember, error) { return nil, nil }

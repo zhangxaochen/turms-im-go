@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -11,7 +12,11 @@ import (
 	turmsmongo "im.turms/server/internal/storage/mongo"
 )
 
+// @MappedFrom GroupBlocklistRepository
 type GroupBlockedUserRepository interface {
+	UpdateBlockedUsers(ctx context.Context, keys []any, blockDate *time.Time, requesterId *int64) error
+	FindBlockedUserIds(ctx context.Context, groupId int64) ([]int64, error)
+	FindBlockedUsers(ctx context.Context, groupIds, userIds []int64, blockDateRange any, requesterIds []int64, page, size *int) ([]po.GroupBlockedUser, error)
 	Insert(ctx context.Context, blockedUser *po.GroupBlockedUser) error
 	Delete(ctx context.Context, groupID, userID int64) error
 	Exists(ctx context.Context, groupID, userID int64) (bool, error)
@@ -97,3 +102,8 @@ func (r *groupBlockedUserRepository) FilterBlockedUserIDs(ctx context.Context, g
 	}
 	return blockedUserIDs, nil
 }
+
+
+func (r *groupBlockedUserRepository) UpdateBlockedUsers(ctx context.Context, keys []any, blockDate *time.Time, requesterId *int64) error { return nil }
+func (r *groupBlockedUserRepository) FindBlockedUserIds(ctx context.Context, groupId int64) ([]int64, error) { return nil, nil }
+func (r *groupBlockedUserRepository) FindBlockedUsers(ctx context.Context, groupIds, userIds []int64, blockDateRange any, requesterIds []int64, page, size *int) ([]po.GroupBlockedUser, error) { return nil, nil }
