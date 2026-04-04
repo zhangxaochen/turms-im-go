@@ -10,7 +10,7 @@ const lines = content.split('\n');
 
 let currentClass = null;
 let currentJavaFile = null;
-let currentGoFile = null;
+let currentGoFiles = new Set();
 let checkedMethods = [];
 let pendingBugs = '';
 
@@ -19,21 +19,28 @@ function checkClass() {
     
     console.log(`\n======================================================`);
     console.log(`Checking ${currentClass} (${checkedMethods.length} methods)...`);
+    
+    if (currentGoFiles.size === 0) {
+        console.log(`  [Skipped] No Go mapping file for: ${currentClass}`);
+        return true;
+    }
+
     const javaPath = path.resolve(rootDir, 'docs', currentJavaFile);
-    const goPath = path.resolve(rootDir, 'docs', currentGoFile);
+    const goPaths = Array.from(currentGoFiles).map(f => path.resolve(rootDir, 'docs', f));
     
     if (!fs.existsSync(javaPath)) {
         console.log(`  [Skipped] Java file missing: ${javaPath}`);
         return true;
     }
-    if (!fs.existsSync(goPath)) {
-        console.log(`  [Skipped] Go file missing: ${goPath}`);
+    const missingGoFiles = goPaths.filter(p => !fs.existsSync(p));
+    if (missingGoFiles.length > 0) {
+        console.log(`  [Skipped] Go files missing: ${missingGoFiles.join(', ')}`);
         return true;
     }
 
     // Instead of cat-ing the files, we just ask Gemini to read them itself!
     // This utilizes the Agent's file-reading tools and avoids shell argument/pipe limits.
-    const promptText = `Act as a strict code reviewer. Read the original Java code in ${javaPath} and the Go refactor code in ${goPath}. Compare them focusing ONLY on these ported methods: ${checkedMethods.join(', ')}. 
+    const promptText = `Act as a strict code reviewer. Read the original Java code in ${javaPath} and the Go refactor code in ${goPaths.join(', ')}. Compare them focusing ONLY on these ported methods: ${checkedMethods.join(', ')}. 
 
 Identify any missing core logic, missing field assignments, or differences in behavior compared to the Java version.
 If the Go code implements the Java logic flawlessly for these specific methods, reply with EXACTLY 'NO_BUGS'.
@@ -107,21 +114,27 @@ for (let line of lines) {
     if (!proceeded) break;
 
     // Match class header
-    const classMatch = line.match(/- \*\*(.*?)\*\* \(\[(.*?)\]\((.*?)\)\) ➡️ \[\`(.*?)\`\]\((.*?)\)/);
+    const classMatch = line.match(/- \*\*(.*?)\*\* \(\[(.*?)\]\((.*?)\)\)(?: ➡️ \[\`(.*?)\`\]\((.*?)\))?/);
     if (classMatch) {
         proceeded = checkClass();
         
         currentClass = classMatch[1];
         currentJavaFile = classMatch[3];
-        currentGoFile = classMatch[5];
+        currentGoFiles = new Set();
+        if (classMatch[5]) {
+            currentGoFiles.add(classMatch[5]);
+        }
         checkedMethods = [];
         continue;
     }
     
-    // Match checked method: e.g. - [x] `method()`
-    const methodMatch = line.match(/^\s*- \[x\] \`(.*?)\`/);
+    // Match checked method: e.g. - [x] `method()` -> [mappedMethod()](../file.go#LXX)
+    const methodMatch = line.match(/^\s*- \[x\] \`(.*?)\`(?:(?: ➡️ | -> )\[.*?\]\((.*?)(?:#.*?)?\))?/);
     if (methodMatch) {
          checkedMethods.push(methodMatch[1]);
+         if (methodMatch[2]) {
+             currentGoFiles.add(methodMatch[2]);
+         }
     }
 }
 // Trigger the last matched class check
