@@ -14,7 +14,7 @@ func (m *PluginManager) HasRunningExtensions(extensionPointClass string) bool {
 	return false
 }
 
-func (m *PluginManager) InvokeExtensionPoints(ctx context.Context, extensionPointClass string, method string, args ...interface{}) (bool, error) {
+func (m *PluginManager) InvokeExtensionPoints(ctx context.Context, extensionPointClass string, method string, args ...interface{}) (*bool, error) {
 	// TODO: implement
-	return false, nil
+	return nil, nil
 }

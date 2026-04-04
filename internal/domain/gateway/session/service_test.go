@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -15,13 +16,8 @@ type MockConnection struct {
 	Closed bool
 }
 
-func (m *MockConnection) Connect() error {
-	return nil
-}
-
-func (m *MockConnection) Close(reason constant.SessionCloseStatus) error {
-	m.Closed = true
-	return nil
+func (m *MockConnection) GetAddress() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1234}
 }
 
 func (m *MockConnection) Send(payload []byte) error {
@@ -32,14 +28,34 @@ func (m *MockConnection) SendWithContext(ctx context.Context, payload []byte) er
 	return nil
 }
 
-func (m *MockConnection) RemoteAddr() net.Addr {
-	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1234}
+func (m *MockConnection) CloseWithReason(reason bo.CloseReason) bool {
+	m.Closed = true
+	return true
 }
+
+func (m *MockConnection) Close() error {
+	m.Closed = true
+	return nil
+}
+
+func (m *MockConnection) IsConnected() bool {
+	return !m.Closed
+}
+
+func (m *MockConnection) IsSwitchingToUdp() bool {
+	return false
+}
+
+func (m *MockConnection) IsConnectionRecovering() bool {
+	return false
+}
+
+func (m *MockConnection) SwitchToUdp() {}
 
 func (m *MockConnection) TryNotifyClientToRecover() {}
 
 func (m *MockConnection) IsActive() bool {
-	return true
+	return !m.Closed
 }
 
 func TestSessionService_RegisterAndUnregister(t *testing.T) {
@@ -63,7 +79,7 @@ func TestSessionService_RegisterAndUnregister(t *testing.T) {
 	assert.Equal(t, session, s)
 
 	// Test Unregister
-	svc.UnregisterSession(context.Background(), 123, protocol.DeviceType_ANDROID, conn, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+	svc.UnregisterSession(context.Background(), 123, protocol.DeviceType_ANDROID, conn, bo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT))
 	assert.Equal(t, 0, svc.CountOnlineUsers())
 	assert.True(t, conn.Closed)
 }
@@ -72,24 +88,16 @@ func TestSessionService_ConflictKick(t *testing.T) {
 	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 
 	conn1 := &MockConnection{}
-	session1 := &UserSession{
-		UserID:     456,
-		DeviceType: protocol.DeviceType_IOS,
-		Conn:       conn1,
-		CloseChan:  make(chan struct{}),
-	}
+	session1 := NewUserSession(1, nil, 456, protocol.DeviceType_IOS, nil, nil)
+	session1.Conn = conn1
 
 	err := svc.RegisterSession(context.Background(), session1)
 	assert.NoError(t, err)
 
 	// Second device, same type, difference connection (e.g. reconnection)
 	conn2 := &MockConnection{}
-	session2 := &UserSession{
-		UserID:     456,
-		DeviceType: protocol.DeviceType_IOS,
-		Conn:       conn2,
-		CloseChan:  make(chan struct{}),
-	}
+	session2 := NewUserSession(1, nil, 456, protocol.DeviceType_IOS, nil, nil)
+	session2.Conn = conn2
 
 	err = svc.RegisterSession(context.Background(), session2)
 	assert.NoError(t, err)

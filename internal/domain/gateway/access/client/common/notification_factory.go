@@ -7,14 +7,13 @@ import (
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/config"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/pkg/protocol"
 )
 
-// NotificationFactory standardizes the creation of TurmsNotification objects
-// sent down to clients containing success/failure outcomes.
 type NotificationFactory struct {
-	propsManager *config.GatewayProperties
+	returnReasonForServerError bool
 }
 
 // NewNotificationFactory enforces configuration dependency injection.
@@ -23,8 +22,15 @@ func NewNotificationFactory(props *config.GatewayProperties) *NotificationFactor
 	if props == nil {
 		props = config.NewGatewayProperties()
 	}
-	return &NotificationFactory{
-		propsManager: props,
+	f := &NotificationFactory{}
+	f.UpdateGlobalProperties(props)
+	return f
+}
+
+// UpdateGlobalProperties dynamically updates properties from the configuration.
+func (f *NotificationFactory) UpdateGlobalProperties(props *config.GatewayProperties) {
+	if props != nil && props.ClientAPI != nil {
+		f.returnReasonForServerError = props.ClientAPI.ReturnReasonForServerError
 	}
 }
 
@@ -91,7 +97,7 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 
 // CreateBuffer generates the serialized protobuf bytes directly.
 // @MappedFrom createBuffer(CloseReason closeReason)
-func (f *NotificationFactory) CreateCloseReasonBuffer(reason CloseReason) ([]byte, error) {
+func (f *NotificationFactory) CreateCloseReasonBuffer(reason sessionbo.CloseReason) ([]byte, error) {
 	code := reason.BusinessStatusCode
 	if code == 0 {
 		code = constant.ResponseStatusCode_OK // or some default if appropriate, mapped from Java where it might be null
@@ -140,7 +146,7 @@ func (f *NotificationFactory) trySetReason(notification *protocol.TurmsNotificat
 			return
 		}
 		if constant.IsServerError(int32(code)) {
-			if f.propsManager.ClientAPI.ReturnReasonForServerError {
+			if f.returnReasonForServerError {
 				notification.Reason = reason
 			}
 		} else {

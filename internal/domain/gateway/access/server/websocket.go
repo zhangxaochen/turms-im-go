@@ -12,6 +12,7 @@ import (
 	"github.com/pires/go-proxyproto"
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
+	"im.turms/server/internal/domain/gateway/session/bo"
 )
 
 var upgrader = websocket.Upgrader{
@@ -29,8 +30,8 @@ type WSConnection struct {
 	mu   sync.Mutex
 }
 
-func (c *WSConnection) Connect() error {
-	return nil
+func (c *WSConnection) GetAddress() net.Addr {
+	return c.conn.RemoteAddr()
 }
 
 func (c *WSConnection) Send(payload []byte) error {
@@ -52,19 +53,34 @@ func (c *WSConnection) SendWithContext(ctx context.Context, payload []byte) erro
 	return c.conn.WriteMessage(websocket.BinaryMessage, payload)
 }
 
-func (c *WSConnection) Close(reason constant.SessionCloseStatus) error {
+func (c *WSConnection) CloseWithReason(reason bo.CloseReason) bool {
+	_ = c.conn.Close()
+	return true
+}
+
+func (c *WSConnection) Close() error {
 	return c.conn.Close()
 }
-
-func (c *WSConnection) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
-}
-
-func (c *WSConnection) TryNotifyClientToRecover() {}
 
 func (c *WSConnection) IsActive() bool {
 	return c.conn != nil
 }
+
+func (c *WSConnection) IsConnected() bool {
+	return c.conn != nil
+}
+
+func (c *WSConnection) IsSwitchingToUdp() bool {
+	return false
+}
+
+func (c *WSConnection) IsConnectionRecovering() bool {
+	return false
+}
+
+func (c *WSConnection) SwitchToUdp() {}
+
+func (c *WSConnection) TryNotifyClientToRecover() {}
 
 type WSServer struct {
 	addr           string
@@ -169,7 +185,7 @@ func (s *WSServer) handleConnection(conn *websocket.Conn, r *http.Request) {
 
 func (s *WSServer) cleanup(userSession *session.UserSession) {
 	if userSession.UserID > 0 {
-		s.sessionService.UnregisterSession(s.ctx, userSession.UserID, userSession.DeviceType, userSession.Conn, constant.SessionCloseStatus_CONNECTION_CLOSED)
+		s.sessionService.UnregisterSession(s.ctx, userSession.UserID, userSession.DeviceType, userSession.Conn, bo.NewCloseReason(constant.SessionCloseStatus_CONNECTION_CLOSED))
 	}
 }
 

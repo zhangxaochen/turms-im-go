@@ -40,12 +40,16 @@ func (r *ExtendedHAProxyMessageReader) Read(conn net.Conn) error {
 // @MappedFrom HAProxyUtil
 type HAProxyUtil struct{}
 
-// @MappedFrom addProxyProtocolHandlers(ChannelPipeline pipeline, Consumer<InetSocketAddress> onRemoteAddressConfirmed)
-func AddProxyProtocolHandlers(callback func(net.Addr)) {
-	// Replaced by WrapWithProxyProtocol interceptor above
+// @MappedFrom addProxyProtocolHandlers
+func AddProxyProtocolHandlers(addr net.Addr, callback func(net.Addr)) {
+	if callback != nil {
+		callback(addr)
+	}
 }
 
-// @MappedFrom addProxyProtocolDetectorHandler(ChannelPipeline pipeline, Consumer<InetSocketAddress> onRemoteAddressConfirmed)
-func AddProxyProtocolDetectorHandler(callback func(net.Addr)) {
-	// Replaced by WrapWithProxyProtocol interceptor above
+// @MappedFrom addProxyProtocolDetectorHandler
+func AddProxyProtocolDetectorHandler(addr net.Addr, callback func(net.Addr)) {
+	if callback != nil {
+		callback(addr)
+	}
 }

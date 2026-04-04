@@ -10,6 +10,7 @@ import (
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -187,7 +188,7 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 		s.SetLastHeartbeatRequestTimestampToNow()
 		// Java doesn't send a response for UDP heartbeat.
 	case GoOfflineRequest:
-		d.sessionService.UnregisterSession(ctx, req.UserID, req.DeviceType, nil, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+		d.sessionService.UnregisterSession(ctx, req.UserID, req.DeviceType, nil, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT))
 		d.sendErrorCode(senderAddress, constant.ResponseStatusCode_OK)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"im.turms/server/internal/domain/group/service"
 	msg_service "im.turms/server/internal/domain/message/service"
 	turmsmongo "im.turms/server/internal/storage/mongo"
+	"im.turms/server/pkg/protocol"
 )
 
 // @MappedFrom GroupBlocklistController
@@ -301,10 +302,18 @@ func (c *GroupMemberController) QueryGroupMembersWithQuery(ctx context.Context, 
 }
 
 func (c *GroupMemberController) UpdateGroupMembers(ctx context.Context, keys []po.GroupMemberKey, updateGroupMemberDTO dto.UpdateGroupMemberDTO) (*common_dto.RequestHandlerResult, error) {
-	var role *constant.GroupMemberRole
+	var role *protocol.GroupMemberRole
 	if updateGroupMemberDTO.Role != nil {
-		r := updateGroupMemberDTO.Role.(constant.GroupMemberRole)
-		role = &r
+		var roleVal protocol.GroupMemberRole
+		switch r := updateGroupMemberDTO.Role.(type) {
+		case float64:
+			roleVal = protocol.GroupMemberRole(int(r))
+		case int:
+			roleVal = protocol.GroupMemberRole(r)
+		case int32:
+			roleVal = protocol.GroupMemberRole(r)
+		}
+		role = &roleVal
 	}
 	for _, key := range keys {
 		err := c.groupMemberService.UpdateGroupMember(ctx,
@@ -325,22 +334,29 @@ func (c *GroupMemberController) UpdateGroupMembers(ctx context.Context, keys []p
 }
 
 func (c *GroupMemberController) AddGroupMember(ctx context.Context, addGroupMemberDTO dto.AddGroupMemberDTO) (*common_dto.RequestHandlerResult, error) {
-	var role constant.GroupMemberRole
+	var role protocol.GroupMemberRole
 	if addGroupMemberDTO.Role != nil {
-		role = addGroupMemberDTO.Role.(constant.GroupMemberRole)
+		switch r := addGroupMemberDTO.Role.(type) {
+		case float64:
+			role = protocol.GroupMemberRole(int(r))
+		case int:
+			role = protocol.GroupMemberRole(r)
+		case int32:
+			role = protocol.GroupMemberRole(r)
+		}
 	} else {
-		role = constant.GROUP_MEMBER_ROLE_MEMBER
+		role = protocol.GroupMemberRole_MEMBER
 	}
 	jd := time.Now()
 	if addGroupMemberDTO.JoinDate != nil {
 		jd = *addGroupMemberDTO.JoinDate
 	}
-	_, err := c.groupMemberService.AddGroupMember(ctx,
+	_, err := c.groupMemberService.AddGroupMembers(ctx,
 		*addGroupMemberDTO.GroupId,
-		*addGroupMemberDTO.UserId,
+		[]int64{*addGroupMemberDTO.UserId},
 		role,
 		addGroupMemberDTO.Name,
-		jd,
+		&jd,
 		addGroupMemberDTO.MuteEndDate,
 		nil,
 	)

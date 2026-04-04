@@ -3,6 +3,7 @@ package ldap
 import (
 	"crypto/tls"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/go-ldap/ldap/v3"
@@ -58,10 +59,15 @@ func (c *LdapClient) Connect() error {
 	var l *ldap.Conn
 	var err error
 
-	if c.UseTLS {
-		l, err = ldap.DialTLS("tcp", c.Addr, &tls.Config{InsecureSkipVerify: c.SkipVerify})
+	addr := c.Addr
+	if !strings.HasPrefix(addr, "ldap://") && !strings.HasPrefix(addr, "ldaps://") {
+		addr = "ldap://" + addr
+	}
+
+	if strings.HasPrefix(addr, "ldaps://") || c.UseTLS {
+		l, err = ldap.DialURL(addr, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.SkipVerify}))
 	} else {
-		l, err = ldap.DialURL(fmt.Sprintf("ldap://%s", c.Addr))
+		l, err = ldap.DialURL(addr)
 	}
 
 	if err != nil {

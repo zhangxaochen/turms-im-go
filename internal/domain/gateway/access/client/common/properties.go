@@ -15,6 +15,8 @@ type TcpProperties struct {
 	TcpNoDelay            bool
 	Backlog               int
 	WriteTimeoutMillis    int
+	Wiretap               bool
+	MetricsEnabled        bool
 }
 
 type RemoteAddressSourceProxyProtocolMode int
@@ -39,6 +41,9 @@ type WebSocketProperties struct {
 	WriteBufferSize       int
 	ReadBufferSize        int
 	IdleTimeoutSeconds    int
+	WriteTimeoutMillis    int
+	Wiretap               bool
+	MetricsEnabled        bool
 }
 
 type RemoteAddressSourceHttpHeaderMode int

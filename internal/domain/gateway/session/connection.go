@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	"im.turms/server/internal/domain/common/constant"
-	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
+	"im.turms/server/internal/domain/gateway/session/bo"
 	userbo "im.turms/server/internal/domain/user/bo"
 	"im.turms/server/internal/infra/tracing"
 	"im.turms/server/pkg/protocol"
@@ -28,7 +27,7 @@ type SessionLocationService interface {
 // UserSession encapsulates the network connection and the user state.
 type UserSession struct {
 	ID            int64
-	Version       int
+	Version       atomic.Int32
 	UserID        int64
 	DeviceType    protocol.DeviceType
 	DeviceDetails map[string]string
@@ -36,11 +35,11 @@ type UserSession struct {
 	IP net.IP
 
 	LoginDate time.Time
-	Location  *sessionbo.UserLocation
+	Location  *bo.UserLocation
 
 	Conn Connection
 
-	Permissions                           map[any]bool
+	Permissions                           map[int32]bool
 	isDeleteSessionRequestLoggingAcquired uint32
 
 	lastHeartbeat      int64
@@ -55,12 +54,12 @@ type UserSession struct {
 }
 
 func NewUserSession(
-	version int,
-	permissions map[any]bool,
+	version int32,
+	permissions map[int32]bool,
 	userID int64,
 	deviceType protocol.DeviceType,
 	deviceDetails map[string]string,
-	location *sessionbo.UserLocation,
+	location *bo.UserLocation,
 ) *UserSession {
 	now := time.Now()
 	nowMillis := now.UnixMilli()
@@ -70,9 +69,8 @@ func NewUserSession(
 		deviceDetails = make(map[string]string)
 	}
 
-	return &UserSession{
+	sess := &UserSession{
 		// ID should be set by the caller
-		Version:            version,
 		Permissions:        permissions,
 		UserID:             userID,
 		DeviceType:         deviceType,
@@ -86,6 +84,8 @@ func NewUserSession(
 		isSessionOpen:      1, // default to open
 		CloseChan:          make(chan struct{}),
 	}
+	sess.Version.Store(version)
+	return sess
 }
 
 func (s *UserSession) SetLastHeartbeatRequestTimestampToNow() {
@@ -112,10 +112,10 @@ func (s *UserSession) IsOpen() bool {
 	return atomic.LoadUint32(&s.isSessionOpen) == 1
 }
 
-func (s *UserSession) Close(closeReason constant.SessionCloseStatus) bool {
+func (s *UserSession) Close(closeReason bo.CloseReason) bool {
 	if atomic.CompareAndSwapUint32(&s.isSessionOpen, 1, 0) {
 		if s.Conn != nil {
-			_ = s.Conn.Close(closeReason)
+			_ = s.Conn.CloseWithReason(closeReason)
 		} else {
 			fmt.Printf("WARN: The connection is missing for the user session: %v\n", s)
 		}
@@ -143,14 +143,14 @@ func (s *UserSession) GetIPStr() string {
 	return s.IP.String()
 }
 
-func (s *UserSession) HasPermission(requestType any) bool {
+func (s *UserSession) HasPermission(requestType int32) bool {
 	if s.Permissions == nil {
-		return false
+		return true // Nil means all permissions
 	}
 	return s.Permissions[requestType]
 }
 
-func (s *UserSession) SetPermissions(permissions map[any]bool) {
+func (s *UserSession) SetPermissions(permissions map[int32]bool) {
 	s.Permissions = permissions
 }
 
@@ -193,11 +193,15 @@ type UserStatusService interface {
 
 // Connection interface represents the underlying network transport.
 type Connection interface {
-	Connect() error
-	Close(reason constant.SessionCloseStatus) error
-	Send(data []byte) error
-	SendWithContext(ctx context.Context, data []byte) error
-	RemoteAddr() net.Addr
+	GetAddress() net.Addr
+	Send(buffer []byte) error
+	SendWithContext(ctx context.Context, buffer []byte) error
+	CloseWithReason(reason bo.CloseReason) bool
+	Close() error
+	IsConnected() bool
+	IsSwitchingToUdp() bool
+	IsConnectionRecovering() bool
+	SwitchToUdp()
 	TryNotifyClientToRecover()
 	IsActive() bool
 }
