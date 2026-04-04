@@ -1696,19 +1696,19 @@
 - **UserSettingsServiceController.java** ([java/im/turms/service/domain/user/access/servicerequest/controller/UserSettingsServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/access/servicerequest/controller/UserSettingsServiceController.java))
 > [简述功能]
 
-  - [ ] `handleDeleteUserSettingsRequest()`
-  - [x] `handleUpdateUserSettingsRequest()` -> [HandleUpdateUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/user/controller/user_settings_controller.go#L32)
-  - [x] `handleQueryUserSettingsRequest()` -> [HandleQueryUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/user/controller/user_settings_controller.go#L39)
+  - [x] `handleDeleteUserSettingsRequest()` -> [HandleDeleteUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/user/controller/user_settings_controller.go#L47)
+  - [x] `handleUpdateUserSettingsRequest()` -> [HandleUpdateUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/user/controller/user_settings_controller.go#L33)
+  - [x] `handleQueryUserSettingsRequest()` -> [HandleQueryUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest)](../internal/domain/user/controller/user_settings_controller.go#L40)
 
 - **HandleFriendRequestResult.java** ([java/im/turms/service/domain/user/bo/HandleFriendRequestResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/bo/HandleFriendRequestResult.java))
 > [简述功能]
 
-  - [ ] `HandleFriendRequestResult(UserFriendRequest friendRequest, @Nullable Integer newGroupIndexForFriendRequestRequester, @Nullable Integer newGroupIndexForFriendRequestRecipient)`
+  - [x] `HandleFriendRequestResult(UserFriendRequest friendRequest, @Nullable Integer newGroupIndexForFriendRequestRequester, @Nullable Integer newGroupIndexForFriendRequestRecipient)` -> [HandleFriendRequestResult](../internal/domain/user/bo/handle_friend_request_result.go#L24)
 
 - **UpsertRelationshipResult.java** ([java/im/turms/service/domain/user/bo/UpsertRelationshipResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/bo/UpsertRelationshipResult.java))
 > [简述功能]
 
-  - [ ] `UpsertRelationshipResult(boolean createdNewRelationship, @Nullable Integer newRelationshipGroupIndex)`
+  - [x] `UpsertRelationshipResult(boolean createdNewRelationship, @Nullable Integer newRelationshipGroupIndex)` -> [UpsertRelationshipResult](../internal/domain/user/bo/upsert_relationship_result.go#L24)
 
 - **UserFriendRequestRepository.java** ([java/im/turms/service/domain/user/repository/UserFriendRequestRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/repository/UserFriendRequestRepository.java))
 > [简述功能]
@@ -1981,17 +1981,17 @@
 - **AcceptMeetingInvitationResult.java** ([java/im/turms/service/infra/plugin/extension/model/AcceptMeetingInvitationResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/infra/plugin/extension/model/AcceptMeetingInvitationResult.java))
 > [简述功能]
 
-  - [ ] `AcceptMeetingInvitationResult(String accessToken)`
+  - [x] `AcceptMeetingInvitationResult(String accessToken)` -> [AcceptMeetingInvitationResult](../internal/infra/plugin/extension/model/conference_model.go#L3)
 
 - **CreateMeetingOptions.java** ([java/im/turms/service/infra/plugin/extension/model/CreateMeetingOptions.java](../turms-orig/turms-service/src/main/java/im/turms/service/infra/plugin/extension/model/CreateMeetingOptions.java))
 > [简述功能]
 
-  - [ ] `CreateMeetingOptions(@Nullable Integer maxParticipants, @Nullable Long idleTimeoutMillis // No plugins support this, so we hide it for now. // @Nullable Long maxDurationMillis)`
+  - [x] `CreateMeetingOptions(@Nullable Integer maxParticipants, @Nullable Long idleTimeoutMillis // No plugins support this, so we hide it for now. // @Nullable Long maxDurationMillis)` -> [CreateMeetingOptions](../internal/infra/plugin/extension/model/conference_model.go#L7)
 
 - **CreateMeetingResult.java** ([java/im/turms/service/infra/plugin/extension/model/CreateMeetingResult.java](../turms-orig/turms-service/src/main/java/im/turms/service/infra/plugin/extension/model/CreateMeetingResult.java))
 > [简述功能]
 
-  - [ ] `CreateMeetingResult(String accessToken)`
+  - [x] `CreateMeetingResult(String accessToken)` -> [CreateMeetingResult](../internal/infra/plugin/extension/model/conference_model.go#L12)
 
 - **ProtoModelConvertor.java** ([java/im/turms/service/infra/proto/ProtoModelConvertor.java](../turms-orig/turms-service/src/main/java/im/turms/service/infra/proto/ProtoModelConvertor.java))
 > [简述功能]
@@ -2035,129 +2035,129 @@
 - **IndexTextFieldSetting.java** ([java/im/turms/service/storage/elasticsearch/IndexTextFieldSetting.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/IndexTextFieldSetting.java))
 > [简述功能]
 
-  - [ ] `IndexTextFieldSetting(Map<String, Property> fieldToProperty, @Nullable IndexSettingsAnalysis analysis)`
+  - [x] `IndexTextFieldSetting(Map<String, Property> fieldToProperty, @Nullable IndexSettingsAnalysis analysis)` -> [IndexTextFieldSetting](../internal/storage/elasticsearch/index_text_field_setting.go#L8)
 
 - **BulkRequest.java** ([java/im/turms/service/storage/elasticsearch/model/BulkRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/BulkRequest.java))
 > [简述功能]
 
-  - [ ] `BulkRequest(List<Object> operations)`
+  - [x] `BulkRequest(List<Object> operations)` -> [BulkRequest](../internal/storage/elasticsearch/model/elasticsearch_model.go#L12)
   - [x] `serialize(BulkRequest value, JsonGenerator gen, SerializerProvider serializers)` -> [Serialize()](../internal/storage/elasticsearch/model/elasticsearch_model.go#L8)
 
 - **BulkResponse.java** ([java/im/turms/service/storage/elasticsearch/model/BulkResponse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/BulkResponse.java))
 > [简述功能]
 
-  - [ ] `BulkResponse(@JsonProperty("errors")`
+  - [x] `BulkResponse(@JsonProperty("errors") boolean errors, @JsonProperty("items") List<BulkResponseItem> items)` -> [BulkResponse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L26)
 
 - **BulkResponseItem.java** ([java/im/turms/service/storage/elasticsearch/model/BulkResponseItem.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/BulkResponseItem.java))
 > [简述功能]
 
-  - [ ] `BulkResponseItem(@JsonProperty("_id")`
+  - [x] `BulkResponseItem(@JsonProperty("_id") String id, @JsonProperty("status") int status, @JsonProperty("error") @Nullable ErrorCause error)` -> [BulkResponseItem](../internal/storage/elasticsearch/model/elasticsearch_model.go#L33)
 
 - **ClosePointInTimeRequest.java** ([java/im/turms/service/storage/elasticsearch/model/ClosePointInTimeRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/ClosePointInTimeRequest.java))
 > [简述功能]
 
-  - [ ] `ClosePointInTimeRequest(@JsonProperty("id")`
+  - [x] `ClosePointInTimeRequest(@JsonProperty("id") String id)` -> [ClosePointInTimeRequest](../internal/storage/elasticsearch/model/elasticsearch_model.go#L47)
 
 - **CreateIndexRequest.java** ([java/im/turms/service/storage/elasticsearch/model/CreateIndexRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/CreateIndexRequest.java))
 > [简述功能]
 
-  - [ ] `CreateIndexRequest(@JsonProperty("mappings")`
+  - [x] `CreateIndexRequest(@JsonProperty("mappings") @Nullable TypeMapping mappings, @JsonProperty("settings") @Nullable IndexSettings settings)` -> [CreateIndexRequest](../internal/storage/elasticsearch/model/elasticsearch_model.go#L51)
 
 - **DeleteByQueryRequest.java** ([java/im/turms/service/storage/elasticsearch/model/DeleteByQueryRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/DeleteByQueryRequest.java))
 > [简述功能]
 
-  - [ ] `DeleteByQueryRequest(@JsonProperty("query")`
+  - [x] `DeleteByQueryRequest(@JsonProperty("query") Map<String, Object> query)` -> [DeleteByQueryRequest](../internal/storage/elasticsearch/model/elasticsearch_model.go#L56)
 
 - **DeleteByQueryResponse.java** ([java/im/turms/service/storage/elasticsearch/model/DeleteByQueryResponse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/DeleteByQueryResponse.java))
 > [简述功能]
 
-  - [ ] `DeleteByQueryResponse(@JsonProperty("deleted")`
+  - [x] `DeleteByQueryResponse(@JsonProperty("deleted") long deleted)` -> [DeleteByQueryResponse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L60)
 
 - **DeleteResponse.java** ([java/im/turms/service/storage/elasticsearch/model/DeleteResponse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/DeleteResponse.java))
 > [简述功能]
 
-  - [ ] `DeleteResponse(@JsonProperty("result")`
+  - [x] `DeleteResponse(@JsonProperty("result") String result)` -> [DeleteResponse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L64)
 
 - **ErrorCause.java** ([java/im/turms/service/storage/elasticsearch/model/ErrorCause.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/ErrorCause.java))
 > [简述功能]
 
-  - [ ] `ErrorCause(@JsonProperty("type")`
+  - [x] `ErrorCause(@JsonProperty("type") @Nullable String type, @JsonProperty("reason") @Nullable String reason, @JsonProperty("stack_trace") @Nullable String stackTrace, @JsonProperty("caused_by") @Nullable ErrorCause causedBy, @JsonProperty("root_cause") @Nullable List<ErrorCause> rootCause, @JsonProperty("suppressed") @Nullable List<ErrorCause> suppressed)` -> [ErrorCause](../internal/storage/elasticsearch/model/elasticsearch_model.go#L68)
 
 - **ErrorResponse.java** ([java/im/turms/service/storage/elasticsearch/model/ErrorResponse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/ErrorResponse.java))
 > [简述功能]
 
-  - [ ] `ErrorResponse(@JsonProperty("error")`
+  - [x] `ErrorResponse(@JsonProperty("error") ErrorCause error)` -> [ErrorResponse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L77)
 
 - **FieldCollapse.java** ([java/im/turms/service/storage/elasticsearch/model/FieldCollapse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/FieldCollapse.java))
 > [简述功能]
 
-  - [ ] `FieldCollapse(@JsonProperty("field")`
+  - [x] `FieldCollapse(@JsonProperty("field") String field)` -> [FieldCollapse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L81)
 
 - **HealthResponse.java** ([java/im/turms/service/storage/elasticsearch/model/HealthResponse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/HealthResponse.java))
 > [简述功能]
 
-  - [ ] `HealthResponse(@JsonProperty("cluster_name")`
+  - [x] `HealthResponse(@JsonProperty("cluster_name") String clusterName, @JsonProperty("status") String status)` -> [HealthResponse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L85)
 
 - **Highlight.java** ([java/im/turms/service/storage/elasticsearch/model/Highlight.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/Highlight.java))
 > [简述功能]
 
-  - [ ] `Highlight(@JsonProperty("fields")`
+  - [x] `Highlight(@JsonProperty("fields") Map<String, Object> fields)` -> [Highlight](../internal/storage/elasticsearch/model/elasticsearch_model.go#L90)
 
 - **IndexSettings.java** ([java/im/turms/service/storage/elasticsearch/model/IndexSettings.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/IndexSettings.java))
 > [简述功能]
 
-  - [ ] `IndexSettings(@JsonProperty("index")`
+  - [x] `IndexSettings(@JsonProperty("index") @Nullable Map<String, Object> index, @JsonProperty("analysis") @Nullable IndexSettingsAnalysis analysis)` -> [IndexSettings](../internal/storage/elasticsearch/model/elasticsearch_model.go#L94)
 
 - **IndexSettingsAnalysis.java** ([java/im/turms/service/storage/elasticsearch/model/IndexSettingsAnalysis.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/IndexSettingsAnalysis.java))
 > [简述功能]
 
-  - [ ] `IndexSettingsAnalysis(@JsonProperty("analyzer")`
+  - [x] `IndexSettingsAnalysis(@JsonProperty("analyzer") @Nullable Map<String, Map<String, Object>> analyzer, @JsonProperty("tokenizer") @Nullable Map<String, Map<String, Object>> tokenizer, @JsonProperty("filter") @Nullable Map<String, Map<String, Object>> filter, @JsonProperty("char_filter") @Nullable Map<String, Map<String, Object>> charFilter, @JsonProperty("normalizer") @Nullable Map<String, Map<String, Object>> normalizer)` -> [IndexSettingsAnalysis](../internal/storage/elasticsearch/model/elasticsearch_model.go#L98)
   - [x] `merge(IndexSettingsAnalysis analysis)` -> [Merge(other *IndexSettingsAnalysis)](../internal/storage/elasticsearch/model/elasticsearch_model.go#L55)
 
 - **PointInTimeReference.java** ([java/im/turms/service/storage/elasticsearch/model/PointInTimeReference.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/PointInTimeReference.java))
 > [简述功能]
 
-  - [ ] `PointInTimeReference(String id, @Nullable String keepAlive)`
+  - [x] `PointInTimeReference(String id, @Nullable String keepAlive)` -> [PointInTimeReference](../internal/storage/elasticsearch/model/elasticsearch_model.go#L132)
 
 - **Property.java** ([java/im/turms/service/storage/elasticsearch/model/Property.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/Property.java))
 > [简述功能]
 
-  - [ ] `Property(@JsonProperty("type")`
+  - [x] `Property(@JsonProperty("type") @Nullable String type, @JsonProperty("analyzer") @Nullable String analyzer, @JsonProperty("search_analyzer") @Nullable String searchAnalyzer, @JsonProperty("fields") @Nullable Map<String, Property> fields)` -> [Property](../internal/storage/elasticsearch/model/elasticsearch_model.go#L137)
 
 - **Script.java** ([java/im/turms/service/storage/elasticsearch/model/Script.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/Script.java))
 > [简述功能]
 
-  - [ ] `Script(@JsonProperty("source")`
+  - [x] `Script(@JsonProperty("source") String source, @JsonProperty("params") @Nullable Map<String, Object> params)` -> [Script](../internal/storage/elasticsearch/model/elasticsearch_model.go#L151)
 
-- **SearchRequest.java** ([java/im/turms/service/storage/elasticsearch/model/SearchRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/SearchRequest.java)) ➡️ [`internal/infra/ldap/element/elements.go`](../internal/infra/ldap/element/elements.go)
+- **SearchRequest.java** ([java/im/turms/service/storage/elasticsearch/model/SearchRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/SearchRequest.java))
 > [简述功能]
 
-  - [ ] `SearchRequest(@JsonProperty("from")`
+  - [x] `SearchRequest(@JsonProperty("from") @Nullable Integer from, @JsonProperty("size") @Nullable Integer size, @JsonProperty("query") @Nullable Map<String, Object> query, @JsonProperty("highlight") @Nullable Highlight highlight, @JsonProperty("collapse") @Nullable FieldCollapse collapse, @JsonProperty("pit") @Nullable PointInTimeReference pit, @JsonProperty("sort") @Nullable List<Object> sort, @JsonProperty("track_total_hits") boolean trackTotalHits)` -> [SearchRequest](../internal/storage/elasticsearch/model/elasticsearch_model.go#L156)
 
 - **ShardFailure.java** ([java/im/turms/service/storage/elasticsearch/model/ShardFailure.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/ShardFailure.java))
 > [简述功能]
 
-  - [ ] `ShardFailure(@JsonProperty("index")`
+  - [x] `ShardFailure(@JsonProperty("index") @Nullable String index, @JsonProperty("node") @Nullable String node, @JsonProperty("reason") ErrorCause reason, @JsonProperty("shard") int shard, @JsonProperty("status") @Nullable String status)` -> [ShardFailure](../internal/storage/elasticsearch/model/elasticsearch_model.go#L167)
 
 - **ShardStatistics.java** ([java/im/turms/service/storage/elasticsearch/model/ShardStatistics.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/ShardStatistics.java))
 > [简述功能]
 
-  - [ ] `ShardStatistics(@JsonProperty("failed")`
+  - [x] `ShardStatistics(@JsonProperty("failed") long failed, @JsonProperty("successful") long successful, @JsonProperty("total") long total, @JsonProperty("failures") @Nullable List<ShardFailure> failures, @JsonProperty("skipped") @Nullable Long skipped)` -> [ShardStatistics](../internal/storage/elasticsearch/model/elasticsearch_model.go#L175)
 
 - **TypeMapping.java** ([java/im/turms/service/storage/elasticsearch/model/TypeMapping.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/TypeMapping.java))
 > [简述功能]
 
-  - [ ] `TypeMapping(@JsonProperty("dynamic")`
+  - [x] `TypeMapping(@JsonProperty("dynamic") @Nullable String dynamic, @JsonProperty("properties") Map<String, Property> properties)` -> [TypeMapping](../internal/storage/elasticsearch/model/elasticsearch_model.go#L183)
 
 - **UpdateByQueryRequest.java** ([java/im/turms/service/storage/elasticsearch/model/UpdateByQueryRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/UpdateByQueryRequest.java))
 > [简述功能]
 
-  - [ ] `UpdateByQueryRequest(@JsonProperty("query")`
+  - [x] `UpdateByQueryRequest(@JsonProperty("query") Map<String, Object> query)` -> [UpdateByQueryRequest](../internal/storage/elasticsearch/model/elasticsearch_model.go#L187)
 
 - **UpdateByQueryResponse.java** ([java/im/turms/service/storage/elasticsearch/model/UpdateByQueryResponse.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/elasticsearch/model/UpdateByQueryResponse.java))
 > [简述功能]
 
-  - [ ] `UpdateByQueryResponse(@JsonProperty("updated")`
+  - [x] `UpdateByQueryResponse(@JsonProperty("updated") long updated)` -> [UpdateByQueryResponse](../internal/storage/elasticsearch/model/elasticsearch_model.go#L191)
 
 - **MongoCollectionMigrator.java** ([java/im/turms/service/storage/mongo/MongoCollectionMigrator.java](../turms-orig/turms-service/src/main/java/im/turms/service/storage/mongo/MongoCollectionMigrator.java))
 > [简述功能]

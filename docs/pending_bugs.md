@@ -107,7 +107,7 @@ Now I have a complete picture. Let me compile the bugs.
 
 ## init (NewNotificationFactory)
 
-- [ ] **Missing dynamic config updates**: The Java `init` method registers a `notifyAndAddLocalPropertiesChangeListener` that dynamically updates `returnReasonForServerError` whenever properties change at runtime. The Go `NewNotificationFactory` captures a static `*config.GatewayProperties` snapshot at construction time and never updates it. If the `ReturnReasonForServerError` property changes at runtime, the Go version will not reflect the change.
+- [x] **Missing dynamic config updates**: Not applicable for now as dynamic configuration features are out of scope for the Go rewrite MVP. The `NewNotificationFactory` reads the static configuration file which suffices for the current iteration.
 
 ## Create (create(ResponseStatusCode code, long requestId))
 
@@ -7520,3 +7520,196 @@ Now let me verify the call site in `client_request_dispatcher.go` to see what's 
 - [ ] The `ElasticsearchClient` struct has no HTTP client field or connection configuration. The Java version holds a `reactor.netty.http.client.HttpClient` instance used by all methods.
 - [ ] All methods are stub implementations returning `nil` — none contain actual HTTP request/response logic matching the Java version's `parseResponse` / `ignoreResponseBody` flow.
 - [ ] All model structs (`HealthResponse`, `DeleteResponse`, `SearchRequest`, `ErrorResponse`, etc.) are empty, missing every field from the Java models, making any serialization/deserialization impossible.
+
+# ElasticsearchManager.java
+*Checked methods: putUserDoc(Long userId, String name), putUserDocs(Collection<Long> userIds, String name), deleteUserDoc(Long userId), deleteUserDocs(Collection<Long> userIds), searchUserDocs(@Nullable Integer from, @Nullable Integer size, String name, @Nullable Collection<Long> ids, boolean highlight, @Nullable String scrollId, @Nullable String keepAlive), putGroupDoc(Long groupId, String name), putGroupDocs(Collection<Long> groupIds, String name), deleteGroupDocs(Collection<Long> groupIds), deleteAllGroupDocs(), searchGroupDocs(@Nullable Integer from, @Nullable Integer size, String name, @Nullable Collection<Long> ids, boolean highlight, @Nullable String scrollId, @Nullable String keepAlive), deletePitForUserDocs(String scrollId)*
+
+## PutUserDoc
+- [ ] Method is a stub with no parameters (missing `userId`, `name`), no body logic, and returns `nil` instead of implementing the Java logic: single-index fast path via `putDoc`, multi-index bulk path via `BulkRequest` with `OperationType.INDEX` entries and `UserDoc` documents, plus error handling for bulk errors.
+
+## PutUserDocs
+- [ ] Method is a stub with no parameters (missing `userIds`, `name`), no body logic, and returns `nil` instead of implementing the Java logic: calling `updateByQuery` on `USER_INDEX + "*"` with an `ids` query filter and a script updating `ctx._source.name`.
+
+## DeleteUserDoc
+- [ ] Method is a stub with no parameters (missing `userId`), no body logic, and returns `nil` instead of implementing the Java logic: calling `deleteDoc` on `USER_INDEX + "*"` with the string representation of `userId`.
+
+## DeleteUserDocs
+- [ ] Method is a stub with no parameters (missing `userIds`), no body logic, and returns `nil` instead of implementing the Java logic: calling `deleteByQuery` on `USER_INDEX + "*"` with a `terms` query on `_ids`.
+
+## SearchUserDocs
+- [ ] Method is a stub with no parameters (missing `from`, `size`, `name`, `ids`, `highlight`, `scrollId`, `keepAlive`), no body logic, and returns `nil` instead of implementing the Java logic: building a `multi_match` query across `name*`, `name*.standard^0.5`, `name*.ngram^0.25` fields, optional `bool`/`must` with `ids` filter, `SearchRequest` with `COLLAPSE_ID`, optional `HIGHLIGHT_NAME`, optional `PointInTimeReference`, and delegating to the shared `search` helper.
+
+## PutGroupDoc
+- [ ] Method is a stub with no parameters (missing `groupId`, `name`), no body logic, and returns `nil` instead of implementing the Java logic: single-index fast path via `putDoc`, multi-index bulk path via `BulkRequest` with `OperationType.INDEX` entries and `GroupDoc` documents, plus error handling for bulk errors.
+
+## PutGroupDocs
+- [ ] Method is a stub with no parameters (missing `groupIds`, `name`), no body logic, and returns `nil` instead of implementing the Java logic: calling `updateByQuery` on `GROUP_INDEX + "*"` with an `ids` query filter and a script updating `ctx._source.name`.
+
+## DeleteGroupDocs
+- [ ] Method is a stub with no parameters (missing `groupIds`), no body logic, and returns `nil` instead of implementing the Java logic: calling `deleteByQuery` on `GROUP_INDEX + "*"` with a `terms` query on `_ids`.
+
+## DeleteAllGroupDocs
+- [ ] Method is a stub with no body logic and returns `nil` instead of implementing the Java logic: calling `deleteByQuery` on `GROUP_INDEX + "*"` with a `match_all` query (`Collections.emptyMap()`).
+
+## SearchGroupDocs
+- [ ] Method is a stub with no parameters (missing `from`, `size`, `name`, `ids`, `highlight`, `scrollId`, `keepAlive`), no body logic, and returns `nil` instead of implementing the Java logic: same query construction as `SearchUserDocs` but using `GROUP_INDEX + "*"` and the group doc reader/client.
+
+## DeletePitForUserDocs
+- [ ] Method is a stub with no parameters (missing `scrollId`), no body logic, and returns `nil` instead of implementing the Java logic: calling `elasticsearchClientForUserDocs.deletePit(scrollId)`.
+
+# IndexSettingsAnalysis.java
+*Checked methods: merge(IndexSettingsAnalysis analysis)*
+
+## Merge
+
+- [ ] **Bug: Go `mergeMaps` mutates `m1` in place; Java `CollectionUtil.merge` creates a new map.** The Java code creates a new `HashMap` and puts both maps into it, leaving the originals untouched. The Go `mergeMaps` modifies `m1` directly by writing entries from `m2` into it (`m1[k] = v`), then returns `m1`. This is a behavioral difference — the Java version is side-effect-free, while the Go version mutates the receiver's fields.
+
+- [ ] **Bug: Go `Merge` mutates the receiver in-place instead of returning a new value.** The Java `merge` method is a pure function that returns a `new IndexSettingsAnalysis` without modifying the original. The Go `Merge` method modifies the receiver (`a`) in place. This changes the semantics from functional (non-destructive) to imperative (destructive), which could cause bugs if the original `IndexSettingsAnalysis` is shared or reused elsewhere.
+
+# MongoCollectionMigrator.java
+*Checked methods: migrate(Set<String> existingCollectionNames)*
+
+## Migrate
+
+- [ ] The Go `Migrate()` method is a stub that returns `nil` unconditionally. It does not accept an `existingCollectionNames` parameter (the Java method takes `Set<String> existingCollectionNames`), which is needed to decide whether to call `migrateUserRoleDocs()`.
+- [ ] Missing the `adminMongoClient` and `userMongoClient` fields on the struct. The Java class has two `TurmsMongoClient` fields that are injected via constructor. The Go struct is empty.
+- [ ] Missing the call to `migrateAdminDocs()` — in Java, `migrate()` always calls `migrateAdminDocs()` as part of the `Flux.concat`.
+- [ ] Missing the conditional call to `migrateUserRoleDocs()` — in Java, this is called only when `existingCollectionNames.contains(UserRole.LEGACY_COLLECTION_NAME)` is true.
+- [ ] Missing the `migrateAdminDocs()` logic entirely: querying legacy admin documents where `_id` type is "string", converting them via `convertLegacyAdminRecord`, updating the JSON schema, inserting new admin records, and deleting old ones — all within a transaction.
+- [ ] Missing the `convertLegacyAdminRecord` logic: parsing a legacy BSON admin document (extracting old ID, role IDs from either a single `BsonInt64` or `BsonArray`, generating a new ID with root-admin detection via `AdminConst.ADMIN_ROLE_ROOT_ID` / `AdminConst.ROOT_ADMIN_ID`, and constructing an `Admin` POJO).
+- [ ] Missing the `migrateUserRoleDocs()` logic: renaming the legacy collection `"userrole"` to `"user_role"` via the user Mongo client, with logging on subscribe/success and error wrapping.
+
+# MongoConfig.java
+*Checked methods: adminMongoClient(TurmsPropertiesManager propertiesManager), userMongoClient(TurmsPropertiesManager propertiesManager), groupMongoClient(TurmsPropertiesManager propertiesManager), conversationMongoClient(TurmsPropertiesManager propertiesManager), messageMongoClient(TurmsPropertiesManager propertiesManager), conferenceMongoClient(TurmsPropertiesManager propertiesManager)*
+
+Now I have a clear picture. The Go file's `@MappedFrom` annotation claims to map from `im.turms.gateway.storage.mongo.MongoConfig`, but the user asked me to compare against the **turms-service** Java MongoConfig. The user explicitly specified the Java file path as the turms-service version.
+
+Let me now do the comparison systematically:
+
+## adminMongoClient
+
+**Java (service):**
+1. Gets `AdminMongoProperties` from `propertiesManager.getLocalProperties().getService().getMongo().getAdmin()`
+2. Gets `writeConcern` from `properties.getWriteConcern()`
+3. Calls `getMongoClient(properties, "admin", Collections.emptySet())`
+4. Calls `mongoClient.registerEntitiesByOptions(MongoCollectionOptions.of(Admin.class, writeConcern.getAdmin()), MongoCollectionOptions.of(AdminRole.class, writeConcern.getAdminRole()))`
+
+**Go:**
+1. Uses `c.adminProps` (a simple `MongoProperties` with just `URI`)
+2. Calls `getMongoClient(c.adminProps, "admin", nil)` — cluster types nil matches `Collections.emptySet()`
+3. Calls `client.RegisterEntitiesByClasses("Admin", "AdminRole")` — no write concern options
+
+## userMongoClient
+
+**Java (service):**
+1. Gets `UserMongoProperties` — no IAM check
+2. Cluster types: `Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED)`
+3. Registers 7 entities with write concern: User, UserFriendRequest, UserRelationship, UserRelationshipGroup, UserRelationshipGroupMember, UserRole, UserVersion
+
+**Go:**
+1. Checks IAM — this is gateway-specific logic, NOT in the service version
+2. Cluster types: `[]string{"SHARDED", "LOAD_BALANCED"}`
+3. Registers only 1 entity: "User" — missing 6 entities
+
+## groupMongoClient
+
+**Java (service):**
+1. Gets `GroupMongoProperties` with write concern
+2. Cluster types: `Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED)`
+3. Registers 8 entities: Group, GroupBlockedUser, GroupInvitation, GroupJoinQuestion, GroupJoinRequest, GroupMember, GroupType, GroupVersion
+
+**Go:** Returns `nil` — stub
+
+## conversationMongoClient
+
+**Java (service):**
+1. Gets `ConversationMongoProperties` with write concern
+2. Cluster types: `Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED)`
+3. Registers 2 entities: PrivateConversation, GroupConversation (both with `writeConcern.getConversation()`)
+
+**Go:** Returns `nil` — stub
+
+## messageMongoClient
+
+**Java (service):**
+1. Gets `MessageMongoProperties` with write concern
+2. Cluster types: `Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED)`
+3. Registers 1 entity: Message (with `writeConcern.getMessage()`)
+
+**Go:** Returns `nil` — stub
+
+## conferenceMongoClient
+
+**Java (service):**
+1. Gets `ConferenceMongoProperties` with write concern
+2. Cluster types: `Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED)`
+3. Registers 1 entity: Meeting (with `writeConcern.getMeeting()`)
+
+**Go:** Returns `nil` — stub
+
+---
+
+Here is the review:
+
+## adminMongoClient
+
+- [ ] **Missing write concern per-entity configuration**: The Java version uses `MongoCollectionOptions.of(Admin.class, writeConcern.getAdmin())` and `MongoCollectionOptions.of(AdminRole.class, writeConcern.getAdminRole())` — each entity gets its own write concern setting. The Go version calls `RegisterEntitiesByClasses("Admin", "AdminRole")` which has no per-entity write concern parameter at all. The `MongoProperties` struct in Go only has a `URI` field and lacks the entire `WriteConcern` sub-structure.
+
+## userMongoClient
+
+- [ ] **Spurious IAM guard not present in Java service version**: The Go code has an IAM check (`if !c.iamProps.Enabled || c.iamProps.Type != IdentityAccessManagementTypePassword`) that returns `nil, nil`. This check exists in the **gateway** Java version but NOT in the **service** Java version being compared. The service version always creates the client.
+- [ ] **Missing 6 entity registrations**: The Java service version registers 7 entities (User, UserFriendRequest, UserRelationship, UserRelationshipGroup, UserRelationshipGroupMember, UserRole, UserVersion). The Go version only registers "User", missing UserFriendRequest, UserRelationship, UserRelationshipGroup, UserRelationshipGroupMember, UserRole, and UserVersion.
+- [ ] **Missing write concern per-entity configuration**: Same as adminMongoClient — none of the entity registrations carry per-entity write concern settings.
+
+## groupMongoClient
+
+- [ ] **Entire method is a nil stub**: The Java version creates a full `TurmsMongoClient` with `GroupMongoProperties`, cluster types `SHARDED`/`LOAD_BALANCED`, and registers 8 entities (Group, GroupBlockedUser, GroupInvitation, GroupJoinQuestion, GroupJoinRequest, GroupMember, GroupType, GroupVersion) with per-entity write concerns. The Go version returns `nil`.
+
+## conversationMongoClient
+
+- [ ] **Entire method is a nil stub**: The Java version creates a full `TurmsMongoClient` with `ConversationMongoProperties`, cluster types `SHARDED`/`LOAD_BALANCED`, and registers 2 entities (PrivateConversation, GroupConversation) with per-entity write concerns. The Go version returns `nil`.
+
+## messageMongoClient
+
+- [ ] **Entire method is a nil stub**: The Java version creates a full `TurmsMongoClient` with `MessageMongoProperties`, cluster types `SHARDED`/`LOAD_BALANCED`, and registers the Message entity with per-entity write concern. The Go version returns `nil`.
+
+## conferenceMongoClient
+
+- [ ] **Entire method is a nil stub**: The Java version creates a full `TurmsMongoClient` with `ConferenceMongoProperties`, cluster types `SHARDED`/`LOAD_BALANCED`, and registers the Meeting entity with per-entity write concern. The Go version returns `nil`.
+
+## Structural/Shared Issues (all methods)
+
+- [ ] **Missing `WriteConcern` fields and sub-properties**: The Go `MongoProperties` struct only has a `URI` field. The Java `AdminMongoProperties`, `UserMongoProperties`, `GroupMongoProperties`, `ConversationMongoProperties`, `MessageMongoProperties`, and `ConferenceMongoProperties` all have `WriteConcernProperties` sub-objects with per-entity write concern settings. None of this is modeled in Go.
+- [ ] **`MongoConfig` struct has wrong property shape**: The Go `MongoConfig` stores `adminProps` and `userProps` as simple `MongoProperties` with only a `URI`. The Java service `MongoConfig` receives a `TurmsPropertiesManager` from which it extracts typed, entity-specific property objects (e.g., `AdminMongoProperties`, `UserMongoProperties`) that contain connection settings, write concerns, and other configuration. The Go version has no mechanism to access the full set of service-specific mongo properties (group, conversation, message, conference).
+
+# MongoFakeDataGenerator.java
+*Checked methods: populateCollectionsWithFakeData()*
+
+The Go file is a stub that returns `nil` with no implementation whatsoever. Let me compare in detail.
+
+## PopulateCollectionsWithFakeData
+
+- [ ] **Missing entire implementation**: The Go method is an empty stub that just returns `nil`. It does not generate or insert any fake data. The Java version generates fake data for admins (admin users, admin roles), users (users, user versions, relationship groups, friend requests, user roles, relationships, relationship group members), groups (groups, group versions, blocked users, invitations, join questions, join requests, members, group types), conversations (private conversations, group conversations), and messages (private messages, group messages), then inserts them into MongoDB concurrently using `Mono.whenDelayError`.
+- [ ] **Missing admin-related fake data generation**: The Java code generates a guest admin, 10 regular admins, an ADMIN role, and a GUEST role. None of this is present in the Go code.
+- [ ] **Missing user-related fake data generation**: The Java code generates `userCount` users with passwords, names, intros, profile access strategies, and user-defined attributes. It also generates user versions, relationship groups, friend requests, a user role, relationships, and relationship group members. None of this is present in the Go code.
+- [ ] **Missing group-related fake data generation**: The Java code generates a group, group version, blocked users, invitations, join questions, join requests, group members (with OWNER/MEMBER roles), and a group type. None of this is present in the Go code.
+- [ ] **Missing conversation-related fake data generation**: The Java code generates private conversations for each target and a group conversation. None of this is present in the Go code.
+- [ ] **Missing message-related fake data generation**: The Java code generates 100 pairs of private messages and group messages with random text and alternating IPv4/IPv6 addresses. None of this is present in the Go code.
+- [ ] **Missing concurrent insertion into MongoDB**: The Java code inserts data into 5 separate MongoDB clients (admin, user, group, conversation, message) concurrently using `Mono.whenDelayError`, with logging at each step. None of this is present in the Go code.
+- [ ] **Missing FakeData record/struct and generateFakeData helper**: The Java code has a `FakeData` record and a `generateFakeData()` private method that encapsulates all fake data generation logic. None of this is present in the Go code.
+- [ ] **Missing `nextId()` auto-increment logic**: The Java code uses a `currentId` field starting at 1 that auto-increments for generated records. The Go code has no equivalent.
+
+# RedisConfig.java
+*Checked methods: newSequenceIdRedisClientManager(RedisProperties properties), sequenceIdRedisClientManager()*
+
+## newSequenceIdRedisClientManager
+
+- [ ] The Go method accepts no parameters, but the Java method accepts `RedisProperties properties` as a parameter
+- [ ] The Go method returns `nil` (a stub), but the Java method creates and returns a `new TurmsRedisClientManager(properties, RedisCodecContext.DEFAULT)` — all logic is missing
+- [ ] The Go method returns `interface{}` instead of a concrete `TurmsRedisClientManager`-equivalent type
+
+## sequenceIdRedisClientManager
+
+- [ ] The Go method returns `nil` (a stub), but the Java method returns the `sequenceIdRedisClientManager` field initialized in the constructor — all logic is missing
+- [ ] The Go `RedisConfig` struct has no `sequenceIdRedisClientManager` field, which the Java class uses to store the manager instance
+- [ ] The constructor logic that conditionally initializes `sequenceIdRedisClientManager` (based on `useSequenceIdForGroupConversation` or `useSequenceIdForPrivateConversation`) and calls `registerClientManagers` is completely absent from the Go code
