@@ -1164,32 +1164,31 @@
 > [简述功能]
 
   - [x] `updateQuestion(Long questionId, @Nullable String question, @Nullable Set<String> answers, @Nullable Integer score)` ➡️ [`internal/domain/group/service/group_question_service.go`](../internal/domain/group/service/group_question_service.go)
-  - [ ] `updateQuestions(Set<Long> ids, @Nullable Long groupId, @Nullable String question, @Nullable Set<String> answers, @Nullable Integer score)`
-  - [ ] `countQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds)`
-  - [ ] `checkQuestionAnswerAndGetScore(Long questionId, String answer, @Nullable Long groupId)`
+  - [x] `updateQuestions(Set<Long> ids, @Nullable Long groupId, @Nullable String question, @Nullable Set<String> answers, @Nullable Integer score)` -> [UpdateQuestions(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int)](../internal/domain/group/repository/group_join_question_repository.go#L135)
+  - [x] `countQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds)` -> [CountQuestions(ctx context.Context, ids []int64, groupIds []int64)](../internal/domain/group/repository/group_join_question_repository.go#L123)
+  - [x] `checkQuestionAnswerAndGetScore(Long questionId, String answer, @Nullable Long groupId)` -> [CheckQuestionAnswerAndGetScore(ctx context.Context, questionID int64, answer string, groupID *int64)](../internal/domain/group/repository/group_join_question_repository.go#L163)
   - [x] `findGroupId(Long questionId)` ➡️ [`internal/domain/group/repository/group_join_request_repository.go`](../internal/domain/group/repository/group_join_request_repository.go)
-  - [ ] `findQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Integer page, @Nullable Integer size, boolean withAnswers)`
-
+  - [x] `findQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Integer page, @Nullable Integer size, boolean withAnswers)` -> [FindQuestions(ctx context.Context, ids []int64, groupIds []int64, page *int, size *int)](../internal/domain/group/repository/group_join_question_repository.go#L93)
 - **GroupRepository.java** ([java/im/turms/service/domain/group/repository/GroupRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/repository/GroupRepository.java))
 > [简述功能]
 
-  - [ ] `updateGroupsDeletionDate(@Nullable Collection<Long> groupIds, @Nullable ClientSession session)`
+  - [x] `updateGroupsDeletionDate(@Nullable Collection<Long> groupIds, @Nullable ClientSession session)` -> [UpdateGroupsDeletionDate(ctx context.Context, groupIDs []int64, deletionDate *time.Time, session mongo.SessionContext)](../internal/domain/group/repository/group_repository.go#L145)
   - [x] `updateGroups(Set<Long> groupIds, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable Integer minimumScore, @Nullable Boolean isActive, @Nullable Date creationDate, @Nullable Date deletionDate, @Nullable Date muteEndDate, @Nullable Date lastUpdatedDate, @Nullable Map<String, Object> userDefinedAttributes, @Nullable ClientSession session)` ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
-  - [ ] `countCreatedGroups(@Nullable DateRange dateRange)`
-  - [ ] `countDeletedGroups(@Nullable DateRange dateRange)`
+  - [x] `countCreatedGroups(@Nullable DateRange dateRange)` -> [CountCreatedGroups(ctx context.Context, dateRange *turmsmongo.DateRange)](../internal/domain/group/repository/group_repository.go#L163)
+  - [x] `countDeletedGroups(@Nullable DateRange dateRange)` -> [CountDeletedGroups(ctx context.Context, dateRange *turmsmongo.DateRange)](../internal/domain/group/repository/group_repository.go#L181)
   - [x] `countGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange)` -> [CountGroups(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64)](../internal/domain/user/repository/user_relationship_group_member_repository.go#L195)
   - [x] `countOwnedGroups(Long ownerId)` -> [CountOwnedGroups(ctx context.Context, ownerID int64)](../internal/domain/group/repository/group_repository.go#L132)
   - [x] `countOwnedGroups(Long ownerId, Long groupTypeId)` -> [CountOwnedGroups(ctx context.Context, ownerID int64)](../internal/domain/group/repository/group_repository.go#L132)
   - [x] `findGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size)` -> [FindGroups(ctx context.Context, groupIDs []int64)](../internal/domain/group/repository/group_repository.go#L37)
-  - [ ] `findNotDeletedGroups(Collection<Long> ids, @Nullable Date lastUpdatedDate)`
+  - [x] `findNotDeletedGroups(Collection<Long> ids, @Nullable Date lastUpdatedDate)` -> [FindNotDeletedGroups(ctx context.Context, groupIDs []int64, lastUpdatedDate *time.Time)](../internal/domain/group/repository/group_repository.go#L199)
   - [x] `findAllNames()` -> [FindAllNames(ctx context.Context)](../internal/domain/user/repository/user_repository.go#L212)
-  - [ ] `findTypeId(Long groupId)`
-  - [ ] `findTypeIdAndGroupId(Collection<Long> groupIds)`
-  - [ ] `findTypeIdIfActiveAndNotDeleted(Long groupId)`
-  - [ ] `findMinimumScore(Long groupId)`
-  - [ ] `findOwnerId(Long groupId)`
-  - [ ] `isGroupMuted(Long groupId, Date muteEndDate)`
-  - [ ] `isGroupActiveAndNotDeleted(Long groupId)`
+  - [x] `findTypeId(Long groupId)` -> [FindTypeID(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_repository.go#L221)
+  - [x] `findTypeIdAndGroupId(Collection<Long> groupIds)` -> [FindTypeIDAndGroupID(ctx context.Context, groupIDs []int64)](../internal/domain/group/repository/group_repository.go#L293)
+  - [x] `findTypeIdIfActiveAndNotDeleted(Long groupId)` -> [FindTypeIDIfActiveAndNotDeleted(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_repository.go#L239)
+  - [x] `findMinimumScore(Long groupId)` -> [FindMinimumScore(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_repository.go#L259)
+  - [x] `findOwnerId(Long groupId)` -> [FindOwnerID(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_member_repository.go)
+  - [x] `isGroupMuted(Long groupId, Date muteEndDate)` -> [IsGroupMuted(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_repository.go#L275)
+  - [x] `isGroupActiveAndNotDeleted(Long groupId)` -> [IsGroupActiveAndNotDeleted(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_repository.go#L284)
 
 - **GroupTypeRepository.java** ([java/im/turms/service/domain/group/repository/GroupTypeRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/repository/GroupTypeRepository.java))
 > [简述功能]

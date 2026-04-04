@@ -60,7 +60,18 @@ for (let i = 0; i < lines.length; i++) {
       }
 
       if (matchedFile) {
-        line = `${indent}- [x] \`${methodSig}\` ➡️ [\`${matchedFile}\`](../${matchedFile})`;
+        let lineNum = 1;
+        if (fs.existsSync(matchedFile)) {
+            const fileLines = fs.readFileSync(matchedFile, 'utf8').split('\n');
+            for (let j = 0; j < fileLines.length; j++) {
+                const funcRegex = new RegExp(`func\\s*(?:\\([^)]+\\)\\s*)?${goMethodName}\\s*\\(`, 'i');
+                if (funcRegex.test(fileLines[j])) {
+                    lineNum = j + 1;
+                    break;
+                }
+            }
+        }
+        line = `${indent}- [x] \`${methodSig}\` -> [${goMethodName}()](../${matchedFile}#L${lineNum})`;
       }
     }
   }
