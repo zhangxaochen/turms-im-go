@@ -2298,8 +2298,6 @@ Here is the complete bug report:
 # PrivateConversationRepository.java
 *Checked methods: upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward), deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session), findConversations(Collection<Long> ownerIds)*
 
-Now I have all the information needed to perform a thorough comparison.
-
 ## UpsertReadDate (Java: `upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward)`)
 
 - [x] **Missing batch operation**: Java takes a `Set<PrivateConversation.Key>` and uses `mongoClient.upsert()` which operates on multiple keys at once. The Go version only takes a single `ownerID`/`targetID` pair and calls `UpdateOne`, not `UpdateMany`. This changes the method from a batch upsert to a single-record upsert.
@@ -2317,8 +2315,6 @@ Now I have all the information needed to perform a thorough comparison.
 Note: `QueryPrivateConversations` in the Go file appears to be a partial implementation of `FindConversations`/`findConversations`, but it has different naming and the comment maps it to different Java methods (`queryPrivateConversations`), so it does not serve as a valid replacement for `findConversations(Collection<Long> ownerIds)`.
 
 # ConversationService.java
-*Checked methods: authAndUpsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate), authAndUpsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate), upsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate), upsertGroupConversationsReadDate(@NotNull Set<GroupConversation.GroupConversionMemberKey> keys, @Nullable @PastOrPresent Date readDate), upsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate), upsertPrivateConversationsReadDate(@NotNull Set<PrivateConversation.Key> keys, @Nullable @PastOrPresent Date readDate), queryGroupConversations(@NotNull Collection<Long> groupIds), queryPrivateConversationsByOwnerIds(@NotNull Set<Long> ownerIds), queryPrivateConversations(@NotNull Collection<Long> ownerIds, @NotNull Long targetId), queryPrivateConversations(@NotNull Set<PrivateConversation.Key> keys), deletePrivateConversations(@NotNull Set<PrivateConversation.Key> keys), deletePrivateConversations(@NotNull Set<Long> userIds, @Nullable ClientSession session), deleteGroupConversations(@Nullable Set<Long> groupIds, @Nullable ClientSession session), deleteGroupMemberConversations(@NotNull Collection<Long> userIds, @Nullable ClientSession session), authAndUpdateTypingStatus(@NotNull Long requesterId, boolean isGroupMessage, @NotNull Long toId)*
-
 Now I have all the context needed for a thorough comparison. Let me systematically analyze each method.
 
 ## authAndUpsertGroupConversationReadDate
