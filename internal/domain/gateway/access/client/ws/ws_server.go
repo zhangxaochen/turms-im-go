@@ -96,7 +96,10 @@ type WSConnection struct {
 	onClose      chan struct{}
 }
 
-func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.Duration, onClose chan struct{}) *WSConnection {
+func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.Duration, onClose chan struct{}, maxFramePayloadLength int) *WSConnection {
+	if maxFramePayloadLength > 0 {
+		conn.SetReadLimit(int64(maxFramePayloadLength))
+	}
 	return &WSConnection{
 		BaseNetConnection: common.NewBaseNetConnection(isConnected),
 		conn:              conn,
@@ -176,8 +179,8 @@ func (f *WebSocketServerFactory) Create(
 ) (*http.Server, error) {
 	
 	upgrader := websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
+		ReadBufferSize:  props.ReadBufferSize,
+		WriteBufferSize: props.WriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
 			return true // CORS loosely handled here, refined in handler
 		},
@@ -225,8 +228,9 @@ func (f *WebSocketServerFactory) Create(
 	})
 
 	server := &http.Server{
-		Addr:    fmt.Sprintf("%s:%d", props.Host, props.Port),
-		Handler: mux,
+		Addr:        fmt.Sprintf("%s:%d", props.Host, props.Port),
+		Handler:     mux,
+		IdleTimeout: time.Duration(props.IdleTimeoutSeconds) * time.Second,
 	}
 
 	return server, nil
@@ -234,9 +238,10 @@ func (f *WebSocketServerFactory) Create(
 
 // @MappedFrom WebSocketUserSessionAssembler
 type WebSocketUserSessionAssembler struct {
-	Host           string
-	Port           int
-	Server         *http.Server
+	Host                  string
+	Port                  int
+	Server                *http.Server
+	MaxFramePayloadLength int
 }
 
 func NewWebSocketUserSessionAssembler() *WebSocketUserSessionAssembler {
@@ -261,7 +266,7 @@ func (a *WebSocketUserSessionAssembler) GetPort() (int, error) {
 }
 
 func (a *WebSocketUserSessionAssembler) CreateConnection(conn *websocket.Conn, closeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
-	c := NewWSConnection(conn, true, closeTimeout, onClose)
+	c := NewWSConnection(conn, true, closeTimeout, onClose, a.MaxFramePayloadLength)
 	c.SetUdpSignalDispatcher(func(addr *net.UDPAddr) {
 		if udp.Instance != nil {
 			udp.Instance.SendSignal(addr, udp.OpenConnectionNotification)

@@ -54,6 +54,40 @@ type UserSession struct {
 	CloseChan chan struct{}
 }
 
+func NewUserSession(
+	version int,
+	permissions map[any]bool,
+	userID int64,
+	deviceType protocol.DeviceType,
+	deviceDetails map[string]string,
+	location *sessionbo.UserLocation,
+) *UserSession {
+	now := time.Now()
+	nowMillis := now.UnixMilli()
+	nowNanos := now.UnixNano()
+	
+	if deviceDetails == nil {
+		deviceDetails = make(map[string]string)
+	}
+
+	return &UserSession{
+		// ID should be set by the caller
+		Version:            version,
+		Permissions:        permissions,
+		UserID:             userID,
+		DeviceType:         deviceType,
+		DeviceDetails:      deviceDetails,
+		Location:           location,
+		LoginDate:          now,
+		lastHeartbeat:      nowMillis,
+		lastHeartbeatNanos: nowNanos,
+		lastRequest:        nowMillis,
+		lastRequestNanos:   nowNanos,
+		isSessionOpen:      1, // default to open
+		CloseChan:          make(chan struct{}),
+	}
+}
+
 func (s *UserSession) SetLastHeartbeatRequestTimestampToNow() {
 	now := time.Now()
 	atomic.StoreInt64(&s.lastHeartbeat, now.UnixMilli())

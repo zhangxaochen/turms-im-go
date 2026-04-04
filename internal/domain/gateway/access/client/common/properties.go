@@ -30,12 +30,15 @@ type SslProperties struct {
 }
 
 type WebSocketProperties struct {
-	Enabled            bool
-	Host               string
-	Port               int
-	ProxyProtocolMode  RemoteAddressSourceProxyProtocolMode
-	HttpHeaderMode     RemoteAddressSourceHttpHeaderMode
+	Enabled               bool
+	Host                  string
+	Port                  int
+	ProxyProtocolMode     RemoteAddressSourceProxyProtocolMode
+	HttpHeaderMode        RemoteAddressSourceHttpHeaderMode
 	MaxFramePayloadLength int
+	WriteBufferSize       int
+	ReadBufferSize        int
+	IdleTimeoutSeconds    int
 }
 
 type RemoteAddressSourceHttpHeaderMode int
