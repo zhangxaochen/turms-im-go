@@ -314,9 +314,57 @@ func (r *GroupMemberRepository) FindGroupMembersWithIds(ctx context.Context, gro
 }
 
 // FindGroupsMembers is a stub for querying group members with complex conditions.
-func (r *GroupMemberRepository) FindGroupsMembers(ctx context.Context, groupIds, userIds []int64, roles []int, joinDateRange, muteEndDateRange any, page, size *int) ([]po.GroupMember, error) {
-	// TODO: implement full query logic
-	return nil, nil
+func (r *GroupMemberRepository) FindGroupsMembers(ctx context.Context, groupIDs, userIDs []int64, roles []int, joinDateStart, joinDateEnd, muteEndDateStart, muteEndDateEnd *time.Time, page, size *int) ([]po.GroupMember, error) {
+	filter := bson.M{}
+	if len(groupIDs) > 0 {
+		filter["_id.gid"] = bson.M{"$in": groupIDs}
+	}
+	if len(userIDs) > 0 {
+		filter["_id.uid"] = bson.M{"$in": userIDs}
+	}
+	if len(roles) > 0 {
+		filter["role"] = bson.M{"$in": roles}
+	}
+	if joinDateStart != nil || joinDateEnd != nil {
+		jdFilter := bson.M{}
+		if joinDateStart != nil {
+			jdFilter["$gte"] = *joinDateStart
+		}
+		if joinDateEnd != nil {
+			jdFilter["$lte"] = *joinDateEnd
+		}
+		filter["jd"] = jdFilter
+	}
+	if muteEndDateStart != nil || muteEndDateEnd != nil {
+		medFilter := bson.M{}
+		if muteEndDateStart != nil {
+			medFilter["$gte"] = *muteEndDateStart
+		}
+		if muteEndDateEnd != nil {
+			medFilter["$lte"] = *muteEndDateEnd
+		}
+		filter["med"] = medFilter
+	}
+
+	opts := options.Find()
+	if size != nil {
+		opts.SetLimit(int64(*size))
+		if page != nil {
+			opts.SetSkip(int64(*page * *size))
+		}
+	}
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+	return members, nil
 }
 
 // FindUsersJoinedGroupIds finds group IDs joined by specified users.

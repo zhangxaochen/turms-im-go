@@ -48,16 +48,42 @@ func (s *GroupService) SetGroupTypeService(groupTypeService *GroupTypeService) {
 
 // CreateGroup creates a new group.
 // @MappedFrom createGroup(@NotNull Long creatorId, @NotNull Long ownerId, @Nullable String groupName, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0)
-func (s *GroupService) CreateGroup(ctx context.Context, creatorID, groupID int64, name, intro *string, minimumScore *int32) (*po.Group, error) {
+func (s *GroupService) CreateGroup(
+	ctx context.Context,
+	creatorID int64,
+	ownerID int64,
+	name *string,
+	intro *string,
+	announcement *string,
+	minimumScore *int32,
+	groupTypeID *int64,
+	creationDate *time.Time,
+	deletionDate *time.Time,
+	muteEndDate *time.Time,
+	isActive *bool,
+) (*po.Group, error) {
 	now := time.Now()
+	var cd *time.Time = &now
+	if creationDate != nil {
+		cd = creationDate
+	}
+	var id int64
+	// Generate random ID here ideally or rely on node snowflake. We use time for now.
+	// We'll just define id as UnixNano or if there's a DTO provided one.
+	id = time.Now().UnixNano()
 	group := &po.Group{
-		ID:           groupID,
+		ID:           id,
 		CreatorID:    &creatorID,
-		OwnerID:      &creatorID,
+		OwnerID:      &ownerID,
 		Name:         name,
 		Intro:        intro,
+		Announcement: announcement,
 		MinimumScore: minimumScore,
-		CreationDate: &now,
+		TypeID:       groupTypeID,
+		CreationDate: cd,
+		DeletionDate: deletionDate,
+		MuteEndDate:  muteEndDate,
+		IsActive:     isActive,
 	}
 
 	err := s.groupRepo.InsertGroup(ctx, group)
@@ -66,15 +92,15 @@ func (s *GroupService) CreateGroup(ctx context.Context, creatorID, groupID int64
 	}
 
 	// Parity: add group member who created it as OWNER
-	err = s.groupMemberService.AddGroupMember(ctx, groupID, creatorID, protocol.GroupMemberRole_OWNER, nil, nil)
+	err = s.groupMemberService.AddGroupMember(ctx, group.ID, creatorID, protocol.GroupMemberRole_OWNER, nil, nil)
 	if err != nil {
-		_ = s.groupRepo.DeleteGroup(ctx, groupID) // Basic rollback
+		_ = s.groupRepo.DeleteGroup(ctx, group.ID) // Basic rollback
 		return nil, err
 	}
 
 	// Parity: upsert group version
 	if s.groupVersionService != nil {
-		_ = s.groupVersionService.Upsert(ctx, groupID, now)
+		_ = s.groupVersionService.Upsert(ctx, group.ID, now)
 	}
 
 	// TODO: add metric increment (createdGroupsCounter.increment)
@@ -112,12 +138,25 @@ func (s *GroupService) IsAllowedToCreateGroup(ctx context.Context, requesterID i
 }
 
 // @MappedFrom authAndCreateGroup(@NotNull Long creatorId, @NotNull Long ownerId, @Nullable String groupName, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0)
-func (s *GroupService) AuthAndCreateGroup(ctx context.Context, creatorID, ownerID int64, name, intro *string, minimumScore *int32) (*po.Group, error) {
+func (s *GroupService) AuthAndCreateGroup(
+	ctx context.Context,
+	creatorID int64,
+	ownerID int64,
+	name *string,
+	intro *string,
+	announcement *string,
+	minimumScore *int32,
+	groupTypeID *int64,
+	creationDate *time.Time,
+	deletionDate *time.Time,
+	muteEndDate *time.Time,
+	isActive *bool,
+) (*po.Group, error) {
 	err := s.IsAllowedToCreateGroup(ctx, creatorID)
 	if err != nil {
 		return nil, err
 	}
-	return s.CreateGroup(ctx, creatorID, ownerID, name, intro, minimumScore)
+	return s.CreateGroup(ctx, creatorID, ownerID, name, intro, announcement, minimumScore, groupTypeID, creationDate, deletionDate, muteEndDate, isActive)
 }
 
 // @MappedFrom queryGroupTypeIdIfActiveAndNotDeleted(@NotNull Long groupId)
@@ -433,8 +472,12 @@ func (s *GroupService) UpdateGroupInformation(
 	announcement *string,
 	minimumScore *int32,
 	isActive *bool,
+	creationDate *time.Time,
+	deletionDate *time.Time,
+	muteEndDate *time.Time,
+	session mongo.SessionContext,
 ) error {
-	return s.UpdateGroupsInformation(ctx, []int64{groupID}, typeID, creatorID, ownerID, name, intro, announcement, minimumScore, isActive)
+	return s.UpdateGroupsInformation(ctx, []int64{groupID}, typeID, creatorID, ownerID, name, intro, announcement, minimumScore, isActive, creationDate, deletionDate, muteEndDate, session)
 }
 
 // @MappedFrom updateGroupsInformation(@NotNull Set<Long> groupIds, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(0) Integer minimumScore, @Nullable Boolean isActive)
@@ -449,6 +492,10 @@ func (s *GroupService) UpdateGroupsInformation(
 	announcement *string,
 	minimumScore *int32,
 	isActive *bool,
+	creationDate *time.Time,
+	deletionDate *time.Time,
+	muteEndDate *time.Time,
+	session mongo.SessionContext,
 ) error {
 	update := bson.M{}
 	if typeID != nil {
@@ -474,6 +521,15 @@ func (s *GroupService) UpdateGroupsInformation(
 	}
 	if isActive != nil {
 		update["ac"] = *isActive
+	}
+	if creationDate != nil {
+		update["cd"] = *creationDate
+	}
+	if deletionDate != nil {
+		update["dd"] = *deletionDate
+	}
+	if muteEndDate != nil {
+		update["med"] = *muteEndDate
 	}
 	if len(update) == 0 {
 		return nil
@@ -583,4 +639,23 @@ func (s *GroupService) Count(ctx context.Context) (int64, error) {
 // @MappedFrom countGroups(@Nullable DateRange dateRange)
 func (s *GroupService) CountGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
 	return s.groupRepo.CountGroups(ctx, dateRange)
+}
+
+func (s *GroupService) QueryGroupsWithPagination(ctx context.Context, page, size *int) ([]*po.Group, error) {
+	return s.QueryGroupsWithFilter(ctx, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, page, size)
+}
+
+func (s *GroupService) QueryGroupsWithFilter(ctx context.Context, ids, typeIds, creatorIds, ownerIds []int64, isActive *bool, creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd, muteEndDateStart, muteEndDateEnd *time.Time, memberIds []int64, page, size *int) ([]*po.Group, error) {
+	var skip *int32
+	var limit *int32
+	if page != nil && size != nil {
+		s := int32((*page) * (*size))
+		l := int32(*size)
+		skip = &s
+		limit = &l
+	} else if size != nil {
+		l := int32(*size)
+		limit = &l
+	}
+	return s.groupRepo.QueryGroups(ctx, ids, nil, nil, skip, limit)
 }

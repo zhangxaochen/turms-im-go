@@ -305,6 +305,35 @@ func (s *GroupBlocklistService) AddBlockedUser(
 	return blockedUser, nil
 }
 
+func (s *GroupBlocklistService) UpdateBlockedUsers(
+	ctx context.Context,
+	keys []po.GroupBlockedUserKey,
+	blockDate *time.Time,
+	requesterId *int64,
+) error {
+	return s.blockedUserRepo.UpdateBlockedUsers(ctx, keys, blockDate, requesterId)
+}
+
 func (s *GroupBlocklistService) DeleteBlockedUsers(ctx context.Context, keys []po.GroupBlockedUserKey) error {
 	return s.blockedUserRepo.DeleteBlockedUsers(ctx, keys)
+}
+
+func (s *GroupBlocklistService) QueryBlockedUsersWithFilter(
+	ctx context.Context,
+	groupIds []int64,
+	userIds []int64,
+	blockDateRange *turmsmongo.DateRange,
+	requesterIds []int64,
+	page *int,
+	size *int,
+) ([]po.GroupBlockedUser, error) {
+	return s.blockedUserRepo.FindBlockedUsers(ctx, groupIds, userIds, blockDateRange, requesterIds, page, size)
+}
+
+func (s *GroupBlocklistService) QueryBlockedUsersWithPagination(
+	ctx context.Context,
+	page *int,
+	size *int,
+) ([]po.GroupBlockedUser, error) {
+	return s.QueryBlockedUsersWithFilter(ctx, nil, nil, nil, nil, page, size)
 }

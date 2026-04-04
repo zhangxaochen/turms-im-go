@@ -181,6 +181,21 @@ func (s *GroupJoinRequestService) QueryJoinRequests(ctx context.Context, groupID
 	return s.joinReqRepo.FindRequests(ctx, groupID, requesterID, responderID, status, creationDate, nil, nil, page, size)
 }
 
+func (s *GroupJoinRequestService) QueryJoinRequestsWithPagination(ctx context.Context, page, size *int) ([]*po.GroupJoinRequest, error) {
+	return s.QueryJoinRequestsWithFilter(ctx, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, page, size)
+}
+
+func (s *GroupJoinRequestService) QueryJoinRequestsWithFilter(ctx context.Context, ids, groupIds, requesterIds, responderIds []int64, statuses []int, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]*po.GroupJoinRequest, error) {
+	var p, sz int
+	if page != nil {
+		p = *page
+	}
+	if size != nil {
+		sz = *size
+	}
+	return s.joinReqRepo.FindRequests(ctx, nil, nil, nil, nil, nil, nil, nil, p, sz)
+}
+
 // AuthAndQueryGroupJoinRequestsWithVersion queries the group join requests requested.
 func (s *GroupJoinRequestService) AuthAndQueryGroupJoinRequestsWithVersion(ctx context.Context, requesterID int64, groupID int64, lastUpdatedDate *time.Time) (*po.GroupJoinRequestsWithVersion, error) {
 	role, err := s.groupMemberService.QueryGroupMemberRole(ctx, groupID, requesterID)

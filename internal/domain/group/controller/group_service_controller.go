@@ -94,7 +94,7 @@ func buildSuccessNotification(reqID *int64) *protocol.TurmsNotification {
 // @MappedFrom handleCreateGroupRequest()
 func (c *GroupServiceController) HandleCreateGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupRequest()
-	group, err := c.groupService.CreateGroup(ctx, s.UserID, 0, &createReq.Name, createReq.Intro, createReq.MinScore)
+	group, err := c.groupService.CreateGroup(ctx, s.UserID, 0, &createReq.Name, createReq.Intro, nil, createReq.MinScore, nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
