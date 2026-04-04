@@ -460,7 +460,7 @@ func (s *userRelationshipGroupService) DeleteRelatedUserFromAllRelationshipGroup
 	if err := validator.NotNull(relatedUserID, "relatedUserID"); err != nil {
 		return 0, err
 	}
-	
+
 	count, err := s.groupMemberRepo.DeleteRelatedUsersFromAllRelationshipGroups(ctx, ownerID, []int64{relatedUserID}, session)
 	if err != nil {
 		return 0, err

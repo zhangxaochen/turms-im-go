@@ -302,6 +302,44 @@ func (s *GroupInvitationService) UpdateInvitations(ctx context.Context, ids []in
 	return s.invRepo.UpdateInvitations(ctx, ids, inviterID, inviteeID, content, status, creationDate, responseDate)
 }
 
+func (s *GroupInvitationService) QueryGroupIdAndInviterIdAndInviteeIdAndStatus(ctx context.Context, invitationID int64) (int64, int64, int64, po.RequestStatus, error) {
+	return s.invRepo.FindGroupIdAndInviterIdAndInviteeIdAndStatus(ctx, invitationID)
+}
+
+func (s *GroupInvitationService) QueryGroupIdAndInviteeIdAndStatus(ctx context.Context, invitationID int64) (int64, int64, po.RequestStatus, error) {
+	return s.invRepo.FindGroupIdAndInviteeIdAndStatus(ctx, invitationID)
+}
+
+func (s *GroupInvitationService) QueryGroupInvitationsByInviteeId(ctx context.Context, inviteeID int64) ([]po.GroupInvitation, error) {
+	return s.invRepo.FindInvitationsByInviteeID(ctx, inviteeID)
+}
+
+// Java implementation queryGroupInvitationsByInviterId does the exact same thing
+func (s *GroupInvitationService) QueryGroupInvitationsByInviterId(ctx context.Context, inviterID int64) ([]po.GroupInvitation, error) {
+	// The repo method is not fully implemented but defined in interface. So we will defer to the generic FindInvitations.
+	invs, err := s.invRepo.FindInvitations(ctx, nil, &inviterID, nil, nil, nil, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+	var res []po.GroupInvitation
+	for _, v := range invs {
+		res = append(res, *v)
+	}
+	return res, nil
+}
+
+func (s *GroupInvitationService) QueryGroupInvitationsByGroupId(ctx context.Context, groupID int64) ([]po.GroupInvitation, error) {
+	return s.invRepo.FindInvitationsByGroupID(ctx, groupID)
+}
+
+func (s *GroupInvitationService) QueryInviteeIdAndGroupIdAndCreationDateAndStatusByInvitationId(ctx context.Context, invitationID int64) (int64, int64, time.Time, po.RequestStatus, error) {
+	return s.invRepo.FindInviteeIdAndGroupIdAndCreationDateAndStatus(ctx, invitationID)
+}
+
+func (s *GroupInvitationService) UpdatePendingInvitationStatus(ctx context.Context, invitationID int64, requestStatus po.RequestStatus, reason *string) (bool, error) {
+	return s.invRepo.UpdateStatusIfPending(ctx, invitationID, requestStatus, reason, time.Now())
+}
+
 // Backward Compatibility Aliases
 
 func (s *GroupInvitationService) CreateInvitation(ctx context.Context, groupID int64, inviterID int64, inviteeID int64, content string) (*po.GroupInvitation, error) {

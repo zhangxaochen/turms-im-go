@@ -97,7 +97,7 @@ func (c *WebSocketConnection) Close() error {
 	if err != nil {
 		log.Printf("Failed to write WS close message to %s: %v", c.GetAddress(), err)
 	}
-	
+
 	err = c.conn.Close()
 	if err != nil {
 		log.Printf("Failed to close the WS connection %s: %v", c.GetAddress(), err)

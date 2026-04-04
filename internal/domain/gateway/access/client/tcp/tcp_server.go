@@ -45,24 +45,24 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) error {
 		return nil
 	}
 	c.BaseNetConnection.CloseWithReason(reason)
-	
+
 	if reason.Status != constant.SessionCloseStatus_UNKNOWN_ERROR {
 		// Try to send notification up to 3 times (initial + 2 retries) with short backoff, imitating Java behavior
 		go func() {
 			for i := 0; i < 3; i++ {
 				// We could send real CloseReason status code here using NotificationFactory
-				err := c.Send(context.Background(), []byte{byte(reason.Status)}) 
+				err := c.Send(context.Background(), []byte{byte(reason.Status)})
 				if err == nil {
 					break
 				}
 				log.Printf("Failed to send close notification attempt %d: %v", i+1, err)
 				time.Sleep(3 * time.Second)
 			}
-			
+
 			if c.closeTimeout > 0 {
 				time.Sleep(c.closeTimeout)
 			}
-			
+
 			err := c.conn.Close()
 			if err != nil {
 				log.Printf("Failed to close the TCP connection %s: %v", c.GetAddress(), err)
@@ -70,7 +70,7 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) error {
 		}()
 		return nil
 	}
-	
+
 	err := c.conn.Close()
 	if err != nil {
 		log.Printf("Failed to close the TCP connection %s: %v", c.GetAddress(), err)
@@ -121,15 +121,15 @@ func (f *TcpServerFactory) Create(host string, port int, proxy bool, callback fu
 
 // @MappedFrom TcpUserSessionAssembler
 type TcpUserSessionAssembler struct {
-	Host    string
-	Port    int
-	Server  net.Listener
+	Host   string
+	Port   int
+	Server net.Listener
 }
 
 func NewTcpUserSessionAssembler() *TcpUserSessionAssembler {
 	return &TcpUserSessionAssembler{
-		Host:    "",
-		Port:    -1,
+		Host: "",
+		Port: -1,
 	}
 }
 

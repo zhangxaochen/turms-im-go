@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/common/infra/cluster/rpc"
 	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	userbo "im.turms/server/internal/domain/user/bo"
 	"im.turms/server/internal/domain/user/service/onlineuser"
 	"im.turms/server/pkg/protocol"
-	"im.turms/server/internal/domain/common/infra/cluster/rpc"
-	"im.turms/server/internal/domain/common/constant"
 )
 
 var (
@@ -264,7 +264,7 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 			}
 		}
 	}
-	
+
 	if manager := s.shardedMap.RemoveIfEmpty(userId); manager != nil {
 		s.InvokeGoOfflineHandlers(ctx, manager, closeReason)
 	}
@@ -313,7 +313,7 @@ func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId in
 			}
 		}
 	}
-	
+
 	if manager := s.shardedMap.RemoveIfEmpty(userId); manager != nil {
 		s.InvokeGoOfflineHandlers(ctx, manager, closeReason)
 	}

@@ -247,8 +247,29 @@ func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, user
 	return count > 0, nil
 }
 
-func (r *GroupMemberRepository) FindGroupManagersAndOwnerId(ctx context.Context, groupId int64) ([]po.GroupMember, error) {
-	return nil, nil
+// FindGroupManagersAndOwnerId retrieves the group managers and owner.
+// @MappedFrom queryGroupManagersAndOwnerId(@NotNull Long groupId)
+func (r *GroupMemberRepository) FindGroupManagersAndOwnerId(ctx context.Context, groupID int64) ([]po.GroupMember, error) {
+	filter := bson.M{
+		"_id.gid": groupID,
+		"role": bson.M{
+			"$in": []protocol.GroupMemberRole{
+				protocol.GroupMemberRole_OWNER,
+				protocol.GroupMemberRole_MANAGER,
+			},
+		},
+	}
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+	return members, nil
 }
 
 // FindGroupMembers retrieves all members of a group.
@@ -292,15 +313,93 @@ func (r *GroupMemberRepository) FindGroupMembersWithIds(ctx context.Context, gro
 	return members, nil
 }
 
+// FindGroupsMembers is a stub for querying group members with complex conditions.
 func (r *GroupMemberRepository) FindGroupsMembers(ctx context.Context, groupIds, userIds []int64, roles []int, joinDateRange, muteEndDateRange any, page, size *int) ([]po.GroupMember, error) {
+	// TODO: implement full query logic
 	return nil, nil
 }
-func (r *GroupMemberRepository) FindGroupMemberKeyAndRoleParis(ctx context.Context, userIds []int64, groupId int64) ([]po.GroupMember, error) {
-	return nil, nil
+
+// FindUsersJoinedGroupIds finds group IDs joined by specified users.
+// @MappedFrom queryUsersJoinedGroupIds(@Nullable Set<Long> groupIds, @NotEmpty Set<Long> userIds, @Nullable Integer page, @Nullable Integer size)
+func (r *GroupMemberRepository) FindUsersJoinedGroupIds(ctx context.Context, groupIDs []int64, userIDs []int64, page, size *int) ([]int64, error) {
+	filter := bson.M{}
+	if len(groupIDs) > 0 {
+		filter["_id.gid"] = bson.M{"$in": groupIDs}
+	}
+	if len(userIDs) > 0 {
+		filter["_id.uid"] = bson.M{"$in": userIDs}
+	}
+
+	opts := options.Find().SetProjection(bson.M{"_id.gid": 1})
+	// Pagination logic can be added if needed using page/size in opts
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+
+	var joinedGroupIDs []int64
+	for _, m := range members {
+		joinedGroupIDs = append(joinedGroupIDs, m.ID.GroupID)
+	}
+	return joinedGroupIDs, nil
 }
-func (r *GroupMemberRepository) FindMemberIdsByGroupId(ctx context.Context, groupId int64) ([]int64, error) {
-	return nil, nil
+
+// FindExistentMemberGroupIds checks which of the given group IDs the user is a member of.
+// @MappedFrom findExistentMemberGroupIds(@NotEmpty Set<Long> groupIds, @NotNull Long userId)
+func (r *GroupMemberRepository) FindExistentMemberGroupIds(ctx context.Context, groupIDs []int64, userID int64) ([]int64, error) {
+	filter := bson.M{
+		"_id.uid": userID,
+		"_id.gid": bson.M{"$in": groupIDs},
+	}
+	opts := options.Find().SetProjection(bson.M{"_id.gid": 1})
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+
+	var result []int64
+	for _, m := range members {
+		result = append(result, m.ID.GroupID)
+	}
+	return result, nil
 }
-func (r *GroupMemberRepository) FindUsersJoinedGroupIds(ctx context.Context, groupIds, userIds []int64, page, size *int) ([]int64, error) {
-	return nil, nil
+
+// FindMemberIdsByGroupIds finds member IDs for multiple groups.
+// @MappedFrom queryGroupMemberIds(@NotEmpty Set<Long> groupIds, boolean preferCache)
+func (r *GroupMemberRepository) FindMemberIdsByGroupIds(ctx context.Context, groupIDs []int64) ([]int64, error) {
+	filter := bson.M{
+		"_id.gid": bson.M{"$in": groupIDs},
+	}
+	opts := options.Find().SetProjection(bson.M{"_id.uid": 1})
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var members []po.GroupMember
+	if err := cursor.All(ctx, &members); err != nil {
+		return nil, err
+	}
+
+	var memberIDs []int64
+	for _, m := range members {
+		memberIDs = append(memberIDs, m.ID.UserID)
+	}
+	return memberIDs, nil
 }

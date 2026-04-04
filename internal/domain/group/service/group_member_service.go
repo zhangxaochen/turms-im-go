@@ -142,6 +142,157 @@ func (s *GroupMemberService) FindGroupMemberIDs(ctx context.Context, groupID int
 	return s.groupMemberRepo.FindGroupMemberIDs(ctx, groupID)
 }
 
+// FindExistentMemberGroupIds returns a list of group IDs where the user is an existent member.
+// @MappedFrom findExistentMemberGroupIds(@NotEmpty Set<Long> groupIds, @NotNull Long userId)
+func (s *GroupMemberService) FindExistentMemberGroupIds(ctx context.Context, groupIDs []int64, userID int64) ([]int64, error) {
+	return s.groupMemberRepo.FindExistentMemberGroupIds(ctx, groupIDs, userID)
+}
+
+// IsAllowedToInviteUser checks if the inviter has permission to invite users to the group.
+// @MappedFrom isAllowedToInviteUser(@NotNull Long groupId, @NotNull Long inviterId)
+func (s *GroupMemberService) IsAllowedToInviteUser(ctx context.Context, groupID, inviterID int64) (bool, error) {
+	role, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, inviterID)
+	if err != nil {
+		return false, err
+	}
+
+	typeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+	if err != nil {
+		return false, err
+	}
+	if typeID == nil {
+		return false, nil // Inactive or deleted
+	}
+
+	groupType, err := s.groupTypeService.FindGroupType(ctx, *typeID)
+	if err != nil {
+		return false, err
+	}
+	if groupType == nil {
+		return false, nil
+	}
+
+	strategy := groupType.InvitationStrategy
+	if strategy == group_constant.GroupInvitationStrategy_ALL || strategy == group_constant.GroupInvitationStrategy_ALL_REQUIRING_APPROVAL {
+		return true, nil
+	}
+
+	if role == nil {
+		return false, nil
+	}
+
+	switch strategy {
+	case group_constant.GroupInvitationStrategy_OWNER_MANAGER_MEMBER, group_constant.GroupInvitationStrategy_OWNER_MANAGER_MEMBER_REQUIRING_APPROVAL:
+		return *role == protocol.GroupMemberRole_OWNER || *role == protocol.GroupMemberRole_MANAGER || *role == protocol.GroupMemberRole_MEMBER, nil
+	case group_constant.GroupInvitationStrategy_OWNER_MANAGER, group_constant.GroupInvitationStrategy_OWNER_MANAGER_REQUIRING_APPROVAL:
+		return *role == protocol.GroupMemberRole_OWNER || *role == protocol.GroupMemberRole_MANAGER, nil
+	case group_constant.GroupInvitationStrategy_OWNER, group_constant.GroupInvitationStrategy_OWNER_REQUIRING_APPROVAL:
+		return *role == protocol.GroupMemberRole_OWNER, nil
+	default:
+		return false, nil
+	}
+}
+
+// IsAllowedToBeInvited checks if the user can be invited (not a member, not blocked).
+// @MappedFrom isAllowedToBeInvited(@NotNull Long groupId, @NotNull Long inviteeId)
+func (s *GroupMemberService) IsAllowedToBeInvited(ctx context.Context, groupID, inviteeID int64) (bool, error) {
+	isMember, err := s.IsGroupMember(ctx, groupID, inviteeID)
+	if err != nil {
+		return false, err
+	}
+	if isMember {
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_SEND_GROUP_INVITATION_TO_GROUP_MEMBER), "User is already a group member")
+	}
+
+	isBlocked, err := s.groupBlocklistService.IsBlocked(ctx, groupID, inviteeID)
+	if err != nil {
+		return false, err
+	}
+	if isBlocked {
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_SEND_GROUP_INVITATION_TO_BLOCKED_USER), "User is blocked from the group")
+	}
+
+	return true, nil
+}
+
+// IsAllowedToSendMessage checks if the user is allowed to send a message to the group.
+// @MappedFrom isAllowedToSendMessage(@NotNull Long groupId, @NotNull Long senderId)
+func (s *GroupMemberService) IsAllowedToSendMessage(ctx context.Context, groupID, senderID int64) (bool, error) {
+	isGroupMuted, err := s.groupService.IsGroupMuted(ctx, groupID)
+	if err != nil {
+		return false, err
+	}
+	if isGroupMuted {
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_SEND_MESSAGE_TO_MUTED_GROUP), "Group is muted")
+	}
+
+	isActive, err := s.groupService.IsGroupActiveAndNotDeleted(ctx, groupID)
+	if err != nil {
+		return false, err
+	}
+	if !isActive {
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_SEND_MESSAGE_TO_INACTIVE_GROUP), "Group is inactive or deleted")
+	}
+
+	isMember, err := s.IsGroupMember(ctx, groupID, senderID)
+	if err != nil {
+		return false, err
+	}
+
+	if isMember {
+		isMuted, err := s.IsMemberMuted(ctx, groupID, senderID)
+		if err != nil {
+			return false, err
+		}
+		if isMuted {
+			return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_MUTED_GROUP_MEMBER_SEND_MESSAGE), "Member is muted")
+		}
+		return true, nil
+	}
+
+	typeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+	if err != nil || typeID == nil {
+		return false, err
+	}
+	groupType, err := s.groupTypeService.FindGroupType(ctx, *typeID)
+	if err != nil || groupType == nil {
+		return false, err
+	}
+
+	if !groupType.GuestSpeakable {
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_SPEAKABLE_GROUP_GUEST_TO_SEND_MESSAGE), "Guest speaking is not allowed")
+	}
+
+	isBlocked, err := s.groupBlocklistService.IsBlocked(ctx, groupID, senderID)
+	if err != nil {
+		return false, err
+	}
+	if isBlocked {
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_BLOCKED_USER_SEND_GROUP_MESSAGE), "User is blocked from the group")
+	}
+
+	return true, nil
+}
+
+// QueryGroupMemberKeyAndRolePairs retrieves the ID and roles for a list of users in a group.
+// @MappedFrom queryGroupMemberKeyAndRolePairs(@NotNull Set<Long> userIds, @NotNull Long groupId)
+func (s *GroupMemberService) QueryGroupMemberKeyAndRolePairs(ctx context.Context, userIDs []int64, groupID int64) ([]po.GroupMember, error) {
+	return s.groupMemberRepo.FindGroupMemberKeyAndRolePairs(ctx, groupID, userIDs)
+}
+
+// IsOwnerOrManagerOrMember checks if a user holds an owner, manager, or regular member role.
+// @MappedFrom isOwnerOrManagerOrMember(@NotNull Long userId, @NotNull Long groupId, boolean preferCache)
+func (s *GroupMemberService) IsOwnerOrManagerOrMember(ctx context.Context, userID, groupID int64) (bool, error) {
+	role, err := s.FindGroupMemberRole(ctx, groupID, userID)
+	if err != nil {
+		return false, err
+	}
+	if role == nil {
+		return false, nil
+	}
+	return *role == protocol.GroupMemberRole_OWNER || *role == protocol.GroupMemberRole_MANAGER || *role == protocol.GroupMemberRole_MEMBER, nil
+}
+
 func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
 	cacheKey := fmt.Sprintf("member:%d:%d", groupID, userID)
 	if isMember, ok := s.memberCache.Get(cacheKey); ok {
@@ -461,8 +612,68 @@ func (s *GroupMemberService) AuthAndUpdateGroupMember(
 }
 
 // QueryUserJoinedGroupIds returns the group IDs the user has joined.
+// @MappedFrom queryUserJoinedGroupIds(@NotNull Long userId)
 func (s *GroupMemberService) QueryUserJoinedGroupIds(ctx context.Context, userID int64) ([]int64, error) {
 	return s.groupMemberRepo.FindUserJoinedGroupIDs(ctx, userID)
+}
+
+// QueryUsersJoinedGroupIds returns the group IDs joined by any of the specified users.
+// @MappedFrom queryUsersJoinedGroupIds(@Nullable Set<Long> groupIds, @NotEmpty Set<Long> userIds, @Nullable Integer page, @Nullable Integer size)
+func (s *GroupMemberService) QueryUsersJoinedGroupIds(ctx context.Context, groupIDs []int64, userIDs []int64, page, size *int) ([]int64, error) {
+	return s.groupMemberRepo.FindUsersJoinedGroupIds(ctx, groupIDs, userIDs, page, size)
+}
+
+// QueryMemberIdsInUsersJoinedGroups returns member IDs for all groups that the users have joined.
+// @MappedFrom queryMemberIdsInUsersJoinedGroups(@NotEmpty Set<Long> userIds, boolean preferCache)
+func (s *GroupMemberService) QueryMemberIdsInUsersJoinedGroups(ctx context.Context, userIDs []int64) ([]int64, error) {
+	groupIDs, err := s.QueryUsersJoinedGroupIds(ctx, nil, userIDs, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(groupIDs) == 0 {
+		return []int64{}, nil
+	}
+	return s.QueryGroupMemberIds(ctx, groupIDs)
+}
+
+// QueryGroupMemberIds retrieves member IDs for multiple groups.
+// @MappedFrom queryGroupMemberIds(@NotEmpty Set<Long> groupIds, boolean preferCache)
+func (s *GroupMemberService) QueryGroupMemberIds(ctx context.Context, groupIDs []int64) ([]int64, error) {
+	return s.groupMemberRepo.FindMemberIdsByGroupIds(ctx, groupIDs)
+}
+
+// AuthAndQueryGroupMembers queries members with access checks.
+// @MappedFrom authAndQueryGroupMembers(@NotNull Long requesterId, @NotNull Long groupId, @NotEmpty Set<Long> memberIds, boolean withStatus)
+func (s *GroupMemberService) AuthAndQueryGroupMembers(ctx context.Context, requesterID int64, groupID int64, memberIDs []int64, withStatus bool) ([]*po.GroupMember, error) {
+	isMember, err := s.IsGroupMember(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, err
+	}
+	if !isMember { // A non-member might try to access something
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_QUERY_GROUP_MEMBER_INFO), "Only group members can query member info")
+	}
+
+	var members []po.GroupMember
+	if len(memberIDs) > 0 {
+		members, err = s.groupMemberRepo.FindGroupMembersWithIds(ctx, groupID, memberIDs)
+	} else {
+		members, err = s.groupMemberRepo.FindGroupMembers(ctx, groupID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*po.GroupMember, len(members))
+	for i := range members {
+		result[i] = &members[i]
+	}
+	return result, nil
+}
+
+// QueryGroupManagersAndOwnerId retrieves managers and owner of a group.
+// @MappedFrom queryGroupManagersAndOwnerId(@NotNull Long groupId)
+func (s *GroupMemberService) QueryGroupManagersAndOwnerId(ctx context.Context, groupID int64) ([]po.GroupMember, error) {
+	return s.groupMemberRepo.FindGroupManagersAndOwnerId(ctx, groupID)
 }
 
 // AuthAndQueryGroupMembersWithVersion queries group members with version control and auth checks.

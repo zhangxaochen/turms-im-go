@@ -63,7 +63,7 @@ func (h *ServiceAvailabilityChannelHandler) HandleException(conn net.Conn, cause
 	} else if errors.Is(cause, ErrOutOfMemory) {
 		conn.Close()
 	}
-	
+
 	// Unconditionally propagate the exception upstream
 	return cause
 }

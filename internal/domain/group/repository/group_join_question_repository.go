@@ -170,7 +170,7 @@ func (r *groupJoinQuestionRepository) CheckQuestionAnswerAndGetScore(ctx context
 	if groupID != nil {
 		filter["gid"] = *groupID
 	}
-	
+
 	opts := options.FindOne().SetProjection(bson.M{"score": 1})
 	var result struct {
 		Score int `bson:"score"`
@@ -184,4 +184,3 @@ func (r *groupJoinQuestionRepository) CheckQuestionAnswerAndGetScore(ctx context
 	}
 	return &result.Score, nil
 }
-

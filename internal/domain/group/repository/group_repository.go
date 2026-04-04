@@ -196,6 +196,18 @@ func (r *GroupRepository) CountDeletedGroups(ctx context.Context, dateRange *tur
 	return r.col.CountDocuments(ctx, filter)
 }
 
+// Count counts all groups.
+// @MappedFrom count()
+func (r *GroupRepository) Count(ctx context.Context) (int64, error) {
+	return r.col.CountDocuments(ctx, bson.M{})
+}
+
+// CountGroups counts groups created within a date range.
+// @MappedFrom countGroups(@Nullable DateRange dateRange)
+func (r *GroupRepository) CountGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
+	return r.CountCreatedGroups(ctx, dateRange)
+}
+
 // FindNotDeletedGroups retrieves groups that are not deleted.
 func (r *GroupRepository) FindNotDeletedGroups(ctx context.Context, groupIDs []int64, lastUpdatedDate *time.Time) ([]*po.Group, error) {
 	filter := bson.M{

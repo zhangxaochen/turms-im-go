@@ -446,13 +446,13 @@ func (c *GroupServiceController) HandleQueryGroupMembersRequest(ctx context.Cont
 		v := version.UnixMilli()
 		metrics.LastUpdatedDate = &v
 	}
-	
+
 	notification.Data = &protocol.TurmsNotification_Data{
 		Kind: &protocol.TurmsNotification_Data_GroupMembersWithVersion{
 			GroupMembersWithVersion: metrics,
 		},
 	}
-	
+
 	return notification, nil
 }
 
@@ -509,7 +509,7 @@ func (c *GroupServiceController) HandleDeleteGroupBlockedUserRequest(ctx context
 // @MappedFrom handleQueryGroupBlockedUserIdsRequest()
 func (c *GroupServiceController) HandleQueryGroupBlockedUserIdsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryGroupBlockedUserIdsRequest()
-	
+
 	var lastUpdatedDate *time.Time
 	if queryReq.LastUpdatedDate != nil {
 		t := time.UnixMilli(*queryReq.LastUpdatedDate)
@@ -585,7 +585,7 @@ func (c *GroupServiceController) HandleQueryGroupBlockedUserInfosRequest(ctx con
 		v := version.UnixMilli()
 		versionMilli = &v
 	}
-	
+
 	infos := make([]*protocol.UserInfo, 0, len(blockedUsers))
 	for _, u := range blockedUsers {
 		infos = append(infos, &protocol.UserInfo{
@@ -903,7 +903,7 @@ func (c *GroupServiceController) HandleQueryGroupJoinQuestionsRequest(ctx contex
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if questionsWithVersion == nil || len(questionsWithVersion.JoinQuestions) == 0 {
 		return buildSuccessNotification(req.RequestId), nil
 	}

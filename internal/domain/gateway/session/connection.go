@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"im.turms/server/pkg/protocol"
 	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
+	"im.turms/server/pkg/protocol"
 )
 
 // UserSession encapsulates the network connection and the user state.
