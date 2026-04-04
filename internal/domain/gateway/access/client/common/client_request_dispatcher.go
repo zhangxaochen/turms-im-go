@@ -205,7 +205,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 
 			ver := int32(sessionWrapper.UserSession.Version)
 			version = &ver
-			
+
 			sid := int32(sessionWrapper.UserSession.ID)
 			sessionId = &sid
 		}
@@ -309,7 +309,7 @@ func (d *ClientRequestDispatcher) handleHeartbeatRequest(sessionWrapper *UserSes
 
 			ver := int32(sessionWrapper.UserSession.Version)
 			version = &ver
-			
+
 			sid := int32(sessionWrapper.UserSession.ID)
 			sessionId = &sid
 		}

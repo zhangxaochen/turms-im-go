@@ -132,19 +132,19 @@ func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.C
 	if len(keys) == 0 {
 		return 0, nil
 	}
-	
+
 	setFields := bson.M{}
 	if newName != nil {
-	    setFields["n"] = *newName
+		setFields["n"] = *newName
 	}
 	if creationDate != nil {
-	    setFields["cd"] = *creationDate
+		setFields["cd"] = *creationDate
 	}
-	
+
 	if len(setFields) == 0 {
-	    return 0, nil
+		return 0, nil
 	}
-	
+
 	filters := make([]bson.M, len(keys))
 	for i, key := range keys {
 		filters[i] = bson.M{

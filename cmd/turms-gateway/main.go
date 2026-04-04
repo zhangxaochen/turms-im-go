@@ -39,7 +39,7 @@ func main() {
 
 	log.Println("Starting Turms Gateway...")
 	// TODO: Replace with DI framework or manual wiring for Gateway components.
-	
+
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

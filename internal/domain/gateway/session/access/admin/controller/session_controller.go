@@ -3,8 +3,8 @@ package controller
 import (
 	"context"
 
-	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/gateway/session"
 )
 
 // SessionController handles HTTP admin API requests related to sessions.

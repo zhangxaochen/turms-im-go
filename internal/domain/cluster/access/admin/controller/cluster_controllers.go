@@ -30,22 +30,22 @@ func (c *MemberController) QueryMembers() []clusterdto.MemberDTO {
 	dtos := make([]clusterdto.MemberDTO, len(members))
 	for i, m := range members {
 		dtos[i] = clusterdto.MemberDTO{
-			NodeID:          m.NodeID,
-			Zone:            m.Zone,
-			Name:            m.Name,
-			NodeType:        m.NodeType,
-			IsSeed:          m.IsSeed,
+			NodeID:           m.NodeID,
+			Zone:             m.Zone,
+			Name:             m.Name,
+			NodeType:         m.NodeType,
+			IsSeed:           m.IsSeed,
 			IsLeaderEligible: m.IsLeaderEligible,
-			Priority:        m.Priority,
-			MemberHost:      m.MemberHost,
-			MemberPort:      m.MemberPort,
-			AdminAPIAddress: m.AdminAPIAddress,
-			WsAddress:       m.WsAddress,
-			TcpAddress:      m.TcpAddress,
-			UdpAddress:      m.UdpAddress,
-			IsActive:        m.IsActive,
-			IsHealthy:       m.IsHealthy,
-			IsLeader:        m.NodeID == leaderID,
+			Priority:         m.Priority,
+			MemberHost:       m.MemberHost,
+			MemberPort:       m.MemberPort,
+			AdminAPIAddress:  m.AdminAPIAddress,
+			WsAddress:        m.WsAddress,
+			TcpAddress:       m.TcpAddress,
+			UdpAddress:       m.UdpAddress,
+			IsActive:         m.IsActive,
+			IsHealthy:        m.IsHealthy,
+			IsLeader:         m.NodeID == leaderID,
 		}
 	}
 	return dtos
@@ -61,12 +61,12 @@ func (c *MemberController) AddMember(addMemberDTO clusterdto.AddMemberDTO) error
 	if addMemberDTO.NodeType != nil && *addMemberDTO.NodeType != discovery.NodeTypeService && addMemberDTO.IsLeaderEligible != nil && *addMemberDTO.IsLeaderEligible {
 		return fmt.Errorf("only turms-service servers can be the leader") // NodeType 0 is SERVICE
 	}
-	
+
 	isLeaderEligible := false
 	if addMemberDTO.IsLeaderEligible != nil {
 		isLeaderEligible = *addMemberDTO.IsLeaderEligible
 	}
-	
+
 	member := &discovery.Member{
 		ClusterID:        c.discoveryService.GetLocalNodeID(), // mock
 		NodeID:           addMemberDTO.NodeID,
@@ -78,7 +78,7 @@ func (c *MemberController) AddMember(addMemberDTO clusterdto.AddMemberDTO) error
 		IsActive:         false,
 		IsHealthy:        false,
 	}
-	
+
 	if addMemberDTO.NodeType != nil {
 		member.NodeType = *addMemberDTO.NodeType
 	}
@@ -105,22 +105,22 @@ func (c *MemberController) QueryLeader() (*clusterdto.MemberDTO, error) {
 		return nil, fmt.Errorf("NO_CONTENT")
 	}
 	dto := &clusterdto.MemberDTO{
-		NodeID:          m.NodeID,
-		Zone:            m.Zone,
-		Name:            m.Name,
-		NodeType:        m.NodeType,
-		IsSeed:          m.IsSeed,
+		NodeID:           m.NodeID,
+		Zone:             m.Zone,
+		Name:             m.Name,
+		NodeType:         m.NodeType,
+		IsSeed:           m.IsSeed,
 		IsLeaderEligible: m.IsLeaderEligible,
-		Priority:        m.Priority,
-		MemberHost:      m.MemberHost,
-		MemberPort:      m.MemberPort,
-		AdminAPIAddress: m.AdminAPIAddress,
-		WsAddress:       m.WsAddress,
-		TcpAddress:      m.TcpAddress,
-		UdpAddress:      m.UdpAddress,
-		IsActive:        m.IsActive,
-		IsHealthy:       m.IsHealthy,
-		IsLeader:        true,
+		Priority:         m.Priority,
+		MemberHost:       m.MemberHost,
+		MemberPort:       m.MemberPort,
+		AdminAPIAddress:  m.AdminAPIAddress,
+		WsAddress:        m.WsAddress,
+		TcpAddress:       m.TcpAddress,
+		UdpAddress:       m.UdpAddress,
+		IsActive:         m.IsActive,
+		IsHealthy:        m.IsHealthy,
+		IsLeader:         true,
 	}
 	return dto, nil
 }
@@ -154,12 +154,12 @@ func (c *SettingController) QueryClusterSettings(queryLocalSettings bool, onlyMu
 		props = c.PropertiesManager.GetGlobalProperties()
 	}
 	_ = props // TODO: actually use for setting construction
-	
+
 	// properties to map logic
 	settings := make(map[string]interface{})
 	// Mock implementation for now, should use reflection or generated code in production
 	// but follows the Java pattern of manual conversion if needed.
-	
+
 	return clusterdto.SettingsDTO{
 		SchemaVersion: "1.0", // TurmsProperties.SCHEMA_VERSION
 		Settings:      settings,

@@ -11,15 +11,15 @@ const (
 	// ASN.1 class/form bits
 	formConstructed     = 0x20
 	tagClassApplication = 0x40
-	tagClassContext      = 0x80
+	tagClassContext     = 0x80
 
 	// LdapTag values
-	ldapTagControls         = tagClassContext | formConstructed  // 0xA0
-	ldapTagBindRequest      = tagClassApplication | formConstructed // 0x60
-	ldapTagSearchRequest    = 3 | tagClassApplication | formConstructed // 0x63
+	ldapTagControls          = tagClassContext | formConstructed         // 0xA0
+	ldapTagBindRequest       = tagClassApplication | formConstructed     // 0x60
+	ldapTagSearchRequest     = 3 | tagClassApplication | formConstructed // 0x63
 	ldapTagSearchResultEntry = 4 | tagClassApplication | formConstructed // 0x64
 	ldapTagSearchResultDone  = 5 | tagClassApplication | formConstructed // 0x65
-	ldapTagModifyRequest    = 6 | tagClassApplication | formConstructed // 0x66
+	ldapTagModifyRequest     = 6 | tagClassApplication | formConstructed // 0x66
 
 	// ResultCode constants (RFC 4511)
 	resultCodeSuccess = 0
@@ -184,10 +184,10 @@ const (
 type LdapDerefAliases int
 
 const (
-	DerefNever           LdapDerefAliases = 0
-	DerefInSearching     LdapDerefAliases = 1
-	DerefFindingBaseObj  LdapDerefAliases = 2
-	DerefAlways          LdapDerefAliases = 3
+	DerefNever          LdapDerefAliases = 0
+	DerefInSearching    LdapDerefAliases = 1
+	DerefFindingBaseObj LdapDerefAliases = 2
+	DerefAlways         LdapDerefAliases = 3
 )
 
 // Standard attribute selector lists
@@ -200,14 +200,14 @@ var (
 // SearchRequest maps to SearchRequest in Java.
 // @MappedFrom SearchRequest
 type SearchRequest struct {
-	BaseDN      string
-	Scope       LdapScope
-	DerefAlias  LdapDerefAliases
-	SizeLimit   int
-	TimeLimit   int
-	TypesOnly   bool
-	Attributes  []string
-	Filter      string
+	BaseDN     string
+	Scope      LdapScope
+	DerefAlias LdapDerefAliases
+	SizeLimit  int
+	TimeLimit  int
+	TypesOnly  bool
+	Attributes []string
+	Filter     string
 }
 
 // @MappedFrom estimateSize()

@@ -6,13 +6,13 @@ import (
 
 // UserLoginInfo represents the login information provided by the user during connection establishment.
 type UserLoginInfo struct {
-	Version             int                 `json:"version"`
-	UserID              int64               `json:"userId"`
-	Password            *string             `json:"password,omitempty"`
-	LoggingInDeviceType protocol.DeviceType `json:"deviceType"`
-	DeviceDetails       map[string]string   `json:"deviceDetails,omitempty"`
+	Version             int                  `json:"version"`
+	UserID              int64                `json:"userId"`
+	Password            *string              `json:"password,omitempty"`
+	LoggingInDeviceType protocol.DeviceType  `json:"deviceType"`
+	DeviceDetails       map[string]string    `json:"deviceDetails,omitempty"`
 	UserStatus          *protocol.UserStatus `json:"userStatus,omitempty"`
-	IP                  string              `json:"ip"`
+	IP                  string               `json:"ip"`
 }
 
 // NewUserLoginInfo creates a new UserLoginInfo.

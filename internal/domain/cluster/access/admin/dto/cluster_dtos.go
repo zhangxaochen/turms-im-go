@@ -10,33 +10,33 @@ type SettingsDTO struct {
 }
 
 type MemberDTO struct {
-	NodeID          string             `json:"nodeId"`
-	Zone            string             `json:"zone"`
-	Name            string             `json:"name"`
-	NodeType        discovery.NodeType `json:"nodeType"`
-	IsSeed          bool               `json:"isSeed"`
-	IsLeaderEligible bool              `json:"isLeaderEligible"`
-	Priority        int                `json:"priority"`
-	MemberHost      string             `json:"memberHost"`
-	MemberPort      int                `json:"memberPort"`
-	AdminAPIAddress string             `json:"adminApiAddress"`
-	WsAddress       string             `json:"wsAddress"`
-	TcpAddress      string             `json:"tcpAddress"`
-	UdpAddress      string             `json:"udpAddress"`
-	IsActive        bool               `json:"isActive"`
-	IsHealthy       bool               `json:"isHealthy"`
-	IsLeader        bool               `json:"isLeader"`
+	NodeID           string             `json:"nodeId"`
+	Zone             string             `json:"zone"`
+	Name             string             `json:"name"`
+	NodeType         discovery.NodeType `json:"nodeType"`
+	IsSeed           bool               `json:"isSeed"`
+	IsLeaderEligible bool               `json:"isLeaderEligible"`
+	Priority         int                `json:"priority"`
+	MemberHost       string             `json:"memberHost"`
+	MemberPort       int                `json:"memberPort"`
+	AdminAPIAddress  string             `json:"adminApiAddress"`
+	WsAddress        string             `json:"wsAddress"`
+	TcpAddress       string             `json:"tcpAddress"`
+	UdpAddress       string             `json:"udpAddress"`
+	IsActive         bool               `json:"isActive"`
+	IsHealthy        bool               `json:"isHealthy"`
+	IsLeader         bool               `json:"isLeader"`
 }
 
 type AddMemberDTO struct {
-	NodeID          string              `json:"nodeId"`
-	Zone            string              `json:"zone"`
-	Name            string              `json:"name"`
-	NodeType        *discovery.NodeType `json:"nodeType"`
-	IsSeed          bool                `json:"isSeed"`
-	IsLeaderEligible *bool              `json:"isLeaderEligible"`
-	Priority        int                 `json:"priority"`
-	MemberHost      *string             `json:"memberHost"`
+	NodeID           string              `json:"nodeId"`
+	Zone             string              `json:"zone"`
+	Name             string              `json:"name"`
+	NodeType         *discovery.NodeType `json:"nodeType"`
+	IsSeed           bool                `json:"isSeed"`
+	IsLeaderEligible *bool               `json:"isLeaderEligible"`
+	Priority         int                 `json:"priority"`
+	MemberHost       *string             `json:"memberHost"`
 }
 
 type UpdateMemberDTO struct {
@@ -47,4 +47,3 @@ type UpdateMemberDTO struct {
 	IsActive         *bool   `json:"isActive"`
 	Priority         *int    `json:"priority"`
 }
-

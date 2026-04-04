@@ -49,7 +49,7 @@ type ClosePointInTimeRequest struct {
 }
 
 type CreateIndexRequest struct {
-	Mappings *TypeMapping    `json:"mappings,omitempty"`
+	Mappings *TypeMapping     `json:"mappings,omitempty"`
 	Settings *json.RawMessage `json:"settings,omitempty"`
 }
 
@@ -154,13 +154,13 @@ type Script struct {
 }
 
 type SearchRequest struct {
-	From         *int                  `json:"from,omitempty"`
-	Size         *int                  `json:"size,omitempty"`
-	Query        json.RawMessage       `json:"query"`
-	Highlight    *Highlight            `json:"highlight,omitempty"`
-	Collapse     *FieldCollapse        `json:"collapse,omitempty"`
-	PointInTime  *PointInTimeReference `json:"pit,omitempty"`
-	Sort         []interface{}         `json:"sort,omitempty"`
+	From           *int                  `json:"from,omitempty"`
+	Size           *int                  `json:"size,omitempty"`
+	Query          json.RawMessage       `json:"query"`
+	Highlight      *Highlight            `json:"highlight,omitempty"`
+	Collapse       *FieldCollapse        `json:"collapse,omitempty"`
+	PointInTime    *PointInTimeReference `json:"pit,omitempty"`
+	Sort           []interface{}         `json:"sort,omitempty"`
 	TrackTotalHits bool                  `json:"track_total_hits,omitempty"`
 }
 

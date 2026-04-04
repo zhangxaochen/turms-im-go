@@ -20,8 +20,8 @@ const (
 // SimpleTurmsNotification maps to SimpleTurmsNotification record in Java.
 // @MappedFrom SimpleTurmsNotification
 type SimpleTurmsNotification struct {
-	RequesterID        int64
-	CloseStatus        *int32
+	RequesterID int64
+	CloseStatus *int32
 	// RelayedRequestType is the KindCase (field number) of the relayed TurmsRequest.
 	// Using KindCase (int32) instead of `any` for type safety.
 	RelayedRequestType KindCase
@@ -38,7 +38,7 @@ func NewSimpleTurmsNotification(requesterID int64, closeStatus *int32, relayedRe
 // SimpleTurmsRequest maps to SimpleTurmsRequest record in Java.
 // @MappedFrom SimpleTurmsRequest
 type SimpleTurmsRequest struct {
-	RequestID            int64
+	RequestID int64
 	// Type is the KindCase of the request.
 	Type                 KindCase
 	CreateSessionRequest *protocol.CreateSessionRequest
@@ -66,8 +66,8 @@ func (r *SimpleTurmsRequest) ToString() string {
 
 // Wire types
 const (
-	wireTypeVarint          = 0
-	wireTypeLenDelimited    = 2
+	wireTypeVarint       = 0
+	wireTypeLenDelimited = 2
 )
 
 // TurmsNotification field numbers (from the .proto definition)
@@ -75,9 +75,9 @@ const (
 // close_status = field 11, wire type 0 → tag = (11 << 3) | 0 = 88
 // relayed_request = field 12, wire type 2 → tag = (12 << 3) | 2 = 98
 const (
-	notificationRequesterIDTag  = 80
-	notificationCloseStatusTag  = 88
-	notificationRelayedReqTag   = 98
+	notificationRequesterIDTag = 80
+	notificationCloseStatusTag = 88
+	notificationRelayedReqTag  = 98
 )
 
 // TurmsRequest field numbers

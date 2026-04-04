@@ -9,8 +9,8 @@ import (
 // TurmsMongoClient is a stub for the MongoDB client used in the Turms gateway.
 // @MappedFrom im.turms.server.common.storage.mongo.TurmsMongoClient
 type TurmsMongoClient struct {
-	name        string
-	uri         string
+	name         string
+	uri          string
 	clusterTypes []string // allowed cluster types, empty = any
 }
 

@@ -2227,28 +2227,28 @@
   - [x] `sequenceIdRedisClientManager()` -> [SequenceIdRedisClientManager()](../internal/storage/redis/redis_config.go#L12)
 
 
-- **AdminApiRateLimitingManager.java** ([java/im/turms/service/access/admin/throttle/AdminApiRateLimitingManager.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/admin/throttle/AdminApiRateLimitingManager.java))
-> [简述功能]
+- **AdminApiRateLimitingManager.java** ([java/im/turms/service/access/admin/throttle/AdminApiRateLimitingManager.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/admin/throttle/AdminApiRateLimitingManager.java)) ➡️ [`internal/domain/common/access/admin/throttle/admin_api_rate_limiting_manager.go`](../internal/domain/common/access/admin/throttle/admin_api_rate_limiting_manager.go)
+> [简述功能] Admin API Rate Limiting Manager
 
   - [ ] `TODO`
 
-- **ClientRequestHandler.java** ([java/im/turms/service/access/servicerequest/dispatcher/ClientRequestHandler.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dispatcher/ClientRequestHandler.java))
-> [简述功能]
+- **ClientRequestHandler.java** ([java/im/turms/service/access/servicerequest/dispatcher/ClientRequestHandler.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dispatcher/ClientRequestHandler.java)) ➡️ [`internal/domain/common/access/servicerequest/dispatcher/client_request_handler.go`](../internal/domain/common/access/servicerequest/dispatcher/client_request_handler.go)
+> [简述功能] Client request handler abstraction
 
   - [ ] `TODO`
 
-- **ServiceRequestMapping.java** ([java/im/turms/service/access/servicerequest/dispatcher/ServiceRequestMapping.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dispatcher/ServiceRequestMapping.java))
-> [简述功能]
+- **ServiceRequestMapping.java** ([java/im/turms/service/access/servicerequest/dispatcher/ServiceRequestMapping.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dispatcher/ServiceRequestMapping.java)) ➡️ [`internal/domain/common/access/servicerequest/dispatcher/service_request_mapping.go`](../internal/domain/common/access/servicerequest/dispatcher/service_request_mapping.go)
+> [简述功能] Service request mapping annotation / meta info
 
   - [ ] `TODO`
 
-- **BaseServiceController.java** ([java/im/turms/service/domain/common/access/servicerequest/controller/BaseServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/access/servicerequest/controller/BaseServiceController.java))
-> [简述功能]
+- **BaseServiceController.java** ([java/im/turms/service/domain/common/access/servicerequest/controller/BaseServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/access/servicerequest/controller/BaseServiceController.java)) ➡️ [`internal/domain/common/access/servicerequest/controller/base_service_controller.go`](../internal/domain/common/access/servicerequest/controller/base_service_controller.go)
+> [简述功能] Base service controller
 
   - [ ] `TODO`
 
-- **Expirable.java** ([java/im/turms/service/domain/common/po/Expirable.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/po/Expirable.java))
-> [简述功能]
+- **Expirable.java** ([java/im/turms/service/domain/common/po/Expirable.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/po/Expirable.java)) ➡️ [`internal/domain/common/po/expirable.go`](../internal/domain/common/po/expirable.go)
+> [简述功能] Request expirable trait
 
   - [ ] `TODO`
 
@@ -2263,8 +2263,8 @@
   - [ ] `parseBoolValue(String sourceName, Value value)`
   - [ ] `parseLanguageValue(String sourceName, Value value)`
 
-- **UsesNonIndexedData.java** ([java/im/turms/service/domain/common/suggestion/UsesNonIndexedData.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/suggestion/UsesNonIndexedData.java))
-> [简述功能]
+- **UsesNonIndexedData.java** ([java/im/turms/service/domain/common/suggestion/UsesNonIndexedData.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/suggestion/UsesNonIndexedData.java)) ➡️ [`internal/domain/common/suggestion/uses_non_indexed_data.go`](../internal/domain/common/suggestion/uses_non_indexed_data.go)
+> [简述功能] Non-indexed data annotation
 
   - [ ] `TODO`
 

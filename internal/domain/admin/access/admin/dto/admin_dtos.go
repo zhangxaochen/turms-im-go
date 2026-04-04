@@ -81,6 +81,6 @@ type UpdateAdminRoleDTO struct {
 // PermissionDTO maps to PermissionDTO in Java.
 // @MappedFrom PermissionDTO
 type PermissionDTO struct {
-	Group      string                      `json:"group"`
+	Group      string                     `json:"group"`
 	Permission permission.AdminPermission `json:"permission"`
 }

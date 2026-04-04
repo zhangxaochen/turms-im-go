@@ -25,6 +25,6 @@ type ConversationSettingsKey struct {
 
 const (
 	ConversationSettingsFieldIdOwnerId       = "_id.oid"
-	ConversationSettingsFieldSettings         = "s"
+	ConversationSettingsFieldSettings        = "s"
 	ConversationSettingsFieldLastUpdatedDate = "lud"
 )

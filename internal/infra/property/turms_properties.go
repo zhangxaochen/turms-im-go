@@ -49,14 +49,14 @@ type ServiceProperties struct {
 }
 
 type NotificationConversationProperties struct {
-	ReadReceipt ReadReceiptProperties
+	ReadReceipt  ReadReceiptProperties
 	TypingStatus TypingStatusProperties
 }
 
 type ReadReceiptProperties struct {
 	Enabled                  bool
 	AllowMoveReadDateForward bool
-	UseServerTime           bool
+	UseServerTime            bool
 }
 
 type TypingStatusProperties struct {
@@ -141,7 +141,7 @@ func NewTurmsPropertiesManager() *TurmsPropertiesManager {
 					ReadReceipt: ReadReceiptProperties{
 						Enabled:                  true,
 						AllowMoveReadDateForward: true,
-						UseServerTime:           true,
+						UseServerTime:            true,
 					},
 					TypingStatus: TypingStatusProperties{
 						Enabled: true,
