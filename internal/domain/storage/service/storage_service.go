@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 
+	"im.turms/server/internal/domain/storage/bo"
+	"time"
+
 	"im.turms/server/internal/domain/storage/constants"
 	"im.turms/server/internal/domain/storage/provider"
 )
@@ -59,4 +62,39 @@ func (s *StorageService) QueryResourceDownloadInfo(
 	}
 
 	return s.provider.GetPresignedDownloadURL(ctx, resourceType, resourceIDStr)
+}
+
+// @MappedFrom shareMessageAttachmentWithUser(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long userIdToShareWith)
+func (s *StorageService) ShareMessageAttachmentWithUser(ctx context.Context, requesterID int64, messageAttachmentIDNum *int64, messageAttachmentIDStr *string, userIDToShareWith int64) error {
+	return s.provider.ShareMessageAttachmentWithUser(ctx, requesterID, messageAttachmentIDNum, messageAttachmentIDStr, userIDToShareWith)
+}
+
+// @MappedFrom shareMessageAttachmentWithGroup(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long groupIdToShareWith)
+func (s *StorageService) ShareMessageAttachmentWithGroup(ctx context.Context, requesterID int64, messageAttachmentIDNum *int64, messageAttachmentIDStr *string, groupIDToShareWith int64) error {
+	return s.provider.ShareMessageAttachmentWithGroup(ctx, requesterID, messageAttachmentIDNum, messageAttachmentIDStr, groupIDToShareWith)
+}
+
+// @MappedFrom unshareMessageAttachmentWithUser(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long userIdToUnshareWith)
+func (s *StorageService) UnshareMessageAttachmentWithUser(ctx context.Context, requesterID int64, messageAttachmentIDNum *int64, messageAttachmentIDStr *string, userIDToUnshareWith int64) error {
+	return s.provider.UnshareMessageAttachmentWithUser(ctx, requesterID, messageAttachmentIDNum, messageAttachmentIDStr, userIDToUnshareWith)
+}
+
+// @MappedFrom unshareMessageAttachmentWithGroup(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long groupIdToUnshareWith)
+func (s *StorageService) UnshareMessageAttachmentWithGroup(ctx context.Context, requesterID int64, messageAttachmentIDNum *int64, messageAttachmentIDStr *string, groupIDToUnshareWith int64) error {
+	return s.provider.UnshareMessageAttachmentWithGroup(ctx, requesterID, messageAttachmentIDNum, messageAttachmentIDStr, groupIDToUnshareWith)
+}
+
+// @MappedFrom queryMessageAttachmentInfosUploadedByRequester(Long requesterId, @Nullable DateRange creationDateRange)
+func (s *StorageService) QueryMessageAttachmentInfosUploadedByRequester(ctx context.Context, requesterID int64, creationDateStart *time.Time, creationDateEnd *time.Time) ([]bo.StorageResourceInfo, error) {
+	return s.provider.QueryMessageAttachmentInfosUploadedByRequester(ctx, requesterID, creationDateStart, creationDateEnd)
+}
+
+// @MappedFrom queryMessageAttachmentInfosInPrivateConversations(Long requesterId, @Nullable Set<Long> userIds, @Nullable DateRange creationDateRange, @Nullable Boolean areSharedByRequester)
+func (s *StorageService) QueryMessageAttachmentInfosInPrivateConversations(ctx context.Context, requesterID int64, userIDs []int64, creationDateStart *time.Time, creationDateEnd *time.Time, areSharedByRequester *bool) ([]bo.StorageResourceInfo, error) {
+	return s.provider.QueryMessageAttachmentInfosInPrivateConversations(ctx, requesterID, userIDs, creationDateStart, creationDateEnd, areSharedByRequester)
+}
+
+// @MappedFrom queryMessageAttachmentInfosInGroupConversations(Long requesterId, @Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange creationDateRange)
+func (s *StorageService) QueryMessageAttachmentInfosInGroupConversations(ctx context.Context, requesterID int64, groupIDs []int64, userIDs []int64, creationDateStart *time.Time, creationDateEnd *time.Time) ([]bo.StorageResourceInfo, error) {
+	return s.provider.QueryMessageAttachmentInfosInGroupConversations(ctx, requesterID, groupIDs, userIDs, creationDateStart, creationDateEnd)
 }

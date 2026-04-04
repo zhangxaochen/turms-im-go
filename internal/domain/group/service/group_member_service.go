@@ -138,6 +138,10 @@ func (s *GroupMemberService) QueryGroupMemberRole(ctx context.Context, groupID, 
 	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
 }
 
+func (s *GroupMemberService) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+	return s.groupMemberRepo.FindGroupMemberIDs(ctx, groupID)
+}
+
 func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
 	cacheKey := fmt.Sprintf("member:%d:%d", groupID, userID)
 	if isMember, ok := s.memberCache.Get(cacheKey); ok {

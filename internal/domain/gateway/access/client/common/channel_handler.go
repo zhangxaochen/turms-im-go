@@ -2,7 +2,6 @@ package common
 
 import (
 	"errors"
-	"log"
 	"net"
 )
 
@@ -48,28 +47,23 @@ func (h *ServiceAvailabilityChannelHandler) HandleConnection(conn net.Conn) bool
 
 // @MappedFrom exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
 // HandleException processes connection errors, mapping to Netty's exceptionCaught.
-func (h *ServiceAvailabilityChannelHandler) HandleException(conn net.Conn, cause error) {
+func (h *ServiceAvailabilityChannelHandler) HandleException(conn net.Conn, cause error) error {
 	// If corrupted frame, block IP and session users
 	if errors.Is(cause, ErrCorruptedFrame) {
 		addr := conn.RemoteAddr()
-		if tcpAddr, ok := addr.(*net.TCPAddr); ok {
-			ipStr := tcpAddr.IP.String()
-			h.blocklistService.TryBlockIpForCorruptedFrame(ipStr)
+		// Replicate Java's implicit NullPointerException / ClassCastException behavior fail-fast
+		tcpAddr := addr.(*net.TCPAddr)
+		ipStr := tcpAddr.IP.String()
+		h.blocklistService.TryBlockIpForCorruptedFrame(ipStr)
 
-			sessions := h.sessionService.GetLocalUserSession(ipStr)
-			for _, s := range sessions {
-				h.blocklistService.TryBlockUserIdForCorruptedFrame(s.UserID)
-			}
+		sessions := h.sessionService.GetLocalUserSession(ipStr)
+		for _, s := range sessions {
+			h.blocklistService.TryBlockUserIdForCorruptedFrame(s.UserID)
 		}
-		// Java: ctx.fireExceptionCaught(...) followed by potential close upstream or here.
-		// Corrupted frames should force close the connection because the stream is no longer valid.
-		conn.Close()
 	} else if errors.Is(cause, ErrOutOfMemory) {
-		log.Printf("Fatal memory error caught on connection %v: %v", conn.RemoteAddr(), cause)
 		conn.Close()
-		// In Go, usually we'd allow panics to bubble up, but if we catch it, we must close.
-	} else {
-		// Log or handle the connection exception
-		log.Printf("Connection exception caught on %v: %v", conn.RemoteAddr(), cause)
 	}
+	
+	// Unconditionally propagate the exception upstream
+	return cause
 }

@@ -30,6 +30,7 @@ func (s *UserVersionService) QueryRelationshipsLastUpdatedDate(ctx context.Conte
 	return &v.Relationships, nil
 }
 
+// @MappedFrom querySentGroupInvitationsLastUpdatedDate(@NotNull Long userId)
 func (s *UserVersionService) QuerySentGroupInvitationsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := s.versionRepo.FindUserVersion(ctx, userID)
 	if err != nil || v == nil {
@@ -38,6 +39,7 @@ func (s *UserVersionService) QuerySentGroupInvitationsVersion(ctx context.Contex
 	return &v.SentGroupInvitations, nil
 }
 
+// @MappedFrom queryReceivedGroupInvitationsLastUpdatedDate(@NotNull Long userId)
 func (s *UserVersionService) QueryReceivedGroupInvitationsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := s.versionRepo.FindUserVersion(ctx, userID)
 	if err != nil || v == nil {

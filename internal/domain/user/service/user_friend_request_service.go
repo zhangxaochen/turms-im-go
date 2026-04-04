@@ -24,6 +24,8 @@ type UserFriendRequestService interface {
 	UpdatePendingFriendRequestStatus(ctx context.Context, requestID int64, targetStatus po.RequestStatus, reason *string) (bool, error)
 	UpdateFriendRequests(ctx context.Context, requestIds []int64, requesterID, recipientID *int64, content *string, status *po.RequestStatus, reason *string, creationDate *time.Time, responseDate *time.Time) error
 	QueryRecipientId(ctx context.Context, requestID int64) (int64, error)
+	QueryRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
+	QueryRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
 	AuthAndHandleFriendRequest(ctx context.Context, friendRequestID int64, requesterID int64, action po.ResponseAction, reason *string) (bool, error)
 	QueryFriendRequestsByRecipientId(ctx context.Context, recipientID int64) ([]po.UserFriendRequest, error)
 	QueryFriendRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.UserFriendRequest, error)
@@ -274,6 +276,16 @@ func (s *userFriendRequestService) UpdateFriendRequests(ctx context.Context, req
 // @MappedFrom queryRecipientId(@NotNull Long requestId)
 func (s *userFriendRequestService) QueryRecipientId(ctx context.Context, requestID int64) (int64, error) {
 	return s.repo.FindRecipientId(ctx, requestID)
+}
+
+// @MappedFrom queryRequesterIdAndRecipientIdAndStatus(@NotNull Long requestId)
+func (s *userFriendRequestService) QueryRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error) {
+	return s.repo.FindRequesterIdAndRecipientIdAndStatus(ctx, requestID)
+}
+
+// @MappedFrom queryRequesterIdAndRecipientIdAndCreationDateAndStatus(@NotNull Long requestId)
+func (s *userFriendRequestService) QueryRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error) {
+	return s.repo.FindRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx, requestID)
 }
 
 // @MappedFrom updatePendingFriendRequestStatus(@NotNull Long requestId, @NotNull @ValidRequestStatus RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session)

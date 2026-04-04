@@ -151,6 +151,16 @@ func (m *mockUserFriendRequestService) QueryRecipientId(ctx context.Context, req
 	return args.Get(0).(int64), args.Error(1)
 }
 
+func (m *mockUserFriendRequestService) QueryRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error) {
+	args := m.Called(ctx, requestID)
+	return args.Get(0).(*po.UserFriendRequest), args.Error(1)
+}
+
+func (m *mockUserFriendRequestService) QueryRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error) {
+	args := m.Called(ctx, requestID)
+	return args.Get(0).(*po.UserFriendRequest), args.Error(1)
+}
+
 func (m *mockUserFriendRequestService) AuthAndHandleFriendRequest(ctx context.Context, friendRequestID int64, requesterID int64, action po.ResponseAction, reason *string) (bool, error) {
 	args := m.Called(ctx, friendRequestID, requesterID, action, reason)
 	return args.Bool(0), args.Error(1)
@@ -252,6 +262,11 @@ func (m *mockUserRelationshipGroupService) DeleteAllRelationshipGroups(ctx conte
 
 func (m *mockUserRelationshipGroupService) DeleteRelatedUserFromRelationshipGroup(ctx context.Context, ownerID int64, relatedUserID int64, groupIndex int32, session *mongo.Session, updateVersion bool) (int64, error) {
 	args := m.Called(ctx, ownerID, relatedUserID, groupIndex, session, updateVersion)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *mockUserRelationshipGroupService) DeleteRelatedUserFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserID int64, session *mongo.Session, updateVersion bool) (int64, error) {
+	args := m.Called(ctx, ownerID, relatedUserID, session, updateVersion)
 	return args.Get(0).(int64), args.Error(1)
 }
 
