@@ -111,7 +111,7 @@ Now I have a complete picture. Let me compile the bugs.
 
 ## Create (create(ResponseStatusCode code, long requestId))
 
-- [ ] **Missing default reason from status code**: The Java `create(code, requestId)` calls `trySetReason(builder, code, code.getReason())`, which passes the status code's built-in default reason (e.g., "ok" for OK, "The client request is invalid" for INVALID_REQUEST). The Go `Create(requestID, code)` delegates to `CreateWithReason(requestID, code, "")`, passing an empty string instead of the status code's default reason. Since `trySetReason` returns early when `reason == ""`, **no reason is ever set** for any status code in this method. In Java, non-server-error codes would always have their default reason included.
+- [x] **Missing default reason from status code**: The Java `create(code, requestId)` calls `trySetReason(builder, code, code.getReason())`, which passes the status code's built-in default reason (e.g., "ok" for OK, "The client request is invalid" for INVALID_REQUEST). The Go `Create(requestID, code)` delegates to `CreateWithReason(requestID, code, "")`, passing an empty string instead of the status code's default reason. Since `trySetReason` returns early when `reason == ""`, **no reason is ever set** for any status code in this method. In Java, non-server-error codes would always have their default reason included.
 
 ## CreateWithReason (create(ResponseStatusCode code, @Nullable String reason, long requestId))
 
@@ -119,7 +119,7 @@ Now I have a complete picture. Let me compile the bugs.
 
 ## CreateFromError (create(ThrowableInfo info, long requestId))
 
-- [ ] **Wrong default error code for non-TurmsError errors**: In Java, `create(ThrowableInfo info, long requestId)` always extracts `info.code()` from the `ThrowableInfo` record, which already contains the correct `ResponseStatusCode` (resolved by `ThrowableInfo.get(Throwable)`). The Go version defaults to `ResponseStatusCode_SERVER_INTERNAL_ERROR` for non-`TurmsError` errors and falls back to the generic error message. While this is architecturally different (Go uses `error` interface vs Java's `ThrowableInfo` record), it means any custom error types with specific status codes (like the Java equivalents of `RECORD_CONTAINS_DUPLICATE_KEY`, `RESOURCE_NOT_FOUND`, etc.) will all map to `SERVER_INTERNAL_ERROR` instead of their proper codes.
+- [x] **Wrong default error code for non-TurmsError errors**: In Java, `create(ThrowableInfo info, long requestId)` always extracts `info.code()` from the `ThrowableInfo` record, which already contains the correct `ResponseStatusCode` (resolved by `ThrowableInfo.get(Throwable)`). The Go version defaults to `ResponseStatusCode_SERVER_INTERNAL_ERROR` for non-`TurmsError` errors and falls back to the generic error message. While this is architecturally different (Go uses `error` interface vs Java's `ThrowableInfo` record), it means any custom error types with specific status codes (like the Java equivalents of `RECORD_CONTAINS_DUPLICATE_KEY`, `RESOURCE_NOT_FOUND`, etc.) will all map to `SERVER_INTERNAL_ERROR` instead of their proper codes.
 - [x] **Missing fallback to code's default reason**: The Java version passes `info.reason()` to `trySetReason`, which may be `null` — in which case `trySetReason` returns without setting a reason. However, the Java version could have a non-null reason from `ThrowableInfo`. The Go version sets `reason = err.Error()` for non-TurmsError errors, which is a reasonable but different behavior (Java would use the throwable's message via `ThrowableInfo.get()`). For TurmsError cases, `te.Message` is used which maps to `info.reason()`, which is correct.
 
 ## CreateBuffer (createBuffer(CloseReason closeReason))
@@ -5860,3 +5860,37 @@ Here are the findings:
 ## toString()
 
 - [ ] **Missing `String()` / `fmt.Stringer` implementation with password masking**: The Java `toString()` masks the `password` field with `SecurityValueConst.SENSITIVE_VALUE` (`"***"`). The Go `AddUserDTO` has no `String()` method, meaning `fmt.Sprintf("%v", dto)` or `%+v` will print the raw password in plaintext, which is a security risk in logging/debugging scenarios.
+
+# UpdateUserDTO.java
+*Checked methods: UpdateUserDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
+
+Now I have the complete picture. Here is my analysis:
+
+## `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` — password field masking
+
+**Java behavior:**
+1. The `@SensitiveProperty(ALLOW_DESERIALIZATION)` annotation on the `password` field means:
+   - **Deserialization**: The field **can** be deserialized from JSON (i.e., the admin API can accept a password value in the request body).
+   - **Serialization**: The field **cannot** be serialized back to JSON (the password is excluded from JSON output). The Jackson `hasIgnoreMarker` in `JsonCodecPool.java:82-83` masks fields during serialization unless they are `ALLOW_SERIALIZATION`.
+2. The `toString()` method explicitly replaces the password value with `"***"` (`SecurityValueConst.SENSITIVE_VALUE`).
+
+**Go behavior:**
+1. The `UpdateUserDTO` struct has `Password *string` with tag `json:"password,omitempty"`. This allows **both** serialization and deserialization of the password field. There is no mechanism to prevent the password from being serialized into JSON responses.
+2. There is no `String()` or `ToString()` method on `UpdateUserDTO`, so no log masking occurs.
+
+## `toString()` — logging representation
+
+**Java behavior:** The `toString()` method outputs a formatted string with the password masked as `"***"` and all other fields listed in a specific order.
+
+**Go behavior:** No `String()` method exists on `UpdateUserDTO`, meaning if the struct is logged or printed (e.g., via `fmt.Sprintf("%v", dto)`), the actual password value would be exposed in logs.
+
+---
+
+## UpdateUserDTO (@SensitiveProperty)
+
+- [ ] **Missing password masking in serialization (JSON output):** The Java `@SensitiveProperty(ALLOW_DESERIALIZATION)` annotation prevents the `password` field from being included in serialized JSON output (it's only allowed during deserialization). The Go struct uses `json:"password,omitempty"` which allows the password to be both deserialized AND serialized back into JSON responses, leaking the password in API responses.
+- [ ] **Missing password masking in toString/logging:** The Go `UpdateUserDTO` has no `String()` (or `ToString()`) method. In Java, `toString()` explicitly replaces the password value with `"***"`. Without this, logging the Go struct (e.g., `fmt.Sprintf("%v", dto)`) will expose the raw password in log output.
+
+## UpdateUserDTO (toString)
+
+- [ ] **Missing toString method entirely:** The Go `UpdateUserDTO` struct has no `String()` method at all. The Java version implements `toString()` to provide a safe, formatted string representation with the password masked. Without it, any logging of the DTO will either show raw field values (including the password) or produce an unhelpful default Go struct dump.
