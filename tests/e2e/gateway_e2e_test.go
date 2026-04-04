@@ -123,6 +123,10 @@ func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, 
 	return groupID == 1, nil // Member of group 1, not of group 99
 }
 
+func (m *mockGroupMemService) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+	return []int64{1, 2, 3}, nil
+}
+
 func (m *mockGroupMemService) AddGroupMember(ctx context.Context, groupID int64, userID int64, role int32, name *string, muteEndDate *time.Time) (*grouppo.GroupMember, error) {
 	return nil, nil
 }

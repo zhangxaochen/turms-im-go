@@ -131,6 +131,7 @@ func (r *userVersionRepository) findSpecificVersion(ctx context.Context, userID 
 	return &version, nil
 }
 
+// @MappedFrom findGroupJoinRequests(Long userId)
 func (r *userVersionRepository) FindGroupJoinRequestsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := r.findSpecificVersion(ctx, userID)
 	if err != nil || v == nil {
@@ -139,6 +140,7 @@ func (r *userVersionRepository) FindGroupJoinRequestsVersion(ctx context.Context
 	return (*time.Time)(&v.GroupJoinRequests), nil
 }
 
+// @MappedFrom findJoinedGroup(Long userId)
 func (r *userVersionRepository) FindJoinedGroupVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := r.findSpecificVersion(ctx, userID)
 	if err != nil || v == nil {
@@ -147,6 +149,7 @@ func (r *userVersionRepository) FindJoinedGroupVersion(ctx context.Context, user
 	return (*time.Time)(&v.JoinedGroups), nil
 }
 
+// @MappedFrom findReceivedGroupInvitations(Long userId)
 func (r *userVersionRepository) FindReceivedGroupInvitationsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := r.findSpecificVersion(ctx, userID)
 	if err != nil || v == nil {
@@ -171,6 +174,7 @@ func (r *userVersionRepository) FindRelationshipGroupsVersion(ctx context.Contex
 	return (*time.Time)(&v.RelationshipGroups), nil
 }
 
+// @MappedFrom findSentGroupInvitations(Long userId)
 func (r *userVersionRepository) FindSentGroupInvitationsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := r.findSpecificVersion(ctx, userID)
 	if err != nil || v == nil {
@@ -179,6 +183,7 @@ func (r *userVersionRepository) FindSentGroupInvitationsVersion(ctx context.Cont
 	return (*time.Time)(&v.SentGroupInvitations), nil
 }
 
+// @MappedFrom findSentFriendRequests(Long userId)
 func (r *userVersionRepository) FindSentFriendRequestsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := r.findSpecificVersion(ctx, userID)
 	if err != nil || v == nil {
@@ -187,6 +192,7 @@ func (r *userVersionRepository) FindSentFriendRequestsVersion(ctx context.Contex
 	return (*time.Time)(&v.SentFriendRequests), nil
 }
 
+// @MappedFrom findReceivedFriendRequests(Long userId)
 func (r *userVersionRepository) FindReceivedFriendRequestsVersion(ctx context.Context, userID int64) (*time.Time, error) {
 	v, err := r.findSpecificVersion(ctx, userID)
 	if err != nil || v == nil {

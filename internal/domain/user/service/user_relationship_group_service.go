@@ -28,6 +28,7 @@ type UserRelationshipGroupService interface {
 	DeleteRelationshipGroupAndMoveMembersToNewGroup(ctx context.Context, ownerID int64, deleteGroupIndex int32, newGroupIndex int32) error
 	DeleteAllRelationshipGroups(ctx context.Context, ownerIDs []int64, session *mongo.Session, updateVersion bool) error
 	DeleteRelatedUserFromRelationshipGroup(ctx context.Context, ownerID int64, relatedUserID int64, groupIndex int32, session *mongo.Session, updateVersion bool) (int64, error)
+	DeleteRelatedUserFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserID int64, session *mongo.Session, updateVersion bool) (int64, error)
 	DeleteRelatedUsersFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserIDs []int64, session *mongo.Session, updateVersion bool) (int64, error)
 	MoveRelatedUserToNewGroup(ctx context.Context, ownerID int64, relatedUserID int64, currentGroupIndex int32, targetGroupIndex int32, suppressIfAlreadyExists bool, session *mongo.Session) error
 	CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error)
@@ -432,6 +433,35 @@ func (s *userRelationshipGroupService) DeleteRelatedUserFromRelationshipGroup(
 		return 0, err
 	}
 	count, err := s.groupMemberRepo.DeleteRelatedUserFromRelationshipGroup(ctx, ownerID, relatedUserID, []int32{groupIndex}, session)
+	if err != nil {
+		return 0, err
+	}
+	if count > 0 && updateVersion {
+		go func() {
+			if err := s.userVersionService.UpdateRelationshipGroupsMembersVersion(ctx, ownerID); err != nil {
+				log.Printf("Failed to update relationship group members version for owner %d: %v", ownerID, err)
+			}
+		}()
+	}
+	return count, nil
+}
+
+// @MappedFrom deleteRelatedUserFromAllRelationshipGroups(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable ClientSession session, boolean updateRelationshipGroupsMembersVersion)
+func (s *userRelationshipGroupService) DeleteRelatedUserFromAllRelationshipGroups(
+	ctx context.Context,
+	ownerID int64,
+	relatedUserID int64,
+	session *mongo.Session,
+	updateVersion bool,
+) (int64, error) {
+	if err := validator.NotNull(ownerID, "ownerID"); err != nil {
+		return 0, err
+	}
+	if err := validator.NotNull(relatedUserID, "relatedUserID"); err != nil {
+		return 0, err
+	}
+	
+	count, err := s.groupMemberRepo.DeleteRelatedUsersFromAllRelationshipGroups(ctx, ownerID, []int64{relatedUserID}, session)
 	if err != nil {
 		return 0, err
 	}
