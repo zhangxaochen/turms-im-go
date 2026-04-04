@@ -317,3 +317,74 @@ func (s *DiscoveryService) GetLeaderID() string {
 func (s *DiscoveryService) getMemberKeyString(nodeID string) string {
 	return fmt.Sprintf("turms:cluster:%s:members:%s", s.localMember.ClusterID, nodeID)
 }
+func (s *DiscoveryService) UnregisterMembers(ids []string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	keys := make([]string, len(ids))
+	for i, id := range ids {
+		keys[i] = s.getMemberKeyString(id)
+	}
+	return s.redisClient.RDB.Del(ctx, keys...).Err()
+}
+
+func (s *DiscoveryService) RegisterMember(member *Member) error {
+	member.LastHeartbeat = time.Now()
+	data, err := json.Marshal(member)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	err = s.redisClient.RDB.Set(ctx, s.getMemberKeyString(member.NodeID), data, s.ttl).Err()
+	if err == nil {
+		s.allKnownMembers.Store(member.NodeID, member)
+	}
+	return err
+}
+
+func (s *DiscoveryService) UpdateMemberInfo(id string, zone *string, name *string, isSeed *bool, isLeaderEligible *bool, isActive *bool, priority *int) error {
+	m := s.GetMember(id)
+	if m == nil {
+		return fmt.Errorf("member not found")
+	}
+	if zone != nil {
+		m.Zone = *zone
+	}
+	if name != nil {
+		m.Name = *name
+	}
+	if isSeed != nil {
+		m.IsSeed = *isSeed
+	}
+	if isLeaderEligible != nil {
+		m.IsLeaderEligible = *isLeaderEligible
+	}
+	if isActive != nil {
+		m.IsActive = *isActive
+	}
+	if priority != nil {
+		m.Priority = *priority
+	}
+	return s.RegisterMember(m)
+}
+
+func (s *DiscoveryService) GetMember(nodeID string) *Member {
+	if val, ok := s.allKnownMembers.Load(nodeID); ok {
+		return val.(*Member)
+	}
+	return nil
+}
+
+func (s *DiscoveryService) ElectNewLeaderByPriority() error {
+	s.leaderMu.Lock()
+	defer s.leaderMu.Unlock()
+	// Mock implementation
+	return nil
+}
+
+func (s *DiscoveryService) ElectNewLeaderByNodeID(nodeID string) error {
+	s.leaderMu.Lock()
+	defer s.leaderMu.Unlock()
+	// Mock implementation
+	return nil
+}

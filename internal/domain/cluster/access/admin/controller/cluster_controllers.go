@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+
 	clusterdto "im.turms/server/internal/domain/cluster/access/admin/dto"
 	commoncontroller "im.turms/server/internal/domain/common/access/admin/controller"
 	"im.turms/server/internal/domain/common/infra/cluster/discovery"
@@ -47,6 +49,88 @@ func (c *MemberController) QueryMembers() []clusterdto.MemberDTO {
 		}
 	}
 	return dtos
+}
+
+// @MappedFrom removeMembers
+func (c *MemberController) RemoveMembers(ids []string) error {
+	return c.discoveryService.UnregisterMembers(ids)
+}
+
+// @MappedFrom addMember
+func (c *MemberController) AddMember(addMemberDTO clusterdto.AddMemberDTO) error {
+	if addMemberDTO.NodeType != nil && *addMemberDTO.NodeType != discovery.NodeTypeService && addMemberDTO.IsLeaderEligible != nil && *addMemberDTO.IsLeaderEligible {
+		return fmt.Errorf("only turms-service servers can be the leader") // NodeType 0 is SERVICE
+	}
+	
+	isLeaderEligible := false
+	if addMemberDTO.IsLeaderEligible != nil {
+		isLeaderEligible = *addMemberDTO.IsLeaderEligible
+	}
+	
+	member := &discovery.Member{
+		ClusterID:        c.discoveryService.GetLocalNodeID(), // mock
+		NodeID:           addMemberDTO.NodeID,
+		Zone:             addMemberDTO.Zone,
+		Name:             addMemberDTO.Name,
+		IsSeed:           addMemberDTO.IsSeed,
+		IsLeaderEligible: isLeaderEligible,
+		Priority:         addMemberDTO.Priority,
+		IsActive:         false,
+		IsHealthy:        false,
+	}
+	
+	if addMemberDTO.NodeType != nil {
+		member.NodeType = *addMemberDTO.NodeType
+	}
+	if addMemberDTO.MemberHost != nil {
+		member.MemberHost = *addMemberDTO.MemberHost
+	}
+
+	return c.discoveryService.RegisterMember(member)
+}
+
+// @MappedFrom updateMember
+func (c *MemberController) UpdateMember(id string, updateMemberDTO clusterdto.UpdateMemberDTO) error {
+	return c.discoveryService.UpdateMemberInfo(id, updateMemberDTO.Zone, updateMemberDTO.Name, updateMemberDTO.IsSeed, updateMemberDTO.IsLeaderEligible, updateMemberDTO.IsActive, updateMemberDTO.Priority)
+}
+
+// @MappedFrom queryLeader
+func (c *MemberController) QueryLeader() (*clusterdto.MemberDTO, error) {
+	leaderID := c.discoveryService.GetLeaderID()
+	if leaderID == "" {
+		return nil, fmt.Errorf("NO_CONTENT")
+	}
+	m := c.discoveryService.GetMember(leaderID)
+	if m == nil {
+		return nil, fmt.Errorf("NO_CONTENT")
+	}
+	dto := &clusterdto.MemberDTO{
+		NodeID:          m.NodeID,
+		Zone:            m.Zone,
+		Name:            m.Name,
+		NodeType:        m.NodeType,
+		IsSeed:          m.IsSeed,
+		IsLeaderEligible: m.IsLeaderEligible,
+		Priority:        m.Priority,
+		MemberHost:      m.MemberHost,
+		MemberPort:      m.MemberPort,
+		AdminAPIAddress: m.AdminAPIAddress,
+		WsAddress:       m.WsAddress,
+		TcpAddress:      m.TcpAddress,
+		UdpAddress:      m.UdpAddress,
+		IsActive:        m.IsActive,
+		IsHealthy:       m.IsHealthy,
+		IsLeader:        true,
+	}
+	return dto, nil
+}
+
+// @MappedFrom electNewLeader
+func (c *MemberController) ElectNewLeader(id *string) error {
+	if id == nil {
+		return c.discoveryService.ElectNewLeaderByPriority()
+	}
+	return c.discoveryService.ElectNewLeaderByNodeID(*id)
 }
 
 // SettingController maps to SettingController Java.

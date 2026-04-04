@@ -1749,6 +1749,40 @@
   - [x] `findRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange, @Nullable Integer page, @Nullable Integer size)` -> [FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int)](../internal/domain/user/repository/user_relationship_group_repository.go#L202)
   - [x] `findRelationshipGroupsInfos(Long ownerId)` -> [FindRelationshipGroupsInfos(ctx context.Context, ownerID int64)](../internal/domain/user/repository/user_relationship_group_repository.go#L231)
 
+### User Persistent Objects
+
+- **User.java** ([java/im/turms/server/common/domain/user/po/User.java](../turms-orig/turms-server-common/src/main/java/im/turms/server/common/domain/user/po/User.java))
+> [简述功能]
+  - [x] `User(@NotNull Long id, @Nullable String password, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable ProfileAccessStrategy profileAccess, @Nullable Long permissionGroupId, @NotNull Date registrationDate, @NotNull Boolean isActive, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user.go`](../internal/domain/user/po/user.go)
+
+- **UserRole.java** ([java/im/turms/service/domain/user/po/UserRole.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserRole.java))
+> [简述功能]
+  - [x] `UserRole(@NotNull String id, @NotNull String name, @NotNull Set<AdminPermission> permissions, @NotNull Boolean isAdminRole, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user_role.go`](../internal/domain/user/po/user_role.go)
+
+- **UserVersion.java** ([java/im/turms/service/domain/user/po/UserVersion.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserVersion.java))
+> [简述功能]
+  - [x] `UserVersion(@NotNull Long userId, @NotNull Date joinedGroupVersion, @NotNull Date relationshipGroupVersion, @NotNull Date relationshipVersion, @NotNull Date sentFriendRequestVersion, @NotNull Date receivedFriendRequestVersion)` -> [`internal/domain/user/po/user_version.go`](../internal/domain/user/po/user_version.go)
+
+- **UserRelationship.java** ([java/im/turms/service/domain/user/po/UserRelationship.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserRelationship.java))
+> [简述功能]
+  - [x] `UserRelationship(@NotNull Key key, @NotNull Date establishmentDate, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user_relationship.go`](../internal/domain/user/po/user_relationship.go)
+
+- **UserRelationshipGroup.java** ([java/im/turms/service/domain/user/po/UserRelationshipGroup.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserRelationshipGroup.java))
+> [简述功能]
+  - [x] `UserRelationshipGroup(@NotNull Key key, @NotNull String name, @NotNull Date creationDate, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user_relationship_group.go`](../internal/domain/user/po/user_relationship_group.go)
+
+- **UserRelationshipGroupMember.java** ([java/im/turms/service/domain/user/po/UserRelationshipGroupMember.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserRelationshipGroupMember.java))
+> [简述功能]
+  - [x] `UserRelationshipGroupMember(@NotNull Key key, @NotNull Date joinDate, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user_relationship_group_member.go`](../internal/domain/user/po/user_relationship_group_member.go)
+
+- **UserSettings.java** ([java/im/turms/service/domain/user/po/UserSettings.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserSettings.java))
+> [简述功能]
+  - [x] `UserSettings(@NotNull Long userId, @NotNull String key, @NotNull Value value, @NotNull Date lastUpdatedDate, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user_settings.go`](../internal/domain/user/po/user_settings.go)
+
+- **UserFriendRequest.java** ([java/im/turms/service/domain/user/po/UserFriendRequest.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/po/UserFriendRequest.java))
+> [简述功能]
+  - [x] `UserFriendRequest(@NotNull Long id, @Nullable String content, @NotNull RequestStatus status, @Nullable String reason, @NotNull Date creationDate, @Nullable Date responseDate, @Nullable Date expirationDate, @NotNull Long requesterId, @NotNull Long recipientId, @Nullable List<Value> customAttributes)` -> [`internal/domain/user/po/user_friend_request.go`](../internal/domain/user/po/user_friend_request.go)
+
 - **UserRelationshipRepository.java** ([java/im/turms/service/domain/user/repository/UserRelationshipRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/repository/UserRelationshipRepository.java))
 > [简述功能]
 
@@ -1910,6 +1944,9 @@
   - [x] `countUsers(@Nullable Set<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive)` -> [CountUsers(ctx context.Context, startDate *time.Time, endDate *time.Time)](../internal/domain/user/repository/user_repository.go#L183)
   - [x] `updateUsers(@NotEmpty Set<Long> userIds, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive, @Nullable Map<String, Object> userDefinedAttributes)` -> [UpdateUsers(ctx context.Context, userIDs []int64, update bson.M)](../internal/domain/user/repository/user_repository.go#L128)
 
+- **UserInfoUserCustomAttributesService.java** ([java/im/turms/service/domain/user/service/UserInfoUserCustomAttributesService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/service/UserInfoUserCustomAttributesService.java))
+> [简述功能]
+
 - **UserSettingsService.java** ([java/im/turms/service/domain/user/service/UserSettingsService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/service/UserSettingsService.java))
 > [简述功能]
 
@@ -1951,6 +1988,10 @@
 > [简述功能]
 
   - [x] `queryNearbyUsers(@NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Float longitude, @Nullable Float latitude, @Nullable Short maxCount, @Nullable Integer maxDistance, boolean withCoordinates, boolean withDistance, boolean withUserInfo)` -> [QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *float64, withCoordinates bool, withDistance bool, withUserInfo bool)](../internal/domain/user/service/onlineuser/nearby_user_service.go#L43)
+
+- **UserStatusService.java** ([java/im/turms/server/common/domain/session/service/UserStatusService.java](../turms-orig/turms-server-common/src/main/java/im/turms/server/common/domain/session/service/UserStatusService.java))
+> [简述功能]
+  - [x] `updateOnlineUserStatusIfPresent(Long userId, UserStatus userStatus)` -> [UpdateOnlineUserStatusIfPresent(ctx context.Context, userID int64, userStatus protocol.UserStatus)](../internal/domain/user/service/onlineuser/user_status_service.go#L43)
 
 - **SessionService.java** ([java/im/turms/service/domain/user/service/onlineuser/SessionService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/user/service/onlineuser/SessionService.java))
 > [简述功能]

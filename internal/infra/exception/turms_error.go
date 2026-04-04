@@ -36,3 +36,22 @@ func IsCode(err error, code int32) bool {
 	}
 	return false
 }
+
+// IsDuplicateKeyError returns true if the error is a MongoDB duplicate key error (code 11000 or 11001)
+func IsDuplicateKeyError(err error) bool {
+	if err == nil {
+		return false
+	}
+	// MongoDB error code 11000 is for duplicate key
+	const mongoDuplicateKeyCode = 11000
+	const mongoDuplicateKeyCodeWriteConflict = 11001
+
+	// In the Go MongoDB driver, error codes can be checked via CommandError or WriteException
+	type mongoError interface {
+		HasErrorCode(code int) bool
+	}
+	if me, ok := err.(mongoError); ok {
+		return me.HasErrorCode(mongoDuplicateKeyCode) || me.HasErrorCode(mongoDuplicateKeyCodeWriteConflict)
+	}
+	return false
+}
