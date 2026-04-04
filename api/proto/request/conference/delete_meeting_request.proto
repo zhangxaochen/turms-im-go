@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package im.turms.proto;
+
+option go_package = "im.turms/server/pkg/protocol";
+option java_package = "im.turms.server.common.access.client.dto.request.conference";
+option java_multiple_files = true;
+
+message DeleteMeetingRequest {
+    optional int64 id = 1;
+}

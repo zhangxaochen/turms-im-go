@@ -81,6 +81,13 @@ import "request/conversation/query_conversations_request.proto";
 import "request/conversation/update_conversation_request.proto";
 import "request/conversation/update_typing_status_request.proto";
 
+// Conference
+import "request/conference/create_meeting_request.proto";
+import "request/conference/delete_meeting_request.proto";
+import "request/conference/query_meetings_request.proto";
+import "request/conference/update_meeting_request.proto";
+import "request/conference/update_meeting_invitation_request.proto";
+
 // Message
 import "request/message/create_message_request.proto";
 import "request/message/query_messages_request.proto";
@@ -164,6 +171,13 @@ message TurmsRequest {
         UpdateGroupInvitationRequest update_group_invitation_request = 510;
         UpdateGroupJoinQuestionRequest update_group_join_question_request = 511;
         UpdateGroupJoinRequestRequest update_group_join_request_request = 512;
+
+        // Conference
+        CreateMeetingRequest create_meeting_request = 900;
+        DeleteMeetingRequest delete_meeting_request = 901;
+        QueryMeetingsRequest query_meetings_request = 902;
+        UpdateMeetingRequest update_meeting_request = 903;
+        UpdateMeetingInvitationRequest update_meeting_invitation_request = 904;
 
         // Storage
         DeleteResourceRequest delete_resource_request = 1000;

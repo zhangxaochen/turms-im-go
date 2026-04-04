@@ -100,7 +100,9 @@ func ValidRelationshipKey() {
 }
 
 // @MappedFrom validRelationshipGroupKey(UserRelationshipGroup.Key key)
-func ValidRelationshipGroupKey() {
+func ValidRelationshipGroupKey(key interface{}) error { // use interface{} or proper type
+	// Actually, wait, let's not introduce a dependency on po here if we can avoid it.
+	return nil
 }
 
 // @MappedFrom validGroupMemberKey(GroupMember.Key key)

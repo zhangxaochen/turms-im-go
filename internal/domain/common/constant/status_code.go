@@ -11,6 +11,7 @@ const (
 	ResponseStatusCode_CLIENT_REQUESTS_TOO_FREQUENT ResponseStatusCode = 1101
 	ResponseStatusCode_ILLEGAL_ARGUMENT             ResponseStatusCode = 1102
 	ResponseStatusCode_UNAUTHORIZED_REQUEST         ResponseStatusCode = 1106
+	ResponseStatusCode_NO_CONTENT                  ResponseStatusCode = 1001
 
 	// Server Error
 	ResponseStatusCode_SERVER_INTERNAL_ERROR ResponseStatusCode = 1200
@@ -20,9 +21,12 @@ const (
 	ResponseStatusCode_CREATE_EXISTING_SESSION     ResponseStatusCode = 2001 // Add other session codes as requested
 	ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED ResponseStatusCode = 2000
 	ResponseStatusCode_LOGGING_IN_USER_NOT_ACTIVE  ResponseStatusCode = 2002
+	ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE ResponseStatusCode = 2004
+	ResponseStatusCode_LOGIN_FROM_FORBIDDEN_DEVICE_TYPE       ResponseStatusCode = 1103
 
 	ResponseStatusCode_LOGIN_TIMEOUT                           ResponseStatusCode = 2010
 	ResponseStatusCode_UPDATE_HEARTBEAT_OF_NONEXISTENT_SESSION ResponseStatusCode = 2011
+	ResponseStatusCode_UPDATE_NON_EXISTING_SESSION_STATUS      ResponseStatusCode = 2011
 
 	// Group Error
 	ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP                ResponseStatusCode = 3000
@@ -113,6 +117,22 @@ const (
 	ResponseStatusCode_NOT_GROUP_MEMBER_TO_SEND_MESSAGE          ResponseStatusCode = 5010
 	ResponseStatusCode_MUTED_MEMBER_SEND_MESSAGE                 ResponseStatusCode = 5011
 	ResponseStatusCode_BLOCKED_USER_SEND_GROUP_MESSAGE           ResponseStatusCode = 5012
+	ResponseStatusCode_CONFERENCE_NOT_IMPLEMENTED ResponseStatusCode = 8000
+
+	ResponseStatusCode_CREATE_MEETING_EXCEEDING_MAX_ACTIVE_MEETING_COUNT ResponseStatusCode = 8100
+	ResponseStatusCode_NOT_CREATOR_TO_CANCEL_MEETING                     ResponseStatusCode = 8101
+	ResponseStatusCode_CANCELING_MEETING_IS_DISABLED                    ResponseStatusCode = 8102
+	ResponseStatusCode_CANCEL_NONEXISTENT_MEETING                        ResponseStatusCode = 8103
+	ResponseStatusCode_NOT_CREATOR_TO_UPDATE_MEETING_PASSWORD            ResponseStatusCode = 8104
+	ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_MEETING                ResponseStatusCode = 8105
+
+	ResponseStatusCode_ACCEPT_MEETING_INVITATION_WITH_WRONG_PASSWORD ResponseStatusCode = 8200
+	ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_CANCELED_MEETING ResponseStatusCode = 8201
+	ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_ENDED_MEETING    ResponseStatusCode = 8202
+	ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_EXPIRED_MEETING  ResponseStatusCode = 8203
+	ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_PENDING_MEETING  ResponseStatusCode = 8204
+	ResponseStatusCode_ACCEPT_NONEXISTENT_MEETING_INVITATION         ResponseStatusCode = 8205
+	ResponseStatusCode_NOT_GROUP_MEMBER_TO_CREATE_MEETING            ResponseStatusCode = 5025 // Kept as added by previous devs
 )
 
 // Reason returns the default explanation for a specific status code.

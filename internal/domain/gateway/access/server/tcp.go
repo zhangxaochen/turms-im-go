@@ -9,17 +9,23 @@ import (
 	"sync"
 
 	"github.com/pires/go-proxyproto"
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/common/infra/cluster/rpc/codec"
 	"im.turms/server/internal/domain/gateway/session"
 )
 
 // TCPConnection wraps net.Conn to implement session.Connection
 type TCPConnection struct {
-	conn net.Conn
-	mu   sync.Mutex
+	conn       net.Conn
+	mu         sync.Mutex
+	remoteAddr net.Addr
 }
 
-func (c *TCPConnection) WriteMessage(payload []byte) error {
+func (c *TCPConnection) Connect() error {
+	return nil
+}
+
+func (c *TCPConnection) Send(payload []byte) error {
 	// TCP requires Varint length prefix
 	buf := make([]byte, binary.MaxVarintLen32+len(payload))
 	n := binary.PutUvarint(buf, uint64(len(payload)))
@@ -31,7 +37,7 @@ func (c *TCPConnection) WriteMessage(payload []byte) error {
 	return err
 }
 
-func (c *TCPConnection) Close() error {
+func (c *TCPConnection) Close(reason constant.SessionCloseStatus) error {
 	return c.conn.Close()
 }
 
@@ -108,7 +114,7 @@ func (s *TCPServer) acceptLoop() {
 func (s *TCPServer) handleConnection(conn net.Conn) {
 	defer s.wg.Done()
 
-	tcpConn := &TCPConnection{conn: conn}
+	tcpConn := &TCPConnection{conn: conn, remoteAddr: conn.RemoteAddr()}
 
 	// Pre-create an unauthed session shell.
 	// Actual details (UserID, DeviceType) will be populated upon first Auth request.
@@ -152,7 +158,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 func (s *TCPServer) cleanup(userSession *session.UserSession) {
 	if userSession.UserID > 0 {
-		s.sessionService.UnregisterSession(userSession.UserID, userSession.DeviceType, userSession.Conn)
+		s.sessionService.UnregisterSession(s.ctx, userSession.UserID, userSession.DeviceType, userSession.Conn, constant.SessionCloseStatus_CONNECTION_CLOSED)
 	}
 }
 

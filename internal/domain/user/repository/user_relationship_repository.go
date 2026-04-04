@@ -220,7 +220,15 @@ func (r *userRelationshipRepository) FindRelationships(
 // @MappedFrom deleteAllRelationships(Set<Long> userIds, @Nullable ClientSession session)
 // @MappedFrom deleteAllRelationships(@NotEmpty Set<Long> userIds, @Nullable ClientSession session, boolean updateRelationshipsVersion)
 func (r *userRelationshipRepository) DeleteAllRelationships(ctx context.Context, ownerIDs []int64, session *mongo.Session) (*mongo.DeleteResult, error) {
-	filter := bson.M{"_id.oid": bson.M{"$in": ownerIDs}}
+	if len(ownerIDs) == 0 {
+		return &mongo.DeleteResult{}, nil
+	}
+	filter := bson.M{
+		"$or": []bson.M{
+			{"_id.oid": bson.M{"$in": ownerIDs}},
+			{"_id.rid": bson.M{"$in": ownerIDs}},
+		},
+	}
 	return turmsmongo.ExecuteWithSessionResult(ctx, r.client, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) (*mongo.DeleteResult, error) {
 		return r.coll.DeleteMany(sessCtx, filter)
 	})
@@ -259,8 +267,13 @@ func (r *userRelationshipRepository) UpdateUserOneSidedRelationships(
 		"_id.rid": bson.M{"$in": relatedUserIDs},
 	}
 	setOps := bson.M{}
+	unsetOps := bson.M{}
 	if blockDate != nil {
-		setOps["bd"] = blockDate
+		if blockDate.UnixMilli() <= 0 {
+			unsetOps["bd"] = ""
+		} else {
+			setOps["bd"] = blockDate
+		}
 	}
 	if establishmentDate != nil {
 		setOps["ed"] = establishmentDate
@@ -268,10 +281,18 @@ func (r *userRelationshipRepository) UpdateUserOneSidedRelationships(
 	if name != nil {
 		setOps["n"] = name
 	}
-	if len(setOps) == 0 {
+	
+	if len(setOps) == 0 && len(unsetOps) == 0 {
 		return 0, nil
 	}
-	update := bson.M{"$set": setOps}
+	
+	update := bson.M{}
+	if len(setOps) > 0 {
+		update["$set"] = setOps
+	}
+	if len(unsetOps) > 0 {
+		update["$unset"] = unsetOps
+	}
 
 	return turmsmongo.ExecuteWithSessionResult(ctx, r.client, session, func(sessCtx mongo.SessionContext, sess *mongo.Session) (int64, error) {
 		res, err := r.coll.UpdateMany(sessCtx, filter, update)

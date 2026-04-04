@@ -83,6 +83,11 @@ type TurmsRequest struct {
 	//	*TurmsRequest_UpdateGroupInvitationRequest
 	//	*TurmsRequest_UpdateGroupJoinQuestionRequest
 	//	*TurmsRequest_UpdateGroupJoinRequestRequest
+	//	*TurmsRequest_CreateMeetingRequest
+	//	*TurmsRequest_DeleteMeetingRequest
+	//	*TurmsRequest_QueryMeetingsRequest
+	//	*TurmsRequest_UpdateMeetingRequest
+	//	*TurmsRequest_UpdateMeetingInvitationRequest
 	//	*TurmsRequest_DeleteResourceRequest
 	//	*TurmsRequest_QueryResourceDownloadInfoRequest
 	//	*TurmsRequest_QueryResourceUploadInfoRequest
@@ -623,6 +628,51 @@ func (x *TurmsRequest) GetUpdateGroupJoinRequestRequest() *UpdateGroupJoinReques
 	return nil
 }
 
+func (x *TurmsRequest) GetCreateMeetingRequest() *CreateMeetingRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_CreateMeetingRequest); ok {
+			return x.CreateMeetingRequest
+		}
+	}
+	return nil
+}
+
+func (x *TurmsRequest) GetDeleteMeetingRequest() *DeleteMeetingRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_DeleteMeetingRequest); ok {
+			return x.DeleteMeetingRequest
+		}
+	}
+	return nil
+}
+
+func (x *TurmsRequest) GetQueryMeetingsRequest() *QueryMeetingsRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_QueryMeetingsRequest); ok {
+			return x.QueryMeetingsRequest
+		}
+	}
+	return nil
+}
+
+func (x *TurmsRequest) GetUpdateMeetingRequest() *UpdateMeetingRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_UpdateMeetingRequest); ok {
+			return x.UpdateMeetingRequest
+		}
+	}
+	return nil
+}
+
+func (x *TurmsRequest) GetUpdateMeetingInvitationRequest() *UpdateMeetingInvitationRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_UpdateMeetingInvitationRequest); ok {
+			return x.UpdateMeetingInvitationRequest
+		}
+	}
+	return nil
+}
+
 func (x *TurmsRequest) GetDeleteResourceRequest() *DeleteResourceRequest {
 	if x != nil {
 		if x, ok := x.Kind.(*TurmsRequest_DeleteResourceRequest); ok {
@@ -897,6 +947,27 @@ type TurmsRequest_UpdateGroupJoinRequestRequest struct {
 	UpdateGroupJoinRequestRequest *UpdateGroupJoinRequestRequest `protobuf:"bytes,512,opt,name=update_group_join_request_request,json=updateGroupJoinRequestRequest,proto3,oneof"`
 }
 
+type TurmsRequest_CreateMeetingRequest struct {
+	// Conference
+	CreateMeetingRequest *CreateMeetingRequest `protobuf:"bytes,900,opt,name=create_meeting_request,json=createMeetingRequest,proto3,oneof"`
+}
+
+type TurmsRequest_DeleteMeetingRequest struct {
+	DeleteMeetingRequest *DeleteMeetingRequest `protobuf:"bytes,901,opt,name=delete_meeting_request,json=deleteMeetingRequest,proto3,oneof"`
+}
+
+type TurmsRequest_QueryMeetingsRequest struct {
+	QueryMeetingsRequest *QueryMeetingsRequest `protobuf:"bytes,902,opt,name=query_meetings_request,json=queryMeetingsRequest,proto3,oneof"`
+}
+
+type TurmsRequest_UpdateMeetingRequest struct {
+	UpdateMeetingRequest *UpdateMeetingRequest `protobuf:"bytes,903,opt,name=update_meeting_request,json=updateMeetingRequest,proto3,oneof"`
+}
+
+type TurmsRequest_UpdateMeetingInvitationRequest struct {
+	UpdateMeetingInvitationRequest *UpdateMeetingInvitationRequest `protobuf:"bytes,904,opt,name=update_meeting_invitation_request,json=updateMeetingInvitationRequest,proto3,oneof"`
+}
+
 type TurmsRequest_DeleteResourceRequest struct {
 	// Storage
 	DeleteResourceRequest *DeleteResourceRequest `protobuf:"bytes,1000,opt,name=delete_resource_request,json=deleteResourceRequest,proto3,oneof"`
@@ -1026,6 +1097,16 @@ func (*TurmsRequest_UpdateGroupJoinQuestionRequest) isTurmsRequest_Kind() {}
 
 func (*TurmsRequest_UpdateGroupJoinRequestRequest) isTurmsRequest_Kind() {}
 
+func (*TurmsRequest_CreateMeetingRequest) isTurmsRequest_Kind() {}
+
+func (*TurmsRequest_DeleteMeetingRequest) isTurmsRequest_Kind() {}
+
+func (*TurmsRequest_QueryMeetingsRequest) isTurmsRequest_Kind() {}
+
+func (*TurmsRequest_UpdateMeetingRequest) isTurmsRequest_Kind() {}
+
+func (*TurmsRequest_UpdateMeetingInvitationRequest) isTurmsRequest_Kind() {}
+
 func (*TurmsRequest_DeleteResourceRequest) isTurmsRequest_Kind() {}
 
 func (*TurmsRequest_QueryResourceDownloadInfoRequest) isTurmsRequest_Kind() {}
@@ -1040,7 +1121,7 @@ var File_request_turms_request_proto protoreflect.FileDescriptor
 
 const file_request_turms_request_proto_rawDesc = "" +
 	"\n" +
-	"\x1brequest/turms_request.proto\x12\x0eim.turms.proto\x1a-request/storage/delete_resource_request.proto\x1a:request/storage/query_resource_download_info_request.proto\x1a8request/storage/query_resource_upload_info_request.proto\x1a<request/storage/query_message_attachment_infos_request.proto\x1a<request/storage/update_message_attachment_info_request.proto\x1a)request/user/create_session_request.proto\x1a)request/user/delete_session_request.proto\x1a-request/user/query_nearby_users_request.proto\x1a5request/user/query_user_online_statuses_request.proto\x1a.request/user/query_user_profiles_request.proto\x1a/request/user/update_user_location_request.proto\x1a4request/user/update_user_online_status_request.proto\x1a&request/user/update_user_request.proto\x1a=request/user/relationship/create_friend_request_request.proto\x1aArequest/user/relationship/create_relationship_group_request.proto\x1a;request/user/relationship/create_relationship_request.proto\x1a=request/user/relationship/delete_friend_request_request.proto\x1aArequest/user/relationship/delete_relationship_group_request.proto\x1a;request/user/relationship/delete_relationship_request.proto\x1a=request/user/relationship/query_friend_requests_request.proto\x1a>request/user/relationship/query_related_user_ids_request.proto\x1aArequest/user/relationship/query_relationship_groups_request.proto\x1a;request/user/relationship/query_relationships_request.proto\x1a=request/user/relationship/update_friend_request_request.proto\x1aArequest/user/relationship/update_relationship_group_request.proto\x1a;request/user/relationship/update_relationship_request.proto\x1a(request/group/create_group_request.proto\x1a(request/group/delete_group_request.proto\x1a(request/group/query_groups_request.proto\x1a2request/group/query_joined_group_ids_request.proto\x1a4request/group/query_joined_group_infos_request.proto\x1a(request/group/update_group_request.proto\x1a?request/group/blocklist/create_group_blocked_user_request.proto\x1a?request/group/blocklist/delete_group_blocked_user_request.proto\x1aBrequest/group/blocklist/query_group_blocked_user_ids_request.proto\x1aDrequest/group/blocklist/query_group_blocked_user_infos_request.proto\x1aIrequest/group/enrollment/check_group_join_questions_answers_request.proto\x1a>request/group/enrollment/create_group_invitation_request.proto\x1a@request/group/enrollment/create_group_join_request_request.proto\x1aBrequest/group/enrollment/create_group_join_questions_request.proto\x1a>request/group/enrollment/delete_group_invitation_request.proto\x1a@request/group/enrollment/delete_group_join_request_request.proto\x1aBrequest/group/enrollment/delete_group_join_questions_request.proto\x1a>request/group/enrollment/query_group_invitations_request.proto\x1a@request/group/enrollment/query_group_join_requests_request.proto\x1aArequest/group/enrollment/query_group_join_questions_request.proto\x1a>request/group/enrollment/update_group_invitation_request.proto\x1aArequest/group/enrollment/update_group_join_question_request.proto\x1a@request/group/enrollment/update_group_join_request_request.proto\x1a7request/group/member/create_group_members_request.proto\x1a7request/group/member/delete_group_members_request.proto\x1a6request/group/member/query_group_members_request.proto\x1a6request/group/member/update_group_member_request.proto\x1a6request/conversation/query_conversations_request.proto\x1a6request/conversation/update_conversation_request.proto\x1a7request/conversation/update_typing_status_request.proto\x1a,request/message/create_message_request.proto\x1a,request/message/query_messages_request.proto\x1a,request/message/update_message_request.proto\"\xd25\n" +
+	"\x1brequest/turms_request.proto\x12\x0eim.turms.proto\x1a-request/storage/delete_resource_request.proto\x1a:request/storage/query_resource_download_info_request.proto\x1a8request/storage/query_resource_upload_info_request.proto\x1a<request/storage/query_message_attachment_infos_request.proto\x1a<request/storage/update_message_attachment_info_request.proto\x1a)request/user/create_session_request.proto\x1a)request/user/delete_session_request.proto\x1a-request/user/query_nearby_users_request.proto\x1a5request/user/query_user_online_statuses_request.proto\x1a.request/user/query_user_profiles_request.proto\x1a/request/user/update_user_location_request.proto\x1a4request/user/update_user_online_status_request.proto\x1a&request/user/update_user_request.proto\x1a=request/user/relationship/create_friend_request_request.proto\x1aArequest/user/relationship/create_relationship_group_request.proto\x1a;request/user/relationship/create_relationship_request.proto\x1a=request/user/relationship/delete_friend_request_request.proto\x1aArequest/user/relationship/delete_relationship_group_request.proto\x1a;request/user/relationship/delete_relationship_request.proto\x1a=request/user/relationship/query_friend_requests_request.proto\x1a>request/user/relationship/query_related_user_ids_request.proto\x1aArequest/user/relationship/query_relationship_groups_request.proto\x1a;request/user/relationship/query_relationships_request.proto\x1a=request/user/relationship/update_friend_request_request.proto\x1aArequest/user/relationship/update_relationship_group_request.proto\x1a;request/user/relationship/update_relationship_request.proto\x1a(request/group/create_group_request.proto\x1a(request/group/delete_group_request.proto\x1a(request/group/query_groups_request.proto\x1a2request/group/query_joined_group_ids_request.proto\x1a4request/group/query_joined_group_infos_request.proto\x1a(request/group/update_group_request.proto\x1a?request/group/blocklist/create_group_blocked_user_request.proto\x1a?request/group/blocklist/delete_group_blocked_user_request.proto\x1aBrequest/group/blocklist/query_group_blocked_user_ids_request.proto\x1aDrequest/group/blocklist/query_group_blocked_user_infos_request.proto\x1aIrequest/group/enrollment/check_group_join_questions_answers_request.proto\x1a>request/group/enrollment/create_group_invitation_request.proto\x1a@request/group/enrollment/create_group_join_request_request.proto\x1aBrequest/group/enrollment/create_group_join_questions_request.proto\x1a>request/group/enrollment/delete_group_invitation_request.proto\x1a@request/group/enrollment/delete_group_join_request_request.proto\x1aBrequest/group/enrollment/delete_group_join_questions_request.proto\x1a>request/group/enrollment/query_group_invitations_request.proto\x1a@request/group/enrollment/query_group_join_requests_request.proto\x1aArequest/group/enrollment/query_group_join_questions_request.proto\x1a>request/group/enrollment/update_group_invitation_request.proto\x1aArequest/group/enrollment/update_group_join_question_request.proto\x1a@request/group/enrollment/update_group_join_request_request.proto\x1a7request/group/member/create_group_members_request.proto\x1a7request/group/member/delete_group_members_request.proto\x1a6request/group/member/query_group_members_request.proto\x1a6request/group/member/update_group_member_request.proto\x1a6request/conversation/query_conversations_request.proto\x1a6request/conversation/update_conversation_request.proto\x1a7request/conversation/update_typing_status_request.proto\x1a/request/conference/create_meeting_request.proto\x1a/request/conference/delete_meeting_request.proto\x1a/request/conference/query_meetings_request.proto\x1a/request/conference/update_meeting_request.proto\x1a:request/conference/update_meeting_invitation_request.proto\x1a,request/message/create_message_request.proto\x1a,request/message/query_messages_request.proto\x1a,request/message/update_message_request.proto\"\xcc9\n" +
 	"\fTurmsRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\x03H\x01R\trequestId\x88\x01\x01\x12\\\n" +
@@ -1098,7 +1179,12 @@ const file_request_turms_request_proto_rawDesc = "" +
 	"\"query_group_join_questions_request\x18\xfd\x03 \x01(\v2..im.turms.proto.QueryGroupJoinQuestionsRequestH\x00R\x1equeryGroupJoinQuestionsRequest\x12v\n" +
 	"\x1fupdate_group_invitation_request\x18\xfe\x03 \x01(\v2,.im.turms.proto.UpdateGroupInvitationRequestH\x00R\x1cupdateGroupInvitationRequest\x12}\n" +
 	"\"update_group_join_question_request\x18\xff\x03 \x01(\v2..im.turms.proto.UpdateGroupJoinQuestionRequestH\x00R\x1eupdateGroupJoinQuestionRequest\x12z\n" +
-	"!update_group_join_request_request\x18\x80\x04 \x01(\v2-.im.turms.proto.UpdateGroupJoinRequestRequestH\x00R\x1dupdateGroupJoinRequestRequest\x12`\n" +
+	"!update_group_join_request_request\x18\x80\x04 \x01(\v2-.im.turms.proto.UpdateGroupJoinRequestRequestH\x00R\x1dupdateGroupJoinRequestRequest\x12]\n" +
+	"\x16create_meeting_request\x18\x84\a \x01(\v2$.im.turms.proto.CreateMeetingRequestH\x00R\x14createMeetingRequest\x12]\n" +
+	"\x16delete_meeting_request\x18\x85\a \x01(\v2$.im.turms.proto.DeleteMeetingRequestH\x00R\x14deleteMeetingRequest\x12]\n" +
+	"\x16query_meetings_request\x18\x86\a \x01(\v2$.im.turms.proto.QueryMeetingsRequestH\x00R\x14queryMeetingsRequest\x12]\n" +
+	"\x16update_meeting_request\x18\x87\a \x01(\v2$.im.turms.proto.UpdateMeetingRequestH\x00R\x14updateMeetingRequest\x12|\n" +
+	"!update_meeting_invitation_request\x18\x88\a \x01(\v2..im.turms.proto.UpdateMeetingInvitationRequestH\x00R\x1eupdateMeetingInvitationRequest\x12`\n" +
 	"\x17delete_resource_request\x18\xe8\a \x01(\v2%.im.turms.proto.DeleteResourceRequestH\x00R\x15deleteResourceRequest\x12\x83\x01\n" +
 	"$query_resource_download_info_request\x18\xe9\a \x01(\v20.im.turms.proto.QueryResourceDownloadInfoRequestH\x00R queryResourceDownloadInfoRequest\x12}\n" +
 	"\"query_resource_upload_info_request\x18\xea\a \x01(\v2..im.turms.proto.QueryResourceUploadInfoRequestH\x00R\x1equeryResourceUploadInfoRequest\x12\x89\x01\n" +
@@ -1177,11 +1263,16 @@ var file_request_turms_request_proto_goTypes = []any{
 	(*UpdateGroupInvitationRequest)(nil),          // 52: im.turms.proto.UpdateGroupInvitationRequest
 	(*UpdateGroupJoinQuestionRequest)(nil),        // 53: im.turms.proto.UpdateGroupJoinQuestionRequest
 	(*UpdateGroupJoinRequestRequest)(nil),         // 54: im.turms.proto.UpdateGroupJoinRequestRequest
-	(*DeleteResourceRequest)(nil),                 // 55: im.turms.proto.DeleteResourceRequest
-	(*QueryResourceDownloadInfoRequest)(nil),      // 56: im.turms.proto.QueryResourceDownloadInfoRequest
-	(*QueryResourceUploadInfoRequest)(nil),        // 57: im.turms.proto.QueryResourceUploadInfoRequest
-	(*QueryMessageAttachmentInfosRequest)(nil),    // 58: im.turms.proto.QueryMessageAttachmentInfosRequest
-	(*UpdateMessageAttachmentInfoRequest)(nil),    // 59: im.turms.proto.UpdateMessageAttachmentInfoRequest
+	(*CreateMeetingRequest)(nil),                  // 55: im.turms.proto.CreateMeetingRequest
+	(*DeleteMeetingRequest)(nil),                  // 56: im.turms.proto.DeleteMeetingRequest
+	(*QueryMeetingsRequest)(nil),                  // 57: im.turms.proto.QueryMeetingsRequest
+	(*UpdateMeetingRequest)(nil),                  // 58: im.turms.proto.UpdateMeetingRequest
+	(*UpdateMeetingInvitationRequest)(nil),        // 59: im.turms.proto.UpdateMeetingInvitationRequest
+	(*DeleteResourceRequest)(nil),                 // 60: im.turms.proto.DeleteResourceRequest
+	(*QueryResourceDownloadInfoRequest)(nil),      // 61: im.turms.proto.QueryResourceDownloadInfoRequest
+	(*QueryResourceUploadInfoRequest)(nil),        // 62: im.turms.proto.QueryResourceUploadInfoRequest
+	(*QueryMessageAttachmentInfosRequest)(nil),    // 63: im.turms.proto.QueryMessageAttachmentInfosRequest
+	(*UpdateMessageAttachmentInfoRequest)(nil),    // 64: im.turms.proto.UpdateMessageAttachmentInfoRequest
 }
 var file_request_turms_request_proto_depIdxs = []int32{
 	1,  // 0: im.turms.proto.TurmsRequest.create_session_request:type_name -> im.turms.proto.CreateSessionRequest
@@ -1238,16 +1329,21 @@ var file_request_turms_request_proto_depIdxs = []int32{
 	52, // 51: im.turms.proto.TurmsRequest.update_group_invitation_request:type_name -> im.turms.proto.UpdateGroupInvitationRequest
 	53, // 52: im.turms.proto.TurmsRequest.update_group_join_question_request:type_name -> im.turms.proto.UpdateGroupJoinQuestionRequest
 	54, // 53: im.turms.proto.TurmsRequest.update_group_join_request_request:type_name -> im.turms.proto.UpdateGroupJoinRequestRequest
-	55, // 54: im.turms.proto.TurmsRequest.delete_resource_request:type_name -> im.turms.proto.DeleteResourceRequest
-	56, // 55: im.turms.proto.TurmsRequest.query_resource_download_info_request:type_name -> im.turms.proto.QueryResourceDownloadInfoRequest
-	57, // 56: im.turms.proto.TurmsRequest.query_resource_upload_info_request:type_name -> im.turms.proto.QueryResourceUploadInfoRequest
-	58, // 57: im.turms.proto.TurmsRequest.query_message_attachment_infos_request:type_name -> im.turms.proto.QueryMessageAttachmentInfosRequest
-	59, // 58: im.turms.proto.TurmsRequest.update_message_attachment_info_request:type_name -> im.turms.proto.UpdateMessageAttachmentInfoRequest
-	59, // [59:59] is the sub-list for method output_type
-	59, // [59:59] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	55, // 54: im.turms.proto.TurmsRequest.create_meeting_request:type_name -> im.turms.proto.CreateMeetingRequest
+	56, // 55: im.turms.proto.TurmsRequest.delete_meeting_request:type_name -> im.turms.proto.DeleteMeetingRequest
+	57, // 56: im.turms.proto.TurmsRequest.query_meetings_request:type_name -> im.turms.proto.QueryMeetingsRequest
+	58, // 57: im.turms.proto.TurmsRequest.update_meeting_request:type_name -> im.turms.proto.UpdateMeetingRequest
+	59, // 58: im.turms.proto.TurmsRequest.update_meeting_invitation_request:type_name -> im.turms.proto.UpdateMeetingInvitationRequest
+	60, // 59: im.turms.proto.TurmsRequest.delete_resource_request:type_name -> im.turms.proto.DeleteResourceRequest
+	61, // 60: im.turms.proto.TurmsRequest.query_resource_download_info_request:type_name -> im.turms.proto.QueryResourceDownloadInfoRequest
+	62, // 61: im.turms.proto.TurmsRequest.query_resource_upload_info_request:type_name -> im.turms.proto.QueryResourceUploadInfoRequest
+	63, // 62: im.turms.proto.TurmsRequest.query_message_attachment_infos_request:type_name -> im.turms.proto.QueryMessageAttachmentInfosRequest
+	64, // 63: im.turms.proto.TurmsRequest.update_message_attachment_info_request:type_name -> im.turms.proto.UpdateMessageAttachmentInfoRequest
+	64, // [64:64] is the sub-list for method output_type
+	64, // [64:64] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_request_turms_request_proto_init() }
@@ -1311,6 +1407,11 @@ func file_request_turms_request_proto_init() {
 	file_request_conversation_query_conversations_request_proto_init()
 	file_request_conversation_update_conversation_request_proto_init()
 	file_request_conversation_update_typing_status_request_proto_init()
+	file_request_conference_create_meeting_request_proto_init()
+	file_request_conference_delete_meeting_request_proto_init()
+	file_request_conference_query_meetings_request_proto_init()
+	file_request_conference_update_meeting_request_proto_init()
+	file_request_conference_update_meeting_invitation_request_proto_init()
 	file_request_message_create_message_request_proto_init()
 	file_request_message_query_messages_request_proto_init()
 	file_request_message_update_message_request_proto_init()
@@ -1369,6 +1470,11 @@ func file_request_turms_request_proto_init() {
 		(*TurmsRequest_UpdateGroupInvitationRequest)(nil),
 		(*TurmsRequest_UpdateGroupJoinQuestionRequest)(nil),
 		(*TurmsRequest_UpdateGroupJoinRequestRequest)(nil),
+		(*TurmsRequest_CreateMeetingRequest)(nil),
+		(*TurmsRequest_DeleteMeetingRequest)(nil),
+		(*TurmsRequest_QueryMeetingsRequest)(nil),
+		(*TurmsRequest_UpdateMeetingRequest)(nil),
+		(*TurmsRequest_UpdateMeetingInvitationRequest)(nil),
 		(*TurmsRequest_DeleteResourceRequest)(nil),
 		(*TurmsRequest_QueryResourceDownloadInfoRequest)(nil),
 		(*TurmsRequest_QueryResourceUploadInfoRequest)(nil),

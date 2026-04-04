@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -14,12 +15,16 @@ type MockConnection struct {
 	Closed bool
 }
 
-func (m *MockConnection) WriteMessage(payload []byte) error {
+func (m *MockConnection) Connect() error {
 	return nil
 }
 
-func (m *MockConnection) Close() error {
+func (m *MockConnection) Close(reason constant.SessionCloseStatus) error {
 	m.Closed = true
+	return nil
+}
+
+func (m *MockConnection) Send(payload []byte) error {
 	return nil
 }
 
@@ -30,7 +35,7 @@ func (m *MockConnection) RemoteAddr() net.Addr {
 func (m *MockConnection) TryNotifyClientToRecover() {}
 
 func (m *MockConnection) IsActive() bool {
-	return !m.Closed
+	return true
 }
 
 func TestSessionService_RegisterAndUnregister(t *testing.T) {
@@ -54,7 +59,7 @@ func TestSessionService_RegisterAndUnregister(t *testing.T) {
 	assert.Equal(t, session, s)
 
 	// Test Unregister
-	svc.UnregisterSession(123, protocol.DeviceType_ANDROID, conn)
+	svc.UnregisterSession(context.Background(), 123, protocol.DeviceType_ANDROID, conn, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
 	assert.Equal(t, 0, svc.CountOnlineUsers())
 	assert.True(t, conn.Closed)
 }

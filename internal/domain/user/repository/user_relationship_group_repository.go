@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,10 +16,10 @@ type UserRelationshipGroupRepository interface {
 	DeleteByIds(ctx context.Context, keys []po.UserRelationshipGroupKey, session *mongo.Session) (int64, error)
 	DeleteAllRelationshipGroups(ctx context.Context, ownerIDs []int64, session *mongo.Session) (int64, error)
 	DeleteRelationshipGroups(ctx context.Context, ownerID int64, groupIndexes []int32, session *mongo.Session) (int64, error)
-	UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName string, session *mongo.Session) (int64, error)
+	UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName *string, creationDate *time.Time, session *mongo.Session) (int64, error)
 	UpdateRelationshipGroupName(ctx context.Context, ownerID int64, groupIndex int32, newName string, session *mongo.Session) (int64, error)
-	CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error)
-	FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error)
+	CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time) (int64, error)
+	FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time, page *int, size *int) ([]*po.UserRelationshipGroup, error)
 	FindRelationshipGroupsInfos(ctx context.Context, ownerID int64) ([]*po.UserRelationshipGroup, error)
 }
 
@@ -127,10 +128,23 @@ func (r *userRelationshipGroupRepository) DeleteRelationshipGroups(ctx context.C
 // @MappedFrom updateRelationshipGroups(@NotEmpty Set<UserRelationshipGroup.@ValidUserRelationshipGroupKey Key> keys, @Nullable String name, @Nullable @PastOrPresent Date creationDate)
 // @MappedFrom updateRelationshipGroups(Set<UserRelationshipGroup.Key> keys, @Nullable String name, @Nullable Date creationDate)
 // @MappedFrom updateRelationshipGroups(List<UserRelationshipGroup.Key> keys, @RequestBody UpdateRelationshipGroupDTO updateRelationshipGroupDTO)
-func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName string, session *mongo.Session) (int64, error) {
+func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, newName *string, creationDate *time.Time, session *mongo.Session) (int64, error) {
 	if len(keys) == 0 {
 		return 0, nil
 	}
+	
+	setFields := bson.M{}
+	if newName != nil {
+	    setFields["n"] = *newName
+	}
+	if creationDate != nil {
+	    setFields["cd"] = *creationDate
+	}
+	
+	if len(setFields) == 0 {
+	    return 0, nil
+	}
+	
 	filters := make([]bson.M, len(keys))
 	for i, key := range keys {
 		filters[i] = bson.M{
@@ -140,7 +154,7 @@ func (r *userRelationshipGroupRepository) UpdateRelationshipGroups(ctx context.C
 	}
 	filter := bson.M{"$or": filters}
 	update := bson.M{
-		"$set": bson.M{"n": newName},
+		"$set": setFields,
 	}
 	var res *mongo.UpdateResult
 	var err error
@@ -186,26 +200,52 @@ func (r *userRelationshipGroupRepository) UpdateRelationshipGroupName(ctx contex
 
 // @MappedFrom countRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange)
 // @MappedFrom countRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds)
-func (r *userRelationshipGroupRepository) CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error) {
+func (r *userRelationshipGroupRepository) CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time) (int64, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
 		filter["_id.oid"] = bson.M{"$in": ownerIDs}
 	}
 	if len(groupIndexes) > 0 {
 		filter["_id.gidx"] = bson.M{"$in": groupIndexes}
+	}
+	if len(names) > 0 {
+		filter["n"] = bson.M{"$in": names}
+	}
+	if creationDateStart != nil || creationDateEnd != nil {
+		dateFilter := bson.M{}
+		if creationDateStart != nil {
+			dateFilter["$gte"] = *creationDateStart
+		}
+		if creationDateEnd != nil {
+			dateFilter["$lte"] = *creationDateEnd
+		}
+		filter["cd"] = dateFilter
 	}
 	return r.collection.CountDocuments(ctx, filter)
 }
 
 // @MappedFrom findRelationshipGroups(Long userId)
 // @MappedFrom findRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange, @Nullable Integer page, @Nullable Integer size)
-func (r *userRelationshipGroupRepository) FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error) {
+func (r *userRelationshipGroupRepository) FindRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time, page *int, size *int) ([]*po.UserRelationshipGroup, error) {
 	filter := bson.M{}
 	if len(ownerIDs) > 0 {
 		filter["_id.oid"] = bson.M{"$in": ownerIDs}
 	}
 	if len(groupIndexes) > 0 {
 		filter["_id.gidx"] = bson.M{"$in": groupIndexes}
+	}
+	if len(names) > 0 {
+		filter["n"] = bson.M{"$in": names}
+	}
+	if creationDateStart != nil || creationDateEnd != nil {
+		dateFilter := bson.M{}
+		if creationDateStart != nil {
+			dateFilter["$gte"] = *creationDateStart
+		}
+		if creationDateEnd != nil {
+			dateFilter["$lte"] = *creationDateEnd
+		}
+		filter["cd"] = dateFilter
 	}
 
 	opts := options.Find()

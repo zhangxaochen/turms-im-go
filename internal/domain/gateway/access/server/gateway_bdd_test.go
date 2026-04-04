@@ -108,13 +108,13 @@ func TestGateway_BDD_ClientConnectionAndKick(t *testing.T) {
 				return
 			}
 			// Write success back
-			s.Conn.WriteMessage([]byte("SUCCESS"))
+			_ = s.Conn.Send([]byte("SUCCESS"))
 		} else {
 			// Normal message echo
 			if c == 999 {
 				t.Log("noop")
 			}
-			s.Conn.WriteMessage([]byte("ECHO: " + str))
+			_ = s.Conn.Send([]byte("ECHO: " + str))
 		}
 	}
 

@@ -25,6 +25,7 @@ func (c *UserSettingsController) RegisterRoutes(r *router.Router) {
 	// The following will be enabled once protocol supports UserSettings
 	// r.RegisterController(&protocol.TurmsRequest_UpdateUserSettingsRequest{}, c.HandleUpdateUserSettingsRequest)
 	// r.RegisterController(&protocol.TurmsRequest_QueryUserSettingsRequest{}, c.HandleQueryUserSettingsRequest)
+	// r.RegisterController(&protocol.TurmsRequest_DeleteUserSettingsRequest{}, c.HandleDeleteUserSettingsRequest)
 }
 
 // HandleUpdateUserSettingsRequest updates user settings.
@@ -38,5 +39,12 @@ func (c *UserSettingsController) HandleUpdateUserSettingsRequest(ctx context.Con
 // @MappedFrom handleQueryUserSettingsRequest()
 func (c *UserSettingsController) HandleQueryUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	// TODO: Implementation depends on protocol.QueryUserSettingsRequest
+	return buildSuccessNotification(req.RequestId), nil
+}
+
+// HandleDeleteUserSettingsRequest deletes user settings.
+// @MappedFrom handleDeleteUserSettingsRequest()
+func (c *UserSettingsController) HandleDeleteUserSettingsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
+	// TODO: Implementation depends on protocol.DeleteUserSettingsRequest
 	return buildSuccessNotification(req.RequestId), nil
 }

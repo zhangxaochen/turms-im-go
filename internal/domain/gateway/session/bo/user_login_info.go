@@ -6,14 +6,13 @@ import (
 
 // UserLoginInfo represents the login information provided by the user during connection establishment.
 type UserLoginInfo struct {
-	Version             int
-	UserID              int64
-	Password            *string
-	LoggingInDeviceType protocol.DeviceType
-	DeviceDetails       map[string]string
-	UserStatus          *protocol.UserStatus
-	// Location       *Location      // Location domain object when migrated
-	IP string
+	Version             int                 `json:"version"`
+	UserID              int64               `json:"userId"`
+	Password            *string             `json:"password,omitempty"`
+	LoggingInDeviceType protocol.DeviceType `json:"deviceType"`
+	DeviceDetails       map[string]string   `json:"deviceDetails,omitempty"`
+	UserStatus          *protocol.UserStatus `json:"userStatus,omitempty"`
+	IP                  string              `json:"ip"`
 }
 
 // NewUserLoginInfo creates a new UserLoginInfo.

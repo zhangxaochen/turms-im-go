@@ -35,14 +35,15 @@ func (r *adminRepository) Insert(ctx context.Context, admin *po.Admin) error {
 }
 
 func (r *adminRepository) UpdateAdmins(ctx context.Context, ids []int64, password []byte, displayName *string, roleIDs []int64) (int64, error) {
-	filter := bson.M{}
-	if len(ids) > 0 {
-		filter[po.AdminFieldID] = bson.M{"$in": ids}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	filter := bson.M{
+		po.AdminFieldID: bson.M{"$in": ids},
 	}
 
 	update := bson.M{}
 	set := bson.M{}
-	unset := bson.M{}
 
 	if len(password) > 0 {
 		set[po.AdminFieldPassword] = password
@@ -51,18 +52,11 @@ func (r *adminRepository) UpdateAdmins(ctx context.Context, ids []int64, passwor
 		set[po.AdminFieldDisplayName] = *displayName
 	}
 	if roleIDs != nil {
-		if len(roleIDs) == 0 {
-			unset[po.AdminFieldRoleIDs] = ""
-		} else {
-			set[po.AdminFieldRoleIDs] = roleIDs
-		}
+		set[po.AdminFieldRoleIDs] = roleIDs
 	}
 
 	if len(set) > 0 {
 		update["$set"] = set
-	}
-	if len(unset) > 0 {
-		update["$unset"] = unset
 	}
 
 	if len(update) == 0 {

@@ -50,8 +50,16 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) error {
 		// Try to send notification up to 3 times (initial + 2 retries) with short backoff, imitating Java behavior
 		go func() {
 			for i := 0; i < 3; i++ {
-				// We could send real CloseReason status code here using NotificationFactory
-				err := c.Send(context.Background(), []byte{byte(reason.Status)})
+				// We create a temporary NotificationFactory here for the close notification buffer
+				// if we don't have injected one. Alternatively, we can use a simpler payload generation.
+				nf := common.NewNotificationFactory(nil)
+				payload, err := nf.CreateCloseReasonBuffer(reason)
+				if err != nil {
+					log.Printf("Failed to marshal close notification: %v", err)
+					break
+				}
+				
+				err = c.Send(context.Background(), payload)
 				if err == nil {
 					break
 				}
@@ -89,6 +97,11 @@ func (c *TcpConnection) Close() error {
 		log.Printf("Failed to close the TCP connection %s: %v", c.GetAddress(), err)
 	}
 	return err
+}
+
+// @MappedFrom switchToUdp()
+func (c *TcpConnection) SwitchToUdp() {
+	c.CloseWithReason(common.NewCloseReason(constant.SessionCloseStatus_SWITCH))
 }
 
 // @MappedFrom TcpServerFactory

@@ -254,6 +254,10 @@ func (s *GroupQuestionService) AuthAndQueryGroupJoinQuestionsWithVersion(ctx con
 	}, nil
 }
 
+func (s *GroupQuestionService) QueryGroupId(ctx context.Context, questionID int64) (*int64, error) {
+	return s.questionRepo.FindGroupId(ctx, questionID)
+}
+
 func (s *GroupQuestionService) QueryJoinQuestionsWithAnswers(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error) {
 	return s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
 }

@@ -12,21 +12,21 @@ func TestShardedUserSessionsMap_GetOrAdd(t *testing.T) {
 	smap := NewShardedUserSessionsMap(16)
 	userID := int64(1001)
 
-	manager := smap.GetOrAdd(userID)
+	manager := smap.GetOrAdd(userID, protocol.UserStatus_AVAILABLE)
 	assert.NotNil(t, manager)
 	assert.Equal(t, userID, manager.UserID)
 
 	// Add again, should return the exact same pointer
-	manager2 := smap.GetOrAdd(userID)
+	manager2 := smap.GetOrAdd(userID, protocol.UserStatus_AVAILABLE)
 	assert.Same(t, manager, manager2)
 }
 
 func TestShardedUserSessionsMap_CountOnlineUsers(t *testing.T) {
 	smap := NewShardedUserSessionsMap(16)
 
-	smap.GetOrAdd(1)
-	smap.GetOrAdd(2)
-	smap.GetOrAdd(3)
+	smap.GetOrAdd(1, protocol.UserStatus_AVAILABLE)
+	smap.GetOrAdd(2, protocol.UserStatus_AVAILABLE)
+	smap.GetOrAdd(3, protocol.UserStatus_AVAILABLE)
 
 	count := smap.CountOnlineUsers()
 	assert.Equal(t, 3, count)
@@ -36,7 +36,7 @@ func TestShardedUserSessionsMap_RemoveIfEmpty(t *testing.T) {
 	smap := NewShardedUserSessionsMap(16)
 	userID := int64(1001)
 
-	manager := smap.GetOrAdd(userID)
+	manager := smap.GetOrAdd(userID, protocol.UserStatus_AVAILABLE)
 	session := &UserSession{
 		UserID:     userID,
 		DeviceType: protocol.DeviceType_DESKTOP,
@@ -69,7 +69,7 @@ func TestShardedUserSessionsMap_Concurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := int64(0); i < numUsers; i++ {
-				smap.GetOrAdd(i)
+				smap.GetOrAdd(i, protocol.UserStatus_AVAILABLE)
 			}
 		}()
 	}

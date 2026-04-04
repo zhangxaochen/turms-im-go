@@ -280,8 +280,8 @@ func (m *mockUserRelationshipGroupService) MoveRelatedUserToNewGroup(ctx context
 	return args.Error(0)
 }
 
-func (m *mockUserRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error) {
-	args := m.Called(ctx, ownerIDs)
+func (m *mockUserRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time) (int64, error) {
+	args := m.Called(ctx, ownerIDs, groupIndexes, names, creationDateStart, creationDateEnd)
 	return args.Get(0).(int64), args.Error(1)
 }
 
@@ -290,8 +290,8 @@ func (m *mockUserRelationshipGroupService) CountRelationshipGroupMembers(ctx con
 	return args.Get(0).(int64), args.Error(1)
 }
 
-func (m *mockUserRelationshipGroupService) QueryRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error) {
-	args := m.Called(ctx, ownerIDs, groupIndexes, page, size)
+func (m *mockUserRelationshipGroupService) QueryRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time, page *int, size *int) ([]*po.UserRelationshipGroup, error) {
+	args := m.Called(ctx, ownerIDs, groupIndexes, names, creationDateStart, creationDateEnd, page, size)
 	return args.Get(0).([]*po.UserRelationshipGroup), args.Error(1)
 }
 

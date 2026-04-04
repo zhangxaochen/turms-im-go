@@ -11,6 +11,7 @@ import (
 	"im.turms/server/internal/domain/admin/po"
 	"im.turms/server/internal/domain/admin/repository"
 	"im.turms/server/internal/domain/common/infra/idgen"
+	"sync"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 )
 
 const RootRoleID int64 = 0
+const RootAdminID int64 = 0
 
 // AdminRoleService maps to AdminRoleService in Java.
 // @MappedFrom AdminRoleService
@@ -36,6 +38,7 @@ type AdminRoleService interface {
 	QueryHighestRankByRoleIds(ctx context.Context, roleIds []int64) (*int, error)
 	IsAdminRankHigherThanRank(ctx context.Context, adminId int64, rank int) (bool, error)
 	QueryPermissions(ctx context.Context, adminId int64) ([]permission.AdminPermission, error)
+	QueryRoleIdsByAdminId(ctx context.Context, adminId int64) ([]int64, error)
 	SetAdminService(adminService AdminService)
 }
 
@@ -43,12 +46,16 @@ type adminRoleService struct {
 	idGen        *idgen.SnowflakeIdGenerator
 	repo         repository.AdminRoleRepository
 	adminService AdminService
+
+	idToRole map[int64]*po.AdminRole
+	mutex    sync.RWMutex
 }
 
 func NewAdminRoleService(idGen *idgen.SnowflakeIdGenerator, repo repository.AdminRoleRepository) AdminRoleService {
 	return &adminRoleService{
-		idGen: idGen,
-		repo:  repo,
+		idGen:    idGen,
+		repo:     repo,
+		idToRole: make(map[int64]*po.AdminRole),
 	}
 }
 
@@ -58,6 +65,9 @@ func (s *adminRoleService) SetAdminService(adminService AdminService) {
 
 // @MappedFrom authAndAddAdminRole
 func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId int64, roleId *int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error) {
+	if roleId != nil && *roleId == RootRoleID {
+		return nil, errors.New("the root role cannot be created")
+	}
 	if name == "" {
 		return nil, errors.New("name must not be blank")
 	}
@@ -68,6 +78,21 @@ func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId 
 	if !higher {
 		return nil, ErrPermissionDenied
 	}
+	// Verify that the requester has all the requested permissions
+	requesterPermissions, err := s.QueryPermissions(ctx, requesterId)
+	if err != nil {
+		return nil, err
+	}
+	permMap := make(map[permission.AdminPermission]bool)
+	for _, p := range requesterPermissions {
+		permMap[p] = true
+	}
+	for _, p := range permissions {
+		if !permMap[p] {
+			return nil, ErrPermissionDenied
+		}
+	}
+
 	id := int64(0)
 	if roleId != nil {
 		id = *roleId
@@ -79,6 +104,9 @@ func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId 
 
 // @MappedFrom addAdminRole
 func (s *adminRoleService) AddAdminRole(ctx context.Context, roleId int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error) {
+	if roleId == RootRoleID {
+		return nil, errors.New("the root role already exists")
+	}
 	role := &po.AdminRole{
 		ID:           roleId,
 		Name:         name,
@@ -90,6 +118,9 @@ func (s *adminRoleService) AddAdminRole(ctx context.Context, roleId int64, name 
 	if err != nil {
 		return nil, err
 	}
+	s.mutex.Lock()
+	s.idToRole[roleId] = role
+	s.mutex.Unlock()
 	return role, nil
 }
 
@@ -119,7 +150,15 @@ func (s *adminRoleService) AuthAndDeleteAdminRoles(ctx context.Context, requeste
 
 // @MappedFrom deleteAdminRoles
 func (s *adminRoleService) DeleteAdminRoles(ctx context.Context, roleIds []int64) (int64, error) {
-	return s.repo.DeleteAdminRoles(ctx, roleIds)
+	deleted, err := s.repo.DeleteAdminRoles(ctx, roleIds)
+	if err == nil && deleted > 0 {
+		s.mutex.Lock()
+		for _, id := range roleIds {
+			delete(s.idToRole, id)
+		}
+		s.mutex.Unlock()
+	}
+	return deleted, err
 }
 
 // @MappedFrom authAndUpdateAdminRoles
@@ -157,7 +196,19 @@ func (s *adminRoleService) AuthAndUpdateAdminRoles(ctx context.Context, requeste
 
 // @MappedFrom updateAdminRole
 func (s *adminRoleService) UpdateAdminRole(ctx context.Context, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error) {
-	return s.repo.UpdateAdminRoles(ctx, roleIds, newName, permissions, rank)
+	modified, err := s.repo.UpdateAdminRoles(ctx, roleIds, newName, permissions, rank)
+	if err == nil && modified > 0 {
+		s.mutex.Lock()
+		for _, id := range roleIds {
+			delete(s.idToRole, id) // Invalidate cache
+		}
+		s.mutex.Unlock()
+	}
+	return modified, err
+}
+
+func (s *adminRoleService) QueryRoleIdsByAdminId(ctx context.Context, adminId int64) ([]int64, error) {
+	return s.adminService.QueryRoleIdsByAdminIds(ctx, []int64{adminId})
 }
 
 func (s *adminRoleService) QueryAdminRoles(ctx context.Context, ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int, page *int, size *int) ([]*po.AdminRole, error) {
@@ -307,6 +358,11 @@ func (s *adminService) QueryAdmins(ctx context.Context, ids []int64, loginNames 
 }
 
 func (s *adminService) AuthAndDeleteAdmins(ctx context.Context, requesterId int64, adminIds []int64) (int64, error) {
+	for _, id := range adminIds {
+		if id == RootAdminID {
+			return 0, errors.New("the root admin cannot be deleted")
+		}
+	}
 	targetRoleIds, err := s.QueryRoleIdsByAdminIds(ctx, adminIds)
 	if err != nil {
 		return 0, err

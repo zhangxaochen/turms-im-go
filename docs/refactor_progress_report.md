@@ -1428,7 +1428,7 @@
 - **MessageAndRecipientIds.java** ([java/im/turms/service/domain/message/bo/MessageAndRecipientIds.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/message/bo/MessageAndRecipientIds.java))
 > [简述功能]
 
-  - [ ] `MessageAndRecipientIds(Message message, Set<Long> recipientIds)`
+  - [x] `MessageAndRecipientIds(Message message, Set<Long> recipientIds)` -> [MessageAndRecipientIDs](../internal/domain/message/bo/message_and_recipient_ids.go#L7)
 
 - **Message.java** ([java/im/turms/service/domain/message/po/Message.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/message/po/Message.java))
 > [简述功能]

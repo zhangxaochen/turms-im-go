@@ -50,13 +50,15 @@ func (c *WebSocketConnection) CloseWithReason(reason common.CloseReason) error {
 	if reason.Status != constant.SessionCloseStatus_UNKNOWN_ERROR {
 		go func() {
 			for i := 0; i < 3; i++ {
-				// Gorilla websocket allows sending a close framing message
-				// Here we send normal closure to gracefully stop
-				err := c.conn.WriteControl(
-					websocket.CloseMessage,
-					websocket.FormatCloseMessage(websocket.CloseNormalClosure, reason.Reason),
-					time.Now().Add(time.Second),
-				)
+				nf := common.NewNotificationFactory(nil)
+				payload, err := nf.CreateCloseReasonBuffer(reason)
+				if err != nil {
+					log.Printf("Failed to marshal WS close notification: %v", err)
+					break
+				}
+
+				// Send as binary message the TurmsNotification containing the CloseReason
+				err = c.Send(context.Background(), payload)
 				if err == nil {
 					break
 				}
@@ -103,4 +105,9 @@ func (c *WebSocketConnection) Close() error {
 		log.Printf("Failed to close the WS connection %s: %v", c.GetAddress(), err)
 	}
 	return err
+}
+
+// @MappedFrom switchToUdp()
+func (c *WebSocketConnection) SwitchToUdp() {
+	c.CloseWithReason(common.NewCloseReason(constant.SessionCloseStatus_SWITCH))
 }

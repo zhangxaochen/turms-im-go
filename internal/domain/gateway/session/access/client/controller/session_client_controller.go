@@ -23,14 +23,14 @@ func NewSessionClientController(sessionService *session.SessionService) *Session
 
 // HandleDeleteSessionRequest handles a client's request to delete/logout their session.
 // @MappedFrom handleDeleteSessionRequest(UserSessionWrapper sessionWrapper)
-func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper) error {
+func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper) (*protocol.TurmsNotification, error) {
 	userSession := sessionWrapper.UserSession
 	if userSession == nil {
-		return nil
+		return nil, nil
 	}
 
 	c.sessionService.CloseLocalSession(ctx, userSession.UserID, []protocol.DeviceType{userSession.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
-	return nil
+	return nil, nil
 }
 
 // HandleCreateSessionRequest handles a client's request to create/login a session.
