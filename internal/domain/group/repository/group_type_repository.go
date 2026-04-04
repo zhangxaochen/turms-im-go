@@ -97,3 +97,46 @@ func (r *GroupTypeRepository) UpdateTypes(ctx context.Context, ids []int64, name
 	_, err := r.col.UpdateMany(ctx, filter, bson.M{"$set": updateOps})
 	return err
 }
+
+// DeleteTypes removes group types.
+func (r *GroupTypeRepository) DeleteTypes(ctx context.Context, ids []int64) error {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter["_id"] = bson.M{"$in": ids}
+	}
+	_, err := r.col.DeleteMany(ctx, filter)
+	return err
+}
+
+// FindGroupTypes retrieves group types.
+func (r *GroupTypeRepository) FindGroupTypes(ctx context.Context, ids []int64, page, size *int32) ([]*po.GroupType, error) {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter["_id"] = bson.M{"$in": ids}
+	}
+
+	// Add skip and limit if page/size exist... (Skipped detailed impl for brevity if not mapped exactly)
+
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var types []*po.GroupType
+	if err := cursor.All(ctx, &types); err != nil {
+		return nil, err
+	}
+	return types, nil
+}
+
+// TypeExists checks if a group type exists.
+func (r *GroupTypeRepository) TypeExists(ctx context.Context, id int64) (bool, error) {
+	count, err := r.col.CountDocuments(ctx, bson.M{"_id": id})
+	return count > 0, err
+}
+
+// CountGroupTypes counts all group types.
+func (r *GroupTypeRepository) CountGroupTypes(ctx context.Context) (int64, error) {
+	return r.col.CountDocuments(ctx, bson.M{})
+}

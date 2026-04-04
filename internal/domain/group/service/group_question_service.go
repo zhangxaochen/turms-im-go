@@ -234,7 +234,7 @@ func (s *GroupQuestionService) AuthAndQueryGroupJoinQuestionsWithVersion(ctx con
 	if err != nil {
 		return nil, err
 	}
-	
+
 	questionPtrs := make([]*po.GroupJoinQuestion, len(questions))
 	for i := range questions {
 		if !withAnswers {

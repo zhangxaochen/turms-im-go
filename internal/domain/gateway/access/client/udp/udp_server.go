@@ -193,7 +193,7 @@ func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
 	userID := int64(binary.BigEndian.Uint64(buffer[1:9]))
 	deviceType := protocol.DeviceType(buffer[9])
 	sessionID := int(binary.BigEndian.Uint32(buffer[10:14]))
-	
+
 	return NewUdpSignalRequest(reqType, userID, deviceType, sessionID)
 }
 

@@ -239,7 +239,7 @@ func (r *MessageRepository) FindMessages(
 	}
 
 	opts := options.Find()
-	
+
 	if page != nil && size != nil {
 		skip := int64(*page * *size)
 		opts.SetSkip(skip)
@@ -267,7 +267,6 @@ func (r *MessageRepository) FindMessages(
 	}
 	return msgs, nil
 }
-
 
 // UpdateMessage partially updates a message's text, modificationDate, or recallDate.
 func (r *MessageRepository) UpdateMessage(
@@ -313,7 +312,7 @@ func (r *MessageRepository) UpdateMessages(
 	burnAfter *int32,
 ) error {
 	set := bson.M{}
-	
+
 	if isSystemMessage != nil {
 		set["sm"] = *isSystemMessage
 	}
@@ -339,7 +338,7 @@ func (r *MessageRepository) UpdateMessages(
 	if len(set) == 0 {
 		return nil
 	}
-	
+
 	filter := bson.M{}
 	if len(messageIDs) > 0 {
 		filter["_id"] = bson.M{"$in": messageIDs}
@@ -347,7 +346,7 @@ func (r *MessageRepository) UpdateMessages(
 		// If messageIDs is empty, do nothing or return nil
 		return nil
 	}
-	
+
 	update := bson.M{"$set": set}
 	_, err := r.col.UpdateMany(ctx, filter, update)
 	return err
@@ -355,220 +354,220 @@ func (r *MessageRepository) UpdateMessages(
 
 // UpdateMessagesDeletionDate sets the deletion date for given message IDs.
 func (r *MessageRepository) UpdateMessagesDeletionDate(ctx context.Context, messageIDs []int64, deletionDate *time.Time) error {
-    if len(messageIDs) == 0 {
-        return nil
-    }
-    filter := bson.M{"_id": bson.M{"$in": messageIDs}}
-    set := bson.M{}
-    if deletionDate == nil {
-        set["dd"] = nil
-    } else {
-        set["dd"] = *deletionDate
-    }
-    update := bson.M{"$set": set}
-    _, err := r.col.UpdateMany(ctx, filter, update)
-    return err
+	if len(messageIDs) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": messageIDs}}
+	set := bson.M{}
+	if deletionDate == nil {
+		set["dd"] = nil
+	} else {
+		set["dd"] = *deletionDate
+	}
+	update := bson.M{"$set": set}
+	_, err := r.col.UpdateMany(ctx, filter, update)
+	return err
 }
 
 // ExistsBySenderIdAndTargetId checks if any message exists with the given sender and target ID.
 func (r *MessageRepository) ExistsBySenderIDAndTargetID(ctx context.Context, senderID int64, targetID int64) (bool, error) {
-    filter := bson.M{"sid": senderID, "tid": targetID}
-    err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"_id": 1})).Err()
-    if err != nil {
-        if err == mongo.ErrNoDocuments {
-            return false, nil
-        }
-        return false, err
-    }
-    return true, nil
+	filter := bson.M{"sid": senderID, "tid": targetID}
+	err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"_id": 1})).Err()
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 // FindDeliveryDate finds the delivery date of a message.
 func (r *MessageRepository) FindDeliveryDate(ctx context.Context, messageID int64) (*time.Time, error) {
-    filter := bson.M{"_id": messageID}
-    var result struct {
-        DeliveryDate time.Time `bson:"dyd"`
-    }
-    err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"dyd": 1})).Decode(&result)
-    if err != nil {
-        return nil, err
-    }
-    return &result.DeliveryDate, nil
+	filter := bson.M{"_id": messageID}
+	var result struct {
+		DeliveryDate time.Time `bson:"dyd"`
+	}
+	err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"dyd": 1})).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result.DeliveryDate, nil
 }
 
 // FindExpiredMessageIds finds IDs of messages delivered before an expiration date.
 func (r *MessageRepository) FindExpiredMessageIds(ctx context.Context, expirationDate time.Time) ([]int64, error) {
-    filter := bson.M{"dyd": bson.M{"$lt": expirationDate}}
-    cursor, err := r.col.Find(ctx, filter, options.Find().SetProjection(bson.M{"_id": 1}))
-    if err != nil {
-        return nil, err
-    }
-    defer cursor.Close(ctx)
-    var results []struct {
-        ID int64 `bson:"_id"`
-    }
-    if err := cursor.All(ctx, &results); err != nil {
-        return nil, err
-    }
-    var ids []int64
-    for _, res := range results {
-        ids = append(ids, res.ID)
-    }
-    return ids, nil
+	filter := bson.M{"dyd": bson.M{"$lt": expirationDate}}
+	cursor, err := r.col.Find(ctx, filter, options.Find().SetProjection(bson.M{"_id": 1}))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	var results []struct {
+		ID int64 `bson:"_id"`
+	}
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+	var ids []int64
+	for _, res := range results {
+		ids = append(ids, res.ID)
+	}
+	return ids, nil
 }
 
 // FindMessageGroupId finds the group ID indicating the target of a group message.
 func (r *MessageRepository) FindMessageGroupId(ctx context.Context, messageID int64) (*int64, error) {
-    filter := bson.M{"_id": messageID}
-    var result struct {
-        TargetID int64 `bson:"tid"`
-    }
-    err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"tid": 1})).Decode(&result)
-    if err != nil {
-        return nil, err
-    }
-    return &result.TargetID, nil
+	filter := bson.M{"_id": messageID}
+	var result struct {
+		TargetID int64 `bson:"tid"`
+	}
+	err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"tid": 1})).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result.TargetID, nil
 }
 
 // FindMessageSenderIDAndTargetIDAndIsGroupMessage returns senderId, targetId, and isGroupMessage of a message.
 func (r *MessageRepository) FindMessageSenderIDAndTargetIDAndIsGroupMessage(ctx context.Context, messageID int64) (*po.Message, error) {
-    filter := bson.M{"_id": messageID}
-    var result po.Message
-    err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"sid": 1, "tid": 1, "gm": 1})).Decode(&result)
-    if err != nil {
-        return nil, err
-    }
-    return &result, nil
+	filter := bson.M{"_id": messageID}
+	var result po.Message
+	err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"sid": 1, "tid": 1, "gm": 1})).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // FindIsGroupMessageAndTargetID returns isGroupMessage and targetId of a message.
 func (r *MessageRepository) FindIsGroupMessageAndTargetID(ctx context.Context, messageID int64, senderID int64) (*po.Message, error) {
-    filter := bson.M{"_id": messageID, "sid": senderID}
-    var result po.Message
-    err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"gm": 1, "tid": 1})).Decode(&result)
-    if err != nil {
-        return nil, err
-    }
-    return &result, nil
+	filter := bson.M{"_id": messageID, "sid": senderID}
+	var result po.Message
+	err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"gm": 1, "tid": 1})).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // FindIsGroupMessageAndTargetIDAndDeliveryDate returns gm, tid, dyd of a message.
 func (r *MessageRepository) FindIsGroupMessageAndTargetIDAndDeliveryDate(ctx context.Context, messageID int64, senderID int64) (*po.Message, error) {
-    filter := bson.M{"_id": messageID, "sid": senderID}
-    var result po.Message
-    err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"gm": 1, "tid": 1, "dyd": 1})).Decode(&result)
-    if err != nil {
-        return nil, err
-    }
-    return &result, nil
+	filter := bson.M{"_id": messageID, "sid": senderID}
+	var result po.Message
+	err := r.col.FindOne(ctx, filter, options.FindOne().SetProjection(bson.M{"gm": 1, "tid": 1, "dyd": 1})).Decode(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
 }
 
 // GetGroupConversationID computes the conversation ID for a group message.
 func (r *MessageRepository) GetGroupConversationID(groupID int64) []byte {
-    b := make([]byte, 8)
-    for i := 7; i >= 0; i-- {
-        b[i] = byte(groupID)
-        groupID >>= 8
-    }
-    return b
+	b := make([]byte, 8)
+	for i := 7; i >= 0; i-- {
+		b[i] = byte(groupID)
+		groupID >>= 8
+	}
+	return b
 }
 
 // GetPrivateConversationID computes the conversation ID for a private message.
 func (r *MessageRepository) GetPrivateConversationID(id1 int64, id2 int64) []byte {
-    minID := id1
-    maxID := id2
-    if id1 > id2 {
-        minID = id2
-        maxID = id1
-    }
-    b := make([]byte, 16)
-    for i := 7; i >= 0; i-- {
-        b[i] = byte(minID)
-        minID >>= 8
-    }
-    for i := 15; i >= 8; i-- {
-        b[i] = byte(maxID)
-        maxID >>= 8
-    }
-    return b
+	minID := id1
+	maxID := id2
+	if id1 > id2 {
+		minID = id2
+		maxID = id1
+	}
+	b := make([]byte, 16)
+	for i := 7; i >= 0; i-- {
+		b[i] = byte(minID)
+		minID >>= 8
+	}
+	for i := 15; i >= 8; i-- {
+		b[i] = byte(maxID)
+		maxID >>= 8
+	}
+	return b
 }
 
 // DeleteMessages physically deletes messages by their IDs.
 func (r *MessageRepository) DeleteMessages(ctx context.Context, messageIDs []int64) error {
-    if len(messageIDs) == 0 {
-        return nil
-    }
-    filter := bson.M{"_id": bson.M{"$in": messageIDs}}
-    _, err := r.col.DeleteMany(ctx, filter)
-    return err
+	if len(messageIDs) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": messageIDs}}
+	_, err := r.col.DeleteMany(ctx, filter)
+	return err
 }
 
 // CountUsersWhoSentMessage counts distinct users who sent messages.
 func (r *MessageRepository) CountUsersWhoSentMessage(ctx context.Context, deliveryDateAfter *time.Time, deliveryDateBefore *time.Time, areGroupMessages *bool, areSystemMessages *bool) (int64, error) {
-    filter := bson.M{}
-    if areGroupMessages != nil {
-        filter["gm"] = *areGroupMessages
-    }
-    if areSystemMessages != nil {
-        filter["sm"] = *areSystemMessages
-    }
-    dateFilter := bson.M{}
-    if deliveryDateAfter != nil {
-        dateFilter["$gt"] = *deliveryDateAfter
-    }
-    if deliveryDateBefore != nil {
-        dateFilter["$lt"] = *deliveryDateBefore
-    }
-    if len(dateFilter) > 0 {
-        filter["dyd"] = dateFilter
-    }
-    
-    uniqueSenderIDs, err := r.col.Distinct(ctx, "sid", filter)
-    if err != nil {
-        return 0, err
-    }
-    return int64(len(uniqueSenderIDs)), nil
+	filter := bson.M{}
+	if areGroupMessages != nil {
+		filter["gm"] = *areGroupMessages
+	}
+	if areSystemMessages != nil {
+		filter["sm"] = *areSystemMessages
+	}
+	dateFilter := bson.M{}
+	if deliveryDateAfter != nil {
+		dateFilter["$gt"] = *deliveryDateAfter
+	}
+	if deliveryDateBefore != nil {
+		dateFilter["$lt"] = *deliveryDateBefore
+	}
+	if len(dateFilter) > 0 {
+		filter["dyd"] = dateFilter
+	}
+
+	uniqueSenderIDs, err := r.col.Distinct(ctx, "sid", filter)
+	if err != nil {
+		return 0, err
+	}
+	return int64(len(uniqueSenderIDs)), nil
 }
 
 // CountGroupsThatSentMessages counts distinct groups that had messages sent to them.
 func (r *MessageRepository) CountGroupsThatSentMessages(ctx context.Context, deliveryDateAfter *time.Time, deliveryDateBefore *time.Time) (int64, error) {
-    filter := bson.M{"gm": true}
-    dateFilter := bson.M{}
-    if deliveryDateAfter != nil {
-        dateFilter["$gt"] = *deliveryDateAfter
-    }
-    if deliveryDateBefore != nil {
-        dateFilter["$lt"] = *deliveryDateBefore
-    }
-    if len(dateFilter) > 0 {
-        filter["dyd"] = dateFilter
-    }
-    
-    uniqueTargetIDs, err := r.col.Distinct(ctx, "tid", filter)
-    if err != nil {
-        return 0, err
-    }
-    return int64(len(uniqueTargetIDs)), nil
+	filter := bson.M{"gm": true}
+	dateFilter := bson.M{}
+	if deliveryDateAfter != nil {
+		dateFilter["$gt"] = *deliveryDateAfter
+	}
+	if deliveryDateBefore != nil {
+		dateFilter["$lt"] = *deliveryDateBefore
+	}
+	if len(dateFilter) > 0 {
+		filter["dyd"] = dateFilter
+	}
+
+	uniqueTargetIDs, err := r.col.Distinct(ctx, "tid", filter)
+	if err != nil {
+		return 0, err
+	}
+	return int64(len(uniqueTargetIDs)), nil
 }
 
 // CountSentMessages counts the number of sent messages based on criteria.
 func (r *MessageRepository) CountSentMessages(ctx context.Context, deliveryDateAfter *time.Time, deliveryDateBefore *time.Time, areGroupMessages *bool, areSystemMessages *bool) (int64, error) {
-    filter := bson.M{}
-    if areGroupMessages != nil {
-        filter["gm"] = *areGroupMessages
-    }
-    if areSystemMessages != nil {
-        filter["sm"] = *areSystemMessages
-    }
-    dateFilter := bson.M{}
-    if deliveryDateAfter != nil {
-        dateFilter["$gt"] = *deliveryDateAfter
-    }
-    if deliveryDateBefore != nil {
-        dateFilter["$lt"] = *deliveryDateBefore
-    }
-    if len(dateFilter) > 0 {
-        filter["dyd"] = dateFilter
-    }
-    return r.col.CountDocuments(ctx, filter)
+	filter := bson.M{}
+	if areGroupMessages != nil {
+		filter["gm"] = *areGroupMessages
+	}
+	if areSystemMessages != nil {
+		filter["sm"] = *areSystemMessages
+	}
+	dateFilter := bson.M{}
+	if deliveryDateAfter != nil {
+		dateFilter["$gt"] = *deliveryDateAfter
+	}
+	if deliveryDateBefore != nil {
+		dateFilter["$lt"] = *deliveryDateBefore
+	}
+	if len(dateFilter) > 0 {
+		filter["dyd"] = dateFilter
+	}
+	return r.col.CountDocuments(ctx, filter)
 }

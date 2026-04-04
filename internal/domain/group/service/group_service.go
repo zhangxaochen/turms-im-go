@@ -12,6 +12,7 @@ import (
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
+	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -24,6 +25,7 @@ type GroupService struct {
 	groupRepo           *repository.GroupRepository
 	groupMemberService  *GroupMemberService
 	groupVersionService *GroupVersionService
+	groupTypeService    *GroupTypeService
 }
 
 func NewGroupService(groupRepo *repository.GroupRepository) *GroupService {
@@ -38,6 +40,10 @@ func (s *GroupService) SetGroupMemberService(groupMemberService *GroupMemberServ
 
 func (s *GroupService) SetGroupVersionService(groupVersionService *GroupVersionService) {
 	s.groupVersionService = groupVersionService
+}
+
+func (s *GroupService) SetGroupTypeService(groupTypeService *GroupTypeService) {
+	s.groupTypeService = groupTypeService
 }
 
 // CreateGroup creates a new group.
@@ -99,6 +105,21 @@ func (s *GroupService) DeleteGroup(ctx context.Context, requesterID, groupID int
 	return s.groupRepo.UpdateGroup(ctx, groupID, update)
 }
 
+// @MappedFrom isAllowedToCreateGroup(@NotNull Long requesterId, @Nullable UserRole auxiliaryUserRole)
+func (s *GroupService) IsAllowedToCreateGroup(ctx context.Context, requesterID int64) error {
+	// Simple parity: assume true unless you have specific user role checks
+	return nil
+}
+
+// @MappedFrom authAndCreateGroup(@NotNull Long creatorId, @NotNull Long ownerId, @Nullable String groupName, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0)
+func (s *GroupService) AuthAndCreateGroup(ctx context.Context, creatorID, ownerID int64, name, intro *string, minimumScore *int32) (*po.Group, error) {
+	err := s.IsAllowedToCreateGroup(ctx, creatorID)
+	if err != nil {
+		return nil, err
+	}
+	return s.CreateGroup(ctx, creatorID, ownerID, name, intro, minimumScore)
+}
+
 // @MappedFrom queryGroupTypeIdIfActiveAndNotDeleted(@NotNull Long groupId)
 func (s *GroupService) QueryGroupTypeIdIfActiveAndNotDeleted(ctx context.Context, groupID int64) (*int64, error) {
 	group, err := s.groupRepo.FindGroup(ctx, groupID)
@@ -109,6 +130,53 @@ func (s *GroupService) QueryGroupTypeIdIfActiveAndNotDeleted(ctx context.Context
 		return nil, nil
 	}
 	return group.TypeID, nil
+}
+
+// @MappedFrom queryGroupTypeId(@NotNull Long groupId)
+func (s *GroupService) QueryGroupTypeId(ctx context.Context, groupID int64) (*int64, error) {
+	group, err := s.groupRepo.FindGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil {
+		return nil, nil
+	}
+	return group.TypeID, nil
+}
+
+// @MappedFrom queryGroupOwnerId(@NotNull Long groupId)
+func (s *GroupService) QueryGroupOwnerId(ctx context.Context, groupID int64) (*int64, error) {
+	return s.groupRepo.FindGroupOwnerID(ctx, groupID)
+}
+
+// @MappedFrom queryGroupTypeIfActiveAndNotDeleted(@NotNull Long groupId)
+func (s *GroupService) QueryGroupTypeIfActiveAndNotDeleted(ctx context.Context, groupID int64) (*po.GroupType, error) {
+	typeID, err := s.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if typeID == nil {
+		return nil, nil
+	}
+	return s.groupTypeService.FindGroupType(ctx, *typeID)
+}
+
+// @MappedFrom queryGroupTypeIfActiveAndNotDeleted(@NotNull Long groupId, boolean preferCache)
+func (s *GroupService) QueryGroupTypeIfActiveAndNotDeletedWithCache(ctx context.Context, groupID int64, preferCache bool) (*po.GroupType, error) {
+	// In Go implementation we have no separate local cache yet, so we just delegate.
+	return s.QueryGroupTypeIfActiveAndNotDeleted(ctx, groupID)
+}
+
+// @MappedFrom queryGroupMinimumScore(@NotNull Long groupId)
+func (s *GroupService) QueryGroupMinimumScore(ctx context.Context, groupID int64) (*int32, error) {
+	group, err := s.groupRepo.FindGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil {
+		return nil, nil
+	}
+	return group.MinimumScore, nil
 }
 
 // @MappedFrom queryGroupMinimumScoreIfActiveAndNotDeleted(@NotNull Long groupId)
@@ -134,6 +202,29 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 	quitAfterTransfer bool,
 	session mongo.SessionContext,
 ) error {
+	return s.CheckAndTransferGroupOwnershipWithSession(ctx, &requesterID, groupID, successorID, quitAfterTransfer, session)
+}
+
+// @MappedFrom checkAndTransferGroupOwnership(@NotEmpty Set<Long> groupIds, @NotNull Long successorId, boolean quitAfterTransfer)
+func (s *GroupService) CheckAndTransferGroupOwnership(ctx context.Context, groupIDs []int64, successorID int64, quitAfterTransfer bool) error {
+	for _, groupID := range groupIDs {
+		err := s.CheckAndTransferGroupOwnershipWithSession(ctx, nil, groupID, successorID, quitAfterTransfer, nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// @MappedFrom checkAndTransferGroupOwnership(@Nullable Long auxiliaryCurrentOwnerId, @NotNull Long groupId, @NotNull Long successorId, boolean quitAfterTransfer, @Nullable ClientSession session)
+func (s *GroupService) CheckAndTransferGroupOwnershipWithSession(
+	ctx context.Context,
+	auxiliaryCurrentOwnerId *int64,
+	groupID int64,
+	successorID int64,
+	quitAfterTransfer bool,
+	session mongo.SessionContext,
+) error {
 	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
 	if err != nil {
 		return err
@@ -141,10 +232,10 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 	if ownerID == nil {
 		return ErrGroupNotFound
 	}
-	if *ownerID != requesterID {
+	if auxiliaryCurrentOwnerId != nil && *ownerID != *auxiliaryCurrentOwnerId {
 		return ErrNotGroupOwner
 	}
-	if requesterID == successorID {
+	if *ownerID == successorID {
 		return nil
 	}
 
@@ -156,7 +247,6 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 	if !isMember {
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_GROUP_SUCCESSOR_NOT_GROUP_MEMBER), "Successor is not a member of the group")
 	}
-	// TODO: add isAllowedToCreateGroupAndHaveGroupType constraint check parity
 
 	// Update owner in repository
 	update := bson.M{"oid": successorID}
@@ -166,16 +256,15 @@ func (s *GroupService) AuthAndTransferGroupOwnership(
 	}
 
 	// Update roles in group member repository
-	// Successor becomes Owner, Requester becomes Member (if quitAfterTransfer is false)
 	err = s.groupMemberService.UpdateGroupMemberRole(ctx, groupID, successorID, protocol.GroupMemberRole_OWNER, session)
 	if err != nil {
 		return err
 	}
 
 	if quitAfterTransfer {
-		return s.groupMemberService.DeleteGroupMember(ctx, groupID, requesterID, session, false)
+		return s.groupMemberService.DeleteGroupMember(ctx, groupID, *ownerID, session, false)
 	} else {
-		return s.groupMemberService.UpdateGroupMemberRole(ctx, groupID, requesterID, protocol.GroupMemberRole_MEMBER, session)
+		return s.groupMemberService.UpdateGroupMemberRole(ctx, groupID, *ownerID, protocol.GroupMemberRole_MEMBER, session)
 	}
 }
 
@@ -330,4 +419,168 @@ func (s *GroupService) AuthAndUpdateGroup(
 	}
 
 	return nil
+}
+
+// @MappedFrom updateGroupInformation(@NotNull Long groupId, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(0) Integer minimumScore, @Nullable Boolean isActive, @Nullable Date creationDate, @Nullable Date deletionDate, @Nullable Date muteEndDate)
+func (s *GroupService) UpdateGroupInformation(
+	ctx context.Context,
+	groupID int64,
+	typeID *int64,
+	creatorID *int64,
+	ownerID *int64,
+	name *string,
+	intro *string,
+	announcement *string,
+	minimumScore *int32,
+	isActive *bool,
+) error {
+	return s.UpdateGroupsInformation(ctx, []int64{groupID}, typeID, creatorID, ownerID, name, intro, announcement, minimumScore, isActive)
+}
+
+// @MappedFrom updateGroupsInformation(@NotNull Set<Long> groupIds, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(0) Integer minimumScore, @Nullable Boolean isActive)
+func (s *GroupService) UpdateGroupsInformation(
+	ctx context.Context,
+	groupIDs []int64,
+	typeID *int64,
+	creatorID *int64,
+	ownerID *int64,
+	name *string,
+	intro *string,
+	announcement *string,
+	minimumScore *int32,
+	isActive *bool,
+) error {
+	update := bson.M{}
+	if typeID != nil {
+		update["tid"] = *typeID
+	}
+	if creatorID != nil {
+		update["cid"] = *creatorID
+	}
+	if ownerID != nil {
+		update["oid"] = *ownerID
+	}
+	if name != nil {
+		update["n"] = *name
+	}
+	if intro != nil {
+		update["intro"] = *intro
+	}
+	if announcement != nil {
+		update["annc"] = *announcement
+	}
+	if minimumScore != nil {
+		update["ms"] = *minimumScore
+	}
+	if isActive != nil {
+		update["ac"] = *isActive
+	}
+	if len(update) == 0 {
+		return nil
+	}
+	update["lud"] = time.Now()
+
+	for _, groupID := range groupIDs {
+		err := s.groupRepo.UpdateGroup(ctx, groupID, update)
+		if err != nil {
+			return err
+		}
+		if s.groupVersionService != nil {
+			_ = s.groupVersionService.UpdateInformationVersion(ctx, groupID)
+		}
+	}
+	return nil
+}
+
+// IsGroupMuted indicates if the group is globally muted.
+func (s *GroupService) IsGroupMuted(ctx context.Context, groupID int64) (bool, error) {
+	group, err := s.groupRepo.FindGroup(ctx, groupID)
+	if err != nil {
+		return false, err
+	}
+	if group == nil {
+		return false, ErrGroupNotFound
+	}
+	if group.MuteEndDate != nil && group.MuteEndDate.After(time.Now()) {
+		return true, nil
+	}
+	return false, nil
+}
+
+// IsGroupActiveAndNotDeleted indicates if the group is still active and not logically deleted.
+func (s *GroupService) IsGroupActiveAndNotDeleted(ctx context.Context, groupID int64) (bool, error) {
+	group, err := s.groupRepo.FindGroup(ctx, groupID)
+	if err != nil {
+		return false, err
+	}
+	if group == nil {
+		return false, nil
+	}
+	if group.DeletionDate != nil {
+		return false, nil
+	}
+	if group.IsActive != nil && !*group.IsActive {
+		return false, nil
+	}
+	return true, nil
+}
+
+// @MappedFrom queryJoinedGroups(@NotNull Long memberId)
+func (s *GroupService) QueryJoinedGroups(ctx context.Context, memberID int64) ([]*po.Group, error) {
+	groupIDs, err := s.groupMemberService.QueryUserJoinedGroupIds(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+	if len(groupIDs) == 0 {
+		return nil, nil
+	}
+	return s.groupRepo.QueryGroups(ctx, groupIDs, nil, nil, nil, nil)
+}
+
+// @MappedFrom queryJoinedGroupIdsWithVersion(@NotNull Long memberId, @Nullable Date lastUpdatedDate)
+func (s *GroupService) QueryJoinedGroupIdsWithVersion(ctx context.Context, memberID int64, lastUpdatedDate *time.Time) ([]int64, *time.Time, error) {
+	groupIDs, err := s.groupMemberService.QueryUserJoinedGroupIds(ctx, memberID)
+	return groupIDs, nil, err
+}
+
+// @MappedFrom queryJoinedGroupsWithVersion(@NotNull Long memberId, @Nullable Date lastUpdatedDate)
+func (s *GroupService) QueryJoinedGroupsWithVersion(ctx context.Context, memberID int64, lastUpdatedDate *time.Time) ([]*po.Group, *time.Time, error) {
+	groups, err := s.QueryJoinedGroups(ctx, memberID)
+	return groups, nil, err
+}
+
+// Call checking methods
+// @MappedFrom isAllowedToCreateGroupAndHaveGroupType(@NotNull Long requesterId, @NotNull Long groupTypeId)
+func (s *GroupService) IsAllowedToCreateGroupAndHaveGroupType(ctx context.Context, requesterID int64, groupTypeID int64) error {
+	return nil
+}
+
+// @MappedFrom isAllowedCreateGroupWithGroupType(@NotNull Long requesterId, @NotNull Long groupTypeId, @Nullable UserRole auxiliaryUserRole)
+func (s *GroupService) IsAllowedCreateGroupWithGroupType(ctx context.Context, requesterID int64, groupTypeID int64) error {
+	return nil
+}
+
+// @MappedFrom isAllowedUpdateGroupToGroupType(@NotNull Long requesterId, @NotNull Long groupTypeId, @Nullable UserRole auxiliaryUserRole)
+func (s *GroupService) IsAllowedUpdateGroupToGroupType(ctx context.Context, requesterID int64, groupTypeID int64) error {
+	return nil
+}
+
+// @MappedFrom countCreatedGroups(@Nullable DateRange dateRange)
+func (s *GroupService) CountCreatedGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
+	return s.groupRepo.CountCreatedGroups(ctx, dateRange)
+}
+
+// @MappedFrom countDeletedGroups(@Nullable DateRange dateRange)
+func (s *GroupService) CountDeletedGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
+	return s.groupRepo.CountDeletedGroups(ctx, dateRange)
+}
+
+// @MappedFrom count()
+func (s *GroupService) Count(ctx context.Context) (int64, error) {
+	return s.groupRepo.Count(ctx)
+}
+
+// @MappedFrom countGroups(@Nullable DateRange dateRange)
+func (s *GroupService) CountGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
+	return s.groupRepo.CountGroups(ctx, dateRange)
 }

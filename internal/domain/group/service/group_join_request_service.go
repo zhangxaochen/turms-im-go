@@ -8,9 +8,10 @@ import (
 	group_constant "im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
-	"im.turms/server/internal/infra/exception"
-	"im.turms/server/pkg/protocol"
 	user_service "im.turms/server/internal/domain/user/service"
+	"im.turms/server/internal/infra/exception"
+	turmsmongo "im.turms/server/internal/storage/mongo"
+	"im.turms/server/pkg/protocol"
 )
 
 type GroupJoinRequestService struct {
@@ -218,7 +219,7 @@ func (s *GroupJoinRequestService) QueryUserGroupJoinRequestsWithVersion(ctx cont
 	if lastUpdatedDate != nil && version != nil && !version.After(*lastUpdatedDate) {
 		return &po.GroupJoinRequestsWithVersion{LastUpdatedDate: version}, nil
 	}
-	
+
 	reqs, err := s.joinReqRepo.FindRequests(ctx, nil, &requesterID, nil, nil, nil, nil, nil, 0, 1000)
 	if err != nil {
 		return nil, err
@@ -228,6 +229,34 @@ func (s *GroupJoinRequestService) QueryUserGroupJoinRequestsWithVersion(ctx cont
 		GroupJoinRequests: reqs,
 		LastUpdatedDate:   version,
 	}, nil
+}
+
+func (s *GroupJoinRequestService) QueryGroupJoinRequestsByGroupId(ctx context.Context, groupID int64) ([]po.GroupJoinRequest, error) {
+	return s.joinReqRepo.FindRequestsByGroupID(ctx, groupID)
+}
+
+func (s *GroupJoinRequestService) QueryGroupJoinRequestsByRequesterId(ctx context.Context, requesterID int64) ([]po.GroupJoinRequest, error) {
+	return s.joinReqRepo.FindRequestsByRequesterID(ctx, requesterID)
+}
+
+func (s *GroupJoinRequestService) QueryGroupId(ctx context.Context, requestID int64) (*int64, error) {
+	return s.joinReqRepo.FindGroupId(ctx, requestID)
+}
+
+func (s *GroupJoinRequestService) CountJoinRequests(ctx context.Context, ids, groupIds, requesterIds, responderIds []int64, statuses []po.RequestStatus, creationDateRange, responseDateRange, expirationDateRange *turmsmongo.DateRange) (int64, error) {
+	return s.joinReqRepo.CountRequests(ctx, ids, groupIds, requesterIds, responderIds, statuses, creationDateRange, responseDateRange, expirationDateRange)
+}
+
+func (s *GroupJoinRequestService) DeleteJoinRequests(ctx context.Context, ids []int64) (int64, error) {
+	return s.joinReqRepo.DeleteRequests(ctx, ids)
+}
+
+func (s *GroupJoinRequestService) UpdatePendingJoinRequestStatus(ctx context.Context, requestID int64, responderID int64, requestStatus po.RequestStatus, responseReason *string) (bool, error) {
+	return s.joinReqRepo.UpdateStatusIfPending(ctx, requestID, responderID, requestStatus, responseReason, time.Now())
+}
+
+func (s *GroupJoinRequestService) UpdateJoinRequests(ctx context.Context, requestIds []int64, requesterId, responderId *int64, content *string, status *po.RequestStatus, creationDate, responseDate *time.Time) error {
+	return s.joinReqRepo.UpdateRequests(ctx, requestIds, requesterId, responderId, content, status, creationDate, responseDate)
 }
 
 // Backward Compatibility Aliases

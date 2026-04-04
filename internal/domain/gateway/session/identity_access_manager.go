@@ -83,7 +83,7 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
-	// Wait, is it a direct check or through encoding? Passwords in Turms use Spring Security PasswordEncoder. 
+	// Wait, is it a direct check or through encoding? Passwords in Turms use Spring Security PasswordEncoder.
 	// As this is a port, if bcrypt is used, we can verify with bcrypt.CompareHashAndPassword.
 	// For now, if the user exists and active, and password matches (direct string match placeholder):
 	if user.Password != *loginInfo.Password {

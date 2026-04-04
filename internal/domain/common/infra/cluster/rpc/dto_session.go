@@ -1,9 +1,9 @@
 package rpc
 
 import (
-"encoding/json"
+	"encoding/json"
 
-"im.turms/server/pkg/protocol"
+	"im.turms/server/pkg/protocol"
 )
 
 type SetUserOfflineRequest struct {

@@ -8,6 +8,7 @@ import (
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
+	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -214,4 +215,96 @@ func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserInfos(
 // QueryBlockedUsers returns blocked users for backward compatibility with tests
 func (s *GroupBlocklistService) QueryBlockedUsers(ctx context.Context, groupID int64) ([]po.GroupBlockedUser, error) {
 	return s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
+}
+
+func (s *GroupBlocklistService) QueryGroupBlockedUserIds(ctx context.Context, groupID int64) ([]int64, error) {
+	return s.blockedUserRepo.FindBlockedUserIds(ctx, groupID)
+}
+
+func (s *GroupBlocklistService) CountBlockedUsers(
+	ctx context.Context,
+	groupIds []int64,
+	userIds []int64,
+	blockDateRange *turmsmongo.DateRange,
+	requesterIds []int64,
+) (int64, error) {
+	return s.blockedUserRepo.CountBlockedUsers(ctx, groupIds, userIds, blockDateRange, requesterIds)
+}
+
+func (s *GroupBlocklistService) QueryGroupBlockedUserIdsWithVersion(
+	ctx context.Context,
+	groupID int64,
+	lastUpdatedDate *time.Time,
+) ([]int64, *time.Time, error) {
+	var version *time.Time
+	if lastUpdatedDate != nil {
+		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
+			return nil, nil, nil
+		}
+		version = v
+	}
+
+	userIDs, err := s.blockedUserRepo.FindBlockedUserIds(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return userIDs, version, nil
+}
+
+func (s *GroupBlocklistService) QueryGroupBlockedUserInfosWithVersion(
+	ctx context.Context,
+	groupID int64,
+	lastUpdatedDate *time.Time,
+) ([]po.GroupBlockedUser, *time.Time, error) {
+	var version *time.Time
+	if lastUpdatedDate != nil {
+		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
+			return nil, nil, nil
+		}
+		version = v
+	}
+
+	users, err := s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return users, version, nil
+}
+
+func (s *GroupBlocklistService) AddBlockedUser(
+	ctx context.Context,
+	groupID int64,
+	userID int64,
+	requesterID int64,
+	blockDate *time.Time,
+) (*po.GroupBlockedUser, error) {
+	if blockDate == nil {
+		now := time.Now()
+		blockDate = &now
+	}
+	blockedUser := &po.GroupBlockedUser{
+		ID: po.GroupBlockedUserKey{
+			GroupID: groupID,
+			UserID:  userID,
+		},
+		BlockDate:   blockDate,
+		RequesterID: requesterID,
+	}
+	err := s.blockedUserRepo.Insert(ctx, blockedUser)
+	if err != nil {
+		return nil, err
+	}
+	return blockedUser, nil
+}
+
+func (s *GroupBlocklistService) DeleteBlockedUsers(ctx context.Context, keys []po.GroupBlockedUserKey) error {
+	return s.blockedUserRepo.DeleteBlockedUsers(ctx, keys)
 }

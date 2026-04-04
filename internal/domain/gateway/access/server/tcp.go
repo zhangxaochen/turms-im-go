@@ -8,9 +8,9 @@ import (
 	"net"
 	"sync"
 
+	"github.com/pires/go-proxyproto"
 	"im.turms/server/internal/domain/common/infra/cluster/rpc/codec"
 	"im.turms/server/internal/domain/gateway/session"
-	"github.com/pires/go-proxyproto"
 )
 
 // TCPConnection wraps net.Conn to implement session.Connection

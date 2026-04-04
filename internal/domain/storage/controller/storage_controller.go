@@ -172,7 +172,7 @@ func (c *StorageController) HandleQueryMessageAttachmentInfosRequest(ctx context
 		if hasUserIDs {
 			userIDs = queryReq.UserIds
 		}
-		
+
 		if len(queryReq.GroupIds) > 0 {
 			infos, err = c.storageService.QueryMessageAttachmentInfosInGroupConversations(
 				ctx, requesterID, queryReq.GroupIds, userIDs, creationDateStart, creationDateEnd)

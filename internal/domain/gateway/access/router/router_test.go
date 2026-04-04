@@ -31,7 +31,7 @@ func (m *mockConnection) RemoteAddr() net.Addr {
 }
 
 func (m *mockConnection) TryNotifyClientToRecover() {}
-func (m *mockConnection) IsActive() bool { return true }
+func (m *mockConnection) IsActive() bool            { return true }
 
 func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()

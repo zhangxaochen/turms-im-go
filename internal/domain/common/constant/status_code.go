@@ -100,6 +100,18 @@ const (
 	ResponseStatusCode_BLOCKED_USER_SEND_GROUP_JOIN_REQUEST ResponseStatusCode = 3404
 	ResponseStatusCode_USER_ALREADY_GROUP_MEMBER            ResponseStatusCode = 3405
 	ResponseStatusCode_GROUP_JOIN_STRATEGY_NOT_JOIN_REQUEST ResponseStatusCode = 3407
+
+	ResponseStatusCode_SEND_GROUP_INVITATION_TO_GROUP_MEMBER ResponseStatusCode = 3712
+	ResponseStatusCode_SEND_GROUP_INVITATION_TO_BLOCKED_USER ResponseStatusCode = 3713
+
+	ResponseStatusCode_SEND_MESSAGE_TO_INACTIVE_GROUP            ResponseStatusCode = 5004
+	ResponseStatusCode_SEND_MESSAGE_TO_MUTED_GROUP               ResponseStatusCode = 5005
+	ResponseStatusCode_SEND_MESSAGE_TO_NONEXISTENT_GROUP         ResponseStatusCode = 5006
+	ResponseStatusCode_MUTED_GROUP_MEMBER_SEND_MESSAGE           ResponseStatusCode = 5008
+	ResponseStatusCode_NOT_SPEAKABLE_GROUP_GUEST_TO_SEND_MESSAGE ResponseStatusCode = 5009
+	ResponseStatusCode_NOT_GROUP_MEMBER_TO_SEND_MESSAGE          ResponseStatusCode = 5010
+	ResponseStatusCode_MUTED_MEMBER_SEND_MESSAGE                 ResponseStatusCode = 5011
+	ResponseStatusCode_BLOCKED_USER_SEND_GROUP_MESSAGE           ResponseStatusCode = 5012
 )
 
 // IsServerError returns true if the turms business code implies a server-side runtime error.

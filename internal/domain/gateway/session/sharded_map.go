@@ -167,4 +167,3 @@ func (m *ShardedUserSessionsMap) Range(f func(int64, *UserSessionsManager) bool)
 		}
 	}
 }
-

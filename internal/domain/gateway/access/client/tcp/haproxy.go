@@ -1,8 +1,8 @@
 package tcp
 
 import (
-	"net"
 	"github.com/pires/go-proxyproto"
+	"net"
 )
 
 // WrapWithProxyProtocol wraps a net.Listener with proxyproto connection handling setup.
