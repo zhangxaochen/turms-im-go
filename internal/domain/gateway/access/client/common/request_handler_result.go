@@ -1,6 +1,8 @@
 package common
 
 import (
+	"fmt"
+
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/pkg/protocol"
 )
@@ -22,10 +24,22 @@ func NewRequestHandlerResultWithData(code constant.ResponseStatusCode, reason st
 	}
 }
 
-// @MappedFrom RequestHandlerResult(ResponseStatusCode code, String reason)
 func NewRequestHandlerResult(code constant.ResponseStatusCode, reason string) *RequestHandlerResult {
 	return &RequestHandlerResult{
 		Code:   code,
 		Reason: reason,
 	}
+}
+
+// RequestHandlerResultOfCode creates a RequestHandlerResult with only a code
+// @MappedFrom RequestHandlerResult(ResponseStatusCode code)
+func RequestHandlerResultOfCode(code constant.ResponseStatusCode) *RequestHandlerResult {
+	return &RequestHandlerResult{
+		Code: code,
+	}
+}
+
+// @MappedFrom toString()
+func (r *RequestHandlerResult) String() string {
+	return fmt.Sprintf("RequestHandlerResult[code=%v, reason='%s']", r.Code, r.Reason)
 }

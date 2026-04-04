@@ -7,6 +7,7 @@ import (
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/session"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -26,13 +27,14 @@ func NewSessionClientController(sessionService *session.SessionService) *Session
 func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper) (*common.RequestHandlerResult, error) {
 	if sessionWrapper.HasUserSession() {
 		s := sessionWrapper.UserSession
-		_, err := c.sessionService.CloseLocalSession(ctx, s.UserID, []protocol.DeviceType{s.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+		_, err := c.sessionService.CloseLocalSession(ctx, s.UserID, []protocol.DeviceType{s.DeviceType}, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT))
 		if err != nil {
 			// Bug 602: Placeholder for error logging matches Java behavior of catching and logging
 		}
 		sessionWrapper.SetUserSession(nil)
 	}
-	return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
+	// Return nil to trigger Mono.empty() equivalent, which sends no response
+	return nil, nil
 }
 
 // HandleCreateSessionRequest handles a client's request to create/login a session.
@@ -105,6 +107,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	}
 
 	// If the connection dropped during the process, clean up
-	c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
-	return common.NewRequestHandlerResult(constant.ResponseStatusCode_LOGIN_TIMEOUT, ""), nil
+	c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, sessionbo.NewCloseReason(constant.SessionCloseStatus_LOGIN_TIMEOUT))
+	// Return nil, nil to act like Mono.empty() causing no response sent
+	return nil, nil
 }

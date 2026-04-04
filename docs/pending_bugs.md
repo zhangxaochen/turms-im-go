@@ -188,13 +188,13 @@ Now I have all the information needed for a thorough comparison. Let me analyze 
 
 ## exceptionCaught
 
-- [ ] **Missing nil-check for sessions before iterating**: Java explicitly checks `if (sessions != null)` before iterating. In Go, `GetLocalUserSession` returns `[]*session.UserSession` (a slice), and if it returns `nil`, the `for range` loop on a nil slice is a no-op in Go, so this is actually safe. However, the Java code checks for `null` because `getLocalUserSession` can return `null`. In Go, the interface contract should ensure the same behavior, so this is not a real bug.
+- [x] **Missing nil-check for sessions before iterating**: Java explicitly checks `if (sessions != null)` before iterating. In Go, `GetLocalUserSession` returns `[]*session.UserSession` (a slice), and if it returns `nil`, the `for range` loop on a nil slice is a no-op in Go, so this is actually safe. However, the Java code checks for `null` because `getLocalUserSession` can return `null`. In Go, the interface contract should ensure the same behavior, so this is not a real bug.
 
-- [ ] **Unconditional propagation of the exception**: Java calls `ctx.fireExceptionCaught(cause)` at the end of the method regardless of the exception type. Go's `HandleException` returns the error unconditionally (`return cause`), which is the semantic equivalent. This is correct.
+- [x] **Unconditional propagation of the exception**: Java calls `ctx.fireExceptionCaught(cause)` at the end of the method regardless of the exception type. Go's `HandleException` returns the error unconditionally (`return cause`), which is the semantic equivalent. This is correct.
 
-- [ ] **Unsafe type assertion without checking**: On line 55, `tcpAddr := addr.(*net.TCPAddr)` is an unchecked type assertion that will panic if `addr` is not a `*net.TCPAddr`. In Java, an explicit `(InetSocketAddress)` cast is used which would throw a `ClassCastException`. The Go code replicates the fail-fast behavior via panic, but the comment says "Replicate Java's implicit NullPointerException / ClassCastException behavior fail-fast" — so this is intentional and matches Java's behavior.
+- [x] **Unsafe type assertion without checking**: On line 55, `tcpAddr := addr.(*net.TCPAddr)` is an unchecked type assertion that will panic if `addr` is not a `*net.TCPAddr`. In Java, an explicit `(InetSocketAddress)` cast is used which would throw a `ClassCastException`. The Go code replicates the fail-fast behavior via panic, but the comment says "Replicate Java's implicit NullPointerException / ClassCastException behavior fail-fast" — so this is intentional and matches Java's behavior.
 
-- [ ] **`conn.Close()` is called but the error is still propagated**: In Java, when `OutOfDirectMemoryError` occurs, `ctx.close()` is called, and then `ctx.fireExceptionCaught(cause)` is still called. In Go, `conn.Close()` is called, and then `return cause` propagates the error. This matches the Java behavior.
+- [x] **`conn.Close()` is called but the error is still propagated**: In Java, when `OutOfDirectMemoryError` occurs, `ctx.close()` is called, and then `ctx.fireExceptionCaught(cause)` is still called. In Go, `conn.Close()` is called, and then `return cause` propagates the error. This matches the Java behavior.
 
 After careful analysis, the only substantive bug is the IP comparison difference:
 
@@ -297,12 +297,12 @@ The Go version uses an injectable callback pattern instead of a singleton, but t
 
 ## close()
 
-- [ ] **Extra `IsConnected()` guard not present in Java**: Java's `TcpConnection.close()` unconditionally calls `connection.dispose()` without checking `isConnected`. Go's `Close()` returns early if `!c.IsConnected()`. This changes behavior: in Java, `close()` can be called as cleanup even after `close(CloseReason)` has set `isConnected=false`. In Go, `Close()` would be a no-op in that case.
+- [x] **Extra `IsConnected()` guard not present in Java**: Java's `TcpConnection.close()` unconditionally calls `connection.dispose()` without checking `isConnected`. Go's `Close()` returns early if `!c.IsConnected()`. This changes behavior: in Java, `close()` can be called as cleanup even after `close(CloseReason)` has set `isConnected=false`. In Go, `Close()` would be a no-op in that case.
 - [ ] **Does not call `BaseNetConnection.Close()`**: Java's `TcpConnection.close()` also does not call `super.close()`, so this is actually consistent behavior. However, the flag state (`isConnected`, `isSwitchingToUdp`, `isConnectionRecovering`) is never reset by a standalone `close()` call in either language — this is by design in Java but worth noting in Go since the `IsConnected()` guard makes the standalone `Close()` unreachable after `CloseWithReason` has already set `isConnected=false`.
 
 ## send(ByteBuf buffer)
 
-- [ ] **Added hardcoded 5-second write deadline not present in Java**: The Java `send()` method uses reactive Netty's `sendObject` without any per-write timeout. The Go version adds `c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))` which introduces a timeout behavior not present in the original Java code.
+- [x] **Added hardcoded 5-second write deadline not present in Java**: The Java `send()` method uses reactive Netty's `sendObject` without any per-write timeout. The Go version adds `c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))` which introduces a timeout behavior not present in the original Java code.
 
 # ExtendedHAProxyMessageReader.java
 *Checked methods: channelRead(ChannelHandlerContext ctx, Object msg)*
@@ -619,7 +619,7 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 - [x] **`GrantedWithAllPermissions` uses wrong constructor**
 - [x] **Missing `TurmsRequestTypePool.ALL` equivalent**
 
-- [ ] **`Permissions` field typed as `map[any]bool` instead of a typed set**: Java uses `Set<TurmsRequest.KindCase>` for type safety. The Go version uses `map[any]bool`, which loses type safety — any key type can be inserted, not just `TurmsRequest.KindCase` values. This is a design divergence that could lead to runtime bugs where incorrect keys are stored.
+- [x] **`Permissions` field typed as `map[any]bool` instead of a typed set**: Java uses `Set<TurmsRequest.KindCase>` for type safety. The Go version uses `map[any]bool`, which loses type safety — any key type can be inserted, not just `TurmsRequest.KindCase` values. This is a design divergence that could lead to runtime bugs where incorrect keys are stored.
 
 # UserRepository.java
 *Checked methods: findPassword(Long userId), isActiveAndNotDeleted(Long userId)*
@@ -675,11 +675,11 @@ AccessManagementHttpMethod`, `httpAuthenticationExpectedStatusCodes`, `httpAuthe
 
 - [x] **Admin user ID check uses `== 0` instead of comparing against `AdminConst.ADMIN_REQUESTER_ID`.** FIXED. Now uses `adminconstant.AdminRequesterId`.
 
-- [ ] **Plugin-based authentication is entirely stubbed out with a TODO.** The Java version checks `pluginManager.hasRunningExtensions(UserAuthenticator.class)` and, if true, invokes `authenticate` extension points sequentially, falling back to the default handler via `switchIfEmpty`. The Go version has this entirely commented out with a TODO. This means plugins cannot intercept authentication.
+- [x] **Plugin-based authentication is entirely stubbed out with a TODO.** The Java version checks `pluginManager.hasRunningExtensions(UserAuthenticator.class)` and, if true, invokes `authenticate` extension points sequentially, falling back to the default handler via `switchIfEmpty`. The Go version has this entirely commented out with a TODO. This means plugins cannot intercept authentication.
 
-- [ ] **`GRANTED_WITH_ALL_PERMISSIONS` uses `map[any]bool{}` instead of the proper "all permissions" sentinel.** The Java version returns `GRANTED_WITH_ALL_PERMISSIONS_MONO` which is a predefined constant. The Go version constructs `map[any]bool{}` (an empty map), which may not be semantically equivalent to "all permissions granted." The Java constant likely represents a special sentinel value that means "all request types are allowed," while an empty Go map could be interpreted as "no permissions."
+- [x] **`GRANTED_WITH_ALL_PERMISSIONS` uses `map[any]bool{}` instead of the proper "all permissions" sentinel.** The Java version returns `GRANTED_WITH_ALL_PERMISSIONS_MONO` which is a predefined constant. The Go version constructs `map[any]bool{}` (an empty map), which may not be semantically equivalent to "all permissions granted." The Java constant likely represents a special sentinel value that means "all request types are allowed," while an empty Go map could be interpreted as "no permissions."
 
-- [ ] **Go returns `(nil, nil)` instead of `LOGIN_AUTHENTICATION_FAILED` when support is nil.** At the end of `VerifyAndGrant` on the orchestrator, if `m.support` is nil, Go returns `(nil, nil)`, while Java would never reach that path (the support is always initialized in the constructor via a switch). This is a potential nil-pointer crash for any caller that doesn't check for nil `UserPermissionInfo`.
+- [x] **Go returns `(nil, nil)` instead of `LOGIN_AUTHENTICATION_FAILED` when support is nil.** At the end of `VerifyAndGrant` on the orchestrator, if `m.support` is nil, Go returns `(nil, nil)`, while Java would never reach that path (the support is always initialized in the constructor via a switch). This is a potential nil-pointer crash for any caller that doesn't check for nil `UserPermissionInfo`.
 
 # JwtSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
@@ -717,7 +717,7 @@ The Go `GrantedWithAllPermissions` uses `NewUserPermissionInfoCodeOnly` which cr
 ## NoopSessionIdentityAccessManager.VerifyAndGrant
 
 
-- [ ] **`GrantedWithAllPermissions` global constant is incorrect**: In `user_permission_info.go:32`, `GrantedWithAllPermissions` is defined as `NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_OK)` which creates a permissions set via `make(map[any]bool)` — an **empty** map, not one populated with all request types like Java's `TurmsRequestTypePool.ALL`. The NoopSessionIdentityAccessManager should ideally use this constant but the constant itself needs to be fixed to include all permissions.
+- [x] **`GrantedWithAllPermissions` global constant is incorrect**: In `user_permission_info.go:32`, `GrantedWithAllPermissions` is defined as `NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_OK)` which creates a permissions set via `make(map[any]bool)` — an **empty** map, not one populated with all request types like Java's `TurmsRequestTypePool.ALL`. The NoopSessionIdentityAccessManager should ideally use this constant but the constant itself needs to be fixed to include all permissions.
 
 # PasswordSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo), updateGlobalProperties(TurmsProperties properties)*
@@ -753,13 +753,13 @@ Now I have all the information needed for a thorough comparison. Let me analyze 
 
 - [ ] **Admin user ID check uses `0` literal instead of constant, and uses `==` instead of `.equals()`**: In Java, `userId.equals(AdminConst.ADMIN_REQUESTER_ID)` compares `Long` objects. Since `AdminConst.ADMIN_REQUESTER_ID` is `0L`, the Go code's `loginInfo.UserID == 0` is functionally equivalent. However, the Go code passes the *entire* `loginInfo` object as the method parameter rather than the individual parameters the Java method accepts. The Java `verifyAndGrant` takes 8 individual parameters (`int version`, `Long userId`, `String password`, `DeviceType deviceType`, `Map<String, String> deviceDetails`, `UserStatus userStatus`, `Location location`, `String ip`), while the Go version takes `(ctx context.Context, loginInfo *bo.UserLoginInfo)`. This is an acceptable API adaptation for Go, but the caller must ensure all fields are populated on `loginInfo` before calling.
 
-- [ ] **Missing `GRANTED_WITH_ALL_PERMISSIONS` returns full permission set, but Go returns empty permissions map**: In Java, when identity access management is disabled, it returns `GRANTED_WITH_ALL_PERMISSIONS_MONO` which maps to `new UserPermissionInfo(ResponseStatusCode.OK, TurmsRequestTypePool.ALL)` — meaning the permissions set contains ALL request types. In Go, line 48 returns `bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, map[any]bool{})` which creates an **empty** permissions map. The Go predefined `GrantedWithAllPermissions` variable (line 32 of user_permission_info.go) also uses `NewUserPermissionInfoCodeOnly` which creates an empty map. This is a behavioral difference: Java grants all permissions, Go grants none.
+- [x] **Missing `GRANTED_WITH_ALL_PERMISSIONS` returns full permission set, but Go returns empty permissions map**: In Java, when identity access management is disabled, it returns `GRANTED_WITH_ALL_PERMISSIONS_MONO` which maps to `new UserPermissionInfo(ResponseStatusCode.OK, TurmsRequestTypePool.ALL)` — meaning the permissions set contains ALL request types. In Go, line 48 returns `bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, map[any]bool{})` which creates an **empty** permissions map. The Go predefined `GrantedWithAllPermissions` variable (line 32 of user_permission_info.go) also uses `NewUserPermissionInfoCodeOnly` which creates an empty map. This is a behavioral difference: Java grants all permissions, Go grants none.
 
-- [ ] **Missing plugin authenticator fallback logic**: The Java code checks `pluginManager.hasRunningExtensions(UserAuthenticator.class)` and if true, invokes plugin authenticators sequentially. If a plugin authenticator returns `true`, it returns `GRANTED_WITH_ALL_PERMISSIONS`; if `false`, `LOGIN_AUTHENTICATION_FAILED`. The plugin result is used via `authenticate.switchIfEmpty(defaultVerifyAndGrantHandler)`, meaning if no plugin produces a result, it falls back to the default handler. The Go code has this as a TODO comment and skips it entirely. While this is noted as TODO, the Go code currently always falls through to `m.support.VerifyAndGrant()`, which means plugin-based authentication is completely non-functional.
+- [x] **Missing plugin authenticator fallback logic**: The Java code checks `pluginManager.hasRunningExtensions(UserAuthenticator.class)` and if true, invokes plugin authenticators sequentially. If a plugin authenticator returns `true`, it returns `GRANTED_WITH_ALL_PERMISSIONS`; if `false`, `LOGIN_AUTHENTICATION_FAILED`. The plugin result is used via `authenticate.switchIfEmpty(defaultVerifyAndGrantHandler)`, meaning if no plugin produces a result, it falls back to the default handler. The Go code has this as a TODO comment and skips it entirely. While this is noted as TODO, the Go code currently always falls through to `m.support.VerifyAndGrant()`, which means plugin-based authentication is completely non-functional.
 
-- [ ] **`GRANTED_WITH_ALL_PERMISSIONS` permissions set is empty instead of containing all request types**: The Java `GRANTED_WITH_ALL_PERMISSIONS` constant is initialized with `TurmsRequestTypePool.ALL` (the complete set of all TurmsRequest kind cases). The Go `GrantedWithAllPermissions` is initialized with `NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_OK)` which uses `make(map[any]bool)` — an empty set. This means even when authentication succeeds with "all permissions", no actual permissions are granted.
+- [x] **`GRANTED_WITH_ALL_PERMISSIONS` permissions set is empty instead of containing all request types**: The Java `GRANTED_WITH_ALL_PERMISSIONS` constant is initialized with `TurmsRequestTypePool.ALL` (the complete set of all TurmsRequest kind cases). The Go `GrantedWithAllPermissions` is initialized with `NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_OK)` which uses `make(map[any]bool)` — an empty set. This means even when authentication succeeds with "all permissions", no actual permissions are granted.
 
-- [ ] **`LOGIN_AUTHENTICATION_FAILED` return uses `NewUserPermissionInfo` with `nil` permissions instead of `NewUserPermissionInfoCodeOnly`**: In Java, `LOGIN_AUTHENTICATION_FAILED` is `new UserPermissionInfo(ResponseStatusCode.LOGIN_AUTHENTICATION_FAILED)` which uses the secondary constructor that sets `Collections.emptySet()`. In Go, the admin check on line 44 uses `bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil)` which passes `nil` for permissions. While functionally a nil map and empty map behave differently in Go (nil map is read-only, empty map can be written to), neither should be written to after return, so this is a minor issue. However, the predefined `LoginAuthenticationFailed` variable exists and should be used for consistency.
+- [x] **`LOGIN_AUTHENTICATION_FAILED` return uses `NewUserPermissionInfo` with `nil` permissions instead of `NewUserPermissionInfoCodeOnly`**: In Java, `LOGIN_AUTHENTICATION_FAILED` is `new UserPermissionInfo(ResponseStatusCode.LOGIN_AUTHENTICATION_FAILED)` which uses the secondary constructor that sets `Collections.emptySet()`. In Go, the admin check on line 44 uses `bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil)` which passes `nil` for permissions. While functionally a nil map and empty map behave differently in Go (nil map is read-only, empty map can be written to), neither should be written to after return, so this is a minor issue. However, the predefined `LoginAuthenticationFailed` variable exists and should be used for consistency.
 
 # SessionService.java
 *Checked methods: destroy(), handleHeartbeatUpdateRequest(UserSession session), handleLoginRequest(int version, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @Nullable String password, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ipStr), closeLocalSessions(@NotNull List<byte[]> ips, @NotNull CloseReason closeReason), closeLocalSessions(@NotNull byte[] ip, @NotNull CloseReason closeReason), closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull SessionCloseStatus closeStatus), closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull CloseReason closeReason), closeLocalSession(@NotNull Long userId, @NotEmpty Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull CloseReason closeReason), closeLocalSessions(@NotNull Set<Long> userIds, @NotNull CloseReason closeReason), authAndCloseLocalSession(@NotNull Long userId, @NotNull DeviceType deviceType, @NotNull CloseReason closeReason, int sessionId), closeAllLocalSessions(@NotNull CloseReason closeReason), closeLocalSession(Long userId, SessionCloseStatus closeStatus), closeLocalSession(Long userId, CloseReason closeReason), getSessions(Set<Long> userIds), authAndUpdateHeartbeatTimestamp(long userId, @NotNull @ValidDeviceType DeviceType deviceType, int sessionId), tryRegisterOnlineUser(int version, @NotNull Set<TurmsRequest.KindCase> permissions, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location), getUserSessionsManager(@NotNull Long userId), getLocalUserSession(@NotNull Long userId, @NotNull DeviceType deviceType), getLocalUserSession(ByteArrayWrapper ip), countLocalOnlineUsers(), onSessionEstablished(@NotNull UserSessionsManager userSessionsManager, @NotNull @ValidDeviceType DeviceType deviceType), addOnSessionClosedListeners(Consumer<UserSession> onSessionClosed), invokeGoOnlineHandlers(@NotNull UserSessionsManager userSessionsManager, @NotNull UserSession userSession)*
@@ -768,8 +768,8 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 
 ## destroy
 
-- [ ] The Go `Destroy` method does not destroy the heartbeat manager before closing sessions. The Java `destroy()` first calls `heartbeatManager.destroy()` and only then proceeds to `closeAllLocalSessions(closeReason)`. The Go code skips the heartbeat manager shutdown entirely.
-- [ ] The Go `Destroy` does not construct a proper `CloseReason` from `SessionCloseStatus.SERVER_CLOSED`. It passes `nil` as `closeReason` to `CloseAllLocalSessions`, whereas Java creates `CloseReason.get(SessionCloseStatus.SERVER_CLOSED)`.
+- [x] The Go `Destroy` method does not destroy the heartbeat manager before closing sessions. The Java `destroy()` first calls `heartbeatManager.destroy()` and only then proceeds to `closeAllLocalSessions(closeReason)`. The Go code skips the heartbeat manager shutdown entirely.
+- [x] The Go `Destroy` does not construct a proper `CloseReason` from `SessionCloseStatus.SERVER_CLOSED`. It passes `nil` as `closeReason` to `CloseAllLocalSessions`, whereas Java creates `CloseReason.get(SessionCloseStatus.SERVER_CLOSED)`.
 
 ## handleHeartbeatUpdateRequest
 
@@ -777,14 +777,14 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 
 ## handleLoginRequest
 
-- [ ] The Go code does not check the `authenticationCode` (equivalent of `statusCode`) from `permissionInfo` before proceeding. In Java, after `verifyAndGrant`, it checks `statusCode == ResponseStatusCode.OK` and only then calls `tryRegisterOnlineUser`; otherwise it returns `Mono.error(ResponseException.get(statusCode))`. The Go code unconditionally calls `TryRegisterOnlineUser` regardless of the authentication code returned by `VerifyAndGrant`.
+- [x] The Go code does not check the `authenticationCode` (equivalent of `statusCode`) from `permissionInfo` before proceeding. In Java, after `verifyAndGrant`, it checks `statusCode == ResponseStatusCode.OK` and only then calls `tryRegisterOnlineUser`; otherwise it returns `Mono.error(ResponseException.get(statusCode))`. The Go code unconditionally calls `TryRegisterOnlineUser` regardless of the authentication code returned by `VerifyAndGrant`.
 - [ ] The Go code passes `ip` (raw bytes) and `ipStr` separately, but the Java code passes `ip` as `ByteArrayWrapper` into `tryRegisterOnlineUser`. In Go, `ip` is only used in `addOnlineDeviceIfAbsent` to construct `net.IP(ip)`, while the Java also uses `ip` for the `ipToSessions` map key. This is not a logic bug per se but the `ip` parameter is not passed to the `ipToSessions` registration in the same way (it goes through `RegisterSession` which uses `session.IP`).
 - [ ] The Go `handleLoginRequest` passes `location` as `any` type to `TryRegisterOnlineUser`, but in Java `location` is passed as `@Nullable Location location`. The `location` parameter is not included in the `UserLoginInfo` in Go (it's commented out), while in Java `location` is part of `verifyAndGrant`.
 
 ## closeLocalSessions(List<byte[]> ips, CloseReason closeReason)
 
-- [ ] The Go `CloseLocalSessionsByIp` does not return the count of closed sessions. The Java method returns `Mono<Integer>` with the total count of closed sessions. The Go method returns `error` only.
-- [ ] The Go method iterates IPs and for each IP's sessions calls `UnregisterSession` with the session's connection, but the Java version calls `closeLocalSession(userId, DeviceTypeUtil.ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` which closes ALL device types for that user (not just the one from the IP mapping). The Go version only closes the specific device type session found via the IP, which is a behavioral difference.
+- [x] The Go `CloseLocalSessionsByIp` does not return the count of closed sessions. The Java method returns `Mono<Integer>` with the total count of closed sessions. The Go method returns `error` only.
+- [x] The Go method iterates IPs and for each IP's sessions calls `UnregisterSession` with the session's connection, but the Java version calls `closeLocalSession(userId, DeviceTypeUtil.ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` which closes ALL device types for that user (not just the one from the IP mapping). The Go version only closes the specific device type session found via the IP, which is a behavioral difference.
 - [ ] The Go method does not validate that `ips` or `closeReason` are non-nil, whereas Java validates both parameters.
 - [ ] The Go method does not handle the empty `ips` case as an early return (though it naturally does nothing).
 
@@ -804,10 +804,10 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 
 ## closeLocalSession(Long userId, Set<DeviceType> deviceTypes, CloseReason closeReason)
 
-- [ ] The Go `CloseLocalSession` does not call `userStatusService.removeStatusByUserIdAndDeviceTypes(userId, deviceTypes)` before closing sessions locally. The Java code calls this Redis status removal first ("Don't close the session first and then remove the session status in Redis because it will make trouble if a client logins again while the session status in Redis hasn't been removed"). This is a critical missing step.
-- [ ] The Go method does not call `sessionLocationService.removeUserLocation(userId, deviceType)` for each session being closed. The Java code does this when `sessionLocationService.isLocationEnabled()`.
-- [ ] The Go method does not call `notifyOnSessionClosedListeners` inside the session-closing loop in the same way. The Java code calls `notifyOnSessionClosedListeners(session)` only when `wasSessionOpen` is true (i.e., the session was actually open before closing). The Go code invokes listeners unconditionally after closing each session's connection.
-- [ ] The Go method does not return the count of closed sessions. Java returns `Mono<Integer>` with the count.
+- [x] The Go `CloseLocalSession` does not call `userStatusService.removeStatusByUserIdAndDeviceTypes(userId, deviceTypes)` before closing sessions locally. The Java code calls this Redis status removal first ("Don't close the session first and then remove the session status in Redis because it will make trouble if a client logins again while the session status in Redis hasn't been removed"). This is a critical missing step.
+- [x] The Go method does not call `sessionLocationService.removeUserLocation(userId, deviceType)` for each session being closed. The Java code does this when `sessionLocationService.isLocationEnabled()`.
+- [x] The Go method does not call `notifyOnSessionClosedListeners` inside the session-closing loop in the same way. The Java code calls `notifyOnSessionClosedListeners(session)` only when `wasSessionOpen` is true (i.e., the session was actually open before closing). The Go code invokes listeners unconditionally after closing each session's connection.
+- [x] The Go method does not return the count of closed sessions. Java returns `Mono<Integer>` with the count.
 - [ ] The `removeSessionsManagerIfEmpty` logic in Java only removes the manager from the map when `manager.countSessions() == 0`, but always invokes the plugin goOffline handler. In Go, `RemoveIfEmpty` returns non-nil only when the manager is empty and was removed, so `InvokeGoOfflineHandlers` is only called when sessions are empty — matching the Java behavior for removal but the Java always invokes the plugin regardless of emptiness.
 
 ## closeLocalSessions(Set<Long> userIds, CloseReason closeReason)
@@ -846,8 +846,8 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 
 ## authAndUpdateHeartbeatTimestamp
 
-- [ ] The Go method does not check `!session.Conn.IsActive()` to verify the connection is NOT in a recovering state. Java checks `!session.getConnection().isConnectionRecovering()` before updating the heartbeat. The Go code only checks `session.ID == sessionId`.
-- [ ] The Go method uses `s.GetUserSession` which goes through the sharded map, while Java uses `getUserSessionsManager(userId)` and then `manager.getSession(deviceType)`. This is functionally equivalent but the Java also validates the device type.
+- [x] The Go method does not check `!session.Conn.IsActive()` to verify the connection is NOT in a recovering state. Java checks `!session.getConnection().isConnectionRecovering()` before updating the heartbeat. The Go code only checks `session.ID == sessionId`.
+- [x] The Go method uses `s.GetUserSession` which goes through the sharded map, while Java uses `getUserSessionsManager(userId)` and then `manager.getSession(deviceType)`. This is functionally equivalent but the Java also validates the device type.
 
 ## tryRegisterOnlineUser
 
@@ -7581,7 +7581,7 @@ Here is the full bug report:
 
 ## init (NewNotificationFactory)
 
-- [ ] **Missing dynamic property listener**: The Java `init` method registers a `notifyAndAddLocalPropertiesChangeListener` callback that reactively updates `returnReasonForServerError` whenever the property changes at runtime. The Go `NewNotificationFactory` captures a static `*config.GatewayProperties` pointer. If the Go config is not mutated in-place when properties change, the factory will use stale configuration. The Java pattern is a live-listener; the Go pattern is a snapshot-by-reference.
+- [x] **Missing dynamic property listener**: The Java `init` method registers a `notifyAndAddLocalPropertiesChangeListener` callback that reactively updates `returnReasonForServerError` whenever the property changes at runtime. The Go `NewNotificationFactory` captures a static `*config.GatewayProperties` pointer. If the Go config is not mutated in-place when properties change, the factory will use stale configuration. The Java pattern is a live-listener; the Go pattern is a snapshot-by-reference.
 
 ## create(ResponseStatusCode code, @Nullable String reason, long requestId) → CreateWithReason
 
@@ -7641,7 +7641,7 @@ Comparing the Go gateway file to the Java gateway record for the constructor `Re
 ## NewRequestHandlerResult
 
 - [ ] `reason` field is `string` (value type) instead of `*string` (pointer). In Java, `reason` is a nullable `String` that can be `null`. The Go value-type `string` defaults to `""` when unset, so the Go code cannot represent `null` reason, causing a behavioral difference for callers that rely on null-checking the reason.
-- [ ] Missing the single-argument convenience constructor `RequestHandlerResult(ResponseStatusCode code)` (present in Java as `this(code, null)`) that sets `reason` to null.
+- [x] Missing the single-argument convenience constructor `RequestHandlerResult(ResponseStatusCode code)` (present in Java as `this(code, null)`) that sets `reason` to null.
 
 # UserSession.java
 *Checked methods: setConnection(NetConnection connection, ByteArrayWrapper ip), setLastHeartbeatRequestTimestampToNow(), setLastRequestTimestampToNow(), close(@NotNull CloseReason closeReason), isOpen(), isConnected(), supportsSwitchingToUdp(), sendNotification(ByteBuf byteBuf), sendNotification(ByteBuf byteBuf, TracingContext tracingContext), acquireDeleteSessionRequestLoggingLock(), hasPermission(TurmsRequest.KindCase requestType), toString()*
@@ -8069,3 +8069,344 @@ This is a behavioral difference: if a user has sessions on multiple devices and 
 ## DeleteSessions
 
 - [ ] **Behavioral difference in IP-based session closing**: When closing sessions by IP, the Java version calls `closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` which closes ALL device types for users found by IP. The Go version calls `CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)` which only closes the specific device type of the matching session. This means if a user has sessions on multiple devices (e.g., desktop and mobile) and one session matches the target IP, Java closes all their sessions while Go only closes the matching one.
+
+# SessionClientController.java
+*Checked methods: handleDeleteSessionRequest(UserSessionWrapper sessionWrapper), handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)*
+
+Now I have a comprehensive understanding. Let me compile the final bug report.
+
+## HandleDeleteSessionRequest
+
+- [x] **Incorrect return behavior**: The Java version returns `Mono.empty()`, which means **no response notification is sent back to the client**. The Go version returns `NewRequestHandlerResult(ResponseStatusCode_OK, "")`, which causes an OK notification to be sent to the client. This is a behavioral difference — the delete session should be silent (no response sent to the client) in the Java version.
+
+- [ ] **Missing null-session check logic**: The Java code checks `session == null` (no user session exists on the wrapper) and returns `Mono.empty()` immediately. The Go code uses `sessionWrapper.HasUserSession()` which may differ semantically, but more importantly, when the session is absent in Java, no further action is taken. The Go code returns an OK result in both cases (session present or absent), whereas Java sends nothing in both cases.
+
+- [ ] **Extra `SetUserSession(nil)` call**: The Go code calls `sessionWrapper.SetUserSession(nil)` after closing the local session. The Java version does not set the session to null on the wrapper — it just fires-and-forgets the close and returns empty. This is an extra operation not present in the Java version.
+
+## HandleCreateSessionRequest
+
+- [ ] **Missing session establish timeout handling**: The Java code retrieves `sessionEstablishTimeout = sessionWrapper.getEstablishTimeoutTask()` and uses it to decide behavior. If the timeout already fired (cancel returns false), it closes the session with `LOGIN_TIMEOUT` and returns a `ResponseStatusCode.LOGIN_TIMEOUT` result. If the connection is not alive, it also closes with `LOGIN_TIMEOUT` but returns `Mono.empty()` (no response). The Go code has no establish timeout concept at all — it only checks connection liveness and has a single fallback path for connection-dead scenarios. This means the Go code cannot distinguish between "timeout already fired" and "connection dropped," and the response behavior differs: Java returns `LOGIN_TIMEOUT` result when timeout has already fired, but returns nothing when the connection just dropped.
+
+- [x] **Different response for dead-connection path**: In the Java version, when the connection is not alive (`!connection.isConnected()`), it calls `closeLocalSession` and then returns `Mono.empty()` — meaning **no response is sent to the client**. The Go version returns `NewRequestHandlerResult(ResponseStatusCode_LOGIN_TIMEOUT, "")`, which **sends a LOGIN_TIMEOUT notification to the client**. This is a behavioral difference in the dead-connection path.
+
+- [ ] **Incorrect DeviceType fallback**: The Java code converts `DeviceType.UNRECOGNIZED` (protobuf value -1, meaning the wire value didn't match any known enum) to `DeviceType.UNKNOWN`. The Go code checks for `DeviceType_UNKNOWN` and converts it to `DeviceType_DESKTOP`. These are different fallback behaviors: Java maps unrecognized → UNKNOWN (value 5), Go maps UNKNOWN (value 5) → DESKTOP (value 0). The Go code should check for the Go protobuf equivalent of unrecognized values, and if found, map to `DeviceType_UNKNOWN`, not `DeviceType_DESKTOP`.
+
+- [ ] **Location `Timestamp` and `Details` fields are dropped**: The Java code constructs a `Location` object from the `UserLocation` proto preserving all four fields: `longitude`, `latitude`, `timestamp` (as `Date`), and `detailsMap`. The Go code passes the raw `protocol.UserLocation` pointer, but the downstream `TryRegisterOnlineUser` in `service.go` only copies `Longitude` and `Latitude` when constructing the session's `UserLocation`, dropping `Timestamp` and `Details`. This means location timestamp and details metadata are silently lost.
+
+# UserLoginInfo.java
+*Checked methods: UserLoginInfo(...)*
+
+## UserLoginInfo (constructor/record)
+
+- [ ] Missing `Location` field: The Java record has a `Location location` field and constructor parameter, but the Go struct and `NewUserLoginInfo` function omit it entirely (commented out). The `Location` field is not present in the Go struct and is not assigned in the constructor.
+- [ ] `UserID` type mismatch: The Java version uses `Long userId` (nullable boxed type), but the Go version uses `int64` (non-nullable). This means the Go version cannot represent a `nil`/missing user ID, which changes behavior if `userId` was ever expected to be unset.
+
+# UserPermissionInfo.java
+*Checked methods: UserPermissionInfo(...)*
+
+## NewUserPermissionInfo (2-arg constructor)
+
+- [ ] **`GrantedWithAllPermissions` passes `nil` for permissions instead of the equivalent of `TurmsRequestTypePool.ALL`**. In Java, `GRANTED_WITH_ALL_PERMISSIONS` uses `TurmsRequestTypePool.ALL` (a populated set of all request types). The Go version passes `nil`, meaning the permissions set is `nil` rather than a set containing all request kinds. Any downstream code that iterates over or checks the permissions map will see zero permissions instead of all permissions.
+
+# HttpSessionIdentityAccessManager.java
+*Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
+
+Now I have all the context I need. Let me compare the Java and Go implementations of `verifyAndGrant` in `HttpSessionIdentityAccessManager` carefully.
+
+The question specifically asks about `HttpSessionIdentityAccessManager.verifyAndGrant(UserLoginInfo userLoginInfo)`.
+
+Let me re-examine the key differences:
+
+**Java code flow:**
+1. Send HTTP request with `userLoginInfo` serialized as JSON body
+2. Check status code using `StringUtil.matchLatin1(response.status().toString(), httpAuthenticationExpectedStatusCodes)` — this is **glob-style pattern matching** against a Set of patterns (with `*` and `?` wildcards), AND all patterns must match
+3. Check expected headers: exact string comparison for each expected header
+4. Read body, parse JSON to `Map<String, Object>`
+5. Parse policy from map via `PolicyDeserializer.parse(map)`
+6. Check body fields using `CollectionUtil.containsAllLooseComparison(map, httpAuthenticationExpectedBodyFields)` — **loose comparison** (e.g., `123` equals `"123"`, recursive map comparison, etc.)
+7. If body fields don't match, return `LOGIN_AUTHENTICATION_FAILED`
+8. If they match, return `new UserPermissionInfo(OK, policyManager.findAllowedRequestTypes(policy))`
+
+**Go code flow:**
+1. Send HTTP request with `userLoginInfo` serialized as JSON body
+2. Check status code by converting to string and looking up in a `map[string]struct{}` — **exact string match only** (no wildcard support)
+3. Check expected headers: exact string comparison (same)
+4. Read body, parse JSON to `map[string]interface{}`
+5. Check body fields using `fmt.Sprint(val) != fmt.Sprint(v)` — converts both to string and compares. This is a **simplified** version of loose comparison but loses recursive map/array/collection comparison
+6. Parse policy from map
+7. If policy parsing fails, return error
+8. Return `NewUserPermissionInfo(OK, permissions)`
+
+## verifyAndGrant
+
+- [ ] **Status code matching uses exact string match instead of glob-style pattern matching**: Java uses `StringUtil.matchLatin1(response.status().toString(), httpAuthenticationExpectedStatusCodes)` which supports wildcard patterns (`*`, `?`) with AND semantics (must match ALL patterns in the set). The Go code at line 226 uses a simple `map[string]struct{}` lookup (`_, ok := m.expectedStatusCodes[statusStr]`), which only supports exact string matching. This means patterns like `"20*"`, `"2??"`, or `"*"` won't work correctly in Go.
+
+- [ ] **Body field comparison is simplified and loses recursive/nested comparison support**: Java uses `CollectionUtil.containsAllLooseComparison(map, httpAuthenticationExpectedBodyFields)` which performs deep loose comparison including recursive map comparison, array/collection element-wise comparison, and primitive-to-string coercion. The Go code at line 250 uses `fmt.Sprint(val) != fmt.Sprint(v)`, which only converts both values to their string representation. This means nested maps, arrays, and collections in expected body fields won't be compared correctly. For example, if an expected body field is `{"nested": {"key": "value"}}`, the Go code would compare the `fmt.Sprint` output of a `map[string]interface{}` against another, which produces Go map dump strings rather than performing recursive comparison.
+
+- [ ] **Policy parsing error handling differs**: In Java (lines 111-116), if `PolicyDeserializer.parse(map)` throws an exception, it's caught and an `IllegalArgumentException("Illegal request body", e)` is thrown, which would propagate as an error. In Go (lines 257-259), if `policyDeserializer.Parse(respMap)` returns an error, it returns `(nil, err)` directly. The Java version wraps the error with context ("Illegal request body"), while the Go version returns the raw error. This is a minor behavioral difference.
+
+- [ ] **Request headers from config are not applied to outgoing requests**: The Java constructor (lines 73-78) configures the `HttpClient` with headers from `requestProperties.getHeaders()`, which are sent with every request. The Go code at line 212-216 only sets `Content-Type: application/json` on the request and never applies the configured request headers from `reqProps.Headers`. The Go `HttpSessionIdentityAccessManager` struct doesn't even store request headers from the config.
+
+- [ ] **JSON parsing failure returns `LoginAuthenticationFailed` instead of an error**: In Java (lines 111-116), if `JsonUtil.readStringObjectMapValue` or `PolicyDeserializer.parse` throws, the catch block throws `IllegalArgumentException`. In Go (line 244), JSON unmarshal failure returns `LoginAuthenticationFailed`, but the policy parsing failure at line 258 returns `(nil, err)`. The Java code treats both as errors (not authentication failures), while the Go code treats the JSON parse failure as an authentication failure and the policy parse failure as a server error.
+
+# JwtSessionIdentityAccessManager.java
+*Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
+
+Now I have a complete picture. Let me analyze the Java `verifyAndGrant` method against the Go `JwtSessionIdentityAccessManager.VerifyAndGrant` method carefully.
+
+## JwtSessionIdentityAccessManager.VerifyAndGrant
+
+- [ ] **Missing `subject == null` check**: Java returns an `IllegalArgumentException` with message "Invalid JWT token: the sub claim in the payload must exist" when the subject is null. The Go code returns `LoginAuthenticationFailed` (a silent failure) when `sub` is missing, rather than an error. In Java, a missing `sub` produces `Mono.error(new IllegalArgumentException(...))`, not `LOGIN_AUTHENTICATION_FAILED_MONO`.
+- [ ] **Blank JWT token returns wrong error type**: Java throws `Mono.error(new IllegalArgumentException("Invalid JWT token: JWT must not be blank"))` when the JWT is blank/empty. The Go code returns `LoginAuthenticationFailed` (a nil-error, non-error response) instead of an actual `error`. The Java code treats a blank token as an error (exception), not an authentication failure.
+- [ ] **JWT parse failure returns wrong error type**: Java wraps `InvalidJwtException`, `NoSuchAlgorithmException`, and `JwtSignatureVerificationException` in an `IllegalArgumentException` and returns it as `Mono.error(...)`. The Go code returns `LoginAuthenticationFailed` (nil error) for all parse failures. In Java, a malformed or invalid JWT is an error, not a silent authentication failure.
+- [ ] **Missing explicit expiration (`exp`) and not-before (`nbf`) time validation**: Java explicitly checks `expiresAt` and `notBefore` claims: if `expiresAt.getTime() <= now` or `notBefore.getTime() > now`, it returns `LOGIN_AUTHENTICATION_FAILED_MONO`. The Go code relies on `jwt.Parse`'s default validation behavior (which does validate `exp` and `nbf` by default in `golang-jwt/v5`), but the Java logic has a subtle difference: it only checks time claims if `hasExpiresAt || hasNotBefore`, and it uses `<=` for expiration (token expired exactly at `now` is rejected). While `golang-jwt/v5` does validate these by default, the exact semantics may differ slightly (e.g., skew defaults). This is a behavioral difference worth noting, though the practical impact may be minor.
+- [ ] **Missing custom claims expectation validation via `containsAllLooseComparison`**: Java calls `CollectionUtil.containsAllLooseComparison(customClaims, jwtAuthenticationExpectedCustomPayloadClaims)` on the full set of custom claims from the JWT payload. The Go code iterates `m.expectedClaims` but does string-comparison via `fmt.Sprint`, which is not the same as Java's "loose comparison" (which handles numeric type coercion like `Integer(1)` vs `Long(1)` vs `Double(1.0)`). The `containsAllLooseComparison` in Java is specifically designed to handle cross-type numeric equality.
+- [ ] **Missing policy parsing as mandatory step**: In Java, `PolicyDeserializer.parse(customClaims)` is **always** called on the custom claims, and if it throws `IllegalPolicyException`, an `IllegalArgumentException` error is returned. The Go code only looks for `claims["policy"]` as an optional `map[string]interface{}`, and if it doesn't exist or parsing fails, it falls through to `GrantedWithAllPermissions`. In Java, policy parsing is unconditionally executed on the entire custom claims map (not just a "policy" sub-key), and a failure to parse is an error, not a grant of all permissions.
+- [ ] **Policy deserialized from wrong source**: Java parses policy from `customClaims` (the entire custom claims map of the JWT payload). The Go code tries to parse only `claims["policy"].(map[string]interface{})` — a specific sub-key named "policy". This is fundamentally different behavior: the Java `PolicyDeserializer` scans all custom claims for policy-related fields, not just a single "policy" key.
+- [ ] **`expectedClaims` never populated from config**: In `NewJwtSessionIdentityAccessManager`, the Go code creates an empty map `make(map[string]interface{})` for `expectedClaims` with a comment "In a real system, these would be populated from properties too." This means the custom claims validation is effectively a no-op, unlike Java where `jwtAuthenticationExpectedCustomPayloadClaims` is populated from `jwtProperties.getAuthentication().getExpectation().getCustomPayloadClaims()`.
+- [ ] **Constructor doesn't initialize `JwtManager`-equivalent with multiple algorithm support**: Java's constructor configures `JwtManager` with separate RSA, PS, ECDSA, and HMAC algorithm properties (12 algorithm configs). The Go version only takes a single `props.Algorithm` string and `props.SecretKey` byte slice. This means only a single HMAC secret key is supported, whereas Java supports multiple algorithm families with separate key configurations. This is a significant functional gap, though it may be a known limitation of the Go refactor.
+- [ ] **Algorithm validation differs**: Java delegates algorithm handling to `JwtManager`, which supports algorithm negotiation based on the JWT header's `alg` field. The Go code validates the algorithm in the `keyFunc` callback by comparing `token.Method.Alg() != m.algorithm`, which only allows a single fixed algorithm. Java's `JwtManager` selects the appropriate verifier based on the JWT's declared algorithm, supporting multiple algorithms simultaneously.
+
+# LdapSessionIdentityAccessManager.java
+*Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
+
+Now I have a thorough understanding of both implementations. Let me compare the Java `verifyAndGrant` method in `LdapSessionIdentityAccessManager` with the Go version.
+
+## LdapSessionIdentityAccessManager.VerifyAndGrant
+
+- [ ] **Missing two-client architecture**: The Java version uses two separate LDAP clients — `adminLdapClient` (for searching with admin credentials) and `userLdapClient` (for binding/authenticating the user). The Go version uses a single `client` for both search and bind. This means the Go version performs the admin search and user bind on the same connection. In Java, the admin connection stays bound as admin, and the user bind is done on a separate connection (with a `TaskScheduler` for serialization per RFC 4511). The Go version loses this separation — after calling `Bind(false, userDN, *loginInfo.Password)`, the shared connection is now bound as the user, which would break subsequent admin searches.
+
+- [ ] **Missing `Scope.WHOLE_SUBTREE` parameter**: The Java search uses `Scope.WHOLE_SUBTREE` (scope value 2). The Go search passes `2` as the second parameter to `m.client.Search()`, which maps to `scope`. However, the parameter ordering in the Go `Search` method is `(baseDn, scope, derefAliases, sizeLimit, ...)`. Looking at the Go call: `m.client.Search(m.baseDN, 2, 0, 1, 0, false, []string{"dn"}, filter)` — the scope is `2` (WHOLE_SUBTREE), derefAliases is `0` (NEVER), while Java uses `DerefAliases.ALWAYS`. This is a behavioral difference.
+
+- [ ] **Wrong `derefAliases` value**: Java uses `DerefAliases.ALWAYS` (typically value 3 in LDAP), but Go passes `0` which is `DerefAliases.NEVER`. This can cause different search results when aliases are present in the LDAP directory.
+
+- [ ] **Missing `LoggingInUserNotActive` return for 0 entries**: When the search returns 0 entries, the Java version returns `LOGGING_IN_USER_NOT_ACTIVE_MONO` (a distinct status indicating the user is not active/not found). The Go version returns `bo.LoginAuthenticationFailed` for both 0 entries and errors, losing the distinction between "user not found/not active" and "authentication failed".
+
+- [ ] **Missing error for >1 entries**: When more than 1 entry is found, the Java version returns a `ResponseException` with `SERVER_INTERNAL_ERROR` status code and a descriptive message indicating the filter is wrong. The Go version silently returns `bo.LoginAuthenticationFailed` when `len(searchResult.Entries) != 1` (which covers both 0 entries and >1 entries), losing the server-side error diagnostic.
+
+- [ ] **Missing `SearchRequest.NO_ATTRIBUTES`**: The Java version uses `SearchRequest.NO_ATTRIBUTES` for the attributes parameter (requesting no attributes back, only the entry name/DN). The Go version requests `[]string{"dn"}` instead, which is functionally similar but not exactly the same — `NO_ATTRIBUTES` in LDAP is typically `1.1` (an OID that matches no attributes), while requesting `"dn"` may still return the DN attribute explicitly.
+
+- [ ] **Missing `authenticateUser` with `TaskScheduler` serialization**: The Java version delegates user bind to `authenticateUser()` which uses a `clientBindTaskScheduler` to serialize bind operations per RFC 4511 (which states clients MUST NOT send further LDAP PDUs until receiving the BindResponse). The Go version calls `m.client.Bind()` directly without any serialization, which can cause protocol violations under concurrent login requests.
+
+- [ ] **Missing admin bind before search**: In Java, the `adminLdapClient` is already bound with admin credentials during construction, and subsequent searches use that bound admin connection. The Go version does not bind with admin credentials before searching — it relies on an anonymous or previously-established connection state, which may not have permission to search the LDAP directory.
+
+# NoopSessionIdentityAccessManager.java
+*Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
+
+Now I have all the information needed. Let me compare:
+
+**Java `NoopSessionIdentityAccessManager.verifyAndGrant`:**
+- Returns `GRANTED_WITH_ALL_PERMISSIONS_MONO` which wraps `new UserPermissionInfo(ResponseStatusCode.OK, TurmsRequestTypePool.ALL)` — a `UserPermissionInfo` with status `OK` and a populated set of **ALL** request types.
+
+**Go `NoopSessionIdentityAccessManager.VerifyAndGrant`:**
+- Returns `bo.GrantedWithAllPermissions` which is `NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil)` — a `UserPermissionInfo` with status `OK` but `nil` permissions map.
+
+The Java version passes `TurmsRequestTypePool.ALL` (a populated set containing all request types), while the Go version passes `nil` for permissions. This is a functional difference: any downstream code that checks whether a specific request type is in the permissions set will find nothing in the Go version.
+
+## NoopSessionIdentityAccessManager.VerifyAndGrant
+
+- [ ] **`GrantedWithAllPermissions` uses `nil` permissions instead of all request types**: The Java code returns `GRANTED_WITH_ALL_PERMISSIONS` which contains `TurmsRequestTypePool.ALL` — a populated `Set<TurmsRequest.KindCase>` with every request type. The Go code returns `GrantedWithAllPermissions` which is constructed as `NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil)`, passing `nil` for the permissions map. This means downstream permission checks (e.g., `permissions[requestType]`) will return `false` (zero value) for every request type instead of `true`, effectively granting zero permissions instead of all permissions.
+
+# PasswordSessionIdentityAccessManager.java
+*Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo), updateGlobalProperties(TurmsProperties properties)*
+
+Now I have a clear picture. Let me verify the order of operations difference between Java and Go in `VerifyAndGrant`.
+
+## verifyAndGrant(UserLoginInfo)
+
+- [ ] **Operation ordering difference**: The Java code checks `isActiveAndNotDeleted` **first**, and only fetches/authenticates the password if the user is active. The Go code (lines 130-157) fetches the password **first** (line 135), then checks active status (line 143). This changes the failure semantics: in Java, an inactive user always gets `LOGGING_IN_USER_NOT_ACTIVE` regardless of password validity; in Go, an inactive user who supplies a correct password would get `LoggingInUserNotActive` but an inactive user with an invalid password would still get `LoggingInUserNotActive` (since active is checked second). However, in Java, an inactive user gets `LOGGING_IN_USER_NOT_ACTIVE` immediately without ever checking the password. The behavioral difference is that Go makes an unnecessary password fetch for inactive users.
+
+- [ ] **Missing password encoding algorithm support**: The Java code uses `PasswordManager.matchesUserPassword()` which supports 3 encoding algorithms (BCRYPT, SALTED_SHA256, NOOP) selected based on server configuration. The Go code (line 151) uses `bcrypt.CompareHashAndPassword()` directly, which only supports bcrypt. If the server is configured with `SALTED_SHA256` or `NOOP` encoding, the Go code will fail to authenticate valid users. The Go codebase does have a `MatchesPassword` function in `internal/pkg/security/password.go` that handles all three encodings via prefixes, but `PasswordSessionIdentityAccessManager` doesn't use it.
+
+## updateGlobalProperties(TurmsProperties)
+
+- [ ] **Missing enabled/disable guard logic**: The Java `updateGlobalProperties` (lines 61-78) has critical guard logic: if `enableIdentityAccessManagement` is being set to `true` but the `UserService` was not enabled at startup, it logs an error and **returns false** (refusing the update). The Go `PasswordSessionIdentityAccessManager.UpdateGlobalProperties` (lines 159-162) is a no-op — it doesn't implement this guard at all. The Java code specifically checks `!userService.isEnabled()` to prevent re-enabling a disabled password manager. The Go code has no equivalent check, meaning the outer `SessionIdentityAccessManager.UpdateGlobalProperties` (line 89) will blindly set `m.enableIdentityAccessManagement = iamProps.Enabled` without the inner password manager's consent.
+
+- [x] **Return type discrepancy prevents refusal propagation**: The Java `updateGlobalProperties` returns `boolean` — returning `false` signals that the property update was rejected. The Go `SessionIdentityAccessManagementSupport` interface declares `UpdateGlobalProperties(properties interface{})` with no return value, making it impossible for the password manager to refuse an invalid property update. The outer `SessionIdentityAccessManager.UpdateGlobalProperties` unconditionally sets `m.enableIdentityAccessManagement = iamProps.Enabled` (line 89) even when the inner support would have rejected it in Java.
+
+# SessionIdentityAccessManager.java
+*Checked methods: verifyAndGrant(int version, Long userId, @Nullable String password, DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ip)*
+
+Now I have a complete understanding of both implementations. Let me compile the findings.
+
+## VerifyAndGrant
+
+- [x] **Plugin fallback to default handler is missing**: In the Java code, when a `UserAuthenticator` plugin exists, it can return an empty `Mono` (no value emitted) to signal "I don't want to decide, let the default handler run." The Java code handles this with `authenticate.switchIfEmpty(defaultVerifyAndGrantHandler)`. In Go, when a plugin exists and `InvokeExtensionPoints` returns `(false, nil)`, the Go code immediately returns `LoginAuthenticationFailed` on line 114, never falling back to the default `support.VerifyAndGrant` handler. The Go implementation treats the plugin result as binary (true/false) and does not support the tri-state behavior (authenticated/denied/skip) that the Java reactive `switchIfEmpty` pattern provides.
+
+- [x] **`enableIdentityAccessManagement` field initialization source differs**: In Java, `enableIdentityAccessManagement` is set via `updateGlobalProperties()`, which is called by `propertiesManager.notifyAndAddGlobalPropertiesChangeListener(this::updateGlobalProperties)`. The support's `updateGlobalProperties` returns a boolean that becomes the value of `enableIdentityAccessManagement`. In Go, the field is initialized directly from `iamProps.Enabled` in the constructor (line 52), and `UpdateGlobalProperties` (line 89) also reads `iamProps.Enabled`. The Java code delegates the boolean to the support object's return value, while the Go code reads a separate `Enabled` config field — these may or may not be semantically equivalent depending on the config mapping, but the structural pattern differs from the Java source.
+
+# SessionService.java
+*Checked methods: destroy(), handleHeartbeatUpdateRequest(UserSession session), handleLoginRequest(int version, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @Nullable String password, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location, @Nullable String ipStr), closeLocalSessions(@NotNull List<byte[]> ips, @NotNull CloseReason closeReason), closeLocalSessions(@NotNull byte[] ip, @NotNull CloseReason closeReason), closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull SessionCloseStatus closeStatus), closeLocalSession(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull CloseReason closeReason), closeLocalSession(@NotNull Long userId, @NotEmpty Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull CloseReason closeReason), closeLocalSessions(@NotNull Set<Long> userIds, @NotNull CloseReason closeReason), authAndCloseLocalSession(@NotNull Long userId, @NotNull DeviceType deviceType, @NotNull CloseReason closeReason, int sessionId), closeAllLocalSessions(@NotNull CloseReason closeReason), closeLocalSession(Long userId, SessionCloseStatus closeStatus), closeLocalSession(Long userId, CloseReason closeReason), getSessions(Set<Long> userIds), authAndUpdateHeartbeatTimestamp(long userId, @NotNull @ValidDeviceType DeviceType deviceType, int sessionId), tryRegisterOnlineUser(int version, @NotNull Set<TurmsRequest.KindCase> permissions, @NotNull ByteArrayWrapper ip, @NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Map<String, String> deviceDetails, @Nullable UserStatus userStatus, @Nullable Location location), getUserSessionsManager(@NotNull Long userId), getLocalUserSession(@NotNull Long userId, @NotNull DeviceType deviceType), getLocalUserSession(ByteArrayWrapper ip), countLocalOnlineUsers(), onSessionEstablished(@NotNull UserSessionsManager userSessionsManager, @NotNull @ValidDeviceType DeviceType deviceType), addOnSessionClosedListeners(Consumer<UserSession> onSessionClosed), invokeGoOnlineHandlers(@NotNull UserSessionsManager userSessionsManager, @NotNull UserSession userSession)*
+
+现在我对 `removeSessionsManagerIfEmpty` 与 Go 的 `RemoveIfEmpty` 有了清晰的了解。让我检查一下 Java 版本：
+
+Java 的 `removeSessionsManagerIfEmpty`（第 958-970 行）会检查 `manager.countSessions() == 0`，并且 **始终**（不仅仅在 manager 为空时）调用 `pluginManager.invokeExtensionPointsSimultaneously` 来触发 `goOffline` 处理程序。Go 的 `RemoveIfEmpty` 只在 manager 存在且为空时返回 manager，并仅在其返回非 nil 时调用 `InvokeGoOfflineHandlers`。但在 Java 中，即使 manager 不为空，`goOffline` 插件钩子也始终被调用。让我验证一下：
+
+再次查看 Java 第 958-970 行：
+```java
+private void removeSessionsManagerIfEmpty(CloseReason closeReason, UserSessionsManager manager, Long userId) {
+    if (manager.countSessions() == 0) {
+        userIdToSessionsManager.remove(userId);
+    }
+    pluginManager.invokeExtensionPointsSimultaneously(...)
+        .subscribe(null, LOGGER::error);
+}
+```
+
+是的，Java 中 `pluginManager` 调用在 `if` 块的 **外部** —— 它在所有关闭场景中都会运行。Go 代码只在 manager 为空时运行 `InvokeGoOfflineHandlers`。这是一个行为差异。
+
+我再验证一个关于 `closeSessionsWithConflictedDeviceTypes` 的关键细节——Java 使用 `SessionCloseStatus.DISCONNECTED_BY_CLIENT` 而 Go 使用 `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`：
+
+Java 第 830 行：`SessionCloseStatus.DISCONNECTED_BY_CLIENT`
+Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
+
+这是关闭状态值上的一个不同。
+
+现在让我来编译最终的错误列表。
+
+## handleLoginRequest
+
+- [ ] Java 验证 `version != 1`（只接受版本 1），在验证失败时返回 `UNSUPPORTED_CLIENT_VERSION` 和消息 "Supported client versions are: [1], but got: X"。Go 验证 `version < 1`（接受任何正版本），在验证失败时返回 `ILLEGAL_ARGUMENT` 且没有描述性消息。
+- [ ] Java 在认证前不验证 `userStatus == OFFLINE`。`userStatus` 的 OFFLINE 检查仅在 `tryRegisterOnlineUser` 内部进行。Go 在调用认证管理器之前检查 `userStatus == protocol.UserStatus_OFFLINE`，提前返回一个错误。这改变了验证流程。
+
+## closeLocalSessions(List<byte[]> ips, CloseReason closeReason)
+
+- [ ] Go 版本将此方法与基于 `userIds` 的重载合并到一个单独的 `CloseLocalSessions(ctx, userIds, ips, closeReason)` 方法中。Java 有两个完全独立的方法。当两者都提供时，Go 的合并版本存在逻辑错误：基于 IP 的关闭只关闭不在 `userIdSet` 中的用户的会话（第 462 行：`if _, ok := userIdSet[sess.UserID]; !ok`），这意味着某些会话可能不会被关闭。Java 没有这种组合行为。
+
+## closeLocalSession(Long userId, SessionCloseStatus closeStatus) / closeLocalSession(Long userId, CloseReason closeReason)
+
+- [ ] Go 的 `SetUserOffline(ctx, userID, closeReason)` 接收 `constant.SessionCloseStatus` 但将其作为 `bo.CloseReason` 参数传递给 `CloseLocalSession`。`constant.SessionCloseStatus` 和 `bo.CloseReason` 是不同的类型——这将无法编译或需要隐式转换，这在 Go 中是不存在的。Java 有单独的重载，它们正确地将 `SessionCloseStatus` 转换为 `CloseReason`。
+
+## closeLocalSessions(Set<Long> userIds, CloseReason closeReason)
+
+- [ ] Java 为每个用户调用 `closeLocalSession(userId, closeReason)`，它将设备类型委托给 `ALL_AVAILABLE_DEVICE_TYPES_SET`。Go 的 `SetUsersOffline` 为每个用户调用 `SetUserOffline`，这存在上述相同的类型问题。
+
+## authAndCloseLocalSession
+
+- [ ] Java 的实现首先检查会话是否存在以及 `session.getId() == sessionId` 是否匹配，然后再进行认证和关闭。Go 首先进行认证，然后调用 `CloseLocalSession` 而没有检查 `sessionId`。Java 首先查找 manager 和会话，验证会话 ID 匹配，然后进行关闭。Go 在未验证现有会话是否具有匹配 ID 的情况下进行认证，然后关闭。
+- [ ] Java 使用 `CloseReason` 参数（一个包含关闭状态的对象）调用 `closeLocalSessions`。Go 使用 `bo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY)` 调用 `CloseLocalSession`，这与 Java 使用提供的 `closeReason` 不同。Java 使用从方法签名传入的 `closeReason` 参数，而 Go 使用硬编码的关闭原因 `DISCONNECTED_BY_CLIENT_REDUNDANTLY`。
+
+## closeAllLocalSessions
+
+- [ ] Java 首先获取所有条目，然后获取每个 manager 的 `loggedInDeviceTypes`，并仅关闭这些特定的设备类型。Go 使用 `CloseLocalSession(ctx, userId, nil, closeReason)`，其中 `nil` 意味着“所有设备类型”——这是等效的，因为 Java 也传递了 `ALL_AVAILABLE_DEVICE_TYPES_SET`。然而，Go 代码使用 `RemoveIfEmpty`，它只在 manager 完全为空时调用 `InvokeGoOfflineHandlers`，而 Java 总是调用 `goOffline` 插件钩子。
+
+## closeLocalSessions(Long userId, Set<DeviceType> deviceTypes, CloseReason closeReason, UserSessionsManager manager) (private)
+
+- [ ] Java 的 `removeSessionsManagerIfEmpty` 总是调用插件 `goOffline` 处理程序（无论 manager 是否为空）。Go 的 `RemoveIfEmpty` 只在 manager 完全为空时调用 `InvokeGoOfflineHandlers`，因此当 manager 仍有其他会话时，`goOffline` 插件钩子不会被触发。
+- [ ] Java 在移除位置之前检查 `sessionLocationService.isLocationEnabled()`。Go 无条件地调用 `s.sessionLocationService.RemoveUserLocations`，而没有检查位置是否启用。
+- [ ] Java 使用 `computeIfPresent` 模式从 `ipToSessions` 中移除会话，当队列为空时清理该条目。Go 的 `unregisterSessionIp` 使用 `sync.Map.Delete`，它从不清理空的 `sync.Map` 条目，导致 `ipToSessions` 中内存泄漏。
+
+## closeSessionsWithConflictedDeviceTypes / resolveConflicts
+
+- [ ] Java 使用 `SessionCloseStatus.DISCONNECTED_BY_CLIENT` 来关闭冲突会话。Go 使用 `constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`，这是一个不同的关闭状态。
+- [ ] Java 构建 `nodeIdToDeviceTypes`，将 `deviceType`（正在登录的设备类型）映射到每个节点，而不是 `conflictedDeviceType`。查看 Java 第 817 行：`.add(deviceType)`。Go 将 `conflictedDT` 添加到每个节点映射中。这意味着 Java 告诉远程节点断开正在登录的设备类型，而 Go 告诉远程节点断开冲突的设备类型——不同的行为。
+
+## tryRegisterOnlineUser
+
+- [ ] Java 有一个复杂的流程：（1）获取用户会话状态，（2）关闭已由其他节点注册的本地会话，（3）如果用户离线，则添加新设备，（4）如果设备类型的会话已存在且在本地关闭，则进行恢复/更新，（5）如果冲突策略是断开登录设备，则拒绝，（6）关闭冲突会话并添加新设备。Go 简化为：（1）获取状态，（2）解决冲突，（3）添加在线设备，（4）创建并注册会话。Java 的步骤 1（关闭已由其他节点拥有的本地会话）在 Go 中完全缺失。Java 的步骤 4（已关闭本地会话的恢复路径）在 Go 中也缺失。
+- [ ] Java 使用 `closeIdleSessionAfterSeconds` 和 `expectedNodeId`/`expectedDeviceTimestamp` 调用 `addOnlineDeviceIfAbsent` 以处理并发冲突。Go 使用 `AddOnlineDevice`，没有这些参数，这意味着 Go 没有 Java 通过 `expectedNodeId` 和 `expectedDeviceTimestamp` 参数实现的乐观锁定机制。
+- [ ] Java 使用来自配置属性的过滤后的设备详细信息调用 `addOnlineDeviceIfAbsent`。Go 将 `deviceDetails` 直接传递给 `AddOnlineDevice`，而没有根据 `deviceDetailsItemPropertiesList` 进行过滤。
+- [ ] Java 将位置作为 `location` 传递给 `addOnlineDeviceIfAbsent`，它会在其中由会话存储。Go 在创建会话后单独调用 `s.sessionLocationService.UpsertUserLocation`，但 Java 在 `addOnlineDeviceIfAbsent` 内部进行此操作。
+- [ ] Go 调用 `s.InvokeGoOnlineHandlers(ctx, nil, session)` 并将 `nil` 作为管理器传递。Java 使用正确的非空 `userSessionsManager` 调用 `invokeGoOnlineHandlers`。
+
+## onSessionEstablished
+
+- [ ] Java 递增 `loggedInUsersCounter` 指标，并在配置后通过 `userSessionsManager.pushSessionNotification(deviceType, serverId)` 向客户端发送会话通知。Go 有一个带有 TODO 的空存根，没有实现这两个行为。
+
+## invokeGoOnlineHandlers
+
+- [ ] Java 通过 `pluginManager.invokeExtensionPointsSimultaneously` 调用插件扩展点，返回一个 `Mono<Void>`。Go 有一个带有 TODO 注释的空存根，不调用任何插件。
+
+## closeLocalSession(userId, deviceType, closeStatus) / closeLocalSession(userId, deviceType, closeReason)
+
+- [ ] Java 有两个单独的单设备类型重载，它们将单个设备类型包装成一个集合。Go 有 `CloseLocalSessionByDeviceType`，它包装了基于切片的版本，但没有与 Java 中相同的参数变体（一个接收 `SessionCloseStatus`，另一个接收 `CloseReason`）。
+
+## addOnSessionClosedListeners
+
+- [ ] Java 使用 `LinkedList` 来存储监听器，并且 `add` 方法不是同步的。Go 正确使用了互斥锁，这实际上更安全，但与 Java 的非同步 `add` 有所不同。这是一个小的风格差异，不是错误。
+
+## notifyOnSessionClosedListeners / notifySessionClosedListeners
+
+- [ ] Java 将每个监听器调用包装在 try-catch 中，以记录异常而不传播它们。Go 没有从监听器调用中恢复 panic，因此一个有问题的监听器可能会崩溃整个关闭过程。
+
+## countLocalOnlineUsers
+
+- [ ] Java 返回 `userIdToSessionsManager.size()`。Go 调用 `s.shardedMap.CountOnlineUsers()`，该方法遍历所有分片并求和。这是等效的行为。**此处无错误。**
+
+## authAndUpdateHeartbeatTimestamp
+
+- [ ] Java 检查 `session.getConnection().isConnectionRecovering()` 而没有首先检查 `session.getConnection() != null`（隐式地，因为 `getConnection()` 可能在断开连接的会话上返回 null）。Go 额外检查 `session.Conn != nil && session.Conn.IsActive()`，这比 Java 更保守，但并非错误。
+- [ ] Java 使用 `Validator.notNull(deviceType, "deviceType")` 和 `DeviceTypeUtil.validDeviceType(deviceType)`。Go 没有验证 `deviceType` 参数。
+
+## destroy
+
+- [ ] Java 使用 `Mono.defer()` 进行延迟评估，这样会话只在 `heartbeatManager.destroy()` 完成后才关闭。Go 顺序调用 `heartbeatManager.Stop()` 然后 `CloseAllLocalSessions`，这在同步上下文中是等效的。**此处无重大错误。**
+
+现在我将输出最终编译的 bug 列表：
+
+## handleLoginRequest
+
+- [ ] Java validates `version != 1` (only version 1 is accepted), returning `UNSUPPORTED_CLIENT_VERSION` with a descriptive message. Go validates `version < 1` (accepts any positive version), returning `ILLEGAL_ARGUMENT` without a message. This is a different validation condition and error code.
+- [ ] Go checks `userStatus == protocol.UserStatus_OFFLINE` and returns an error *before* calling the authentication manager. Java does not perform this check in `handleLoginRequest` — it is only done inside `tryRegisterOnlineUser` via `Validator.notEquals(userStatus, UserStatus.OFFLINE, ...)`. This changes the validation flow order.
+- [ ] Java passes all parameters (including `userStatus`, `location`, `ipStr`) directly to `verifyAndGrant`. Go wraps parameters into a `UserLoginInfo` struct and passes `&userStatus` (a pointer to a non-nil UserStatus). In Java, `userStatus` can be `null`, and the authentication manager handles `null`. In Go, `userStatus` is never nil (it's a protocol buffer enum with a zero value), but `handleLoginRequest` takes `userStatus protocol.UserStatus` as a non-pointer, so there's no way to distinguish "not provided" from `UserStatus(0)`. This could cause behavioral differences if the authentication manager treats null/zero differently.
+
+## closeLocalSessions(List<byte[]> ips, CloseReason closeReason)
+
+- [ ] Go merges this method with the userIds-based overload into a single `CloseLocalSessions(ctx, userIds, ips, closeReason)`. The Go version has a logic bug when both `userIds` and `ips` are provided: the IP-based lookup only closes sessions for users NOT already in `userIdSet` (line 462: `if _, ok := userIdSet[sess.UserID]; !ok`), which means sessions for users in `userIdSet` that were found via IP but have sessions on different device types may be skipped. Java has completely separate methods and always closes all sessions for each IP.
+
+## closeLocalSession(Long userId, SessionCloseStatus closeStatus)
+
+- [ ] Go's `SetUserOffline` receives `constant.SessionCloseStatus` but passes it directly to `CloseLocalSession` which expects `bo.CloseReason`. These are different types. Java correctly wraps the status via `CloseReason.get(closeStatus)` before delegating.
+
+## closeLocalSession(Long userId, CloseReason closeReason)
+
+- [ ] Same type mismatch issue as above. Java wraps via `CloseReason.get()` or passes the `CloseReason` directly. Go's `SetUserOffline` passes `constant.SessionCloseStatus` where `bo.CloseReason` is expected.
+
+## closeLocalSessions(Set<Long> userIds, CloseReason closeReason)
+
+- [ ] Go's `SetUsersOffline` delegates to `SetUserOffline` for each user, which has the same type mismatch (`constant.SessionCloseStatus` passed where `bo.CloseReason` is expected).
+
+## authAndCloseLocalSession
+
+- [ ] Java first looks up the manager and session, checks if `session.getId() == sessionId`, and only proceeds to close if the session ID matches. Go performs authentication first via `VerifyAndGrant`, then closes without ever checking `sessionId` against the existing session. If the session doesn't exist or has a different ID, Java returns 0 without authenticating; Go authenticates and attempts to close regardless.
+- [ ] Go hardcodes `SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY` as the close reason. Java uses the `closeReason` parameter passed to the method, which is an arbitrary `CloseReason`.
+
+## closeAllLocalSessions
+
+- [ ] Java iterates over the `userIdToSessionsManager` entries snapshot and calls `closeLocalSession` with `loggedInDeviceTypes` (the specific device types that are logged in). Go calls `CloseLocalSession(ctx, userId, nil, closeReason)` which closes all device types. Functionally equivalent when all sessions are accounted for, but Java is more precise by targeting only logged-in device types.
+
+## closeLocalSessions (private, userId + deviceTypes + closeReason + manager)
+
+- [ ] Java's `removeSessionsManagerIfEmpty` **always** invokes the `goOffline` plugin handler regardless of whether the manager is empty. Go only calls `InvokeGoOfflineHandlers` when `RemoveIfEmpty` returns non-nil (i.e., when the manager is empty). This means the goOffline plugin hook is never fired when a user still has remaining sessions.
+- [ ] Java checks `sessionLocationService.isLocationEnabled()` before removing user locations. Go unconditionally calls `s.sessionLocationService.RemoveUserLocations` without checking if the location service is enabled.
+- [ ] Java uses `computeIfPresent` on `ipToSessions` to atomically remove the session and clean up the entry when the queue becomes empty. Go's `unregisterSessionIp` uses `sync.Map.Delete` on the inner map but never removes empty inner maps from `ipToSessions`, causing a memory leak over time as IP entries are never cleaned up.
+
+## resolveConflicts / closeSessionsWithConflictedDeviceTypes
+
+- [ ] Java uses `SessionCloseStatus.DISCONNECTED_BY_CLIENT` to close conflicted sessions. Go uses `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`, which is a different close status code.
+- [ ] Java builds `nodeIdToDeviceTypes` by adding `deviceType` (the logging-in device type) to each node's set (line 817: `.add(deviceType)`). Go adds `conflictedDT` (the conflicted device type) to the node mapping. This means Java tells remote nodes to disconnect the logging-in device type, while Go tells them to disconnect the conflicted device types — fundamentally different conflict resolution behavior.
+
+## tryRegisterOnlineUser
+
+- [ ] Java has a step (lines 656-676) that closes local sessions for device types that are already registered on Redis by other nodes. This handles edge cases like Redis crashes/restarts or lost connections to Redis. Go's `resolveConflicts` does not include this step — it only handles conflicted device types, not stale local sessions registered by other nodes.
+- [ ] Java has a session recovery path (lines 695-734) where if the session exists locally and its connection is closed, it returns the existing session for connection replacement (UDP-to-TCP/WebSocket recovery). This entire recovery branch is missing from Go.
+- [ ] Java calls `addOnlineDeviceIfAbsent` with `closeIdleSessionAfterSeconds`, `expectedNodeId`, and `expectedDeviceTimestamp` parameters for optimistic concurrency control. Go calls `AddOnlineDevice` without these parameters, losing the CAS-style protection against race conditions.
+- [ ] Java filters `deviceDetails` through `deviceDetailsItemPropertiesList` configuration before storing. Go passes `deviceDetails` directly without filtering.
+- [ ] Go calls `s.InvokeGoOnlineHandlers(ctx, nil, session)` passing `nil` as the `userSessionsManager`. Java calls `invokeGoOnlineHandlers(userSessionsManager, userSession)` with the actual non-null manager retrieved from `userIdToSessionsManager.computeIfAbsent`.
+
+## onSessionEstablished
+
+- [ ] Java increments the `loggedInUsersCounter` metric. Go has an empty stub with a TODO comment.
+- [ ] Java conditionally pushes a session notification to the client via `userSessionsManager.pushSessionNotification(deviceType, serverId)` when `notifyClientsOfSessionInfoAfterConnected` is enabled. Go has an empty stub with no notification logic.
+
+## invokeGoOnlineHandlers
+
+- [ ] Java invokes the `UserOnlineStatusChangeHandler.goOnline` plugin extension point via `pluginManager.invokeExtensionPointsSimultaneously`. Go has an empty stub with a TODO and does not invoke any plugin.
+
+## authAndUpdateHeartbeatTimestamp
+
+- [ ] Java validates `deviceType` with `Validator.notNull` and `DeviceTypeUtil.validDeviceType`. Go does not validate the `deviceType` parameter at all.
+
+## notifySessionClosedListeners
+
+- [ ] Java wraps each listener invocation in a try-catch block to prevent one failing listener from affecting others. Go calls listeners without any panic recovery, so a panic in one listener will propagate and abort the remaining listeners.

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -19,6 +20,7 @@ import (
 	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/domain/gateway/session/bo"
 	userservice "im.turms/server/internal/domain/user/service"
+	"im.turms/server/internal/infra/exception"
 	"im.turms/server/internal/infra/ldap"
 	"im.turms/server/internal/infra/plugin"
 )
@@ -26,7 +28,7 @@ import (
 // SessionIdentityAccessManagementSupport maps to the Java support interface.
 type SessionIdentityAccessManagementSupport interface {
 	VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error)
-	UpdateGlobalProperties(properties interface{})
+	UpdateGlobalProperties(properties interface{}) bool
 }
 
 // SessionIdentityAccessManager orchestrates the authentication.
@@ -48,13 +50,14 @@ func NewSessionIdentityAccessManager(
 	policyManager := &authorization.PolicyManager{}
 	support := createSupport(iamProps, userService, policyManager)
 
-	return &SessionIdentityAccessManager{
-		enableIdentityAccessManagement: iamProps.Enabled,
-		support:                        support,
-		userService:                    userService,
-		policyManager:                  policyManager,
-		pluginManager:                  pluginManager,
+	manager := &SessionIdentityAccessManager{
+		support:       support,
+		userService:   userService,
+		policyManager: policyManager,
+		pluginManager: pluginManager,
 	}
+	manager.enableIdentityAccessManagement = manager.support.UpdateGlobalProperties(&iamProps)
+	return manager
 }
 
 func createSupport(
@@ -86,9 +89,8 @@ func (m *SessionIdentityAccessManager) UpdateGlobalProperties(properties interfa
 		return
 	}
 	iamProps := props.IdentityAccessManagement
-	m.enableIdentityAccessManagement = iamProps.Enabled
 	if m.support != nil {
-		m.support.UpdateGlobalProperties(&iamProps)
+		m.enableIdentityAccessManagement = m.support.UpdateGlobalProperties(&iamProps)
 	}
 }
 
@@ -104,21 +106,24 @@ func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, login
 
 	// 1. Check PluginManager for UserAuthenticator hooks
 	if m.pluginManager != nil && m.pluginManager.HasRunningExtensions("UserAuthenticator") {
-		ok, err := m.pluginManager.InvokeExtensionPoints(ctx, "UserAuthenticator", "Authenticate", loginInfo)
+		result, err := m.pluginManager.InvokeExtensionPoints(ctx, "UserAuthenticator", "Authenticate", loginInfo)
 		if err != nil {
 			return nil, err
 		}
-		if ok {
-			return bo.GrantedWithAllPermissions, nil
+		if result != nil {
+			if *result {
+				return bo.GrantedWithAllPermissions, nil
+			}
+			return bo.LoginAuthenticationFailed, nil
 		}
-		return bo.LoginAuthenticationFailed, nil
+		// If result == nil, fall through to default handler!
 	}
 
 	if m.support != nil {
 		return m.support.VerifyAndGrant(ctx, loginInfo)
 	}
 
-	return bo.GrantedWithAllPermissions, nil
+	return bo.LoginAuthenticationFailed, nil
 }
 
 // PasswordSessionIdentityAccessManager maps to PasswordSessionIdentityAccessManager in Java.
@@ -156,7 +161,12 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 	return bo.GrantedWithAllPermissions, nil
 }
 
-func (m *PasswordSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
+func (m *PasswordSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) bool {
+	props, ok := properties.(*config.IdentityAccessManagementProperties)
+	if !ok {
+		return false
+	}
+	return props.Enabled
 }
 
 // HttpSessionIdentityAccessManager maps to HttpSessionIdentityAccessManager in Java.
@@ -253,17 +263,17 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	}
 
 	allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)
-	permissions := make(map[any]bool, len(allowedRequestTypes))
+	permissions := make(map[int32]bool, len(allowedRequestTypes))
 	for _, rt := range allowedRequestTypes {
 		permissions[rt] = true
 	}
 	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
 }
 
-func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
+func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) bool {
 	props, ok := properties.(*config.IdentityAccessManagementProperties)
 	if !ok {
-		return
+		return false
 	}
 	m.url = props.Http.Request.URL
 	m.method = string(props.Http.Request.HttpMethod)
@@ -275,6 +285,8 @@ func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 	}
 	m.expectedHeaders = props.Http.Authentication.ResponseExpectation.Headers
 	m.expectedBodyFields = props.Http.Authentication.ResponseExpectation.BodyFields
+
+	return props.Enabled
 }
 
 // JwtSessionIdentityAccessManager maps to JwtSessionIdentityAccessManager in Java.
@@ -340,7 +352,7 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 		policy, err := policyDeserializer.Parse(policyData)
 		if err == nil {
 			allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)
-			permissions := make(map[any]bool, len(allowedRequestTypes))
+			permissions := make(map[int32]bool, len(allowedRequestTypes))
 			for _, rt := range allowedRequestTypes {
 				permissions[rt] = true
 			}
@@ -352,13 +364,15 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 	return bo.GrantedWithAllPermissions, nil
 }
 
-func (m *JwtSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
+func (m *JwtSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) bool {
 	props, ok := properties.(*config.IdentityAccessManagementProperties)
 	if !ok {
-		return
+		return false
 	}
 	m.algorithm = props.Jwt.Algorithm
 	m.secretKey = []byte(props.Jwt.SecretKey)
+
+	return props.Enabled
 }
 
 // LdapSessionIdentityAccessManager maps to LdapSessionIdentityAccessManager in Java.
@@ -366,7 +380,10 @@ type LdapSessionIdentityAccessManager struct {
 	client        *ldap.LdapClient
 	baseDN        string
 	userFilter    string
+	adminDN       string
+	adminPassword string
 	policyManager *authorization.PolicyManager
+	mu            sync.Mutex
 }
 
 func NewLdapSessionIdentityAccessManager(
@@ -377,6 +394,8 @@ func NewLdapSessionIdentityAccessManager(
 		client:        ldap.NewLdapClient(props.URL, false, true), // Defaulting to no TLS for now
 		baseDN:        props.BaseDN,
 		userFilter:    props.UserFilter,
+		adminDN:       props.AdminDN,
+		adminPassword: props.AdminPassword,
 		policyManager: policyManager,
 	}
 }
@@ -386,18 +405,41 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		return bo.LoginAuthenticationFailed, nil
 	}
 
+	// Serialize bind and search operations to prevent concurrent connections messing up the bound state
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	if !m.client.IsConnected() {
 		if err := m.client.Connect(); err != nil {
 			return bo.LoginAuthenticationFailed, fmt.Errorf("failed to connect to LDAP: %w", err)
 		}
 	}
 
+	// 0. Bind as admin before searching if admin credentials are provided
+	if m.adminDN != "" {
+		ok, err := m.client.Bind(false, m.adminDN, m.adminPassword)
+		if err != nil || !ok {
+			return bo.LoginAuthenticationFailed, fmt.Errorf("failed to bind admin: %w", err)
+		}
+	}
+
 	// 1. Search for the user DN using userId and userFilter
 	filter := strings.ReplaceAll(m.userFilter, "{0}", fmt.Sprintf("%d", loginInfo.UserID))
-	searchResult, err := m.client.Search(m.baseDN, 2, 0, 1, 0, false, []string{"dn"}, filter)
-	if err != nil || len(searchResult.Entries) != 1 {
+	// 1.1 acts as NO_ATTRIBUTES
+	searchResult, err := m.client.Search(m.baseDN, 2, 0, 1, 0, false, []string{"1.1"}, filter)
+	if err != nil {
 		return bo.LoginAuthenticationFailed, nil
 	}
+
+	if len(searchResult.Entries) > 1 {
+		return nil, exception.NewTurmsError(
+			int32(constant.ResponseStatusCode_SERVER_INTERNAL_ERROR),
+			fmt.Sprintf("Missing the user DN or found multiple users from the LDAP server with the filter: %s and the user ID: %d", filter, loginInfo.UserID),
+		)
+	} else if len(searchResult.Entries) == 0 {
+		return bo.LoginAuthenticationFailed, nil
+	}
+	
 	userDN := searchResult.Entries[0].DN
 
 	// 2. Bind with the user DN and password
@@ -409,17 +451,21 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	return bo.GrantedWithAllPermissions, nil
 }
 
-func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
+func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) bool {
 	props, ok := properties.(*config.IdentityAccessManagementProperties)
 	if !ok {
-		return
+		return false
 	}
 	m.baseDN = props.Ldap.BaseDN
 	m.userFilter = props.Ldap.UserFilter
+	m.adminDN = props.Ldap.AdminDN
+	m.adminPassword = props.Ldap.AdminPassword
 	if m.client.Addr != props.Ldap.URL {
 		m.client.Close()
 		m.client = ldap.NewLdapClient(props.Ldap.URL, false, true)
 	}
+
+	return props.Enabled
 }
 
 // NoopSessionIdentityAccessManager maps to NoopSessionIdentityAccessManager in Java.
@@ -429,4 +475,6 @@ func (m *NoopSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	// Java: returns GRANTED_WITH_ALL_PERMISSIONS (all permissions)
 	return bo.GrantedWithAllPermissions, nil
 }
-func (m *NoopSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {}
+func (m *NoopSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) bool {
+	return true
+}

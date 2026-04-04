@@ -50,9 +50,11 @@ type JwtIdentityAccessManagementProperties struct {
 }
 
 type LdapIdentityAccessManagementProperties struct {
-	URL        string `json:"url" yaml:"url"`
-	BaseDN     string `json:"baseDN" yaml:"baseDN"`
-	UserFilter string `json:"userFilter" yaml:"userFilter"`
+	URL           string `json:"url" yaml:"url"`
+	BaseDN        string `json:"baseDN" yaml:"baseDN"`
+	UserFilter    string `json:"userFilter" yaml:"userFilter"`
+	AdminDN       string `json:"adminDN" yaml:"adminDN"`
+	AdminPassword string `json:"adminPassword" yaml:"adminPassword"`
 }
 
 func NewIdentityAccessManagementProperties() *IdentityAccessManagementProperties {

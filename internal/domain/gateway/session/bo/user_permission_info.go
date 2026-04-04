@@ -7,12 +7,12 @@ import (
 // UserPermissionInfo represents the permissions granted to a user session.
 type UserPermissionInfo struct {
 	AuthenticationCode constant.ResponseStatusCode
-	Permissions        map[any]bool // Set of TurmsRequest.KindCase
+	Permissions        map[int32]bool // Set of TurmsRequest tag numbers
 }
 
 // NewUserPermissionInfo creates a new UserPermissionInfo.
 // @MappedFrom UserPermissionInfo(ResponseStatusCode authenticationCode, Set<TurmsRequest.KindCase> permissions)
-func NewUserPermissionInfo(authenticationCode constant.ResponseStatusCode, permissions map[any]bool) *UserPermissionInfo {
+func NewUserPermissionInfo(authenticationCode constant.ResponseStatusCode, permissions map[int32]bool) *UserPermissionInfo {
 	return &UserPermissionInfo{
 		AuthenticationCode: authenticationCode,
 		Permissions:        permissions,
@@ -24,7 +24,7 @@ func NewUserPermissionInfo(authenticationCode constant.ResponseStatusCode, permi
 func NewUserPermissionInfoCodeOnly(authenticationCode constant.ResponseStatusCode) *UserPermissionInfo {
 	return &UserPermissionInfo{
 		AuthenticationCode: authenticationCode,
-		Permissions:        make(map[any]bool),
+		Permissions:        make(map[int32]bool),
 	}
 }
 

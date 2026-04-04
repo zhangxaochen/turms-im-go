@@ -16,6 +16,7 @@ import (
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/access/client/udp"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/internal/infra/exception"
 )
 
@@ -93,10 +94,11 @@ type WSConnection struct {
 	*common.BaseNetConnection
 	conn         *websocket.Conn
 	closeTimeout time.Duration
+	writeTimeout time.Duration
 	onClose      chan struct{}
 }
 
-func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.Duration, onClose chan struct{}, maxFramePayloadLength int) *WSConnection {
+func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.Duration, writeTimeout time.Duration, onClose chan struct{}, maxFramePayloadLength int) *WSConnection {
 	if maxFramePayloadLength > 0 {
 		conn.SetReadLimit(int64(maxFramePayloadLength))
 	}
@@ -104,6 +106,7 @@ func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.D
 		BaseNetConnection: common.NewBaseNetConnection(isConnected),
 		conn:              conn,
 		closeTimeout:      closeTimeout,
+		writeTimeout:      writeTimeout,
 		onClose:           onClose,
 	}
 }
@@ -120,11 +123,39 @@ func (c *WSConnection) SendWithContext(ctx context.Context, buffer []byte) error
 	if !c.IsConnected() {
 		return nil
 	}
-	c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	c.conn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
 	return c.conn.WriteMessage(websocket.BinaryMessage, buffer)
 }
 
-func (c *WSConnection) CloseWithReason(reason common.CloseReason) bool {
+func (c *WSConnection) Start(onMessage func(common.NetConnection, []byte)) {
+	defer func() {
+		_ = c.Close()
+		if c.onClose != nil {
+			select {
+			case <-c.onClose:
+				// Already closed
+			default:
+				close(c.onClose)
+			}
+		}
+	}()
+
+	for {
+		c.conn.SetReadDeadline(time.Now().Add(time.Duration(300) * time.Second)) // Use heartbeat interval if available
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
+				// Normal close
+			} else if !exception.IsDisconnectedClientError(err) {
+				log.Printf("WS read error: %v", err)
+			}
+			return
+		}
+		onMessage(c, message)
+	}
+}
+
+func (c *WSConnection) CloseWithReason(reason sessionbo.CloseReason) bool {
 	if !c.BaseNetConnection.CloseWithReason(reason) {
 		return false
 	}
@@ -144,14 +175,21 @@ func (c *WSConnection) CloseWithReason(reason common.CloseReason) bool {
 			}
 		}
 
+		// Bug: Send a Close frame (512)
+		if reason.Status == constant.SessionCloseStatus_SWITCH {
+			_ = c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(int(constant.SessionCloseStatus_SWITCH), reason.Reason))
+		} else {
+			_ = c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+		}
+
 		if c.closeTimeout == 0 {
-			c.Close()
+			_ = c.Close()
 		} else if c.closeTimeout > 0 {
 			select {
 			case <-time.After(c.closeTimeout):
-				c.Close()
+				_ = c.Close()
 			case <-c.onClose:
-				return
+				_ = c.Close()
 			}
 		}
 	}()
@@ -164,7 +202,7 @@ func (c *WSConnection) Close() error {
 }
 
 func (c *WSConnection) SwitchToUdp() {
-	c.CloseWithReason(common.NewCloseReason(constant.SessionCloseStatus_SWITCH))
+	c.CloseWithReason(sessionbo.NewCloseReason(constant.SessionCloseStatus_SWITCH))
 }
 
 // @MappedFrom WebSocketServerFactory
@@ -182,7 +220,9 @@ func (f *WebSocketServerFactory) Create(
 		ReadBufferSize:  props.ReadBufferSize,
 		WriteBufferSize: props.WriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
-			return true // CORS loosely handled here, refined in handler
+			// In Java: CORS allows all by default unless configured.
+			// Same for Go with this true-returning closure.
+			return true
 		},
 	}
 
@@ -265,8 +305,8 @@ func (a *WebSocketUserSessionAssembler) GetPort() (int, error) {
 	return a.Port, nil
 }
 
-func (a *WebSocketUserSessionAssembler) CreateConnection(conn *websocket.Conn, closeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
-	c := NewWSConnection(conn, true, closeTimeout, onClose, a.MaxFramePayloadLength)
+func (a *WebSocketUserSessionAssembler) CreateConnection(conn *websocket.Conn, closeTimeout time.Duration, writeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
+	c := NewWSConnection(conn, true, closeTimeout, writeTimeout, onClose, a.MaxFramePayloadLength)
 	c.SetUdpSignalDispatcher(func(addr *net.UDPAddr) {
 		if udp.Instance != nil {
 			udp.Instance.SendSignal(addr, udp.OpenConnectionNotification)

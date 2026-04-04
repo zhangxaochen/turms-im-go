@@ -102,6 +102,13 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 			go func(rid int64, sess *session.UserSession) {
 				defer wg.Done()
 				
+				if sess.Conn == nil {
+					mu.Lock()
+					offlineRecipientIds = append(offlineRecipientIds, rid)
+					mu.Unlock()
+					return
+				}
+
 				err := sess.Conn.SendWithContext(ctx, notificationData)
 				if err != nil {
 					if sess.IsOpen() {
@@ -109,13 +116,13 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 						sendErrors = append(sendErrors, err)
 						errorsMu.Unlock()
 						log.Printf("Failed to send notification to session: user_id=%d, device_type=%s, error=%v", rid, sess.DeviceType, err)
+						sess.Conn.TryNotifyClientToRecover()
 					}
 				} else {
 					mu.Lock()
 					recipientSuccessfulCount[rid]++
 					mu.Unlock()
 				}
-				sess.Conn.TryNotifyClientToRecover()
 			}(recipientID, userSession)
 		}
 	}

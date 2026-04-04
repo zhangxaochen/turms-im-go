@@ -3,7 +3,7 @@ package session
 import (
 	"sync"
 
-	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -29,7 +29,7 @@ func (m *UserSessionsManager) SessionCount() int {
 	return len(m.Sessions)
 }
 
-func (m *UserSessionsManager) CloseAllSessions(closeReason constant.SessionCloseStatus) {
+func (m *UserSessionsManager) CloseAllSessions(closeReason bo.CloseReason) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, sess := range m.Sessions {

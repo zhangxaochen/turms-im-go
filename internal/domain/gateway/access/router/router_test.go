@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
+	"im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -20,15 +20,10 @@ type mockConnection struct {
 	sent           [][]byte
 	lastWrittenMsg []byte
 	closed         bool
-	closedReason   constant.SessionCloseStatus
+	closedReason   bo.CloseReason
 }
 
-func (m *mockConnection) Connect() error { return nil }
-func (m *mockConnection) Close(reason constant.SessionCloseStatus) error {
-	m.closed = true
-	m.closedReason = reason
-	return nil
-}
+func (m *mockConnection) GetAddress() net.Addr { return &net.IPAddr{} }
 func (m *mockConnection) Send(data []byte) error {
 	m.sent = append(m.sent, data)
 	m.lastWrittenMsg = data
@@ -37,9 +32,21 @@ func (m *mockConnection) Send(data []byte) error {
 func (m *mockConnection) SendWithContext(ctx context.Context, data []byte) error {
 	return m.Send(data)
 }
-func (m *mockConnection) RemoteAddr() net.Addr { return &net.IPAddr{} }
-func (m *mockConnection) TryNotifyClientToRecover() {}
-func (m *mockConnection) IsActive() bool            { return !m.closed }
+func (m *mockConnection) CloseWithReason(reason bo.CloseReason) bool {
+	m.closed = true
+	m.closedReason = reason
+	return true
+}
+func (m *mockConnection) Close() error {
+	m.closed = true
+	return nil
+}
+func (m *mockConnection) IsConnected() bool            { return !m.closed }
+func (m *mockConnection) IsActive() bool               { return !m.closed }
+func (m *mockConnection) IsSwitchingToUdp() bool       { return false }
+func (m *mockConnection) IsConnectionRecovering() bool { return false }
+func (m *mockConnection) SwitchToUdp()                 {}
+func (m *mockConnection) TryNotifyClientToRecover()    {}
 
 func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()

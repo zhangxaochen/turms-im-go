@@ -93,7 +93,7 @@ func NewSessionService(
 			if err := json.Unmarshal(payload, &req); err != nil {
 				return nil, err
 			}
-			svc.CloseLocalSession(ctx, req.UserID, req.DeviceTypes, constant.SessionCloseStatus(req.SessionCloseStatus))
+			svc.CloseLocalSession(ctx, req.UserID, req.DeviceTypes, sessionbo.NewCloseReason(constant.SessionCloseStatus(req.SessionCloseStatus)))
 			return json.Marshal(true)
 		})
 	}
@@ -118,7 +118,7 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 		if s.ConflictStrategy == DenyNew {
 			return ErrSessionAlreadyExists
 		} else if s.ConflictStrategy == KickExisting {
-			existingSession.Close(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE)
+			existingSession.Close(sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE))
 			if existingSession.CloseChan != nil {
 				close(existingSession.CloseChan)
 			}
@@ -127,6 +127,8 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 	}
 
 	manager.Sessions[session.DeviceType] = session
+	session.SetLastHeartbeatRequestTimestampToNow()
+	session.SetLastRequestTimestampToNow()
 	s.registerSessionIp(session)
 	return nil
 }
@@ -151,10 +153,19 @@ func (s *SessionService) unregisterSessionIp(session *UserSession) {
 	if ok {
 		sessionMap := v.(*sync.Map)
 		sessionMap.Delete(session)
+		
+		isEmpty := true
+		sessionMap.Range(func(key, value any) bool {
+			isEmpty = false
+			return false
+		})
+		if isEmpty {
+			s.ipToSessions.Delete(ipStr)
+		}
 	}
 }
 
-func (s *SessionService) UnregisterSession(ctx context.Context, userID int64, deviceType protocol.DeviceType, conn Connection, closeReason constant.SessionCloseStatus) {
+func (s *SessionService) UnregisterSession(ctx context.Context, userID int64, deviceType protocol.DeviceType, conn Connection, closeReason sessionbo.CloseReason) {
 	manager, ok := s.shardedMap.Get(userID)
 	if !ok {
 		return
@@ -168,7 +179,7 @@ func (s *SessionService) UnregisterSession(ctx context.Context, userID int64, de
 		return
 	}
 
-	if existing.Conn == conn {
+	if (conn != nil && existing.Conn == conn) || conn == nil {
 		delete(manager.Sessions, deviceType)
 
 		existing.Close(closeReason)
@@ -176,19 +187,12 @@ func (s *SessionService) UnregisterSession(ctx context.Context, userID int64, de
 			close(existing.CloseChan)
 		}
 		s.unregisterSessionIp(existing)
-
-		s.mu.RLock()
-		listeners := s.onSessionClosedListeners
-		s.mu.RUnlock()
-		for _, listener := range listeners {
-			listener(existing)
-		}
+		s.notifySessionClosedListeners(existing)
 	}
 	manager.mu.Unlock()
 
-	if manager := s.shardedMap.RemoveIfEmpty(userID); manager != nil {
-		s.InvokeGoOfflineHandlers(ctx, manager, closeReason)
-	}
+	s.shardedMap.RemoveIfEmpty(userID)
+	s.InvokeGoOfflineHandlers(ctx, manager, closeReason.Status)
 
 	// Remove from distributed status
 	if s.userStatusService != nil {
@@ -222,7 +226,7 @@ func (s *SessionService) Destroy(ctx context.Context) error {
 	if s.heartbeatManager != nil {
 		s.heartbeatManager.Stop()
 	}
-	_, _ = s.CloseAllLocalSessions(ctx, constant.SessionCloseStatus_SERVER_CLOSED)
+	_, _ = s.CloseAllLocalSessions(ctx, sessionbo.NewCloseReason(constant.SessionCloseStatus_SERVER_CLOSED))
 	return nil
 }
 
@@ -237,21 +241,18 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	if userId == 0 {
 		return nil, errors.New("userId cannot be 0")
 	}
-	if version < 1 {
-		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT}
+	if version != 1 {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_UNSUPPORTED_CLIENT_VERSION}
 	}
 	if s.userSimultaneousLoginService.IsForbiddenDeviceType(deviceType) {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_LOGIN_FROM_FORBIDDEN_DEVICE_TYPE}
-	}
-	if userStatus == protocol.UserStatus_OFFLINE {
-		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT}
 	}
 
 	var passwordPtr *string
 	if password != "" {
 		passwordPtr = &password
 	}
-	loginInfo := sessionbo.NewUserLoginInfo(version, userId, passwordPtr, deviceType, deviceDetails, &userStatus, ipStr)
+	loginInfo := sessionbo.NewUserLoginInfo(version, userId, passwordPtr, deviceType, deviceDetails, &userStatus, location, ipStr)
 	permissionInfo, err := s.sessionAuthenticationManager.VerifyAndGrant(ctx, loginInfo)
 	if err != nil {
 		return nil, err
@@ -265,7 +266,7 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	return s.TryRegisterOnlineUser(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location)
 }
 
-func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
+func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
 	// 1. Fetch user status and handle conflicts
 	sessionsStatus, err := s.userStatusService.FetchUserSessionsStatus(ctx, userId)
 	if err != nil {
@@ -298,12 +299,14 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 		loc = &sessionbo.UserLocation{
 			Longitude: location.Longitude,
 			Latitude:  location.Latitude,
+			Timestamp: location.Timestamp,
+			Details:   location.Details,
 		}
 	}
 
 	session := NewUserSession(
-		version,
-		permissions.(map[any]bool),
+		int32(version),
+		permissions,
 		userId,
 		deviceType,
 		deviceDetails,
@@ -345,7 +348,7 @@ func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, dev
 
 	for nodeID, dts := range nodeToConflictedTypes {
 		if nodeID == s.nodeID {
-			_, _ = s.CloseLocalSession(ctx, userId, dts, constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE)
+			_, _ = s.CloseLocalSession(ctx, userId, dts, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE))
 		} else if s.rpcService != nil {
 			req := &rpc.SetUserOfflineRequest{
 				UserID:             userId,
@@ -363,7 +366,7 @@ func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, dev
 	return false, nil
 }
 
-func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason sessionbo.CloseReason) (int, error) {
 	manager, ok := s.shardedMap.Get(userId)
 	if !ok {
 		return 0, nil
@@ -391,7 +394,9 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 
 	// 1. Cleanup remote status BEFORE local closing (matches Java)
 	_, _ = s.userStatusService.RemoveOnlineDevices(ctx, userId, toClose, s.nodeID)
-	_ = s.sessionLocationService.RemoveUserLocations(ctx, userId, toClose)
+	if s.sessionLocationService != nil && s.sessionLocationService.IsLocationEnabled() {
+		_ = s.sessionLocationService.RemoveUserLocations(ctx, userId, toClose)
+	}
 
 	count := 0
 	for _, dt := range toClose {
@@ -407,9 +412,8 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 		}
 	}
 
-	if s.shardedMap.RemoveIfEmpty(userId) != nil {
-		s.InvokeGoOfflineHandlers(ctx, manager, closeReason)
-	}
+	s.shardedMap.RemoveIfEmpty(userId)
+	s.InvokeGoOfflineHandlers(ctx, manager, closeReason.Status)
 	return count, nil
 }
 
@@ -422,7 +426,7 @@ func (s *SessionService) notifySessionClosedListeners(session *UserSession) {
 	}
 }
 
-func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64, ips [][]byte, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64, ips [][]byte, closeReason sessionbo.CloseReason) (int, error) {
 	userIdSet := make(map[int64]struct{})
 	for _, id := range userIds {
 		userIdSet[id] = struct{}{}
@@ -450,16 +454,15 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
-		// Close only EXACT sessions that match the IP
+		// Bug 534: Only close sessions matching the IP, not all device types
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
-					// Avoid redundant close if user was already fully closed via checkIDs
 					if _, ok := userIdSet[sess.UserID]; !ok {
-						n, _ := s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
-						totalCount += n
+						s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
+						totalCount++
 					}
 					return true
 				})
@@ -482,11 +485,11 @@ func (s *SessionService) QuerySessionsCount() int {
 	return s.shardedMap.CountOnlineUsers()
 }
 
-func (s *SessionService) SetUserOffline(ctx context.Context, userID int64, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) SetUserOffline(ctx context.Context, userID int64, closeReason sessionbo.CloseReason) (int, error) {
 	return s.CloseLocalSession(ctx, userID, nil, closeReason)
 }
 
-func (s *SessionService) SetUsersOffline(ctx context.Context, userIDs []int64, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) SetUsersOffline(ctx context.Context, userIDs []int64, closeReason sessionbo.CloseReason) (int, error) {
 	total := 0
 	for _, userID := range userIDs {
 		count, _ := s.SetUserOffline(ctx, userID, closeReason)
@@ -495,19 +498,23 @@ func (s *SessionService) SetUsersOffline(ctx context.Context, userIDs []int64, c
 	return total, nil
 }
 
-func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason sessionbo.CloseReason) (int, error) {
 	return s.CloseLocalSessions(ctx, userIds, nil, closeReason)
 }
 
-func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, password *string, sessionId int64) (int, error) {
+func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int64, closeReason sessionbo.CloseReason) (int, error) {
 	if userId == 0 {
 		return 0, errors.New("userId must not be 0")
 	}
-	_, err := s.sessionAuthenticationManager.VerifyAndGrant(ctx, sessionbo.NewUserLoginInfo(0, userId, password, deviceType, nil, nil, ""))
-	if err != nil {
-		return 0, err
+	manager, ok := s.shardedMap.Get(userId)
+	if !ok {
+		return 0, nil
 	}
-	return s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY)
+	session := manager.GetSession(deviceType)
+	if session == nil || session.ID != sessionId {
+		return 0, nil
+	}
+	return s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, closeReason)
 }
 
 func (s *SessionService) UpdateLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, userStatus protocol.UserStatus, location *protocol.UserLocation) error {
@@ -539,7 +546,7 @@ func (s *SessionService) UpdateLocalSession(ctx context.Context, userId int64, d
 	return nil
 }
 
-func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason sessionbo.CloseReason) (int, error) {
 	count := 0
 	s.shardedMap.Range(func(userId int64, manager *UserSessionsManager) bool {
 		n, _ := s.CloseLocalSession(ctx, userId, nil, closeReason)
@@ -575,7 +582,7 @@ func (s *SessionService) GetLocalUserSessionsInfo(ctx context.Context, userIds [
 			}
 			sessionInfos = append(sessionInfos, sessionbo.UserSessionInfo{
 				ID:                                  sess.ID,
-				Version:                             sess.Version,
+				Version:                             sess.Version.Load(),
 				DeviceType:                          sess.DeviceType,
 				DeviceDetails:                       sess.DeviceDetails,
 				LoginDate:                           sess.LoginDate.UnixMilli(),
@@ -598,8 +605,8 @@ func (s *SessionService) GetLocalUserSessionsInfo(ctx context.Context, userIds [
 
 func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int64) *UserSession {
 	if session, ok := s.GetUserSession(userId, deviceType); ok {
-		// Bug 882: Check if connection is active (not recovering)
-		if session.ID == sessionId && session.Conn != nil && session.Conn.IsActive() {
+		// Bug 882 & 849: Check if connection is active and NOT recovering (matches Java)
+		if session.ID == sessionId && session.Conn != nil && session.Conn.IsActive() && !session.Conn.IsConnectionRecovering() {
 			s.HandleHeartbeatUpdateRequest(session)
 			return session
 		}
@@ -607,7 +614,7 @@ func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, us
 	return nil
 }
 
-func (s *SessionService) CloseLocalSessionsByIp(ctx context.Context, ips [][]byte, closeReason constant.SessionCloseStatus) (int, error) {
+func (s *SessionService) CloseLocalSessionsByIp(ctx context.Context, ips [][]byte, closeReason sessionbo.CloseReason) (int, error) {
 	if len(ips) == 0 {
 		return 0, nil
 	}
@@ -659,7 +666,7 @@ func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessio
 	// TODO: plugin hooks (Bug 897)
 }
 
-func (s *SessionService) CloseLocalSessionByDeviceType(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason constant.SessionCloseStatus) bool {
+func (s *SessionService) CloseLocalSessionByDeviceType(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason sessionbo.CloseReason) bool {
 	count, _ := s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, closeReason)
 	return count > 0
 }

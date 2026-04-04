@@ -89,6 +89,32 @@ func (s *GroupMemberService) AddGroupMember(ctx context.Context, groupID, userID
 	return s.groupMemberRepo.AddGroupMember(ctx, member)
 }
 
+// UpdateGroupMember updates a group member's information.
+func (s *GroupMemberService) UpdateGroupMember(
+	ctx context.Context,
+	groupID int64,
+	memberID int64,
+	name *string,
+	role *protocol.GroupMemberRole,
+	joinDate *time.Time,
+	muteEndDate *time.Time,
+	session mongo.SessionContext,
+	updateVersion bool,
+) error {
+	keys := []po.GroupMemberKey{{GroupID: groupID, UserID: memberID}}
+	_, err := s.groupMemberRepo.UpdateGroupMembers(ctx, keys, name, role, joinDate, muteEndDate)
+	if err != nil {
+		return err
+	}
+	s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, memberID))
+	s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", groupID, memberID))
+
+	if updateVersion {
+		return s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+	}
+	return nil
+}
+
 // IsMemberMuted is intensely called during routing.
 func (s *GroupMemberService) IsMemberMuted(ctx context.Context, groupID, userID int64) (bool, error) {
 	cacheKey := fmt.Sprintf("muted:%d:%d", groupID, userID)

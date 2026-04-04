@@ -29,7 +29,7 @@ func (c *SessionController) QuerySessions(ctx context.Context, ids []int64) ([]*
 // DeleteSessions deletes sessions based on the provided user IDs and/or IPs.
 // @MappedFrom deleteSessions(@QueryParam(required = false) Set<Long> ids, @QueryParam(required = false) Set<String> ips)
 func (c *SessionController) DeleteSessions(ctx context.Context, ids []int64, ips []string) (int, error) {
-	closeReason := constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN
+	closeReason := sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN)
 	if len(ids) == 0 && len(ips) == 0 {
 		return c.sessionService.CloseAllLocalSessions(ctx, closeReason)
 	}

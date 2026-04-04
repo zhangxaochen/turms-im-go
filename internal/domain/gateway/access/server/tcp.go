@@ -12,6 +12,7 @@ import (
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/common/infra/cluster/rpc/codec"
 	"im.turms/server/internal/domain/gateway/session"
+	"im.turms/server/internal/domain/gateway/session/bo"
 )
 
 // TCPConnection wraps net.Conn to implement session.Connection
@@ -23,6 +24,10 @@ type TCPConnection struct {
 
 func (c *TCPConnection) Connect() error {
 	return nil
+}
+
+func (c *TCPConnection) GetAddress() net.Addr {
+	return c.remoteAddr
 }
 
 func (c *TCPConnection) Send(payload []byte) error {
@@ -49,19 +54,34 @@ func (c *TCPConnection) SendWithContext(ctx context.Context, payload []byte) err
 	return err
 }
 
-func (c *TCPConnection) Close(reason constant.SessionCloseStatus) error {
+func (c *TCPConnection) CloseWithReason(reason bo.CloseReason) bool {
+	_ = c.conn.Close()
+	return true
+}
+
+func (c *TCPConnection) Close() error {
 	return c.conn.Close()
 }
-
-func (c *TCPConnection) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
-}
-
-func (c *TCPConnection) TryNotifyClientToRecover() {}
 
 func (c *TCPConnection) IsActive() bool {
 	return c.conn != nil
 }
+
+func (c *TCPConnection) IsConnected() bool {
+	return c.conn != nil
+}
+
+func (c *TCPConnection) IsSwitchingToUdp() bool {
+	return false
+}
+
+func (c *TCPConnection) IsConnectionRecovering() bool {
+	return false
+}
+
+func (c *TCPConnection) SwitchToUdp() {}
+
+func (c *TCPConnection) TryNotifyClientToRecover() {}
 
 // TCPServer listens for incoming TCP connections and handles them.
 type TCPServer struct {
@@ -170,7 +190,7 @@ func (s *TCPServer) handleConnection(conn net.Conn) {
 
 func (s *TCPServer) cleanup(userSession *session.UserSession) {
 	if userSession.UserID > 0 {
-		s.sessionService.UnregisterSession(s.ctx, userSession.UserID, userSession.DeviceType, userSession.Conn, constant.SessionCloseStatus_CONNECTION_CLOSED)
+		s.sessionService.UnregisterSession(s.ctx, userSession.UserID, userSession.DeviceType, userSession.Conn, bo.NewCloseReason(constant.SessionCloseStatus_CONNECTION_CLOSED))
 	}
 }
 

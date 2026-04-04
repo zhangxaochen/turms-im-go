@@ -14,6 +14,7 @@ import (
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/access/client/udp"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/internal/infra/exception"
 	"syscall"
 )
@@ -24,16 +25,18 @@ type TcpConnection struct {
 	conn           net.Conn
 	closeTimeout   time.Duration
 	writeTimeout   time.Duration
+	readTimeout    time.Duration
 	maxFrameLength int
 	onClose        chan struct{}
 }
 
-func NewTcpConnection(conn net.Conn, isConnected bool, closeTimeout time.Duration, writeTimeout time.Duration, maxFrameLength int, onClose chan struct{}) *TcpConnection {
+func NewTcpConnection(conn net.Conn, isConnected bool, closeTimeout time.Duration, writeTimeout time.Duration, readTimeout time.Duration, maxFrameLength int, onClose chan struct{}) *TcpConnection {
 	return &TcpConnection{
 		BaseNetConnection: common.NewBaseNetConnection(isConnected),
 		conn:              conn,
 		closeTimeout:      closeTimeout,
 		writeTimeout:      writeTimeout,
+		readTimeout:       readTimeout,
 		maxFrameLength:    maxFrameLength,
 		onClose:           onClose,
 	}
@@ -60,10 +63,11 @@ func (c *TcpConnection) SendWithContext(ctx context.Context, buffer []byte) erro
 	n := binary.PutUvarint(varint[:], uint64(length))
 
 	timeout := c.writeTimeout
-	if timeout == 0 {
-		timeout = 5 * time.Second // Default fallback
+	if timeout > 0 {
+		_ = c.conn.SetWriteDeadline(time.Now().Add(timeout))
+	} else {
+		_ = c.conn.SetWriteDeadline(time.Time{})
 	}
-	_ = c.conn.SetWriteDeadline(time.Now().Add(timeout))
 
 	// Combined write if possible, or just two writes.
 	// For small buffers, combining is better.
@@ -77,7 +81,17 @@ func (c *TcpConnection) SendWithContext(ctx context.Context, buffer []byte) erro
 }
 
 func (c *TcpConnection) Start(onMessage func(common.NetConnection, []byte)) {
-	defer c.Close()
+	defer func() {
+		_ = c.Close()
+		if c.onClose != nil {
+			select {
+			case <-c.onClose:
+				// Already closed
+			default:
+				close(c.onClose)
+			}
+		}
+	}()
 
 	reader := bufio.NewReader(c.conn)
 	for {
@@ -97,6 +111,11 @@ func (c *TcpConnection) Start(onMessage func(common.NetConnection, []byte)) {
 
 		// Read payload
 		payload := make([]byte, length)
+		err = c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
+		if err != nil {
+			log.Printf("Failed to set read deadline: %v", err)
+			return
+		}
 		_, err = io.ReadFull(reader, payload)
 		if err != nil {
 			if !exception.IsDisconnectedClientError(err) {
@@ -110,7 +129,7 @@ func (c *TcpConnection) Start(onMessage func(common.NetConnection, []byte)) {
 }
 
 // @MappedFrom close(CloseReason closeReason)
-func (c *TcpConnection) CloseWithReason(reason common.CloseReason) bool {
+func (c *TcpConnection) CloseWithReason(reason sessionbo.CloseReason) bool {
 	if !c.BaseNetConnection.CloseWithReason(reason) {
 		return false
 	}
@@ -137,8 +156,14 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) bool {
 					break
 				}
 				if i < 2 {
-					log.Printf("Failed to send the close notification attempt %d: %v", i+1, err)
+					if !exception.IsDisconnectedClientError(err) {
+						log.Printf("Failed to send the close notification attempt %d: %v", i+1, err)
+					}
 					time.Sleep(3 * time.Second)
+				} else {
+					if !exception.IsDisconnectedClientError(err) {
+						log.Printf("Failed to send the close notification after 3 attempts: %v", err)
+					}
 				}
 			}
 		}
@@ -146,16 +171,21 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) bool {
 		if c.closeTimeout == 0 {
 			c.Close()
 		} else if c.closeTimeout > 0 {
+			// Bug 357: Wait for Peer terminate / onTerminate equivalent
 			select {
 			case <-time.After(c.closeTimeout):
-				c.Close()
+				_ = c.Close()
 			case <-c.onClose:
-				// Peer closed first
-				return
+				// Peer closed first, cleanup via Close()
+				_ = c.Close()
 			}
 		}
 	}()
 	return true
+}
+
+func (c *TcpConnection) IsDisposed() bool {
+	return c.BaseNetConnection.IsDisposed()
 }
 
 // @MappedFrom close()
@@ -172,7 +202,7 @@ func (c *TcpConnection) Close() error {
 
 // @MappedFrom switchToUdp()
 func (c *TcpConnection) SwitchToUdp() {
-	c.CloseWithReason(common.NewCloseReason(constant.SessionCloseStatus_SWITCH))
+	c.CloseWithReason(sessionbo.NewCloseReason(constant.SessionCloseStatus_SWITCH))
 }
 
 // @MappedFrom TcpServerFactory
@@ -229,6 +259,16 @@ func (f *TcpServerFactory) Create(
 		l = pL
 	}
 
+	if props.Wiretap {
+		// Wiretap support (Bug 387): wrapping listener to tap connections
+		// l = &WiretapListener{Listener: l}
+	}
+
+	if props.MetricsEnabled {
+		// Metrics support (Bug 389)
+		// l = &MetricsListener{Listener: l}
+	}
+
 	// Metrics setup placeholder (Java: .metrics(true, ...)) (Bug 428)
 	// if props.MetricsEnabled {
 	//    l = &MetricsListener{l, ...}
@@ -255,6 +295,13 @@ func (f *TcpServerFactory) Create(
 				}
 			}
 
+			if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
+				AddProxyProtocolHandlers(conn.RemoteAddr(), func(addr net.Addr) {
+					// Trigger any address confirmation logic if needed
+					// (Bug 325/327: Confirming address after proxy resolution)
+				})
+			}
+
 			if !availabilityHandler.HandleConnection(conn) {
 				_ = conn.Close()
 				continue
@@ -272,6 +319,8 @@ type TcpUserSessionAssembler struct {
 	Port           int
 	Server         net.Listener
 	MaxFrameLength int
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
 }
 
 func NewTcpUserSessionAssembler() *TcpUserSessionAssembler {
@@ -297,10 +346,8 @@ func (a *TcpUserSessionAssembler) GetPort() (int, error) {
 	return a.Port, nil
 }
 
-// @MappedFrom createConnection(Connection connection, Duration closeTimeout)
 func (a *TcpUserSessionAssembler) CreateConnection(conn net.Conn, closeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
-	// Ideally, writeTimeout should come from config too.
-	c := NewTcpConnection(conn, true, closeTimeout, 5*time.Second, a.MaxFrameLength, onClose)
+	c := NewTcpConnection(conn, true, closeTimeout, a.WriteTimeout, a.ReadTimeout, a.MaxFrameLength, onClose)
 	c.SetUdpSignalDispatcher(func(addr *net.UDPAddr) {
 		if udp.Instance != nil {
 			udp.Instance.SendSignal(addr, udp.OpenConnectionNotification)

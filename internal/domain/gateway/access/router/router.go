@@ -12,6 +12,7 @@ import (
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/domain/gateway/session"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -63,8 +64,8 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 
 	// 1. IP Throttling Check
 	ipStr := "<unknown>"
-	if s.Conn != nil && s.Conn.RemoteAddr() != nil {
-		if tcpAddr, ok := s.Conn.RemoteAddr().(*net.TCPAddr); ok {
+	if s.Conn != nil && s.Conn.GetAddress() != nil {
+		if tcpAddr, ok := s.Conn.GetAddress().(*net.TCPAddr); ok {
 			ipStr = tcpAddr.IP.String()
 		}
 	}
@@ -94,7 +95,7 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 
 	// Explicit Session Close by client
 	if req.GetDeleteSessionRequest() != nil {
-		r.sessionService.UnregisterSession(ctx, s.UserID, s.DeviceType, s.Conn, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+		r.sessionService.UnregisterSession(ctx, s.UserID, s.DeviceType, s.Conn, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT))
 		r.sendNotification(s, req.RequestId, 1000, "OK")
 		return
 	}

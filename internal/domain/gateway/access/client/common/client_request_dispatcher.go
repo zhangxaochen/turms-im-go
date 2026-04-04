@@ -142,7 +142,11 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 		requestType = req.GetKind()
 
 		if sessionWrapper.HasUserSession() {
-			if !sessionWrapper.UserSession.HasPermission(requestType) {
+			tag := int32(0)
+			if req.Kind != nil {
+				tag = int32(req.ProtoReflect().WhichOneof(req.ProtoReflect().Descriptor().Oneofs().ByName("kind")).Number())
+			}
+			if !sessionWrapper.UserSession.HasPermission(tag) {
 				exc := exception.NewTurmsError(int32(constant.ResponseStatusCode_UNAUTHORIZED_REQUEST), "")
 				notification = d.NotificationFactory.CreateFromError(exc, &requestID)
 			} else if _, ok := req.Kind.(*protocol.TurmsRequest_DeleteSessionRequest); ok {
@@ -194,7 +198,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 			devType := sessionWrapper.UserSession.DeviceType
 			deviceType = &devType
 
-			ver := int32(sessionWrapper.UserSession.Version)
+			ver := sessionWrapper.UserSession.Version.Load()
 			version = &ver
 
 			sid := int32(sessionWrapper.UserSession.ID)
@@ -299,7 +303,7 @@ func (d *ClientRequestDispatcher) handleHeartbeatRequest(sessionWrapper *UserSes
 			devType := sessionWrapper.UserSession.DeviceType
 			deviceType = &devType
 
-			ver := int32(sessionWrapper.UserSession.Version)
+			ver := sessionWrapper.UserSession.Version.Load()
 			version = &ver
 
 			sid := int32(sessionWrapper.UserSession.ID)
