@@ -63,7 +63,7 @@ func TestNotificationFactory_CreateWithReason(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			factory := common.NewNotificationFactory(tt.props)
 			start := time.Now().UnixMilli()
-			notification := factory.CreateWithReason(tt.requestID, tt.code, tt.reason)
+			notification := factory.CreateWithReason(tt.requestID, tt.code, &tt.reason)
 
 			assert.NotNil(t, notification)
 			assert.Equal(t, tt.requestID, notification.RequestId)

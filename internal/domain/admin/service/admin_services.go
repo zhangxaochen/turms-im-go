@@ -18,6 +18,8 @@ var (
 	ErrPermissionDenied  = errors.New("permission denied")
 )
 
+const RootRoleID int64 = 0
+
 // AdminRoleService maps to AdminRoleService in Java.
 // @MappedFrom AdminRoleService
 type AdminRoleService interface {
@@ -34,13 +36,13 @@ type AdminRoleService interface {
 	QueryHighestRankByRoleIds(ctx context.Context, roleIds []int64) (*int, error)
 	IsAdminRankHigherThanRank(ctx context.Context, adminId int64, rank int) (bool, error)
 	QueryPermissions(ctx context.Context, adminId int64) ([]permission.AdminPermission, error)
+	SetAdminService(adminService AdminService)
 }
 
 type adminRoleService struct {
-	idGen *idgen.SnowflakeIdGenerator
-	repo  repository.AdminRoleRepository
-	// Circular dependency with AdminService will require resolving at wire time or using interface appropriately
-	// For pure parity without DI frameworks, passing where necessary
+	idGen        *idgen.SnowflakeIdGenerator
+	repo         repository.AdminRoleRepository
+	adminService AdminService
 }
 
 func NewAdminRoleService(idGen *idgen.SnowflakeIdGenerator, repo repository.AdminRoleRepository) AdminRoleService {
@@ -50,9 +52,22 @@ func NewAdminRoleService(idGen *idgen.SnowflakeIdGenerator, repo repository.Admi
 	}
 }
 
+func (s *adminRoleService) SetAdminService(adminService AdminService) {
+	s.adminService = adminService
+}
+
 // @MappedFrom authAndAddAdminRole
 func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId int64, roleId *int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error) {
-	// auth checks skipped or simplified, assume IsAdminRankHigherThanRank checks requesterId > rank
+	if name == "" {
+		return nil, errors.New("name must not be blank")
+	}
+	higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, rank)
+	if err != nil {
+		return nil, err
+	}
+	if !higher {
+		return nil, ErrPermissionDenied
+	}
 	id := int64(0)
 	if roleId != nil {
 		id = *roleId
@@ -80,6 +95,25 @@ func (s *adminRoleService) AddAdminRole(ctx context.Context, roleId int64, name 
 
 // @MappedFrom authAndDeleteAdminRoles
 func (s *adminRoleService) AuthAndDeleteAdminRoles(ctx context.Context, requesterId int64, roleIds []int64) (int64, error) {
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			return 0, errors.New("the root role cannot be deleted")
+		}
+	}
+	targetHighest, err := s.QueryHighestRankByRoleIds(ctx, roleIds)
+	if err != nil {
+		return 0, err
+	}
+	if targetHighest == nil {
+		return 0, nil
+	}
+	higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
+	if err != nil {
+		return 0, err
+	}
+	if !higher {
+		return 0, ErrPermissionDenied
+	}
 	return s.DeleteAdminRoles(ctx, roleIds)
 }
 
@@ -90,6 +124,34 @@ func (s *adminRoleService) DeleteAdminRoles(ctx context.Context, roleIds []int64
 
 // @MappedFrom authAndUpdateAdminRoles
 func (s *adminRoleService) AuthAndUpdateAdminRoles(ctx context.Context, requesterId int64, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error) {
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			return 0, errors.New("the root role cannot be updated")
+		}
+	}
+	if rank != nil {
+		higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, *rank)
+		if err != nil {
+			return 0, err
+		}
+		if !higher {
+			return 0, ErrPermissionDenied
+		}
+	}
+	targetHighest, err := s.QueryHighestRankByRoleIds(ctx, roleIds)
+	if err != nil {
+		return 0, err
+	}
+	if targetHighest == nil {
+		return 0, nil
+	}
+	higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
+	if err != nil {
+		return 0, err
+	}
+	if !higher {
+		return 0, ErrPermissionDenied
+	}
 	return s.UpdateAdminRole(ctx, roleIds, newName, permissions, rank)
 }
 
@@ -111,8 +173,11 @@ func (s *adminRoleService) CountAdminRoles(ctx context.Context, ids []int64, nam
 }
 
 func (s *adminRoleService) QueryHighestRankByAdminId(ctx context.Context, adminId int64) (*int, error) {
-	// Need AdminService to get RoleIDs, simplified here
-	return nil, nil // TODO: interconnect with AdminService
+	roleIds, err := s.adminService.QueryRoleIdsByAdminIds(ctx, []int64{adminId})
+	if err != nil {
+		return nil, err
+	}
+	return s.QueryHighestRankByRoleIds(ctx, roleIds)
 }
 
 func (s *adminRoleService) QueryHighestRankByRoleIds(ctx context.Context, roleIds []int64) (*int, error) {
@@ -131,7 +196,25 @@ func (s *adminRoleService) IsAdminRankHigherThanRank(ctx context.Context, adminI
 }
 
 func (s *adminRoleService) QueryPermissions(ctx context.Context, adminId int64) ([]permission.AdminPermission, error) {
-	return nil, nil // TODO
+	roleIds, err := s.adminService.QueryRoleIdsByAdminIds(ctx, []int64{adminId})
+	if err != nil {
+		return nil, err
+	}
+	roles, err := s.repo.FindAdminRoles(ctx, roleIds, nil, nil, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	var permissions []permission.AdminPermission
+	permMap := make(map[permission.AdminPermission]struct{})
+	for _, role := range roles {
+		for _, p := range role.Permissions {
+			if _, ok := permMap[p]; !ok {
+				permMap[p] = struct{}{}
+				permissions = append(permissions, p)
+			}
+		}
+	}
+	return permissions, nil
 }
 
 // AdminService maps to AdminService in Java.
@@ -175,7 +258,21 @@ func (s *adminService) QueryRoleIdsByAdminIds(ctx context.Context, adminIds []in
 }
 
 func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
-	// auth omitted
+	if len(roleIds) > 0 {
+		targetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, roleIds)
+		if err != nil {
+			return nil, err
+		}
+		if targetHighest != nil {
+			higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
+			if err != nil {
+				return nil, err
+			}
+			if !higher {
+				return nil, ErrPermissionDenied
+			}
+		}
+	}
 	return s.AddAdmin(ctx, nil, loginName, rawPassword, displayName, roleIds)
 }
 
@@ -210,10 +307,59 @@ func (s *adminService) QueryAdmins(ctx context.Context, ids []int64, loginNames 
 }
 
 func (s *adminService) AuthAndDeleteAdmins(ctx context.Context, requesterId int64, adminIds []int64) (int64, error) {
+	targetRoleIds, err := s.QueryRoleIdsByAdminIds(ctx, adminIds)
+	if err != nil {
+		return 0, err
+	}
+	targetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, targetRoleIds)
+	if err != nil {
+		return 0, err
+	}
+	if targetHighest != nil {
+		higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
+		if err != nil {
+			return 0, err
+		}
+		if !higher {
+			return 0, ErrPermissionDenied
+		}
+	}
 	return s.repo.DeleteAdmins(ctx, adminIds)
 }
 
 func (s *adminService) AuthAndUpdateAdmins(ctx context.Context, requesterId int64, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error) {
+	targetCurrentRoleIds, err := s.QueryRoleIdsByAdminIds(ctx, targetAdminIds)
+	if err != nil {
+		return 0, err
+	}
+	targetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, targetCurrentRoleIds)
+	if err != nil {
+		return 0, err
+	}
+	if targetHighest != nil {
+		higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
+		if err != nil {
+			return 0, err
+		}
+		if !higher {
+			return 0, ErrPermissionDenied
+		}
+	}
+	if len(roleIds) > 0 {
+		newTargetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, roleIds)
+		if err != nil {
+			return 0, err
+		}
+		if newTargetHighest != nil {
+			higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *newTargetHighest)
+			if err != nil {
+				return 0, err
+			}
+			if !higher {
+				return 0, ErrPermissionDenied
+			}
+		}
+	}
 	return s.UpdateAdmins(ctx, targetAdminIds, rawPassword, displayName, roleIds)
 }
 

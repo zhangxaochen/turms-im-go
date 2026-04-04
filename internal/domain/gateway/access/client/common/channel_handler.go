@@ -35,8 +35,8 @@ func (h *ServiceAvailabilityChannelHandler) HandleConnection(conn net.Conn) bool
 	if available {
 		addr := conn.RemoteAddr()
 		if tcpAddr, ok := addr.(*net.TCPAddr); ok {
-			ipStr := tcpAddr.IP.String()
-			if h.blocklistService.IsIpBlocked(ipStr) {
+			ipBytes := tcpAddr.IP
+			if h.blocklistService.IsIpBlocked(ipBytes) {
 				return false
 			}
 		}
@@ -53,10 +53,10 @@ func (h *ServiceAvailabilityChannelHandler) HandleException(conn net.Conn, cause
 		addr := conn.RemoteAddr()
 		// Replicate Java's implicit NullPointerException / ClassCastException behavior fail-fast
 		tcpAddr := addr.(*net.TCPAddr)
-		ipStr := tcpAddr.IP.String()
-		h.blocklistService.TryBlockIpForCorruptedFrame(ipStr)
+		ipBytes := tcpAddr.IP
+		h.blocklistService.TryBlockIpForCorruptedFrame(ipBytes)
 
-		sessions := h.sessionService.GetLocalUserSession(ipStr)
+		sessions := h.sessionService.GetLocalUserSession(ipBytes.String())
 		for _, s := range sessions {
 			h.blocklistService.TryBlockUserIdForCorruptedFrame(s.UserID)
 		}

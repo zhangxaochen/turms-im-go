@@ -10,6 +10,7 @@ const (
 	ResponseStatusCode_INVALID_REQUEST              ResponseStatusCode = 1100
 	ResponseStatusCode_CLIENT_REQUESTS_TOO_FREQUENT ResponseStatusCode = 1101
 	ResponseStatusCode_ILLEGAL_ARGUMENT             ResponseStatusCode = 1102
+	ResponseStatusCode_UNAUTHORIZED_REQUEST         ResponseStatusCode = 1106
 
 	// Server Error
 	ResponseStatusCode_SERVER_INTERNAL_ERROR ResponseStatusCode = 1200

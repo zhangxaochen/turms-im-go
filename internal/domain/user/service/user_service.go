@@ -22,6 +22,8 @@ type UserService interface {
 	QueryUserName(ctx context.Context, userID int64) (string, error)
 	QueryUsers(ctx context.Context, userIDs []int64) ([]*po.User, error)
 	CountUsers(ctx context.Context, activeOnly bool) (int64, error)
+	IsActiveAndNotDeleted(ctx context.Context, userID int64) (bool, error)
+	FindPassword(ctx context.Context, userID int64) (*string, error)
 	IsAllowedToSendMessageToTarget(ctx context.Context, isGroupMessage bool, isSystemMessage bool, requesterID int64, targetID int64) (int, error)
 	IsAllowToQueryUserProfile(ctx context.Context, requesterID int64, targetID int64) (int, error)
 	AuthAndQueryUsersProfile(ctx context.Context, requesterID int64, userIDs []int64, name string, lastUpdatedDate *time.Time, skip int, limit int) ([]*po.User, error)
@@ -160,6 +162,14 @@ func (s *userService) CountUsers(ctx context.Context, activeOnly bool) (int64, e
 		filter["act"] = true
 	}
 	return s.repo.Count(ctx, filter)
+}
+
+func (s *userService) IsActiveAndNotDeleted(ctx context.Context, userID int64) (bool, error) {
+	return s.repo.IsActiveAndNotDeleted(ctx, userID)
+}
+
+func (s *userService) FindPassword(ctx context.Context, userID int64) (*string, error) {
+	return s.repo.FindPassword(ctx, userID)
 }
 
 // @MappedFrom isAllowedToSendMessageToTarget(@NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @NotNull Long requesterId, @NotNull Long targetId)

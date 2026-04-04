@@ -42,8 +42,8 @@ func (m *SessionIdentityAccessManager) UpdateGlobalProperties(properties interfa
 
 // @MappedFrom verifyAndGrant(int version, Long userId, String password, DeviceType deviceType, Map<String, String> deviceDetails, UserStatus userStatus, Location location, String ip)
 func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
-	if loginInfo.UserID == 0 { // 0 is AdminRequesterID
-		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
+	if loginInfo.UserID == 0 { // 0 is AdminConst.ADMIN_REQUESTER_ID
+		return bo.LoginAuthenticationFailed, nil
 	}
 
 	if !m.enableIdentityAccessManagement {
@@ -74,26 +74,29 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
-	user, err := m.userService.FindUser(ctx, loginInfo.UserID)
+	password, err := m.userService.FindPassword(ctx, loginInfo.UserID)
 	if err != nil {
 		return nil, err
 	}
-	if user == nil {
-		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
-	}
-	if !user.IsActive {
+	if password == nil {
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
-	// Wait, is it a direct check or through encoding? Passwords in Turms use Spring Security PasswordEncoder.
-	// As this is a port, if bcrypt is used, we can verify with bcrypt.CompareHashAndPassword.
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(*loginInfo.Password))
+	active, err := m.userService.IsActiveAndNotDeleted(ctx, loginInfo.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if !active {
+		return bo.LoggingInUserNotActive, nil
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(*password), []byte(*loginInfo.Password))
 	if err != nil {
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
 	// Granted
-	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil), nil
+	return bo.GrantedWithAllPermissions, nil
 }
 
 func (m *PasswordSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
@@ -127,6 +130,8 @@ func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 type NoopSessionIdentityAccessManager struct{}
 
 func (m *NoopSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
-	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil), nil
+	// Java: returns GRANTED_WITH_ALL_PERMISSIONS which contains TurmsRequestTypePool.ALL
+	// In Go, nil Permissions == all permissions (see UserSession.HasPermission)
+	return bo.GrantedWithAllPermissions, nil
 }
 func (m *NoopSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {}

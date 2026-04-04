@@ -1,84 +1,194 @@
 package common
 
 import (
-	"sync"
-	"time"
-
-	"golang.org/x/time/rate"
+"sync"
+"time"
 )
 
-// IpRequestThrottler provides IP-based rate limiting using a token bucket.
+// TokenBucketContext provides shared configuration for all token buckets.
+// @MappedFrom TokenBucketContext
+type TokenBucketContext struct {
+	Capacity            int32
+	TokensPerPeriod     int32
+	RefillIntervalNanos int64
+}
+
+// TokenBucket replicates the Java TokenBucket algorithm with discrete refills.
+// @MappedFrom TokenBucket
+type TokenBucket struct {
+	mu                  sync.Mutex
+	tokens              int32
+	lastRefillTimeNanos int64
+}
+
+// tryAcquire replicates Java's token acquisition logic with a shared context.
+func (b *TokenBucket) tryAcquire(ctx *TokenBucketContext, timestamp int64) bool {
+b.mu.Lock()
+defer b.mu.Unlock()
+
+// Refill phase
+if timestamp >= b.lastRefillTimeNanos+ctx.RefillIntervalNanos {
+periods := (timestamp - b.lastRefillTimeNanos) / ctx.RefillIntervalNanos
+addedTokens := int32(periods) * ctx.TokensPerPeriod
+
+if addedTokens < 0 { // overflow
+b.tokens = ctx.Capacity
+} else {
+b.tokens += addedTokens
+if b.tokens > ctx.Capacity {
+b.tokens = ctx.Capacity
+}
+}
+b.lastRefillTimeNanos += periods * ctx.RefillIntervalNanos
+}
+
+if b.tokens > 0 {
+b.tokens--
+return true
+}
+return false
+}
+
+// IpRequestThrottler provides IP-based rate limiting using a custom token bucket.
 type IpRequestThrottler struct {
-	mu       sync.RWMutex
-	limiters map[string]*rate.Limiter
-
-	Limit rate.Limit
-	Burst int
+mu       sync.RWMutex
+limiters map[string]*TokenBucket
+ctx      *TokenBucketContext
 }
 
-// NewIpRequestThrottler creates a throttler with an explicit limit (requests per second) and burst size.
-func NewIpRequestThrottler(limit rate.Limit, burst int) *IpRequestThrottler {
-	t := &IpRequestThrottler{
-		limiters: make(map[string]*rate.Limiter),
-		Limit:    limit,
-		Burst:    burst,
-	}
-
-	// Start a background cleanup routine
-	go t.cleanupRoutine()
-
-	return t
+// NewIpRequestThrottler creates a throttler with the specified context configuration.
+func NewIpRequestThrottler(capacity int32, tokensPerPeriod int32, refillIntervalMillis int64) *IpRequestThrottler {
+ctx := &TokenBucketContext{
+Capacity:            capacity,
+TokensPerPeriod:     tokensPerPeriod,
+RefillIntervalNanos: refillIntervalMillis * 1000000,
 }
 
-// DefaultIpRequestThrottler creates a throttler defaulting to 100 req/s, burst 100.
+t := &IpRequestThrottler{
+limiters: make(map[string]*TokenBucket),
+ctx:      ctx,
+}
+
+go t.cleanupRoutine()
+
+return t
+}
+
+// DefaultIpRequestThrottler creates a default fallback throttler.
 func DefaultIpRequestThrottler() *IpRequestThrottler {
-	return NewIpRequestThrottler(100, 100)
+// e.g. 100 tokens, 100 tokens per 1000ms
+return NewIpRequestThrottler(100, 100, 1000)
+}
+
+// UpdateContext allows dynamic updates shared by all buckets.
+func (t *IpRequestThrottler) UpdateContext(capacity int32, tokensPerPeriod int32, refillIntervalMillis int64) {
+t.mu.Lock()
+defer t.mu.Unlock()
+t.ctx = &TokenBucketContext{
+Capacity:            capacity,
+TokensPerPeriod:     tokensPerPeriod,
+RefillIntervalNanos: refillIntervalMillis * 1000000,
+}
 }
 
 // TryAcquireToken returns true if the IP is allowed to proceed, false if rate limited.
 // @MappedFrom tryAcquireToken(ByteArrayWrapper ip, long timestamp)
-func (t *IpRequestThrottler) TryAcquireToken(ip string) bool {
-	// Special case: unlimited
-	if t.Burst <= 0 || t.Limit == 0 {
-		return true
-	}
+func (t *IpRequestThrottler) TryAcquireToken(ip string, timestamp int64) bool {
+// Fast-path read of shared context
+t.mu.RLock()
+ctx := t.ctx
+t.mu.RUnlock()
 
-	limiter := t.getLimiter(ip)
-	return limiter.Allow()
+// Special case: unlimited
+if ctx.RefillIntervalNanos <= 0 || ctx.TokensPerPeriod <= 0 || ctx.Capacity <= 0 {
+// When unlimited in Java conceptually by disabling refill, it returns false when empty,
+// but unlimited means RefillInterval <= 0 usually. We'll replicate the core logic:
+		// If setup invalid/unlimited, we bypass throttling and allow it.
+		// Wait, Java actually says: if refillInterval <= 0 it never refills. 
+		// If tokensPerPeriod/capacity are 0, it never has tokens.
+		// Let's assume Capacity=0 means unlimited? Nope, Java treats it literally.
+// But in Java: "bucket is 'unlimited' depends on TokenBucketContext... if refillIntervalNanos <= 0, bucket returns false when empty".
+// Actually, if we just let the bucket run, we get the exact behaviour.
 }
 
-func (t *IpRequestThrottler) getLimiter(ip string) *rate.Limiter {
-	t.mu.RLock()
-	limiter, exists := t.limiters[ip]
-	t.mu.RUnlock()
-
-	if exists {
-		return limiter
-	}
-
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	// Double-check after acquiring write lock
-	limiter, exists = t.limiters[ip]
-	if !exists {
-		limiter = rate.NewLimiter(t.Limit, t.Burst)
-		t.limiters[ip] = limiter
-	}
-
-	return limiter
+bucket := t.getBucket(ip, timestamp)
+return bucket.tryAcquire(ctx, timestamp)
 }
 
-// cleanupRoutine simply resets the map periodically to prevent memory leaks from millions of unique IPs.
-// In a high-traffic production system, we'd use an LRU cache or explicit expiry per key.
-// But this fulfills the basic need to drop stale IP limiters.
+func (t *IpRequestThrottler) getBucket(ip string, timestamp int64) *TokenBucket {
+t.mu.RLock()
+bucket, exists := t.limiters[ip]
+t.mu.RUnlock()
+
+if exists {
+return bucket
+}
+
+t.mu.Lock()
+defer t.mu.Unlock()
+
+// Double-check
+bucket, exists = t.limiters[ip]
+if !exists {
+bucket = &TokenBucket{
+tokens:              t.ctx.Capacity,     // Start at max capacity
+lastRefillTimeNanos: timestamp,          // Current time
+}
+t.limiters[ip] = bucket
+}
+
+return bucket
+}
+
+// CleanupByIp provides the session closed hook for removing unneeded buckets.
+func (t *IpRequestThrottler) CleanupByIp(ip string) {
+t.mu.Lock()
+defer t.mu.Unlock()
+
+bucket, exists := t.limiters[ip]
+if !exists {
+return
+}
+
+bucket.mu.Lock()
+// Only remove if it's fully replenished
+	if bucket.tokens >= t.ctx.Capacity {
+		delete(t.limiters, ip)
+	}
+	bucket.mu.Unlock()
+}
+
 func (t *IpRequestThrottler) cleanupRoutine() {
-	ticker := time.NewTicker(10 * time.Minute)
+	ticker := time.NewTicker(30 * time.Minute)
 	for range ticker.C {
+		now := time.Now().UnixNano()
 		t.mu.Lock()
-		// Simple map reset. Active connections will seamlessly re-create their limiter.
-		// For a truly persistent limiting across this threshold, a more sophisticated expiry is needed.
-		t.limiters = make(map[string]*rate.Limiter)
+		ctx := t.ctx
+		
+		for ip, bucket := range t.limiters {
+			bucket.mu.Lock()
+			
+			isIdle := now - bucket.lastRefillTimeNanos > 30*time.Minute.Nanoseconds()
+			// fully replenished
+			isReplenished := false
+			if bucket.tokens >= ctx.Capacity {
+				isReplenished = true
+			} else {
+				// Simulate refill to check if it WOULD be replenished
+				if now >= bucket.lastRefillTimeNanos+ctx.RefillIntervalNanos {
+					periods := (now - bucket.lastRefillTimeNanos) / ctx.RefillIntervalNanos
+					addedTokens := int32(periods) * ctx.TokensPerPeriod
+					if addedTokens < 0 || bucket.tokens+addedTokens >= ctx.Capacity {
+						isReplenished = true
+					}
+				}
+			}
+			
+			if isIdle && isReplenished {
+				delete(t.limiters, ip)
+			}
+			bucket.mu.Unlock()
+		}
 		t.mu.Unlock()
 	}
 }
