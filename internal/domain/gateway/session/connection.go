@@ -150,7 +150,7 @@ func (s *UserSession) SupportsSwitchingToUdp() bool {
 }
 
 type UserStatusService interface {
-	AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time) (bool, error)
+	AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, deviceDetails map[string]string, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time) (bool, error)
 	RemoveOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, nodeID string) (bool, error)
 	RemoveOnlineDevices(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType, nodeID string) (bool, error)
 	UpdateStatus(ctx context.Context, userID int64, status protocol.UserStatus) (bool, error)

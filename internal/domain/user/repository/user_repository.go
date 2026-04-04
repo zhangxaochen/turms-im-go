@@ -17,7 +17,7 @@ const CollectionNameUser = "user"
 type UserRepository interface {
 	Insert(ctx context.Context, user *po.User) error
 	FindByID(ctx context.Context, userID int64) (*po.User, error)
-	FindMany(ctx context.Context, filter bson.M) ([]*po.User, error)
+	FindMany(ctx context.Context, filter bson.M, opts ...*options.FindOptions) ([]*po.User, error)
 	Update(ctx context.Context, userID int64, update bson.M) error
 	DeleteMany(ctx context.Context, filter bson.M) (int64, error)
 	Count(ctx context.Context, filter bson.M) (int64, error)
@@ -70,8 +70,8 @@ func (r *userRepository) FindByID(ctx context.Context, userID int64) (*po.User, 
 
 // @MappedFrom findMany(Filter filter, QueryOptions options)
 // @MappedFrom findMany(Filter filter)
-func (r *userRepository) FindMany(ctx context.Context, filter bson.M) ([]*po.User, error) {
-	cursor, err := r.coll.Find(ctx, filter)
+func (r *userRepository) FindMany(ctx context.Context, filter bson.M, opts ...*options.FindOptions) ([]*po.User, error) {
+	cursor, err := r.coll.Find(ctx, filter, opts...)
 	if err != nil {
 		return nil, err
 	}

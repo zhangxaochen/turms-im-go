@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	common "im.turms/server/internal/domain/common/service"
@@ -55,7 +56,7 @@ func (s *userSettingsService) UpsertSettings(ctx context.Context, userID int64, 
 		}
 	}
 
-	err := s.settingsRepo.UpsertSettings(ctx, userID, settings)
+	err := s.settingsRepo.UpsertSettings(ctx, userID, settings, time.Now())
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func (s *userSettingsService) UnsetSettings(ctx context.Context, userID int64, k
 	if len(keys) == 0 {
 		return nil
 	}
-	return s.settingsRepo.UnsetSettings(ctx, userID, keys)
+	return s.settingsRepo.UnsetSettings(ctx, userID, keys, time.Now())
 }
 
 // @MappedFrom querySettings(Long ownerId, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)
@@ -109,5 +110,5 @@ func (s *userSettingsService) QuerySetting(ctx context.Context, userID int64, na
 			nameStrs = append(nameStrs, string(b))
 		}
 	}
-	return s.settingsRepo.FindByIdAndSettingNames(ctx, userID, nameStrs)
+	return s.settingsRepo.FindByIdAndSettingNames(ctx, userID, nameStrs, nil)
 }

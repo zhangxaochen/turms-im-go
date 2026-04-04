@@ -24,7 +24,7 @@ type UserFriendRequestRepository interface {
 	FindRecipientId(ctx context.Context, requestID int64) (int64, error)
 	FindRequesterIdAndRecipientIdAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
 	FindRequesterIdAndRecipientIdAndCreationDateAndStatus(ctx context.Context, requestID int64) (*po.UserFriendRequest, error)
-	DeleteExpiredData(ctx context.Context, expirationDate time.Time) error
+	DeleteExpiredData(ctx context.Context, creationDateFieldName string, expirationDate time.Time) error
 	DeleteByIds(ctx context.Context, ids []int64) error
 	FindFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]po.UserFriendRequest, error)
 	CountFriendRequests(ctx context.Context, ids, requesterIds, recipientIds []int64, statuses []po.RequestStatus, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time) (int64, error)
@@ -212,8 +212,8 @@ func (r *userFriendRequestRepository) FindRequesterIdAndRecipientIdAndCreationDa
 }
 
 // @MappedFrom deleteExpiredData(String creationDateFieldName, Date expirationDate)
-func (r *userFriendRequestRepository) DeleteExpiredData(ctx context.Context, expirationDate time.Time) error {
-	filter := bson.M{"cd": bson.M{"$lt": expirationDate}}
+func (r *userFriendRequestRepository) DeleteExpiredData(ctx context.Context, creationDateFieldName string, expirationDate time.Time) error {
+	filter := bson.M{creationDateFieldName: bson.M{"$lt": expirationDate}}
 	_, err := r.coll.DeleteMany(ctx, filter)
 	return err
 }

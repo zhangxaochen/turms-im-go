@@ -12,7 +12,7 @@ import (
 	"im.turms/server/internal/domain/conversation/po"
 	"im.turms/server/internal/domain/conversation/service"
 	group_service "im.turms/server/internal/domain/group/service"
-	"im.turms/server/internal/domain/gateway/access/client/common"
+	sr_dto "im.turms/server/internal/domain/common/access/servicerequest/dto"
 	"im.turms/server/internal/infra/property"
 	"im.turms/server/pkg/protocol"
 )
@@ -50,7 +50,7 @@ func NewConversationServiceController(
 }
 
 // @MappedFrom handleQueryConversationsRequest()
-func (c *ConversationServiceController) HandleQueryConversationsRequest(ctx context.Context, request *common.ServiceRequest) (*dto.RequestHandlerResult, error) {
+func (c *ConversationServiceController) HandleQueryConversationsRequest(ctx context.Context, request *sr_dto.ServiceRequest) (*dto.RequestHandlerResult, error) {
 	queryRequest := request.TurmsRequest.GetQueryConversationsRequest()
 	targetIDs := queryRequest.GetTargetIds()
 	groupIDs := queryRequest.GetGroupIds()
@@ -94,7 +94,7 @@ func (c *ConversationServiceController) HandleQueryConversationsRequest(ctx cont
 }
 
 // @MappedFrom handleUpdateTypingStatusRequest()
-func (c *ConversationServiceController) HandleUpdateTypingStatusRequest(ctx context.Context, request *common.ServiceRequest) (*dto.RequestHandlerResult, error) {
+func (c *ConversationServiceController) HandleUpdateTypingStatusRequest(ctx context.Context, request *sr_dto.ServiceRequest) (*dto.RequestHandlerResult, error) {
 	updateRequest := request.TurmsRequest.GetUpdateTypingStatusRequest()
 	toId := updateRequest.ToId
 	isGroupMessage := updateRequest.IsGroupMessage
@@ -107,7 +107,7 @@ func (c *ConversationServiceController) HandleUpdateTypingStatusRequest(ctx cont
 }
 
 // @MappedFrom handleUpdateConversationRequest()
-func (c *ConversationServiceController) HandleUpdateConversationRequest(ctx context.Context, request *common.ServiceRequest) (*dto.RequestHandlerResult, error) {
+func (c *ConversationServiceController) HandleUpdateConversationRequest(ctx context.Context, request *sr_dto.ServiceRequest) (*dto.RequestHandlerResult, error) {
 	updateRequest := request.TurmsRequest.GetUpdateConversationRequest()
 	targetID := updateRequest.TargetId
 	groupID := updateRequest.GroupId
@@ -216,7 +216,7 @@ func NewConversationSettingsServiceController(
 }
 
 // @MappedFrom handleUpdateConversationSettingsRequest()
-func (c *ConversationSettingsServiceController) HandleUpdateConversationSettingsRequest(ctx context.Context, request *common.ServiceRequest) (*dto.RequestHandlerResult, error) {
+func (c *ConversationSettingsServiceController) HandleUpdateConversationSettingsRequest(ctx context.Context, request *sr_dto.ServiceRequest) (*dto.RequestHandlerResult, error) {
 	updateRequest := request.TurmsRequest.GetUpdateConversationSettingsRequest()
 	protoSettings := updateRequest.GetSettings()
 	if len(protoSettings) == 0 {
@@ -250,7 +250,7 @@ func (c *ConversationSettingsServiceController) HandleUpdateConversationSettings
 }
 
 // @MappedFrom handleDeleteConversationSettingsRequest()
-func (c *ConversationSettingsServiceController) HandleDeleteConversationSettingsRequest(ctx context.Context, request *common.ServiceRequest) (*dto.RequestHandlerResult, error) {
+func (c *ConversationSettingsServiceController) HandleDeleteConversationSettingsRequest(ctx context.Context, request *sr_dto.ServiceRequest) (*dto.RequestHandlerResult, error) {
 	deleteRequest := request.TurmsRequest.GetDeleteConversationSettingsRequest()
 	userIds := deleteRequest.GetUserIds()
 	groupIds := deleteRequest.GetGroupIds()
@@ -272,7 +272,7 @@ func (c *ConversationSettingsServiceController) HandleDeleteConversationSettings
 }
 
 // @MappedFrom handleQueryConversationSettingsRequest()
-func (c *ConversationSettingsServiceController) HandleQueryConversationSettingsRequest(ctx context.Context, request *common.ServiceRequest) (*dto.RequestHandlerResult, error) {
+func (c *ConversationSettingsServiceController) HandleQueryConversationSettingsRequest(ctx context.Context, request *sr_dto.ServiceRequest) (*dto.RequestHandlerResult, error) {
 	queryRequest := request.TurmsRequest.GetQueryConversationSettingsRequest()
 	userIds := queryRequest.GetUserIds()
 	groupIds := queryRequest.GetGroupIds()
