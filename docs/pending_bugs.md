@@ -4,15 +4,15 @@
 
 ## main(String[] args)
 
-- [ ] **Missing static initializer logic**: The Java version has a static initializer block that sets `TimeZone.setDefault(TimeZoneConst.ZONE)`, sets `io.netty.maxDirectMemory` to `"0"`, sets `spring.main.banner-mode` to `"off"`, and sets `spring.main.web-application-type` to `"none"`. None of this is present in the Go version.
+- [x] **Missing static initializer logic**: The Java version has a static initializer block that sets `TimeZone.setDefault(TimeZoneConst.ZONE)`, sets `io.netty.maxDirectMemory` to `"0"`, sets `spring.main.banner-mode` to `"off"`, and sets `spring.main.web-application-type` to `"none"`. None of this is present in the Go version.
 
-- [ ] **Missing environment validation**: The Java version calls `validateEnv()` which loads utility classes (`CollectionUtil`, `ClassUtil`, `StringUtil`) to trigger JVM compatibility checks. The Go version has no equivalent environment validation.
+- [x] **Missing environment validation**: The Java version calls `validateEnv()` which loads utility classes (`CollectionUtil`, `ClassUtil`, `StringUtil`) to trigger JVM compatibility checks. The Go version has no equivalent environment validation.
 
-- [ ] **Missing application bootstrap/initialization**: The Java version calls `SpringApplication.run(applicationClass, args)` to start the full Spring Boot application with component scanning across the `GATEWAY` and `SERVER_COMMON` packages. The Go version only prints a log message and has a TODO comment — no actual server initialization, dependency injection, or server startup occurs.
+- [x] **Missing application bootstrap/initialization**: The Java version calls `SpringApplication.run(applicationClass, args)` to start the full Spring Boot application with component scanning across the `GATEWAY` and `SERVER_COMMON` packages. The Go version only prints a log message and has a TODO comment — no actual server initialization, dependency injection, or server startup occurs.
 
-- [ ] **Missing error handling with graceful logger shutdown**: The Java version has a `catch` block that checks if `LoggerFactory` is initialized, attempts to close it with a 50-second timeout, falls back to `printStackTrace()`, and calls `System.exit(1)` to ensure the process terminates. The Go version has no error handling or graceful shutdown logic.
+- [x] **Missing error handling with graceful logger shutdown**: The Java version has a `catch` block that checks if `LoggerFactory` is initialized, attempts to close it with a 50-second timeout, falls back to `printStackTrace()`, and calls `System.exit(1)` to ensure the process terminates. The Go version has no error handling or graceful shutdown logic.
 
-- [ ] **Missing `@Application(nodeType = NodeType.GATEWAY)` configuration**: The Java version declares the node type as `GATEWAY` via the `@Application` annotation, which is used at runtime for cluster node identification. The Go version has no equivalent node type configuration.
+- [x] **Missing `@Application(nodeType = NodeType.GATEWAY)` configuration**: The Java version declares the node type as `GATEWAY` via the `@Application` annotation, which is used at runtime for cluster node identification. The Go version has no equivalent node type configuration.
 
 # ClientRequestDispatcher.java
 *Checked methods: handleRequest(UserSessionWrapper sessionWrapper, ByteBuf serviceRequestBuffer), handleRequest0(UserSessionWrapper sessionWrapper, ByteBuf serviceRequestBuffer), handleServiceRequest(UserSessionWrapper sessionWrapper, SimpleTurmsRequest request, ByteBuf serviceRequestBuffer, TracingContext tracingContext)*
