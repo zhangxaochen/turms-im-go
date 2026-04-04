@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -58,9 +59,44 @@ func (c *BaseController) QueryBetweenDate(
 	areSystemMessages *bool,
 ) ([]dto.StatisticsRecordDTO, error) {
 	// Implementation simplified from Java
-	// In Java, it uses DateTimeUtil.divideDuration
-	return nil, nil // Not fully implemented yet as it needs DateTimeUtil logic
+	pairs := timeutil.DivideDuration(dateRange.Start, dateRange.End, divideBy)
+	var results []dto.StatisticsRecordDTO
+
+	for _, pair := range pairs {
+		total, err := function(pair, areGroupMessages, areSystemMessages)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, dto.StatisticsRecordDTO{
+			Date:  pair.Start,
+			Total: total,
+		})
+	}
+	return results, nil
 }
+
+// @MappedFrom queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)
+func (c *BaseController) QueryBetweenDateFunc(
+	dateRange timeutil.DateRange,
+	divideBy timeutil.DivideBy,
+	function func(timeutil.DateRange) (int64, error),
+) ([]dto.StatisticsRecordDTO, error) {
+	pairs := timeutil.DivideDuration(dateRange.Start, dateRange.End, divideBy)
+	var results []dto.StatisticsRecordDTO
+
+	for _, pair := range pairs {
+		total, err := function(pair)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, dto.StatisticsRecordDTO{
+			Date:  pair.Start,
+			Total: total,
+		})
+	}
+	return results, nil
+}
+
 
 // @MappedFrom checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)
 func (c *BaseController) CheckAndQueryBetweenDate(
@@ -70,10 +106,22 @@ func (c *BaseController) CheckAndQueryBetweenDate(
 	areGroupMessages *bool,
 	areSystemMessages *bool,
 ) ([]dto.StatisticsRecordDTO, error) {
-	if c.IsDurationNotGreaterThanMax(dateRange, divideBy) {
-		return c.QueryBetweenDate(dateRange, divideBy, function, areGroupMessages, areSystemMessages)
+	if !c.IsDurationNotGreaterThanMax(dateRange, divideBy) {
+		return nil, fmt.Errorf("ADMIN_REQUESTS_TOO_FREQUENT")
 	}
-	return nil, nil // Should return error
+	return c.QueryBetweenDate(dateRange, divideBy, function, areGroupMessages, areSystemMessages)
+}
+
+// @MappedFrom checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)
+func (c *BaseController) CheckAndQueryBetweenDateFunc(
+	dateRange timeutil.DateRange,
+	divideBy timeutil.DivideBy,
+	function func(timeutil.DateRange) (int64, error),
+) ([]dto.StatisticsRecordDTO, error) {
+	if !c.IsDurationNotGreaterThanMax(dateRange, divideBy) {
+		return nil, fmt.Errorf("ADMIN_REQUESTS_TOO_FREQUENT")
+	}
+	return c.QueryBetweenDateFunc(dateRange, divideBy, function)
 }
 
 func (c *BaseController) IsDurationNotGreaterThanMax(dateRange timeutil.DateRange, divideBy timeutil.DivideBy) bool {

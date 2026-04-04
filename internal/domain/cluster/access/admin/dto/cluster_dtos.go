@@ -27,3 +27,24 @@ type MemberDTO struct {
 	IsHealthy       bool               `json:"isHealthy"`
 	IsLeader        bool               `json:"isLeader"`
 }
+
+type AddMemberDTO struct {
+	NodeID          string              `json:"nodeId"`
+	Zone            string              `json:"zone"`
+	Name            string              `json:"name"`
+	NodeType        *discovery.NodeType `json:"nodeType"`
+	IsSeed          bool                `json:"isSeed"`
+	IsLeaderEligible *bool              `json:"isLeaderEligible"`
+	Priority        int                 `json:"priority"`
+	MemberHost      *string             `json:"memberHost"`
+}
+
+type UpdateMemberDTO struct {
+	Zone             *string `json:"zone"`
+	Name             *string `json:"name"`
+	IsSeed           *bool   `json:"isSeed"`
+	IsLeaderEligible *bool   `json:"isLeaderEligible"`
+	IsActive         *bool   `json:"isActive"`
+	Priority         *int    `json:"priority"`
+}
+

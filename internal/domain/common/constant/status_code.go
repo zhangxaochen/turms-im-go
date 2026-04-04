@@ -119,6 +119,16 @@ const (
 	ResponseStatusCode_BLOCKED_USER_SEND_GROUP_MESSAGE           ResponseStatusCode = 5012
 	ResponseStatusCode_CONFERENCE_NOT_IMPLEMENTED ResponseStatusCode = 8000
 
+	// Conversation Error
+	ResponseStatusCode_UPDATING_READ_DATE_IS_DISABLED                        ResponseStatusCode = 5000
+	ResponseStatusCode_UPDATING_READ_DATE_OF_NONEXISTENT_GROUP_CONVERSATION  ResponseStatusCode = 5001
+	ResponseStatusCode_NOT_GROUP_MEMBER_TO_UPDATE_READ_DATE_OF_GROUP_CONVERSATION ResponseStatusCode = 5002
+	ResponseStatusCode_UPDATING_READ_DATE_IS_DISABLED_BY_GROUP               ResponseStatusCode = 5003
+	ResponseStatusCode_MOVING_READ_DATE_FORWARD_IS_DISABLED                  ResponseStatusCode = 5007
+	ResponseStatusCode_UPDATING_TYPING_STATUS_IS_DISABLED                    ResponseStatusCode = 5100
+	ResponseStatusCode_NOT_GROUP_MEMBER_TO_SEND_TYPING_STATUS                ResponseStatusCode = 5101
+	ResponseStatusCode_NOT_FRIEND_TO_SEND_TYPING_STATUS                      ResponseStatusCode = 5102
+
 	ResponseStatusCode_CREATE_MEETING_EXCEEDING_MAX_ACTIVE_MEETING_COUNT ResponseStatusCode = 8100
 	ResponseStatusCode_NOT_CREATOR_TO_CANCEL_MEETING                     ResponseStatusCode = 8101
 	ResponseStatusCode_CANCELING_MEETING_IS_DISABLED                    ResponseStatusCode = 8102

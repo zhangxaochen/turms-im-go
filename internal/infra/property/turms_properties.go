@@ -44,7 +44,23 @@ type MeetingSchedulingProperties struct {
 type ServiceProperties struct {
 	AdminApi     AdminApiProperties
 	Conference   ConferenceProperties
+	Conversation NotificationConversationProperties
 	Notification NotificationProperties
+}
+
+type NotificationConversationProperties struct {
+	ReadReceipt ReadReceiptProperties
+	TypingStatus TypingStatusProperties
+}
+
+type ReadReceiptProperties struct {
+	Enabled                  bool
+	AllowMoveReadDateForward bool
+	UseServerTime           bool
+}
+
+type TypingStatusProperties struct {
+	Enabled bool
 }
 
 type NotificationProperties struct {
@@ -119,6 +135,16 @@ func NewTurmsPropertiesManager() *TurmsPropertiesManager {
 							MaxAllowedStartDateOffsetSeconds: 86400,
 							AllowCancel:                      true,
 						},
+					},
+				},
+				Conversation: NotificationConversationProperties{
+					ReadReceipt: ReadReceiptProperties{
+						Enabled:                  true,
+						AllowMoveReadDateForward: true,
+						UseServerTime:           true,
+					},
+					TypingStatus: TypingStatusProperties{
+						Enabled: true,
 					},
 				},
 				Notification: NotificationProperties{
