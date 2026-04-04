@@ -14,12 +14,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	adminconstant "im.turms/server/internal/domain/admin/constant"
-	commonconstant "im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common/authorization"
 	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/domain/gateway/session/bo"
 	userservice "im.turms/server/internal/domain/user/service"
 	"im.turms/server/internal/infra/ldap"
+	"im.turms/server/internal/infra/plugin"
 )
 
 // SessionIdentityAccessManagementSupport maps to the Java support interface.
@@ -256,7 +257,7 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	for _, rt := range allowedRequestTypes {
 		permissions[rt] = true
 	}
-	return bo.NewUserPermissionInfo(commonconstant.ResponseStatusCode_OK, permissions), nil
+	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
 }
 
 func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
@@ -343,7 +344,7 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 			for _, rt := range allowedRequestTypes {
 				permissions[rt] = true
 			}
-			return bo.NewUserPermissionInfo(commonconstant.ResponseStatusCode_OK, permissions), nil
+			return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
 		}
 	}
 

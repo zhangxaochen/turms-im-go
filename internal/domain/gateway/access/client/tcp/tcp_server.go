@@ -170,29 +170,33 @@ func (f *TcpServerFactory) Create(
 	blocklistService common.BlocklistService,
 	serverStatusManager common.ServerStatusManager,
 	sessionService common.SessionService,
-	callback func(net.Conn),
+	callback func(net.Conn, int), // Pass maxFrameLength
 ) (net.Listener, error) {
 	addr := fmt.Sprintf("%s:%d", props.Host, props.Port)
 	
-	// Use ListenConfig to set backlog and other options if possible
 	lc := net.ListenConfig{
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				// SO_REUSEADDR is usually default in Go for unix, 
-				// but SO_KEEPALIVE or others can be set here if needed.
+				if props.ReuseAddr {
+					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+				}
+				if props.KeepAlive {
+					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
+				}
 			})
 		},
 	}
 	l, err := lc.Listen(context.Background(), "tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to bind the TCP server on: %s. Error: %w", addr, err)
+		return nil, fmt.Errorf("failed to bind the TCP server on %s: %w", addr, err)
 	}
 
 	if props.Ssl.Enabled {
-		// Note: We'd need actual cert/key paths in SslProperties to implement this fully.
-		// For now, aligning with the pattern but keeping it as a stub or placeholder.
-		// tlsConfig := &tls.Config{}
-		// l = tls.NewListener(l, tlsConfig)
+		// Placeholder for SSL initialization to match Java parity (Bug 426)
+		/*
+			tlsConfig := &tls.Config{...}
+			l = tls.NewListener(l, tlsConfig)
+		*/
 	}
 
 	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
@@ -209,6 +213,11 @@ func (f *TcpServerFactory) Create(
 		l = pL
 	}
 
+	// Metrics setup placeholder (Java: .metrics(true, ...)) (Bug 428)
+	// if props.MetricsEnabled {
+	//    l = &MetricsListener{l, ...}
+	// }
+
 	availabilityHandler := common.NewServiceAvailabilityChannelHandler(blocklistService, serverStatusManager, sessionService)
 
 	go func() {
@@ -218,21 +227,24 @@ func (f *TcpServerFactory) Create(
 				return
 			}
 
-			// Apply socket options on accepted connection
 			if tcpConn, ok := conn.(*net.TCPConn); ok {
-				// SO_LINGER=0 ensures the socket is reset immediately rather than staying in TIME_WAIT.
-				// This matches Java's netty config for the child channel.
-				tcpConn.SetNoDelay(true)
-				tcpConn.SetLinger(0)
+				// Bug 420: TCP_NODELAY parity
+				_ = tcpConn.SetNoDelay(props.TcpNoDelay)
+				// Bug 422: SO_LINGER parity - matched Java's default netty config (reset immediately)
+				_ = tcpConn.SetLinger(0)
+				
+				if props.KeepAlive {
+					_ = tcpConn.SetKeepAlive(true)
+					_ = tcpConn.SetKeepAlivePeriod(1 * time.Minute) // Matching Java's default
+				}
 			}
 
-			// Service availability and blocklist check
 			if !availabilityHandler.HandleConnection(conn) {
-				conn.Close()
+				_ = conn.Close()
 				continue
 			}
 
-			go callback(conn)
+			go callback(conn, props.MaxPayloadBytes)
 		}
 	}()
 	return l, nil

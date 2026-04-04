@@ -2,7 +2,6 @@ package router_test
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"testing"
 
@@ -18,9 +17,10 @@ import (
 )
 
 type mockConnection struct {
-	sent         [][]byte
-	closed       bool
-	closedReason constant.SessionCloseStatus
+	sent           [][]byte
+	lastWrittenMsg []byte
+	closed         bool
+	closedReason   constant.SessionCloseStatus
 }
 
 func (m *mockConnection) Connect() error { return nil }
@@ -31,11 +31,11 @@ func (m *mockConnection) Close(reason constant.SessionCloseStatus) error {
 }
 func (m *mockConnection) Send(data []byte) error {
 	m.sent = append(m.sent, data)
+	m.lastWrittenMsg = data
 	return nil
 }
 func (m *mockConnection) SendWithContext(ctx context.Context, data []byte) error {
-	m.sent = append(m.sent, data)
-	return nil
+	return m.Send(data)
 }
 func (m *mockConnection) RemoteAddr() net.Addr { return &net.IPAddr{} }
 func (m *mockConnection) TryNotifyClientToRecover() {}

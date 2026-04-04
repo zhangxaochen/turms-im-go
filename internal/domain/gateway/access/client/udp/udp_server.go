@@ -138,7 +138,7 @@ func (d *UdpRequestDispatcher) writeLoop() {
 		if !ok {
 			continue
 		}
-		data := d.GetBufferFromNotificationType(notification.Type)
+		data := GetBufferFromNotificationType(notification.Type)
 		_, _ = d.connection.WriteToUDP(data, udpAddr)
 	}
 }
@@ -169,30 +169,48 @@ func (d *UdpRequestDispatcher) SendSignal(address net.Addr, signal UdpNotificati
 }
 
 // @MappedFrom handleDatagramPackage(DatagramPacket packet)
-func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet []byte, senderAddress net.Addr) error {
+func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet []byte, senderAddress net.Addr) {
 	req := d.ParseRequest(packet)
 	if req == nil {
-		return nil // MAP TO INVALID_REQUEST status code logic
+		d.sendErrorCode(senderAddress, constant.ResponseStatusCode_ILLEGAL_ARGUMENT)
+		return
 	}
 
-	s := d.sessionService.GetLocalUserSession(context.Background(), req.UserID, req.DeviceType)
+	s := d.sessionService.GetLocalUserSession(ctx, req.UserID, req.DeviceType)
 	if s == nil || s.ID != req.SessionID {
-		return nil // Unauthenticated
+		d.sendErrorCode(senderAddress, constant.ResponseStatusCode_UPDATE_HEARTBEAT_OF_NONEXISTENT_SESSION)
+		return
 	}
 
 	switch req.Type {
 	case HeartbeatRequest:
 		s.SetLastHeartbeatRequestTimestampToNow()
-		// update udp address on connection if supported
+		// Java doesn't send a response for UDP heartbeat.
 	case GoOfflineRequest:
 		d.sessionService.UnregisterSession(ctx, req.UserID, req.DeviceType, nil, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+		d.sendErrorCode(senderAddress, constant.ResponseStatusCode_OK)
 	}
+}
 
-	return nil
+func (d *UdpRequestDispatcher) sendErrorCode(addr net.Addr, code constant.ResponseStatusCode) {
+	if d.connection == nil {
+		return
+	}
+	udpAddr, ok := addr.(*net.UDPAddr)
+	if !ok {
+		return
+	}
+	data := GetBufferFromStatusCode(code)
+	_, _ = d.connection.WriteToUDP(data, udpAddr)
 }
 
 // @MappedFrom parseRequest(ByteBuf byteBuf)
 func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
+	if len(buffer) < 13 { // 1 (type) + 8 (userId) + 1 (device) + 3 (only first 3 bytes of sessionId??)
+		// Wait, Java sessionID is int, which is 4 bytes.
+		// Go: binary.BigEndian.Uint32(buffer[10:14])
+		return nil
+	}
 	if len(buffer) < 14 {
 		return nil
 	}
@@ -205,38 +223,4 @@ func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
 	sessionID := int64(binary.BigEndian.Uint32(buffer[10:14]))
 
 	return NewUdpSignalRequest(reqType, userID, deviceType, sessionID)
-}
-
-var (
-	udpNotificationBuffers [][]byte
-)
-
-func init() {
-	udpNotificationBuffers = [][]byte{
-		{byte(OpenConnectionNotification) + 1},
-	}
-}
-
-// @MappedFrom get(ResponseStatusCode code)
-func (d *UdpRequestDispatcher) GetBufferFromStatusCode(code constant.ResponseStatusCode) []byte {
-	if code == constant.ResponseStatusCode_OK {
-		return []byte{}
-	}
-	if b, ok := d.statusPool.Load(code); ok {
-		return b.([]byte)
-	}
-	// Use 2 bytes representing the business code
-	val := uint16(code)
-	buf := []byte{byte(val >> 8), byte(val)}
-	d.statusPool.Store(code, buf)
-	return buf
-}
-
-// @MappedFrom get(UdpNotificationType type)
-func (d *UdpRequestDispatcher) GetBufferFromNotificationType(t UdpNotificationType) []byte {
-	idx := int(t)
-	if idx >= 0 && idx < len(udpNotificationBuffers) {
-		return udpNotificationBuffers[idx]
-	}
-	return nil
 }

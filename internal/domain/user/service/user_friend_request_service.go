@@ -68,7 +68,7 @@ const (
 
 // @MappedFrom removeAllExpiredFriendRequests(Date expirationDate)
 func (s *userFriendRequestService) RemoveAllExpiredFriendRequests(ctx context.Context, expirationDate time.Time) error {
-	return s.repo.DeleteExpiredData(ctx, expirationDate)
+	return s.repo.DeleteExpiredData(ctx, "cd", expirationDate)
 }
 
 func (s *userFriendRequestService) HasPendingFriendRequest(ctx context.Context, requesterID, recipientID int64) (bool, error) {

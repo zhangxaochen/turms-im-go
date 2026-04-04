@@ -5,12 +5,15 @@ type TcpProperties struct {
 	Enabled               bool
 	Host                  string
 	Port                  int
+	ConnectTimeoutMillis  int
+	IdleTimeoutSeconds    int
+	MaxPayloadBytes       int // maps to MaxFrameLength
 	ProxyProtocolMode     RemoteAddressSourceProxyProtocolMode
-	MaxFrameLength        int
-	ConnectTimeoutMillis int
-	Backlog              int
-	Wiretap              bool
 	Ssl                   SslProperties
+	KeepAlive             bool
+	ReuseAddr             bool
+	TcpNoDelay            bool
+	Backlog               int
 }
 
 type RemoteAddressSourceProxyProtocolMode int

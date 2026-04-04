@@ -32,6 +32,25 @@ func NewGroupQuestionService(
 	}
 }
 
+// CheckNewGroupQuestion maps to checkNewGroupQuestion(NewGroupQuestion question)
+func (s *GroupQuestionService) CheckNewGroupQuestion(answers []string, score int) error {
+	if len(answers) == 0 {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "The answers must not be empty")
+	}
+	if score < 0 {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "The score must be greater than or equal to 0")
+	}
+	return nil
+}
+
+// CheckQuestionIdAndAnswer maps to checkQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)
+func (s *GroupQuestionService) CheckQuestionIdAndAnswer(questionID *int64, answer *string) error {
+	if questionID == nil || answer == nil {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "The question ID and answer must not be null")
+	}
+	return nil
+}
+
 // RBAC Operations
 
 func (s *GroupQuestionService) AuthAndCreateQuestion(ctx context.Context, requesterID int64, groupID int64, question string, answers []string, score int) (*po.GroupJoinQuestion, error) {

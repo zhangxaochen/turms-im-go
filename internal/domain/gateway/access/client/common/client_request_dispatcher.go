@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/common/access/servicerequest/dto"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/internal/infra/metrics"
@@ -44,18 +45,8 @@ type SessionService interface {
 	GetLocalUserSessionsByIp(ip []byte) []*session.UserSession
 }
 
-type ServiceRequest struct {
-	Ip           []byte
-	UserId       int64
-	DeviceType   protocol.DeviceType
-	RequestId    int64
-	TurmsRequest *protocol.TurmsRequest
-	Type         interface{}
-	Buffer       []byte
-}
-
 type ServiceRequestService interface {
-	HandleServiceRequest(ctx context.Context, session *session.UserSession, req *ServiceRequest) (*protocol.TurmsNotification, error)
+	HandleServiceRequest(ctx context.Context, session *session.UserSession, req *dto.ServiceRequest) (*protocol.TurmsNotification, error)
 }
 
 type ServiceAvailability struct {
@@ -248,13 +239,13 @@ func (d *ClientRequestDispatcher) HandleServiceRequest(ctx context.Context, sess
 
 	switch kind := request.Kind.(type) {
 	case *protocol.TurmsRequest_CreateSessionRequest:
-		result, err := d.SessionController.HandleCreateSessionRequest(context.Background(), sessionWrapper, kind.CreateSessionRequest)
+		result, err := d.SessionController.HandleCreateSessionRequest(ctx, sessionWrapper, kind.CreateSessionRequest)
 		if err != nil {
 			return nil, err
 		}
 		return d.getNotificationFromHandlerResult(result, requestID), nil
 	case *protocol.TurmsRequest_DeleteSessionRequest:
-		result, err := d.SessionController.HandleDeleteSessionRequest(context.Background(), sessionWrapper)
+		result, err := d.SessionController.HandleDeleteSessionRequest(ctx, sessionWrapper)
 		if err != nil {
 			return nil, err
 		}
@@ -271,7 +262,7 @@ func (d *ClientRequestDispatcher) handleGenericServiceRequest(ctx context.Contex
 	}
 
 	session := sessionWrapper.UserSession
-	svcReq := &ServiceRequest{
+	svcReq := &dto.ServiceRequest{
 		Ip:           []byte(sessionWrapper.GetIPStr()),
 		UserId:       session.UserID,
 		DeviceType:   session.DeviceType,
@@ -334,6 +325,7 @@ func (d *ClientRequestDispatcher) getNotificationFromHandlerResult(result *Reque
 		Timestamp: time.Now().UnixMilli(),
 		RequestId: &reqId,
 		Code:      proto.Int32(int32(result.Code)),
+		Data:      result.Data,
 	}
 	if result.Reason != "" {
 		notif.Reason = proto.String(result.Reason)

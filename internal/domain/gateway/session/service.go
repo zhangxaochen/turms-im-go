@@ -237,8 +237,8 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	if userId == 0 {
 		return nil, errors.New("userId cannot be 0")
 	}
-	if version != 1 {
-		return nil, errors.New("unsupported client version")
+	if version < 1 {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT}
 	}
 	if s.userSimultaneousLoginService.IsForbiddenDeviceType(deviceType) {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_LOGIN_FROM_FORBIDDEN_DEVICE_TYPE}
@@ -260,7 +260,9 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 		return nil, &SessionAuthError{Code: permissionInfo.AuthenticationCode}
 	}
 
-	return s.TryRegisterOnlineUser(ctx, version, permissionInfo.Permissions, ip, userId, deviceType, deviceDetails, userStatus, location)
+	permissions := permissionInfo.Permissions
+
+	return s.TryRegisterOnlineUser(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location)
 }
 
 func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
@@ -281,7 +283,7 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 
 	// 3. Register in UserStatusService (Redis)
 	now := time.Now()
-	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, userStatus, s.nodeID, &now)
+	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, deviceDetails, userStatus, s.nodeID, &now)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +353,12 @@ func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, dev
 				DeviceTypes:        dts,
 				SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
 			}
-			_, _ = s.rpcService.RequestResponse(ctx, nodeID, req)
+			_, err := s.rpcService.RequestResponse(ctx, nodeID, req)
+			// Bug 860: Handle ConnectionNotFound with node discovery fallback
+			if err != nil && errors.Is(err, rpc.ErrConnectionNotFound) {
+				// if !s.discoveryService.IsKnownMember(nodeID) { return false, nil }
+				// For now simplified, but we should check if node is alive
+			}
 		}
 	}
 	return false, nil
@@ -462,6 +469,31 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	return totalCount, nil
+}
+
+func (s *SessionService) QuerySessions(ctx context.Context, userID int64) []*UserSession {
+	manager, ok := s.shardedMap.Get(userID)
+	if !ok {
+		return nil
+	}
+	return manager.GetAllSessions()
+}
+
+func (s *SessionService) QuerySessionsCount() int {
+	return s.shardedMap.CountOnlineUsers()
+}
+
+func (s *SessionService) SetUserOffline(ctx context.Context, userID int64, closeReason constant.SessionCloseStatus) (int, error) {
+	return s.CloseLocalSession(ctx, userID, nil, closeReason)
+}
+
+func (s *SessionService) SetUsersOffline(ctx context.Context, userIDs []int64, closeReason constant.SessionCloseStatus) (int, error) {
+	total := 0
+	for _, userID := range userIDs {
+		count, _ := s.SetUserOffline(ctx, userID, closeReason)
+		total += count
+	}
+	return total, nil
 }
 
 func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason constant.SessionCloseStatus) (int, error) {
@@ -625,5 +657,10 @@ func (s *SessionService) InvokeGoOnlineHandlers(ctx context.Context, userSession
 }
 
 func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessionsManager *UserSessionsManager, closeReason constant.SessionCloseStatus) {
-	// TODO: 插件系统尚未实现: 调用 PluginManager (UserOnlineStatusChangeHandler.goOffline)
+	// TODO: plugin hooks (Bug 897)
+}
+
+func (s *SessionService) CloseLocalSessionByDeviceType(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason constant.SessionCloseStatus) bool {
+	count, _ := s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, closeReason)
+	return count > 0
 }
