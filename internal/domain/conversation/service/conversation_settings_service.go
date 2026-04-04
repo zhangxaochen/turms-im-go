@@ -33,32 +33,32 @@ func NewConversationSettingsService(
 }
 
 // @MappedFrom upsertPrivateConversationSettings(Long ownerId, Long userId, Map<String, Value> settings)
-func (s *ConversationSettingsService) UpsertPrivateConversationSettings(ctx context.Context, ownerId int64, userId int64, settings map[string]any) error {
+func (s *ConversationSettingsService) UpsertPrivateConversationSettings(ctx context.Context, ownerId int64, userId int64, settings map[string]any) (bool, error) {
 	if len(settings) == 0 {
-		return nil
+		return false, nil
 	}
 	related, err := s.userRelationshipService.HasRelationshipAndNotBlocked(ctx, ownerId, userId)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !related {
-		return exception.NewTurmsError(int32(codes.NotRelatedUserToUpdatePrivateConversationSetting), "not related user to update private conversation setting")
+		return false, exception.NewTurmsError(int32(codes.NotRelatedUserToUpdatePrivateConversationSetting), "not related user to update private conversation setting")
 	}
 
 	return s.conversationSettingsRepository.UpsertSettings(ctx, ownerId, userId, settings, time.Now())
 }
 
 // @MappedFrom upsertGroupConversationSettings(Long ownerId, Long groupId, Map<String, Value> settings)
-func (s *ConversationSettingsService) UpsertGroupConversationSettings(ctx context.Context, ownerId int64, groupId int64, settings map[string]any) error {
+func (s *ConversationSettingsService) UpsertGroupConversationSettings(ctx context.Context, ownerId int64, groupId int64, settings map[string]any) (bool, error) {
 	if len(settings) == 0 {
-		return nil
+		return false, nil
 	}
 	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupId, ownerId)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !isMember {
-		return exception.NewTurmsError(int32(codes.NotGroupMemberToUpdateGroupConversationSetting), "not group member to update group conversation setting")
+		return false, exception.NewTurmsError(int32(codes.NotGroupMemberToUpdateGroupConversationSetting), "not group member to update group conversation setting")
 	}
 
 	return s.conversationSettingsRepository.UpsertSettings(ctx, ownerId, s.getTargetIdFromGroupId(groupId), settings, time.Now())
@@ -71,35 +71,52 @@ func (s *ConversationSettingsService) DeleteSettings(ctx context.Context, ownerI
 }
 
 // @MappedFrom unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)
-func (s *ConversationSettingsService) UnsetSettings(ctx context.Context, ownerId int64, userIds []int64, groupIds []int64, settingNames []string) error {
+func (s *ConversationSettingsService) UnsetSettings(ctx context.Context, ownerId int64, userIds []int64, groupIds []int64, settingNames []string) (bool, error) {
 	targetIds := s.getTargetIds(userIds, groupIds)
 	return s.conversationSettingsRepository.UnsetSettings(ctx, ownerId, targetIds, settingNames)
 }
 
+func (s *ConversationSettingsService) UnsetGroupConversationSettings(ctx context.Context, ownerId int64, groupId int64, settingNames []string) (bool, error) {
+	return s.conversationSettingsRepository.UnsetSettings(ctx, ownerId, []int64{s.getTargetIdFromGroupId(groupId)}, settingNames)
+}
+
+func (s *ConversationSettingsService) UnsetPrivateConversationSettings(ctx context.Context, ownerId int64, userId int64, settingNames []string) (bool, error) {
+	return s.conversationSettingsRepository.UnsetSettings(ctx, ownerId, []int64{userId}, settingNames)
+}
+
 // @MappedFrom querySettings(Long ownerId, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)
 func (s *ConversationSettingsService) QuerySettings(ctx context.Context, ownerId int64, userIds []int64, groupIds []int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
-	var keys []po.ConversationSettingsKey
-	if len(userIds) > 0 || len(groupIds) > 0 {
-		keys = make([]po.ConversationSettingsKey, 0, len(userIds)+len(groupIds))
-		for _, uid := range userIds {
-			keys = append(keys, po.ConversationSettingsKey{OwnerId: ownerId, TargetId: uid})
-		}
-		for _, gid := range groupIds {
-			keys = append(keys, po.ConversationSettingsKey{OwnerId: ownerId, TargetId: s.getTargetIdFromGroupId(gid)})
-		}
-		return s.conversationSettingsRepository.FindByIdAndSettingNamesWithKeys(ctx, keys, settingNames, lastUpdatedDateStart)
+	if len(userIds) == 0 && len(groupIds) == 0 {
+		return s.conversationSettingsRepository.FindByOwnerId(ctx, ownerId, settingNames, lastUpdatedDateStart)
 	}
+	targetIds := s.getTargetIds(userIds, groupIds)
+	return s.conversationSettingsRepository.FindByOwnerIdAndTargetIds(ctx, ownerId, targetIds, settingNames, lastUpdatedDateStart)
+}
 
-	settings, err := s.conversationSettingsRepository.FindByKey(ctx, ownerId, 0, settingNames, lastUpdatedDateStart)
+func (s *ConversationSettingsService) QueryGroupConversationSettings(ctx context.Context, ownerId int64, groupId int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
+	settings, err := s.conversationSettingsRepository.FindByKey(ctx, ownerId, s.getTargetIdFromGroupId(groupId), settingNames, lastUpdatedDateStart)
 	if err != nil {
 		return nil, err
 	}
 	if settings == nil {
 		return nil, nil
 	}
-	// Note: the Java code returns multiple if ownerId or targetIds are collections.
-	// Here we return a slice for consistency.
 	return []po.ConversationSettings{*settings}, nil
+}
+
+func (s *ConversationSettingsService) QueryPrivateConversationSettings(ctx context.Context, ownerId int64, userId int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
+	settings, err := s.conversationSettingsRepository.FindByKey(ctx, ownerId, userId, settingNames, lastUpdatedDateStart)
+	if err != nil {
+		return nil, err
+	}
+	if settings == nil {
+		return nil, nil
+	}
+	return []po.ConversationSettings{*settings}, nil
+}
+
+func (s *ConversationSettingsService) QueryConversationSettings(ctx context.Context, ownerId int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
+	return s.conversationSettingsRepository.FindByOwnerId(ctx, ownerId, settingNames, lastUpdatedDateStart)
 }
 
 func (s *ConversationSettingsService) getTargetIds(userIds []int64, groupIds []int64) []int64 {

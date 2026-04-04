@@ -80,6 +80,9 @@ import "request/group/member/update_group_member_request.proto";
 import "request/conversation/query_conversations_request.proto";
 import "request/conversation/update_conversation_request.proto";
 import "request/conversation/update_typing_status_request.proto";
+import "request/conversation/query_conversation_settings_request.proto";
+import "request/conversation/update_conversation_settings_request.proto";
+import "request/conversation/delete_conversation_settings_request.proto";
 
 // Conference
 import "request/conference/create_meeting_request.proto";
@@ -185,5 +188,10 @@ message TurmsRequest {
         QueryResourceUploadInfoRequest query_resource_upload_info_request = 1002;
         QueryMessageAttachmentInfosRequest query_message_attachment_infos_request = 1003;
         UpdateMessageAttachmentInfoRequest update_message_attachment_info_request = 1004;
+
+        // Conversation Settings
+        QueryConversationSettingsRequest query_conversation_settings_request = 1101;
+        UpdateConversationSettingsRequest update_conversation_settings_request = 1102;
+        DeleteConversationSettingsRequest delete_conversation_settings_request = 1100;
     }
 }

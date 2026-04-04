@@ -93,6 +93,9 @@ type TurmsRequest struct {
 	//	*TurmsRequest_QueryResourceUploadInfoRequest
 	//	*TurmsRequest_QueryMessageAttachmentInfosRequest
 	//	*TurmsRequest_UpdateMessageAttachmentInfoRequest
+	//	*TurmsRequest_QueryConversationSettingsRequest
+	//	*TurmsRequest_UpdateConversationSettingsRequest
+	//	*TurmsRequest_DeleteConversationSettingsRequest
 	Kind          isTurmsRequest_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -718,6 +721,33 @@ func (x *TurmsRequest) GetUpdateMessageAttachmentInfoRequest() *UpdateMessageAtt
 	return nil
 }
 
+func (x *TurmsRequest) GetQueryConversationSettingsRequest() *QueryConversationSettingsRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_QueryConversationSettingsRequest); ok {
+			return x.QueryConversationSettingsRequest
+		}
+	}
+	return nil
+}
+
+func (x *TurmsRequest) GetUpdateConversationSettingsRequest() *UpdateConversationSettingsRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_UpdateConversationSettingsRequest); ok {
+			return x.UpdateConversationSettingsRequest
+		}
+	}
+	return nil
+}
+
+func (x *TurmsRequest) GetDeleteConversationSettingsRequest() *DeleteConversationSettingsRequest {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsRequest_DeleteConversationSettingsRequest); ok {
+			return x.DeleteConversationSettingsRequest
+		}
+	}
+	return nil
+}
+
 type isTurmsRequest_Kind interface {
 	isTurmsRequest_Kind()
 }
@@ -989,6 +1019,19 @@ type TurmsRequest_UpdateMessageAttachmentInfoRequest struct {
 	UpdateMessageAttachmentInfoRequest *UpdateMessageAttachmentInfoRequest `protobuf:"bytes,1004,opt,name=update_message_attachment_info_request,json=updateMessageAttachmentInfoRequest,proto3,oneof"`
 }
 
+type TurmsRequest_QueryConversationSettingsRequest struct {
+	// Conversation Settings
+	QueryConversationSettingsRequest *QueryConversationSettingsRequest `protobuf:"bytes,1101,opt,name=query_conversation_settings_request,json=queryConversationSettingsRequest,proto3,oneof"`
+}
+
+type TurmsRequest_UpdateConversationSettingsRequest struct {
+	UpdateConversationSettingsRequest *UpdateConversationSettingsRequest `protobuf:"bytes,1102,opt,name=update_conversation_settings_request,json=updateConversationSettingsRequest,proto3,oneof"`
+}
+
+type TurmsRequest_DeleteConversationSettingsRequest struct {
+	DeleteConversationSettingsRequest *DeleteConversationSettingsRequest `protobuf:"bytes,1100,opt,name=delete_conversation_settings_request,json=deleteConversationSettingsRequest,proto3,oneof"`
+}
+
 func (*TurmsRequest_CreateSessionRequest) isTurmsRequest_Kind() {}
 
 func (*TurmsRequest_DeleteSessionRequest) isTurmsRequest_Kind() {}
@@ -1117,11 +1160,17 @@ func (*TurmsRequest_QueryMessageAttachmentInfosRequest) isTurmsRequest_Kind() {}
 
 func (*TurmsRequest_UpdateMessageAttachmentInfoRequest) isTurmsRequest_Kind() {}
 
+func (*TurmsRequest_QueryConversationSettingsRequest) isTurmsRequest_Kind() {}
+
+func (*TurmsRequest_UpdateConversationSettingsRequest) isTurmsRequest_Kind() {}
+
+func (*TurmsRequest_DeleteConversationSettingsRequest) isTurmsRequest_Kind() {}
+
 var File_request_turms_request_proto protoreflect.FileDescriptor
 
 const file_request_turms_request_proto_rawDesc = "" +
 	"\n" +
-	"\x1brequest/turms_request.proto\x12\x0eim.turms.proto\x1a-request/storage/delete_resource_request.proto\x1a:request/storage/query_resource_download_info_request.proto\x1a8request/storage/query_resource_upload_info_request.proto\x1a<request/storage/query_message_attachment_infos_request.proto\x1a<request/storage/update_message_attachment_info_request.proto\x1a)request/user/create_session_request.proto\x1a)request/user/delete_session_request.proto\x1a-request/user/query_nearby_users_request.proto\x1a5request/user/query_user_online_statuses_request.proto\x1a.request/user/query_user_profiles_request.proto\x1a/request/user/update_user_location_request.proto\x1a4request/user/update_user_online_status_request.proto\x1a&request/user/update_user_request.proto\x1a=request/user/relationship/create_friend_request_request.proto\x1aArequest/user/relationship/create_relationship_group_request.proto\x1a;request/user/relationship/create_relationship_request.proto\x1a=request/user/relationship/delete_friend_request_request.proto\x1aArequest/user/relationship/delete_relationship_group_request.proto\x1a;request/user/relationship/delete_relationship_request.proto\x1a=request/user/relationship/query_friend_requests_request.proto\x1a>request/user/relationship/query_related_user_ids_request.proto\x1aArequest/user/relationship/query_relationship_groups_request.proto\x1a;request/user/relationship/query_relationships_request.proto\x1a=request/user/relationship/update_friend_request_request.proto\x1aArequest/user/relationship/update_relationship_group_request.proto\x1a;request/user/relationship/update_relationship_request.proto\x1a(request/group/create_group_request.proto\x1a(request/group/delete_group_request.proto\x1a(request/group/query_groups_request.proto\x1a2request/group/query_joined_group_ids_request.proto\x1a4request/group/query_joined_group_infos_request.proto\x1a(request/group/update_group_request.proto\x1a?request/group/blocklist/create_group_blocked_user_request.proto\x1a?request/group/blocklist/delete_group_blocked_user_request.proto\x1aBrequest/group/blocklist/query_group_blocked_user_ids_request.proto\x1aDrequest/group/blocklist/query_group_blocked_user_infos_request.proto\x1aIrequest/group/enrollment/check_group_join_questions_answers_request.proto\x1a>request/group/enrollment/create_group_invitation_request.proto\x1a@request/group/enrollment/create_group_join_request_request.proto\x1aBrequest/group/enrollment/create_group_join_questions_request.proto\x1a>request/group/enrollment/delete_group_invitation_request.proto\x1a@request/group/enrollment/delete_group_join_request_request.proto\x1aBrequest/group/enrollment/delete_group_join_questions_request.proto\x1a>request/group/enrollment/query_group_invitations_request.proto\x1a@request/group/enrollment/query_group_join_requests_request.proto\x1aArequest/group/enrollment/query_group_join_questions_request.proto\x1a>request/group/enrollment/update_group_invitation_request.proto\x1aArequest/group/enrollment/update_group_join_question_request.proto\x1a@request/group/enrollment/update_group_join_request_request.proto\x1a7request/group/member/create_group_members_request.proto\x1a7request/group/member/delete_group_members_request.proto\x1a6request/group/member/query_group_members_request.proto\x1a6request/group/member/update_group_member_request.proto\x1a6request/conversation/query_conversations_request.proto\x1a6request/conversation/update_conversation_request.proto\x1a7request/conversation/update_typing_status_request.proto\x1a/request/conference/create_meeting_request.proto\x1a/request/conference/delete_meeting_request.proto\x1a/request/conference/query_meetings_request.proto\x1a/request/conference/update_meeting_request.proto\x1a:request/conference/update_meeting_invitation_request.proto\x1a,request/message/create_message_request.proto\x1a,request/message/query_messages_request.proto\x1a,request/message/update_message_request.proto\"\xcc9\n" +
+	"\x1brequest/turms_request.proto\x12\x0eim.turms.proto\x1a-request/storage/delete_resource_request.proto\x1a:request/storage/query_resource_download_info_request.proto\x1a8request/storage/query_resource_upload_info_request.proto\x1a<request/storage/query_message_attachment_infos_request.proto\x1a<request/storage/update_message_attachment_info_request.proto\x1a)request/user/create_session_request.proto\x1a)request/user/delete_session_request.proto\x1a-request/user/query_nearby_users_request.proto\x1a5request/user/query_user_online_statuses_request.proto\x1a.request/user/query_user_profiles_request.proto\x1a/request/user/update_user_location_request.proto\x1a4request/user/update_user_online_status_request.proto\x1a&request/user/update_user_request.proto\x1a=request/user/relationship/create_friend_request_request.proto\x1aArequest/user/relationship/create_relationship_group_request.proto\x1a;request/user/relationship/create_relationship_request.proto\x1a=request/user/relationship/delete_friend_request_request.proto\x1aArequest/user/relationship/delete_relationship_group_request.proto\x1a;request/user/relationship/delete_relationship_request.proto\x1a=request/user/relationship/query_friend_requests_request.proto\x1a>request/user/relationship/query_related_user_ids_request.proto\x1aArequest/user/relationship/query_relationship_groups_request.proto\x1a;request/user/relationship/query_relationships_request.proto\x1a=request/user/relationship/update_friend_request_request.proto\x1aArequest/user/relationship/update_relationship_group_request.proto\x1a;request/user/relationship/update_relationship_request.proto\x1a(request/group/create_group_request.proto\x1a(request/group/delete_group_request.proto\x1a(request/group/query_groups_request.proto\x1a2request/group/query_joined_group_ids_request.proto\x1a4request/group/query_joined_group_infos_request.proto\x1a(request/group/update_group_request.proto\x1a?request/group/blocklist/create_group_blocked_user_request.proto\x1a?request/group/blocklist/delete_group_blocked_user_request.proto\x1aBrequest/group/blocklist/query_group_blocked_user_ids_request.proto\x1aDrequest/group/blocklist/query_group_blocked_user_infos_request.proto\x1aIrequest/group/enrollment/check_group_join_questions_answers_request.proto\x1a>request/group/enrollment/create_group_invitation_request.proto\x1a@request/group/enrollment/create_group_join_request_request.proto\x1aBrequest/group/enrollment/create_group_join_questions_request.proto\x1a>request/group/enrollment/delete_group_invitation_request.proto\x1a@request/group/enrollment/delete_group_join_request_request.proto\x1aBrequest/group/enrollment/delete_group_join_questions_request.proto\x1a>request/group/enrollment/query_group_invitations_request.proto\x1a@request/group/enrollment/query_group_join_requests_request.proto\x1aArequest/group/enrollment/query_group_join_questions_request.proto\x1a>request/group/enrollment/update_group_invitation_request.proto\x1aArequest/group/enrollment/update_group_join_question_request.proto\x1a@request/group/enrollment/update_group_join_request_request.proto\x1a7request/group/member/create_group_members_request.proto\x1a7request/group/member/delete_group_members_request.proto\x1a6request/group/member/query_group_members_request.proto\x1a6request/group/member/update_group_member_request.proto\x1a6request/conversation/query_conversations_request.proto\x1a6request/conversation/update_conversation_request.proto\x1a7request/conversation/update_typing_status_request.proto\x1a>request/conversation/query_conversation_settings_request.proto\x1a?request/conversation/update_conversation_settings_request.proto\x1a?request/conversation/delete_conversation_settings_request.proto\x1a/request/conference/create_meeting_request.proto\x1a/request/conference/delete_meeting_request.proto\x1a/request/conference/query_meetings_request.proto\x1a/request/conference/update_meeting_request.proto\x1a:request/conference/update_meeting_invitation_request.proto\x1a,request/message/create_message_request.proto\x1a,request/message/query_messages_request.proto\x1a,request/message/update_message_request.proto\"\xe1<\n" +
 	"\fTurmsRequest\x12\"\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\x03H\x01R\trequestId\x88\x01\x01\x12\\\n" +
@@ -1189,7 +1238,10 @@ const file_request_turms_request_proto_rawDesc = "" +
 	"$query_resource_download_info_request\x18\xe9\a \x01(\v20.im.turms.proto.QueryResourceDownloadInfoRequestH\x00R queryResourceDownloadInfoRequest\x12}\n" +
 	"\"query_resource_upload_info_request\x18\xea\a \x01(\v2..im.turms.proto.QueryResourceUploadInfoRequestH\x00R\x1equeryResourceUploadInfoRequest\x12\x89\x01\n" +
 	"&query_message_attachment_infos_request\x18\xeb\a \x01(\v22.im.turms.proto.QueryMessageAttachmentInfosRequestH\x00R\"queryMessageAttachmentInfosRequest\x12\x89\x01\n" +
-	"&update_message_attachment_info_request\x18\xec\a \x01(\v22.im.turms.proto.UpdateMessageAttachmentInfoRequestH\x00R\"updateMessageAttachmentInfoRequestB\x06\n" +
+	"&update_message_attachment_info_request\x18\xec\a \x01(\v22.im.turms.proto.UpdateMessageAttachmentInfoRequestH\x00R\"updateMessageAttachmentInfoRequest\x12\x82\x01\n" +
+	"#query_conversation_settings_request\x18\xcd\b \x01(\v20.im.turms.proto.QueryConversationSettingsRequestH\x00R queryConversationSettingsRequest\x12\x85\x01\n" +
+	"$update_conversation_settings_request\x18\xce\b \x01(\v21.im.turms.proto.UpdateConversationSettingsRequestH\x00R!updateConversationSettingsRequest\x12\x85\x01\n" +
+	"$delete_conversation_settings_request\x18\xcc\b \x01(\v21.im.turms.proto.DeleteConversationSettingsRequestH\x00R!deleteConversationSettingsRequestB\x06\n" +
 	"\x04kindB\r\n" +
 	"\v_request_idBU\n" +
 	"0im.turms.server.common.access.client.dto.requestP\x01Z\x1cim.turms/server/pkg/protocol\xba\x02\x00b\x06proto3"
@@ -1273,6 +1325,9 @@ var file_request_turms_request_proto_goTypes = []any{
 	(*QueryResourceUploadInfoRequest)(nil),        // 62: im.turms.proto.QueryResourceUploadInfoRequest
 	(*QueryMessageAttachmentInfosRequest)(nil),    // 63: im.turms.proto.QueryMessageAttachmentInfosRequest
 	(*UpdateMessageAttachmentInfoRequest)(nil),    // 64: im.turms.proto.UpdateMessageAttachmentInfoRequest
+	(*QueryConversationSettingsRequest)(nil),      // 65: im.turms.proto.QueryConversationSettingsRequest
+	(*UpdateConversationSettingsRequest)(nil),     // 66: im.turms.proto.UpdateConversationSettingsRequest
+	(*DeleteConversationSettingsRequest)(nil),     // 67: im.turms.proto.DeleteConversationSettingsRequest
 }
 var file_request_turms_request_proto_depIdxs = []int32{
 	1,  // 0: im.turms.proto.TurmsRequest.create_session_request:type_name -> im.turms.proto.CreateSessionRequest
@@ -1339,11 +1394,14 @@ var file_request_turms_request_proto_depIdxs = []int32{
 	62, // 61: im.turms.proto.TurmsRequest.query_resource_upload_info_request:type_name -> im.turms.proto.QueryResourceUploadInfoRequest
 	63, // 62: im.turms.proto.TurmsRequest.query_message_attachment_infos_request:type_name -> im.turms.proto.QueryMessageAttachmentInfosRequest
 	64, // 63: im.turms.proto.TurmsRequest.update_message_attachment_info_request:type_name -> im.turms.proto.UpdateMessageAttachmentInfoRequest
-	64, // [64:64] is the sub-list for method output_type
-	64, // [64:64] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	65, // 64: im.turms.proto.TurmsRequest.query_conversation_settings_request:type_name -> im.turms.proto.QueryConversationSettingsRequest
+	66, // 65: im.turms.proto.TurmsRequest.update_conversation_settings_request:type_name -> im.turms.proto.UpdateConversationSettingsRequest
+	67, // 66: im.turms.proto.TurmsRequest.delete_conversation_settings_request:type_name -> im.turms.proto.DeleteConversationSettingsRequest
+	67, // [67:67] is the sub-list for method output_type
+	67, // [67:67] is the sub-list for method input_type
+	67, // [67:67] is the sub-list for extension type_name
+	67, // [67:67] is the sub-list for extension extendee
+	0,  // [0:67] is the sub-list for field type_name
 }
 
 func init() { file_request_turms_request_proto_init() }
@@ -1407,6 +1465,9 @@ func file_request_turms_request_proto_init() {
 	file_request_conversation_query_conversations_request_proto_init()
 	file_request_conversation_update_conversation_request_proto_init()
 	file_request_conversation_update_typing_status_request_proto_init()
+	file_request_conversation_query_conversation_settings_request_proto_init()
+	file_request_conversation_update_conversation_settings_request_proto_init()
+	file_request_conversation_delete_conversation_settings_request_proto_init()
 	file_request_conference_create_meeting_request_proto_init()
 	file_request_conference_delete_meeting_request_proto_init()
 	file_request_conference_query_meetings_request_proto_init()
@@ -1480,6 +1541,9 @@ func file_request_turms_request_proto_init() {
 		(*TurmsRequest_QueryResourceUploadInfoRequest)(nil),
 		(*TurmsRequest_QueryMessageAttachmentInfosRequest)(nil),
 		(*TurmsRequest_UpdateMessageAttachmentInfoRequest)(nil),
+		(*TurmsRequest_QueryConversationSettingsRequest)(nil),
+		(*TurmsRequest_UpdateConversationSettingsRequest)(nil),
+		(*TurmsRequest_DeleteConversationSettingsRequest)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
