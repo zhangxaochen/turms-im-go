@@ -76,7 +76,9 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 
 	req := &protocol.TurmsRequest{}
 	if err := proto.Unmarshal(payload, req); err != nil {
-		_ = s.Conn.WriteMessage([]byte("MALFORMED_PROTOBUF"))
+		if s.Conn != nil {
+			_ = s.Conn.Send([]byte("MALFORMED_PROTOBUF"))
+		}
 		return
 	}
 
@@ -92,7 +94,7 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 
 	// Explicit Session Close by client
 	if req.GetDeleteSessionRequest() != nil {
-		r.sessionService.UnregisterSession(s.UserID, s.DeviceType, s.Conn)
+		r.sessionService.UnregisterSession(ctx, s.UserID, s.DeviceType, s.Conn, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
 		r.sendNotification(s, req.RequestId, 1000, "OK")
 		return
 	}
@@ -122,7 +124,9 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 			resp.RequestId = req.RequestId
 		}
 		respBytes, _ := proto.Marshal(resp)
-		_ = s.Conn.WriteMessage(respBytes)
+		if s.Conn != nil {
+			_ = s.Conn.Send(respBytes)
+		}
 	}
 }
 
@@ -145,6 +149,6 @@ func (r *Router) handleCreateSession(ctx context.Context, s *session.UserSession
 func (r *Router) sendNotification(s *session.UserSession, requestID *int64, code int32, reason string) {
 	buf, err := r.notifFactory.CreateBuffer(requestID, constant.ResponseStatusCode(code), reason)
 	if err == nil && s.Conn != nil {
-		_ = s.Conn.WriteMessage(buf)
+		_ = s.Conn.Send(buf)
 	}
 }

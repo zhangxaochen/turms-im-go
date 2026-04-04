@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"fmt"
+
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/pkg/protocol"
 )
@@ -22,6 +24,19 @@ func NewNotification(forwardToRequesterOtherOnlineSessions bool, recipients []in
 	}
 }
 
+// String implements fmt.Stringer for Notification.
+// @MappedFrom Notification.toString()
+func (n *Notification) String() string {
+	var notifStr string
+	if n.Notification != nil {
+		notifStr = n.Notification.String()
+	} else {
+		notifStr = "null"
+	}
+	return fmt.Sprintf("Notification{forwardToRequesterOtherOnlineSessions=%v, recipients=%v, notification=%s}",
+		n.ForwardToRequesterOtherOnlineSessions, n.Recipients, notifStr)
+}
+
 // RequestHandlerResult maps to RequestHandlerResult in Java.
 // @MappedFrom RequestHandlerResult
 type RequestHandlerResult struct {
@@ -39,6 +54,24 @@ func NewRequestHandlerResult(code constant.ResponseStatusCode, reason *string, r
 		Response:      response,
 		Notifications: notifications,
 	}
+}
+
+// String implements fmt.Stringer for RequestHandlerResult.
+// @MappedFrom RequestHandlerResult.toString()
+func (r *RequestHandlerResult) String() string {
+	var reasonStr, responseStr string
+	if r.Reason != nil {
+		reasonStr = fmt.Sprintf("'%s'", *r.Reason)
+	} else {
+		reasonStr = "null"
+	}
+	if r.Response != nil {
+		responseStr = r.Response.String()
+	} else {
+		responseStr = "null"
+	}
+	return fmt.Sprintf("RequestHandlerResult[code=%v, reason=%s, response=%s, notifications=%v]",
+		r.Code, reasonStr, responseStr, r.Notifications)
 }
 
 // factory methods for RequestHandlerResult

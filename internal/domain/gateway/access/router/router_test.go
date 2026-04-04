@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
@@ -20,18 +21,24 @@ type mockConnection struct {
 	lastWrittenMsg []byte
 }
 
-func (m *mockConnection) WriteMessage(payload []byte) error {
+func (m *mockConnection) Connect() error {
+	return nil
+}
+func (m *mockConnection) Send(payload []byte) error {
 	m.lastWrittenMsg = payload
 	fmt.Printf("MOCK_WRITE: %v\n", payload)
 	return nil
 }
-func (m *mockConnection) Close() error { return nil }
+func (m *mockConnection) Close(reason constant.SessionCloseStatus) error { return nil }
 func (m *mockConnection) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 12345}
 }
 
 func (m *mockConnection) TryNotifyClientToRecover() {}
-func (m *mockConnection) IsActive() bool            { return true }
+
+func (m *mockConnection) IsActive() bool {
+	return true
+}
 
 func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()

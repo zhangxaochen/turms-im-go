@@ -13,6 +13,8 @@ import (
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/internal/infra/exception"
+	"im.turms/server/internal/infra/metrics"
+	"im.turms/server/internal/infra/tracing"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -34,8 +36,8 @@ type BlocklistService interface {
 }
 
 type SessionClientController interface {
-	HandleCreateSessionRequest(wrapper *UserSessionWrapper, req *protocol.CreateSessionRequest) (*RequestHandlerResult, error)
-	HandleDeleteSessionRequest(wrapper *UserSessionWrapper) (*RequestHandlerResult, error)
+	HandleCreateSessionRequest(ctx context.Context, wrapper *UserSessionWrapper, req *protocol.CreateSessionRequest) (*RequestHandlerResult, error)
+	HandleDeleteSessionRequest(ctx context.Context, wrapper *UserSessionWrapper) (*protocol.TurmsNotification, error)
 }
 
 type SessionService interface {
@@ -53,7 +55,7 @@ type ServiceRequest struct {
 }
 
 type ServiceRequestService interface {
-	HandleServiceRequest(session *session.UserSession, req *ServiceRequest) (*protocol.TurmsNotification, error)
+	HandleServiceRequest(ctx context.Context, session *session.UserSession, req *ServiceRequest) (*protocol.TurmsNotification, error)
 }
 
 type ServiceAvailability struct {
@@ -80,6 +82,7 @@ type ClientRequestDispatcher struct {
 	SessionService        SessionService
 	ServiceRequestService ServiceRequestService
 	ServerStatusManager   ServerStatusManager
+	MetricsService        metrics.MetricsService
 
 	NotificationFactory *NotificationFactory
 
@@ -124,6 +127,8 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 	var requestID int64
 
 	err := proto.Unmarshal(serviceRequestBuffer, req)
+	canLogRequest := true
+
 	if err != nil {
 		if sessionWrapper.HasUserSession() {
 			d.BlocklistService.TryBlockUserIdForCorruptedRequest(sessionWrapper.UserSession.UserID)
@@ -133,15 +138,18 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 			requestID = *req.RequestId
 		}
 
+		requestType = "UNRECOGNIZED_REQUEST"
 		exc := exception.NewTurmsError(int32(constant.ResponseStatusCode_INVALID_REQUEST), err.Error())
 		notification = d.NotificationFactory.CreateFromError(exc, &requestID)
+
+		// Java logs the corrupted request error with trace context if possible
+		fmt.Printf("ERROR: Failed to handle the service request with UNRECOGNIZED_REQUEST: %v\n", err)
 	} else {
 		if req.RequestId != nil {
 			requestID = *req.RequestId
 		}
 		requestType = req.GetKind()
 
-		canLogRequest := true
 		if sessionWrapper.HasUserSession() {
 			if !sessionWrapper.UserSession.HasPermission(requestType) {
 				exc := exception.NewTurmsError(int32(constant.ResponseStatusCode_UNAUTHORIZED_REQUEST), "")
@@ -152,41 +160,63 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 		}
 
 		if notification == nil {
-			notification, err = d.HandleServiceRequest(ctx, sessionWrapper, req, serviceRequestBuffer)
+			var traceId string
+			if sessionWrapper.HasUserSession() {
+				traceId = fmt.Sprintf("%d-%d", sessionWrapper.UserSession.UserID, requestID)
+			} else {
+				traceId = fmt.Sprintf("anon-%d", requestID)
+			}
+			ctxWithTrace := ctx
+			if supportsTracing(requestType) {
+				tc := tracing.NewTracingContext(traceId)
+				ctxWithTrace = tracing.WithTracingContext(ctx, tc)
+			}
+
+			notification, err = d.HandleServiceRequest(ctxWithTrace, sessionWrapper, req, serviceRequestBuffer)
 			if err != nil {
+				tc := tracing.FromContext(ctxWithTrace)
+				traceId := ""
+				if tc != nil {
+					traceId = tc.TraceId
+				}
+				fmt.Printf("ERROR: [%s] Failed to handle the service request: %v, error: %v\n", traceId, req, err)
 				notification = d.NotificationFactory.CreateFromError(err, &requestID)
 			}
 		}
+	}
 
-		finalCanLogRequest := canLogRequest
-		isServerError := constant.IsServerError(notification.GetCode())
+	finalCanLogRequest := canLogRequest
+	isServerError := constant.IsServerError(notification.GetCode())
 
-		if isServerError {
-			// standard logging:
-			fmt.Printf("ERROR: Failed to handle the service request: type=%T, code=%d\n", requestType, notification.GetCode())
+	if isServerError && err == nil { // err!=nil handled above for corrupted
+		fmt.Printf("ERROR: Failed to handle the service request: type=%T, code=%d\n", requestType, notification.GetCode())
+	}
+
+	if isServerError || (d.ApiLoggingContext.ShouldLogRequest(requestType) && finalCanLogRequest) {
+		var version *int32
+		var userId *int64
+		var sessionId *int32
+		var deviceType *protocol.DeviceType
+
+		if sessionWrapper.HasUserSession() {
+			userId = &sessionWrapper.UserSession.UserID
+			devType := sessionWrapper.UserSession.DeviceType
+			deviceType = &devType
+
+			ver := int32(sessionWrapper.UserSession.Version)
+			version = &ver
+			
+			sid := int32(sessionWrapper.UserSession.ID)
+			sessionId = &sid
 		}
 
-		if isServerError || (d.ApiLoggingContext.ShouldLogRequest(requestType) && finalCanLogRequest) {
-			var version *int32
-			var userId *int64
-			var sessionId *int32
-			var deviceType *protocol.DeviceType
+		processingTimeMilli := (time.Now().UnixNano() - startTime) / 1000000
+		d.ApiLoggingContext.LogRequest(sessionId, userId, deviceType, version, sessionWrapper.GetIPStr(), requestID, requestType, requestSize, requestTime, notification, processingTimeMilli)
+	}
 
-			if sessionWrapper.HasUserSession() {
-				userId = &sessionWrapper.UserSession.UserID
-				devType := sessionWrapper.UserSession.DeviceType
-				deviceType = &devType
-
-				ver := int32(sessionWrapper.UserSession.Version)
-				version = &ver
-				
-				sid := int32(sessionWrapper.UserSession.ID)
-				sessionId = &sid
-			}
-
-			processingTimeMilli := (time.Now().UnixNano() - startTime) / 1000000
-			d.ApiLoggingContext.LogRequest(sessionId, userId, deviceType, version, sessionWrapper.GetIPStr(), requestID, requestType, requestSize, requestTime, notification, processingTimeMilli)
-		}
+	processingTimeMilli := (time.Now().UnixNano() - startTime) / 1000000
+	if d.MetricsService != nil {
+		d.MetricsService.RecordRequest(req, requestSize, processingTimeMilli)
 	}
 
 	return proto.Marshal(notification)
@@ -218,23 +248,23 @@ func (d *ClientRequestDispatcher) HandleServiceRequest(ctx context.Context, sess
 
 	switch kind := request.Kind.(type) {
 	case *protocol.TurmsRequest_CreateSessionRequest:
-		result, err := d.SessionController.HandleCreateSessionRequest(sessionWrapper, kind.CreateSessionRequest)
+		result, err := d.SessionController.HandleCreateSessionRequest(context.Background(), sessionWrapper, kind.CreateSessionRequest)
 		if err != nil {
 			return nil, err
 		}
 		return d.getNotificationFromHandlerResult(result, requestID), nil
 	case *protocol.TurmsRequest_DeleteSessionRequest:
-		result, err := d.SessionController.HandleDeleteSessionRequest(sessionWrapper)
+		notification, err := d.SessionController.HandleDeleteSessionRequest(context.Background(), sessionWrapper)
 		if err != nil {
 			return nil, err
 		}
-		return d.getNotificationFromHandlerResult(result, requestID), nil
+		return notification, nil
 	default:
-		return d.handleGenericServiceRequest(sessionWrapper, request, serviceRequestBuffer)
+		return d.handleGenericServiceRequest(ctx, sessionWrapper, request, serviceRequestBuffer)
 	}
 }
 
-func (d *ClientRequestDispatcher) handleGenericServiceRequest(sessionWrapper *UserSessionWrapper, request *protocol.TurmsRequest, serviceRequestBuffer []byte) (*protocol.TurmsNotification, error) {
+func (d *ClientRequestDispatcher) handleGenericServiceRequest(ctx context.Context, sessionWrapper *UserSessionWrapper, request *protocol.TurmsRequest, serviceRequestBuffer []byte) (*protocol.TurmsNotification, error) {
 	if !sessionWrapper.HasUserSession() || sessionWrapper.UserSession.Conn == nil {
 		reqID := request.GetRequestId()
 		return d.NotificationFactory.SessionClosed(&reqID), nil
@@ -249,7 +279,7 @@ func (d *ClientRequestDispatcher) handleGenericServiceRequest(sessionWrapper *Us
 		Type:       request.GetKind(),
 		Buffer:     serviceRequestBuffer,
 	}
-	return d.ServiceRequestService.HandleServiceRequest(session, svcReq)
+	return d.ServiceRequestService.HandleServiceRequest(ctx, session, svcReq)
 }
 
 func (d *ClientRequestDispatcher) handleHeartbeatRequest(sessionWrapper *UserSessionWrapper) ([]byte, error) {
@@ -308,4 +338,13 @@ func (d *ClientRequestDispatcher) getNotificationFromHandlerResult(result *Reque
 		notif.Reason = proto.String(result.Reason)
 	}
 	return notif
+}
+
+func supportsTracing(requestType interface{}) bool {
+	switch requestType.(type) {
+	case *protocol.TurmsRequest_CreateSessionRequest, *protocol.TurmsRequest_DeleteSessionRequest, string:
+		return false
+	default:
+		return true
+	}
 }

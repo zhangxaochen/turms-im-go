@@ -46,11 +46,11 @@ type UdpSignalRequest struct {
 	Type       UdpRequestType
 	UserID     int64
 	DeviceType protocol.DeviceType
-	SessionID  int
+	SessionID  int64
 }
 
 // @MappedFrom UdpSignalRequest(UdpRequestType type, long userId, DeviceType deviceType, int sessionId)
-func NewUdpSignalRequest(reqType UdpRequestType, userID int64, deviceType protocol.DeviceType, sessionID int) *UdpSignalRequest {
+func NewUdpSignalRequest(reqType UdpRequestType, userID int64, deviceType protocol.DeviceType, sessionID int64) *UdpSignalRequest {
 	return &UdpSignalRequest{
 		Type:       reqType,
 		UserID:     userID,
@@ -175,7 +175,7 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 		s.SetLastHeartbeatRequestTimestampToNow()
 		// update udp address on connection if supported
 	case GoOfflineRequest:
-		d.sessionService.UnregisterSession(req.UserID, req.DeviceType, nil)
+		d.sessionService.UnregisterSession(ctx, req.UserID, req.DeviceType, nil, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
 	}
 
 	return nil
@@ -192,7 +192,7 @@ func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
 	}
 	userID := int64(binary.BigEndian.Uint64(buffer[1:9]))
 	deviceType := protocol.DeviceType(buffer[9])
-	sessionID := int(binary.BigEndian.Uint32(buffer[10:14]))
+	sessionID := int64(binary.BigEndian.Uint32(buffer[10:14]))
 
 	return NewUdpSignalRequest(reqType, userID, deviceType, sessionID)
 }

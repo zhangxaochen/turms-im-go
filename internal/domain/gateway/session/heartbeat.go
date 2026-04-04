@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -89,7 +90,7 @@ func (m *HeartbeatManager) checkHeartbeats() {
 		// Now we kick them using UnregisterSession
 		for _, s := range toRemove {
 			log.Printf("Session %d:%s kicked due to heartbeat timeout", s.userID, s.deviceType.String())
-			m.sessionService.UnregisterSession(s.userID, s.deviceType, s.conn)
+			m.sessionService.UnregisterSession(m.ctx, s.userID, s.deviceType, s.conn, constant.SessionCloseStatus_HEARTBEAT_TIMEOUT)
 		}
 	}
 }

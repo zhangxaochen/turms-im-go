@@ -1,5 +1,14 @@
 package controller
 
+import (
+	"context"
+
+	common_dto "im.turms/server/internal/domain/common/dto"
+	user_dto "im.turms/server/internal/domain/user/access/admin/dto"
+	"im.turms/server/internal/domain/user/po"
+	"im.turms/server/internal/domain/user/service"
+)
+
 // UserController maps to UserController.java
 // @MappedFrom UserController
 type UserController struct {
@@ -148,6 +157,11 @@ func (c *UserRelationshipController) DeleteRelationships() {
 // UserRelationshipGroupController maps to UserRelationshipGroupController.java
 // @MappedFrom UserRelationshipGroupController
 type UserRelationshipGroupController struct {
+	userRelationshipGroupService service.UserRelationshipGroupService
+}
+
+func NewUserRelationshipGroupController(userRelationshipGroupService service.UserRelationshipGroupService) *UserRelationshipGroupController {
+	return &UserRelationshipGroupController{userRelationshipGroupService: userRelationshipGroupService}
 }
 
 // @MappedFrom addRelationshipGroup(@RequestBody AddRelationshipGroupDTO addRelationshipGroupDTO)
@@ -161,8 +175,14 @@ func (c *UserRelationshipGroupController) DeleteRelationshipGroups() {
 }
 
 // @MappedFrom updateRelationshipGroups(List<UserRelationshipGroup.Key> keys, @RequestBody UpdateRelationshipGroupDTO updateRelationshipGroupDTO)
-func (c *UserRelationshipGroupController) UpdateRelationshipGroups() {
-	// TODO: implement
+func (c *UserRelationshipGroupController) UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, updateRelationshipGroupDTO user_dto.UpdateRelationshipGroupDTO) (*common_dto.RequestHandlerResult, error) {
+	err := c.userRelationshipGroupService.UpdateRelationshipGroups(ctx, keys, updateRelationshipGroupDTO.Name, updateRelationshipGroupDTO.CreationDate)
+	if err != nil {
+		return nil, err
+	}
+	// The admin API usually returns the count of updated records or similar, here we just return an empty response.
+	// UpdateRelationshipGroups in service returns error, not count.
+	return &common_dto.RequestHandlerResult{}, nil
 }
 
 // @MappedFrom queryRelationshipGroups(@QueryParam(required = false)

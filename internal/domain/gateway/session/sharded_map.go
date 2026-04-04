@@ -8,16 +8,17 @@ import (
 
 // UserSessionsManager manages all sessions (devices) for a specific user
 type UserSessionsManager struct {
-	UserID   int64
-	Sessions map[protocol.DeviceType]*UserSession
-	// Could hold UserStatus etc.
-	mu sync.RWMutex
+	UserID     int64
+	UserStatus protocol.UserStatus
+	Sessions   map[protocol.DeviceType]*UserSession
+	mu         sync.RWMutex
 }
 
-func NewUserSessionsManager(userID int64) *UserSessionsManager {
+func NewUserSessionsManager(userID int64, userStatus protocol.UserStatus) *UserSessionsManager {
 	return &UserSessionsManager{
-		UserID:   userID,
-		Sessions: make(map[protocol.DeviceType]*UserSession),
+		UserID:     userID,
+		UserStatus: userStatus,
+		Sessions:   make(map[protocol.DeviceType]*UserSession),
 	}
 }
 
@@ -107,7 +108,7 @@ func (m *ShardedUserSessionsMap) Get(userID int64) (*UserSessionsManager, bool) 
 }
 
 // GetOrAdd Returns the manager. If it didn't exist, it creates it.
-func (m *ShardedUserSessionsMap) GetOrAdd(userID int64) *UserSessionsManager {
+func (m *ShardedUserSessionsMap) GetOrAdd(userID int64, userStatus protocol.UserStatus) *UserSessionsManager {
 	shard := m.getShard(userID)
 
 	shard.RLock()
@@ -123,7 +124,7 @@ func (m *ShardedUserSessionsMap) GetOrAdd(userID int64) *UserSessionsManager {
 	if manager, ok = shard.m[userID]; ok {
 		return manager
 	}
-	manager = NewUserSessionsManager(userID)
+	manager = NewUserSessionsManager(userID, userStatus)
 	shard.m[userID] = manager
 	return manager
 }

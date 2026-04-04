@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package im.turms.proto;
+
+import "model/conference/meeting.proto";
+
+option go_package = "im.turms/server/pkg/protocol";
+option java_package = "im.turms.server.common.access.client.dto.model.conference";
+option java_multiple_files = true;
+
+message Meetings {
+    repeated Meeting meetings = 1;
+}

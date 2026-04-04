@@ -91,6 +91,34 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 
 // CreateBuffer generates the serialized protobuf bytes directly.
 // @MappedFrom createBuffer(CloseReason closeReason)
+func (f *NotificationFactory) CreateCloseReasonBuffer(reason CloseReason) ([]byte, error) {
+	code := reason.BusinessStatusCode
+	if code == 0 {
+		code = constant.ResponseStatusCode_OK // or some default if appropriate, mapped from Java where it might be null
+	}
+	r := &reason.Reason
+	if reason.Reason == "" {
+		if code != 0 {
+			cr := code.Reason()
+			r = &cr
+		} else {
+			r = nil
+		}
+	}
+
+	notification := &protocol.TurmsNotification{
+		Timestamp:   time.Now().UnixMilli(),
+		CloseStatus: proto.Int32(int32(reason.Status)),
+	}
+
+	if code != 0 {
+		notification.Code = proto.Int32(int32(code))
+	}
+
+	f.trySetReason(notification, code, r)
+	return proto.Marshal(notification)
+}
+
 func (f *NotificationFactory) CreateBuffer(requestID *int64, code constant.ResponseStatusCode, reason string) ([]byte, error) {
 	notification := f.CreateWithReason(requestID, code, &reason)
 	return proto.Marshal(notification)

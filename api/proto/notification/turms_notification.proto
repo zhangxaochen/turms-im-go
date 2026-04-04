@@ -29,6 +29,9 @@ import "model/user/user_relationship_groups_with_version.proto";
 import "model/user/user_relationships_with_version.proto";
 import "model/user/user_session.proto";
 
+// Conference
+import "model/conference/meetings.proto";
+
 message TurmsNotification {
     // Common => [1, 3]
     int64 timestamp = 1;
@@ -80,6 +83,9 @@ message TurmsNotification {
             GroupJoinQuestionsWithVersion group_join_questions_with_version = 18;
             GroupMembersWithVersion group_members_with_version = 19;
             GroupsWithVersion groups_with_version = 20;
+
+            // Conference
+            Meetings meetings = 40;
 
             // Storage
             StorageResourceInfos storage_resource_infos = 50;

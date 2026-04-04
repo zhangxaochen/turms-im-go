@@ -184,3 +184,18 @@ var AllAdminPermissions = []AdminPermission{
 	LogQuery,
 	Shutdown,
 }
+
+// Group returns the permission group name by extracting the prefix before the last underscore-delimited verb.
+// e.g. "USER_CREATE" → "USER", "GROUP_MEMBER_UPDATE" → "GROUP_MEMBER"
+// @MappedFrom AdminPermission.group (via @Getter in Java)
+func (p AdminPermission) Group() string {
+	s := string(p)
+	// Walk backwards to find the last segment (the verb: CREATE/DELETE/UPDATE/QUERY)
+	verbs := []string{"_CREATE", "_DELETE", "_UPDATE", "_QUERY"}
+	for _, v := range verbs {
+		if len(s) > len(v) && s[len(s)-len(v):] == v {
+			return s[:len(s)-len(v)]
+		}
+	}
+	return s
+}

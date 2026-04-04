@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"im.turms/server/internal/domain/gateway/session"
+	"im.turms/server/internal/domain/common/constant"
 )
 
 // SessionController handles HTTP admin API requests related to sessions.
@@ -22,7 +23,7 @@ func NewSessionController(sessionService *session.SessionService) *SessionContro
 func (c *SessionController) DeleteSessions(ctx context.Context, ids []int64, ips []string) (int, error) {
 	count := 0
 	if len(ids) > 0 {
-		err := c.sessionService.CloseLocalSessionsByUserIds(ctx, ids, nil) // TODO: map proper CloseReason
+		err := c.sessionService.CloseLocalSessionsByUserIds(ctx, ids, constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN)
 		if err != nil {
 			return 0, err
 		}
@@ -34,11 +35,11 @@ func (c *SessionController) DeleteSessions(ctx context.Context, ids []int64, ips
 		for _, ip := range ips {
 			byteIps = append(byteIps, []byte(ip))
 		}
-		err := c.sessionService.CloseLocalSessionsByIp(ctx, byteIps, nil)
+		n, err := c.sessionService.CloseLocalSessionsByIp(ctx, byteIps, constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN)
 		if err != nil {
 			return 0, err
 		}
-		count += len(ips)
+		count += n
 	}
 
 	return count, nil

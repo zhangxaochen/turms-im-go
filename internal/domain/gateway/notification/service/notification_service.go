@@ -62,10 +62,10 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 					}
 				}
 
-				err := userSession.Conn.WriteMessage(notificationData)
+				err := userSession.Conn.Send(notificationData)
 				if err != nil {
 					offlineRecipientIds = append(offlineRecipientIds, recipientID)
-					if userSession.IsOpen() {
+					if userSession.IsSessionOpen() {
 						// log error
 					}
 				} else {

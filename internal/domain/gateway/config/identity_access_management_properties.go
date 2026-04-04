@@ -5,10 +5,11 @@ import (
 )
 
 type IdentityAccessManagementProperties struct {
-	Type   IdentityAccessManagementType        `json:"type" yaml:"type"`
-	Http   HttpIdentityAccessManagementProperties `json:"http" yaml:"http"`
-	Jwt    JwtIdentityAccessManagementProperties  `json:"jwt" yaml:"jwt"`
-	Ldap   LdapIdentityAccessManagementProperties `json:"ldap" yaml:"ldap"`
+	Enabled bool                         `json:"enabled" yaml:"enabled"`
+	Type    IdentityAccessManagementType `json:"type" yaml:"type"`
+	Http    HttpIdentityAccessManagementProperties `json:"http" yaml:"http"`
+	Jwt     JwtIdentityAccessManagementProperties  `json:"jwt" yaml:"jwt"`
+	Ldap    LdapIdentityAccessManagementProperties `json:"ldap" yaml:"ldap"`
 }
 
 type IdentityAccessManagementType string

@@ -10,12 +10,51 @@ import (
 
 // CloseReason represents the reason for closing a connection.
 type CloseReason struct {
-	Status constant.SessionCloseStatus
-	Reason string
+	Status             constant.SessionCloseStatus
+	BusinessStatusCode constant.ResponseStatusCode
+	Reason             string
 }
 
 func NewCloseReason(status constant.SessionCloseStatus) CloseReason {
 	return CloseReason{Status: status}
+}
+
+func CloseReasonFromError(err error) CloseReason {
+	if err == nil {
+		return NewCloseReason(constant.SessionCloseStatus_UNKNOWN_ERROR)
+	}
+
+	fromErr, ok := err.(interface {
+		Code() constant.ResponseStatusCode
+		Reason() string
+	})
+
+	if ok {
+		code := fromErr.Code()
+		status := constant.SessionCloseStatus_UNKNOWN_ERROR
+		
+		// Map some status codes to close status, simple for now
+		if code >= constant.ResponseStatusCode_SERVER_INTERNAL_ERROR && code < 1300 {
+			if code == constant.ResponseStatusCode_SERVER_UNAVAILABLE {
+				status = constant.SessionCloseStatus_SERVER_UNAVAILABLE
+			} else {
+				status = constant.SessionCloseStatus_SERVER_ERROR
+			}
+		} else if code == constant.ResponseStatusCode_ILLEGAL_ARGUMENT || code == constant.ResponseStatusCode_INVALID_REQUEST {
+			status = constant.SessionCloseStatus_ILLEGAL_REQUEST
+		}
+
+		return CloseReason{
+			Status:             status,
+			BusinessStatusCode: code,
+			Reason:             fromErr.Reason(),
+		}
+	}
+
+	return CloseReason{
+		Status: constant.SessionCloseStatus_UNKNOWN_ERROR,
+		Reason: err.Error(),
+	}
 }
 
 // @MappedFrom NetConnection
@@ -74,10 +113,7 @@ func (b *BaseNetConnection) Close() error {
 	return nil
 }
 
-// @MappedFrom switchToUdp()
-func (b *BaseNetConnection) SwitchToUdp() {
-	b.CloseWithReason(NewCloseReason(constant.SessionCloseStatus_SWITCH))
-}
+
 
 // @MappedFrom tryNotifyClientToRecover()
 func (b *BaseNetConnection) TryNotifyClientToRecover() {

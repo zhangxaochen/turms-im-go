@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"im.turms/server/internal/domain/common/constant"
@@ -54,6 +56,9 @@ type SessionService struct {
 	ipToSessions                 sync.Map // ipStr -> *sync.Map (*UserSession -> struct{})
 	onSessionClosedListeners     []func(*UserSession)
 	rpcService                   *rpc.RpcService
+
+	heartbeatManager *HeartbeatManager
+	sessionIDCounter atomic.Int64
 }
 
 func NewSessionService(
@@ -75,6 +80,13 @@ func NewSessionService(
 		rpcService:                   rpcService,
 	}
 
+	// Initialize session ID counter with a random positive value
+	svc.sessionIDCounter.Store(int64(rand.Int31n(1000000) + 1))
+
+	// Default heartbeat timeouts (should be loadable from config in Phase 4)
+	svc.heartbeatManager = NewHeartbeatManager(svc, 10*time.Second, 40*time.Second)
+	svc.heartbeatManager.Start()
+
 	if rpcService != nil {
 		rpcService.Router().Register(1, func(ctx context.Context, payload []byte) ([]byte, error) {
 			var req rpc.SetUserOfflineRequest
@@ -89,10 +101,14 @@ func NewSessionService(
 	return svc
 }
 
+func (s *SessionService) nextSessionID() int64 {
+	return s.sessionIDCounter.Add(1)
+}
+
 func (s *SessionService) RegisterSession(ctx context.Context, session *UserSession) error {
 	userID := session.UserID
 
-	manager := s.shardedMap.GetOrAdd(userID)
+	manager := s.shardedMap.GetOrAdd(userID, protocol.UserStatus_AVAILABLE)
 
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
@@ -103,7 +119,7 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 			return ErrSessionAlreadyExists
 		} else if s.ConflictStrategy == KickExisting {
 			if existingSession.Conn != nil {
-				existingSession.Conn.Close()
+				_ = existingSession.Conn.Close(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE)
 			}
 			if existingSession.CloseChan != nil {
 				close(existingSession.CloseChan)
@@ -140,7 +156,7 @@ func (s *SessionService) unregisterSessionIp(session *UserSession) {
 	}
 }
 
-func (s *SessionService) UnregisterSession(userID int64, deviceType protocol.DeviceType, conn Connection) {
+func (s *SessionService) UnregisterSession(ctx context.Context, userID int64, deviceType protocol.DeviceType, conn Connection, closeReason constant.SessionCloseStatus) {
 	manager, ok := s.shardedMap.Get(userID)
 	if !ok {
 		return
@@ -158,7 +174,7 @@ func (s *SessionService) UnregisterSession(userID int64, deviceType protocol.Dev
 		delete(manager.Sessions, deviceType)
 
 		if conn != nil {
-			_ = conn.Close()
+			_ = conn.Close(closeReason)
 		}
 		if existing.CloseChan != nil {
 			close(existing.CloseChan)
@@ -175,7 +191,12 @@ func (s *SessionService) UnregisterSession(userID int64, deviceType protocol.Dev
 	manager.mu.Unlock()
 
 	if manager := s.shardedMap.RemoveIfEmpty(userID); manager != nil {
-		s.InvokeGoOfflineHandlers(context.Background(), manager, nil)
+		s.InvokeGoOfflineHandlers(ctx, manager, closeReason)
+	}
+
+	// Remove from distributed status
+	if s.userStatusService != nil {
+		_, _ = s.userStatusService.RemoveOnlineDevice(ctx, userID, deviceType, s.nodeID)
 	}
 }
 
@@ -202,7 +223,9 @@ func (s *SessionService) CountOnlineUsers() int {
 }
 
 func (s *SessionService) Destroy(ctx context.Context) error {
-	// @MappedFrom Java: destroy() calls heartbeatManager.destroy() then closeAllLocalSessions(SERVER_CLOSED)
+	if s.heartbeatManager != nil {
+		s.heartbeatManager.Stop()
+	}
 	s.CloseAllLocalSessions(ctx, constant.SessionCloseStatus_SERVER_CLOSED)
 	return nil
 }
@@ -211,12 +234,12 @@ func (s *SessionService) HandleHeartbeatUpdateRequest(session *UserSession) {
 	session.SetLastHeartbeatRequestTimestampToNow()
 }
 
-func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip []byte, userId int64, password string, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any, ipStr string) (*UserSession, error) {
+func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip []byte, userId int64, password string, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation, ipStr string) (*UserSession, error) {
 	if version != 1 {
 		return nil, errors.New("unsupported client version")
 	}
 	if s.userSimultaneousLoginService.IsForbiddenDeviceType(deviceType) {
-		return nil, errors.New("login from forbidden device type")
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_LOGIN_FROM_FORBIDDEN_DEVICE_TYPE}
 	}
 
 	var passwordPtr *string
@@ -228,7 +251,6 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	if err != nil {
 		return nil, err
 	}
-	// @MappedFrom Java: checks statusCode == ResponseStatusCode.OK before tryRegisterOnlineUser
 	if permissionInfo.AuthenticationCode != constant.ResponseStatusCode_OK {
 		return nil, &SessionAuthError{Code: permissionInfo.AuthenticationCode}
 	}
@@ -236,22 +258,93 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	return s.TryRegisterOnlineUser(ctx, version, permissionInfo.Permissions, ip, userId, deviceType, deviceDetails, userStatus, location)
 }
 
-func (s *SessionService) CloseLocalSessionsByIp(ctx context.Context, ips [][]byte, closeReason any) error {
-	for _, ip := range ips {
-		ipStr := net.IP(ip).String()
-		if v, ok := s.ipToSessions.Load(ipStr); ok {
-			sessionMap := v.(*sync.Map)
-			sessionMap.Range(func(key, value any) bool {
-				session := key.(*UserSession)
-				s.UnregisterSession(session.UserID, session.DeviceType, session.Conn)
-				return true
-			})
+func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
+	// 1. Fetch user status and handle conflicts
+	sessionsStatus, err := s.userStatusService.FetchUserSessionsStatus(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Resolve conflicts
+	conflictedByDenyNew, err := s.resolveConflicts(ctx, userId, deviceType, sessionsStatus)
+	if err != nil {
+		return nil, err
+	}
+	if conflictedByDenyNew {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
+	}
+
+	// 3. Register in UserStatusService (Redis)
+	now := time.Now()
+	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, userStatus, s.nodeID, &now)
+	if err != nil {
+		return nil, err
+	}
+	if !added {
+		// This handles the race condition if another node won
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
+	}
+
+	// 4. Create and local register session
+	session := &UserSession{
+		ID:         s.nextSessionID(),
+		Version:    version,
+		UserID:     userId,
+		DeviceType: deviceType,
+		IP:         net.IP(ip),
+		LoginDate:  now,
+		CloseChan:  make(chan struct{}),
+	}
+	if location != nil {
+		session.Location = &sessionbo.UserLocation{
+			Longitude: location.Longitude,
+			Latitude:  location.Latitude,
 		}
 	}
-	return nil
+	session.SetLastHeartbeatRequestTimestampToNow()
+
+	err = s.RegisterSession(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+
+	// 5. Update location and notify online
+	if location != nil {
+		_ = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, location.Longitude, location.Latitude)
+	}
+
+	s.InvokeGoOnlineHandlers(ctx, nil, session)
+	return session, nil
 }
 
-func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason any) error {
+func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, deviceType protocol.DeviceType, status *userbo.UserSessionsStatus) (bool, error) {
+	conflictedDeviceTypes := s.userSimultaneousLoginService.GetConflictedDeviceTypes(deviceType)
+	if len(conflictedDeviceTypes) == 0 {
+		return false, nil
+	}
+
+	for _, conflictedDT := range conflictedDeviceTypes {
+		if info, exists := status.OnlineDeviceTypeToSessionInfo[conflictedDT]; exists && info.IsActive {
+			if s.userSimultaneousLoginService.ShouldDisconnectLoggingInDeviceIfConflicts() {
+				return true, nil
+			}
+			// Kick existing
+			if info.NodeID == s.nodeID {
+				_ = s.CloseLocalSession(ctx, userId, []protocol.DeviceType{conflictedDT}, constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE)
+			} else if s.rpcService != nil {
+				req := &rpc.SetUserOfflineRequest{
+					UserID:             userId,
+					DeviceTypes:        []protocol.DeviceType{conflictedDT},
+					SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
+				}
+				_, _ = s.rpcService.RequestResponse(ctx, info.NodeID, req)
+			}
+		}
+	}
+	return false, nil
+}
+
+func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason constant.SessionCloseStatus) error {
 	manager, ok := s.shardedMap.Get(userId)
 	if !ok {
 		return nil
@@ -260,23 +353,45 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 
-	for _, dt := range deviceTypes {
-		if session, exists := manager.Sessions[dt]; exists {
+	if len(deviceTypes) == 0 {
+		// Close all sessions
+		for dt, session := range manager.Sessions {
 			s.unregisterSessionIp(session)
 			delete(manager.Sessions, dt)
-
 			if session.Conn != nil {
-				_ = session.Conn.Close()
+				_ = session.Conn.Close(closeReason)
 			}
 			if session.CloseChan != nil {
-				close(session.CloseChan)
+				select {
+				case <-session.CloseChan:
+				default:
+					close(session.CloseChan)
+				}
 			}
-
-			s.mu.RLock()
-			listeners := s.onSessionClosedListeners
-			s.mu.RUnlock()
-			for _, listener := range listeners {
-				listener(session)
+			s.notifySessionClosedListeners(session)
+			// Cleanup remote
+			_, _ = s.userStatusService.RemoveOnlineDevice(ctx, userId, dt, s.nodeID)
+			_ = s.sessionLocationService.RemoveUserLocation(ctx, userId, dt)
+		}
+	} else {
+		for _, dt := range deviceTypes {
+			if session, exists := manager.Sessions[dt]; exists {
+				s.unregisterSessionIp(session)
+				delete(manager.Sessions, dt)
+				if session.Conn != nil {
+					_ = session.Conn.Close(closeReason)
+				}
+				if session.CloseChan != nil {
+					select {
+					case <-session.CloseChan:
+					default:
+						close(session.CloseChan)
+					}
+				}
+				s.notifySessionClosedListeners(session)
+				// Cleanup remote
+				_, _ = s.userStatusService.RemoveOnlineDevice(ctx, userId, dt, s.nodeID)
+				_ = s.sessionLocationService.RemoveUserLocation(ctx, userId, dt)
 			}
 		}
 	}
@@ -287,56 +402,69 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 	return nil
 }
 
-func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason any) error {
+func (s *SessionService) notifySessionClosedListeners(session *UserSession) {
+	s.mu.RLock()
+	listeners := s.onSessionClosedListeners
+	s.mu.RUnlock()
+	for _, listener := range listeners {
+		listener(session)
+	}
+}
+
+func (s *SessionService) CloseLocalSessionsByUserIds(ctx context.Context, userIds []int64, closeReason constant.SessionCloseStatus) error {
 	for _, uid := range userIds {
 		manager, ok := s.shardedMap.Get(uid)
 		if ok {
 			sessions := manager.GetAllSessions()
 			for _, session := range sessions {
-				s.UnregisterSession(uid, session.DeviceType, session.Conn)
+				s.UnregisterSession(ctx, uid, session.DeviceType, session.Conn, closeReason)
 			}
 		}
 	}
 	return nil
 }
 
-func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason any, sessionId int) error {
+func (s *SessionService) AuthAndCloseLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, password *string, sessionId int64) error {
+	_, err := s.sessionAuthenticationManager.VerifyAndGrant(ctx, sessionbo.NewUserLoginInfo(0, userId, password, deviceType, nil, nil, ""))
+	if err != nil {
+		return err
+	}
+	return s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY)
+}
+
+func (s *SessionService) UpdateLocalSession(ctx context.Context, userId int64, deviceType protocol.DeviceType, userStatus protocol.UserStatus, location *protocol.UserLocation) error {
 	manager, ok := s.shardedMap.Get(userId)
 	if !ok {
-		return nil
+		return &SessionAuthError{Code: constant.ResponseStatusCode_UPDATE_NON_EXISTING_SESSION_STATUS}
 	}
 
 	manager.mu.Lock()
-	defer manager.mu.Unlock()
+	session, exists := manager.Sessions[deviceType]
+	if !exists {
+		manager.mu.Unlock()
+		return &SessionAuthError{Code: constant.ResponseStatusCode_UPDATE_NON_EXISTING_SESSION_STATUS}
+	}
 
-	if session, exists := manager.Sessions[deviceType]; exists {
-		if session.ID == sessionId {
-			s.unregisterSessionIp(session)
-			delete(manager.Sessions, deviceType)
+	if userStatus != protocol.UserStatus_OFFLINE { // Use OFFLINE or some placeholder to check
+		manager.UserStatus = userStatus
+	}
+	manager.mu.Unlock()
 
-			if session.Conn != nil {
-				_ = session.Conn.Close()
-			}
-			if session.CloseChan != nil {
-				close(session.CloseChan)
-			}
-
-			s.mu.RLock()
-			listeners := s.onSessionClosedListeners
-			s.mu.RUnlock()
-			for _, listener := range listeners {
-				listener(session)
-			}
+	if userStatus != protocol.UserStatus_OFFLINE {
+		_, _ = s.userStatusService.UpdateStatus(ctx, userId, userStatus)
+	}
+	if location != nil {
+		_ = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, location.Longitude, location.Latitude)
+		session.Location = &sessionbo.UserLocation{
+			Longitude: location.Longitude,
+			Latitude:  location.Latitude,
 		}
 	}
-
-	if manager := s.shardedMap.RemoveIfEmpty(userId); manager != nil {
-		s.InvokeGoOfflineHandlers(ctx, manager, closeReason)
-	}
+	session.SetLastHeartbeatRequestTimestampToNow()
 	return nil
 }
 
-func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason any) error {
+func (s *SessionService) CloseAllLocalSessions(ctx context.Context, closeReason constant.SessionCloseStatus) error {
 	s.shardedMap.Range(func(userId int64, manager *UserSessionsManager) bool {
 		var toClose []protocol.DeviceType
 		for _, sess := range manager.GetAllSessions() {
@@ -393,7 +521,7 @@ func (s *SessionService) GetSessions(ctx context.Context, userIds []int64) []*se
 	return result
 }
 
-func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int) *UserSession {
+func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int64) *UserSession {
 	if session, ok := s.GetUserSession(userId, deviceType); ok {
 		if session.ID == sessionId {
 			s.HandleHeartbeatUpdateRequest(session)
@@ -403,145 +531,21 @@ func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, us
 	return nil
 }
 
-func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any) (*UserSession, error) {
-	sessionsStatus, err := s.userStatusService.FetchUserSessionsStatus(ctx, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	manager, ok := s.shardedMap.Get(userId)
-	if ok {
-		var toClose []protocol.DeviceType
-		for _, sess := range manager.GetAllSessions() {
-			if info, exists := sessionsStatus.OnlineDeviceTypeToSessionInfo[sess.DeviceType]; exists {
-				if info.IsActive && info.NodeID != s.nodeID {
-					toClose = append(toClose, sess.DeviceType)
-				}
-			}
-		}
-		if len(toClose) > 0 {
-			_ = s.CloseLocalSession(ctx, userId, toClose, "disconnected_by_other_device")
+func (s *SessionService) CloseLocalSessionsByIp(ctx context.Context, ips [][]byte, closeReason constant.SessionCloseStatus) (int, error) {
+	count := 0
+	for _, ip := range ips {
+		ipStr := net.IP(ip).String()
+		if v, ok := s.ipToSessions.Load(ipStr); ok {
+			sessionMap := v.(*sync.Map)
+			sessionMap.Range(func(key, value any) bool {
+				session := key.(*UserSession)
+				s.UnregisterSession(ctx, session.UserID, session.DeviceType, session.Conn, closeReason)
+				count++
+				return true
+			})
 		}
 	}
-
-	if sessionsStatus.UserStatus == protocol.UserStatus_OFFLINE {
-		return s.addOnlineDeviceIfAbsent(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location, "", 0)
-	}
-
-	info, exists := sessionsStatus.OnlineDeviceTypeToSessionInfo[deviceType]
-	if exists && info.IsActive {
-		session, ok := s.GetUserSession(userId, deviceType)
-		isClosedSessionOnLocal := ok && session.Conn != nil && !session.Conn.IsActive()
-		if isClosedSessionOnLocal {
-			if userStatus != 0 && sessionsStatus.UserStatus != userStatus {
-				_, _ = s.userStatusService.UpdateStatus(ctx, userId, userStatus)
-			}
-			if location != nil {
-				loc, ok := location.(*protocol.UserLocation)
-				if ok && s.sessionLocationService != nil {
-					_ = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, loc.Longitude, loc.Latitude)
-				}
-			}
-			return session, nil
-		} else if s.userSimultaneousLoginService.ShouldDisconnectLoggingInDeviceIfConflicts() {
-			return nil, ErrSessionAlreadyExists
-		}
-	}
-
-	var expectedNodeId string
-	var expectedDeviceTimestamp int64
-	if exists {
-		expectedNodeId = info.NodeID
-		expectedDeviceTimestamp = info.HeartbeatTimestampSeconds
-	}
-
-	wasSuccessful, err := s.closeSessionsWithConflictedDeviceTypes(ctx, userId, deviceType, sessionsStatus)
-	if err != nil || !wasSuccessful {
-		return nil, ErrSessionAlreadyExists
-	}
-
-	return s.addOnlineDeviceIfAbsent(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location, expectedNodeId, expectedDeviceTimestamp)
-}
-
-func (s *SessionService) closeSessionsWithConflictedDeviceTypes(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionsStatus *userbo.UserSessionsStatus) (bool, error) {
-	if sessionsStatus == nil || len(sessionsStatus.OnlineDeviceTypeToSessionInfo) == 0 {
-		return true, nil
-	}
-
-	for existingDeviceType, info := range sessionsStatus.OnlineDeviceTypeToSessionInfo {
-		if !info.IsActive {
-			continue
-		}
-		// Based on MultiDeviceStrategy, if we are KickExisting and there's a conflict
-		if s.userSimultaneousLoginService.IsConflicted(deviceType, existingDeviceType) {
-			if info.NodeID == s.nodeID {
-				// Handled locally beforehand
-				// SetLocalSessionOfflineByUserIdAndDeviceExists here if full logic was present.
-				continue
-			}
-			// Send RPC to `info.NodeID` to kick `existingDeviceType` for `userId`
-			// Use the new RpcService skeleton.
-			if s.rpcService != nil {
-				req := &rpc.SetUserOfflineRequest{
-					UserID:             userId,
-					DeviceTypes:        []protocol.DeviceType{existingDeviceType},
-					SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
-				}
-				_, err := s.rpcService.RequestResponse(ctx, info.NodeID, req)
-				if err != nil {
-					// Fallback handle
-				}
-			}
-		}
-	}
-	return true, nil
-}
-
-func (s *SessionService) addOnlineDeviceIfAbsent(ctx context.Context, version int, permissions any, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location any, expectedNodeId string, expectedDeviceTimestamp int64) (*UserSession, error) {
-	now := time.Now()
-	if s.userStatusService != nil {
-		ok, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, userStatus, s.nodeID, &now)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, ErrSessionAlreadyExists
-		}
-	}
-
-	session := &UserSession{
-		UserID:     userId,
-		DeviceType: deviceType,
-		IP:         net.IP(ip),
-		LoginDate:  now,
-		CloseChan:  make(chan struct{}),
-	}
-	if location != nil {
-		loc, ok := location.(*protocol.UserLocation)
-		if ok {
-			session.Location = &sessionbo.UserLocation{
-				Longitude: loc.Longitude,
-				Latitude:  loc.Latitude,
-			}
-		}
-	}
-	session.SetLastHeartbeatRequestTimestampToNow()
-
-	err := s.RegisterSession(ctx, session)
-	if err != nil {
-		return nil, err
-	}
-
-	if location != nil {
-		loc, ok := location.(*protocol.UserLocation)
-		if ok && s.sessionLocationService != nil {
-			_ = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, loc.Longitude, loc.Latitude)
-		}
-	}
-
-	s.InvokeGoOnlineHandlers(ctx, nil, session)
-
-	return session, nil
+	return count, nil
 }
 
 func (s *SessionService) GetUserSessionsManager(ctx context.Context, userId int64) any {
@@ -585,6 +589,6 @@ func (s *SessionService) InvokeGoOnlineHandlers(ctx context.Context, userSession
 	// TODO: 插件系统尚未实现: 调用 PluginManager (UserOnlineStatusChangeHandler.goOnline)
 }
 
-func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessionsManager *UserSessionsManager, closeReason any) {
+func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessionsManager *UserSessionsManager, closeReason constant.SessionCloseStatus) {
 	// TODO: 插件系统尚未实现: 调用 PluginManager (UserOnlineStatusChangeHandler.goOffline)
 }

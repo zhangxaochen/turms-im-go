@@ -17,4 +17,5 @@ const (
 	SessionCloseStatus_HEARTBEAT_TIMEOUT            SessionCloseStatus = 110
 	SessionCloseStatus_LOGIN_TIMEOUT                SessionCloseStatus = 111
 	SessionCloseStatus_SWITCH                       SessionCloseStatus = 112
+	SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY SessionCloseStatus = 113
 )

@@ -153,6 +153,7 @@ type TurmsNotification_Data struct {
 	//	*TurmsNotification_Data_GroupJoinQuestionsWithVersion
 	//	*TurmsNotification_Data_GroupMembersWithVersion
 	//	*TurmsNotification_Data_GroupsWithVersion
+	//	*TurmsNotification_Data_Meetings
 	//	*TurmsNotification_Data_StorageResourceInfos
 	Kind          isTurmsNotification_Data_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
@@ -376,6 +377,15 @@ func (x *TurmsNotification_Data) GetGroupsWithVersion() *GroupsWithVersion {
 	return nil
 }
 
+func (x *TurmsNotification_Data) GetMeetings() *Meetings {
+	if x != nil {
+		if x, ok := x.Kind.(*TurmsNotification_Data_Meetings); ok {
+			return x.Meetings
+		}
+	}
+	return nil
+}
+
 func (x *TurmsNotification_Data) GetStorageResourceInfos() *StorageResourceInfos {
 	if x != nil {
 		if x, ok := x.Kind.(*TurmsNotification_Data_StorageResourceInfos); ok {
@@ -474,6 +484,11 @@ type TurmsNotification_Data_GroupsWithVersion struct {
 	GroupsWithVersion *GroupsWithVersion `protobuf:"bytes,20,opt,name=groups_with_version,json=groupsWithVersion,proto3,oneof"`
 }
 
+type TurmsNotification_Data_Meetings struct {
+	// Conference
+	Meetings *Meetings `protobuf:"bytes,40,opt,name=meetings,proto3,oneof"`
+}
+
 type TurmsNotification_Data_StorageResourceInfos struct {
 	// Storage
 	StorageResourceInfos *StorageResourceInfos `protobuf:"bytes,50,opt,name=storage_resource_infos,json=storageResourceInfos,proto3,oneof"`
@@ -519,13 +534,15 @@ func (*TurmsNotification_Data_GroupMembersWithVersion) isTurmsNotification_Data_
 
 func (*TurmsNotification_Data_GroupsWithVersion) isTurmsNotification_Data_Kind() {}
 
+func (*TurmsNotification_Data_Meetings) isTurmsNotification_Data_Kind() {}
+
 func (*TurmsNotification_Data_StorageResourceInfos) isTurmsNotification_Data_Kind() {}
 
 var File_notification_turms_notification_proto protoreflect.FileDescriptor
 
 const file_notification_turms_notification_proto_rawDesc = "" +
 	"\n" +
-	"%notification/turms_notification.proto\x12\x0eim.turms.proto\x1a\x1brequest/turms_request.proto\x1a%model/common/longs_with_version.proto\x1a'model/common/strings_with_version.proto\x1a0model/group/group_invitations_with_version.proto\x1a4model/group/group_join_questions_answer_result.proto\x1a3model/group/group_join_questions_with_version.proto\x1a2model/group/group_join_requests_with_version.proto\x1a,model/group/group_members_with_version.proto\x1a%model/group/groups_with_version.proto\x1a&model/conversation/conversations.proto\x1a\x1cmodel/message/messages.proto\x1a,model/message/messages_with_total_list.proto\x1a*model/storage/storage_resource_infos.proto\x1a\x1dmodel/user/nearby_users.proto\x1a2model/user/user_friend_requests_with_version.proto\x1a(model/user/user_infos_with_version.proto\x1a%model/user/user_online_statuses.proto\x1a6model/user/user_relationship_groups_with_version.proto\x1a0model/user/user_relationships_with_version.proto\x1a\x1dmodel/user/user_session.proto\"\xa2\x12\n" +
+	"%notification/turms_notification.proto\x12\x0eim.turms.proto\x1a\x1brequest/turms_request.proto\x1a%model/common/longs_with_version.proto\x1a'model/common/strings_with_version.proto\x1a0model/group/group_invitations_with_version.proto\x1a4model/group/group_join_questions_answer_result.proto\x1a3model/group/group_join_questions_with_version.proto\x1a2model/group/group_join_requests_with_version.proto\x1a,model/group/group_members_with_version.proto\x1a%model/group/groups_with_version.proto\x1a&model/conversation/conversations.proto\x1a\x1cmodel/message/messages.proto\x1a,model/message/messages_with_total_list.proto\x1a*model/storage/storage_resource_infos.proto\x1a\x1dmodel/user/nearby_users.proto\x1a2model/user/user_friend_requests_with_version.proto\x1a(model/user/user_infos_with_version.proto\x1a%model/user/user_online_statuses.proto\x1a6model/user/user_relationship_groups_with_version.proto\x1a0model/user/user_relationships_with_version.proto\x1a\x1dmodel/user/user_session.proto\x1a\x1fmodel/conference/meetings.proto\"\xda\x12\n" +
 	"\x11TurmsNotification\x12\x1c\n" +
 	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\x12\"\n" +
 	"\n" +
@@ -536,7 +553,7 @@ const file_notification_turms_notification_proto_rawDesc = "" +
 	"\frequester_id\x18\n" +
 	" \x01(\x03H\x03R\vrequesterId\x88\x01\x01\x12&\n" +
 	"\fclose_status\x18\v \x01(\x05H\x04R\vcloseStatus\x88\x01\x01\x12E\n" +
-	"\x0frelayed_request\x18\f \x01(\v2\x1c.im.turms.proto.TurmsRequestR\x0erelayedRequest\x1a\xfc\x0e\n" +
+	"\x0frelayed_request\x18\f \x01(\v2\x1c.im.turms.proto.TurmsRequestR\x0erelayedRequest\x1a\xb4\x0f\n" +
 	"\x04Data\x12\x14\n" +
 	"\x04long\x18\x01 \x01(\x03H\x00R\x04long\x12\x18\n" +
 	"\x06string\x18\x02 \x01(\tH\x00R\x06string\x12P\n" +
@@ -558,7 +575,8 @@ const file_notification_turms_notification_proto_rawDesc = "" +
 	" group_join_requests_with_version\x18\x11 \x01(\v2,.im.turms.proto.GroupJoinRequestsWithVersionH\x00R\x1cgroupJoinRequestsWithVersion\x12y\n" +
 	"!group_join_questions_with_version\x18\x12 \x01(\v2-.im.turms.proto.GroupJoinQuestionsWithVersionH\x00R\x1dgroupJoinQuestionsWithVersion\x12f\n" +
 	"\x1agroup_members_with_version\x18\x13 \x01(\v2'.im.turms.proto.GroupMembersWithVersionH\x00R\x17groupMembersWithVersion\x12S\n" +
-	"\x13groups_with_version\x18\x14 \x01(\v2!.im.turms.proto.GroupsWithVersionH\x00R\x11groupsWithVersion\x12\\\n" +
+	"\x13groups_with_version\x18\x14 \x01(\v2!.im.turms.proto.GroupsWithVersionH\x00R\x11groupsWithVersion\x126\n" +
+	"\bmeetings\x18( \x01(\v2\x18.im.turms.proto.MeetingsH\x00R\bmeetings\x12\\\n" +
 	"\x16storage_resource_infos\x182 \x01(\v2$.im.turms.proto.StorageResourceInfosH\x00R\x14storageResourceInfosB\x06\n" +
 	"\x04kindB\r\n" +
 	"\v_request_idB\a\n" +
@@ -603,7 +621,8 @@ var file_notification_turms_notification_proto_goTypes = []any{
 	(*GroupJoinQuestionsWithVersion)(nil),     // 18: im.turms.proto.GroupJoinQuestionsWithVersion
 	(*GroupMembersWithVersion)(nil),           // 19: im.turms.proto.GroupMembersWithVersion
 	(*GroupsWithVersion)(nil),                 // 20: im.turms.proto.GroupsWithVersion
-	(*StorageResourceInfos)(nil),              // 21: im.turms.proto.StorageResourceInfos
+	(*Meetings)(nil),                          // 21: im.turms.proto.Meetings
+	(*StorageResourceInfos)(nil),              // 22: im.turms.proto.StorageResourceInfos
 }
 var file_notification_turms_notification_proto_depIdxs = []int32{
 	1,  // 0: im.turms.proto.TurmsNotification.data:type_name -> im.turms.proto.TurmsNotification.Data
@@ -626,12 +645,13 @@ var file_notification_turms_notification_proto_depIdxs = []int32{
 	18, // 17: im.turms.proto.TurmsNotification.Data.group_join_questions_with_version:type_name -> im.turms.proto.GroupJoinQuestionsWithVersion
 	19, // 18: im.turms.proto.TurmsNotification.Data.group_members_with_version:type_name -> im.turms.proto.GroupMembersWithVersion
 	20, // 19: im.turms.proto.TurmsNotification.Data.groups_with_version:type_name -> im.turms.proto.GroupsWithVersion
-	21, // 20: im.turms.proto.TurmsNotification.Data.storage_resource_infos:type_name -> im.turms.proto.StorageResourceInfos
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	21, // 20: im.turms.proto.TurmsNotification.Data.meetings:type_name -> im.turms.proto.Meetings
+	22, // 21: im.turms.proto.TurmsNotification.Data.storage_resource_infos:type_name -> im.turms.proto.StorageResourceInfos
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_notification_turms_notification_proto_init() }
@@ -659,6 +679,7 @@ func file_notification_turms_notification_proto_init() {
 	file_model_user_user_relationship_groups_with_version_proto_init()
 	file_model_user_user_relationships_with_version_proto_init()
 	file_model_user_user_session_proto_init()
+	file_model_conference_meetings_proto_init()
 	file_notification_turms_notification_proto_msgTypes[0].OneofWrappers = []any{}
 	file_notification_turms_notification_proto_msgTypes[1].OneofWrappers = []any{
 		(*TurmsNotification_Data_Long)(nil),
@@ -681,6 +702,7 @@ func file_notification_turms_notification_proto_init() {
 		(*TurmsNotification_Data_GroupJoinQuestionsWithVersion)(nil),
 		(*TurmsNotification_Data_GroupMembersWithVersion)(nil),
 		(*TurmsNotification_Data_GroupsWithVersion)(nil),
+		(*TurmsNotification_Data_Meetings)(nil),
 		(*TurmsNotification_Data_StorageResourceInfos)(nil),
 	}
 	type x struct{}

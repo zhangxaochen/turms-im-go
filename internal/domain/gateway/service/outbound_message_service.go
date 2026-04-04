@@ -40,7 +40,7 @@ func (s *outboundMessageService) ForwardNotification(ctx context.Context, notifi
 
 	for _, userSession := range sessions {
 		if userSession.Conn != nil {
-			_ = userSession.Conn.WriteMessage(data)
+			_ = userSession.Conn.Send(data)
 		}
 	}
 
@@ -61,7 +61,7 @@ func (s *outboundMessageService) ForwardNotificationToMultiple(ctx context.Conte
 		sessions := s.sessionService.GetAllUserSessions(recipientID)
 		for _, userSession := range sessions {
 			if userSession.Conn != nil {
-				_ = userSession.Conn.WriteMessage(data)
+				_ = userSession.Conn.Send(data)
 			}
 		}
 	}

@@ -4,7 +4,7 @@ import "im.turms/server/pkg/protocol"
 
 // UserSessionInfo represents basic session info returned for admin queries.
 type UserSessionInfo struct {
-	ID         int                 `json:"id"`
+	ID         int64               `json:"id"`
 	Version    int                 `json:"version"`
 	DeviceType protocol.DeviceType `json:"deviceType"`
 	LoginDate  int64               `json:"loginDate"` // Milliseconds

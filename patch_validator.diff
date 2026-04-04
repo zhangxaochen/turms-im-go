@@ -1,0 +1,25 @@
+--- internal/infra/validator/validator.go
++++ internal/infra/validator/validator.go
+@@ -6,6 +6,7 @@
+ 	"time"
+ 
+ 	"im.turms/server/internal/infra/exception"
+++"im.turms/server/internal/domain/user/po"
+ 	"im.turms/server/pkg/codes"
+ )
+ 
+@@ -99,9 +100,10 @@
+ }
+ 
+ // @MappedFrom validRelationshipGroupKey(UserRelationshipGroup.Key key)
+-func ValidRelationshipGroupKey(key interface{}) error { // use interface{} or proper type
+- // Actually, wait, let's not introduce a dependency on po here if we can avoid it.
+-return nil
++func ValidRelationshipGroupKey(key *po.UserRelationshipGroupKey) error {
++if key == nil || key.OwnerID == 0 {
++return exception.NewTurmsError(int32(codes.IllegalArgument), "The user relationship group key must not be null")
++}
++return nil
+ }
+ 
+ // @MappedFrom validGroupMemberKey(GroupMember.Key key)

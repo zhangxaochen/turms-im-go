@@ -31,9 +31,9 @@ type UserRelationshipGroupService interface {
 	DeleteRelatedUserFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserID int64, session *mongo.Session, updateVersion bool) (int64, error)
 	DeleteRelatedUsersFromAllRelationshipGroups(ctx context.Context, ownerID int64, relatedUserIDs []int64, session *mongo.Session, updateVersion bool) (int64, error)
 	MoveRelatedUserToNewGroup(ctx context.Context, ownerID int64, relatedUserID int64, currentGroupIndex int32, targetGroupIndex int32, suppressIfAlreadyExists bool, session *mongo.Session) error
-	CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error)
+	CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time) (int64, error)
 	CountRelationshipGroupMembers(ctx context.Context, ownerIDs []int64, groupIndexes []int32) (int64, error)
-	QueryRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, page *int, size *int) ([]*po.UserRelationshipGroup, error)
+	QueryRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time, page *int, size *int) ([]*po.UserRelationshipGroup, error)
 }
 
 type userRelationshipGroupService struct {
@@ -246,6 +246,11 @@ func (s *userRelationshipGroupService) UpdateRelationshipGroups(
 	if err := validator.NotEmpty(keys, "keys"); err != nil {
 		return err
 	}
+	for _, key := range keys {
+		if err := validator.ValidRelationshipGroupKey(&key); err != nil {
+			return err
+		}
+	}
 	if creationDate != nil {
 		if err := validator.PastOrPresent(creationDate, "creationDate"); err != nil {
 			return err
@@ -254,8 +259,8 @@ func (s *userRelationshipGroupService) UpdateRelationshipGroups(
 	if newName == nil && creationDate == nil {
 		return nil
 	}
-	if newName != nil {
-		count, err := s.groupRepo.UpdateRelationshipGroups(ctx, keys, *newName, nil)
+	if newName != nil || creationDate != nil {
+		count, err := s.groupRepo.UpdateRelationshipGroups(ctx, keys, newName, creationDate, nil)
 		if err != nil {
 			return err
 		}
@@ -548,8 +553,8 @@ func (s *userRelationshipGroupService) MoveRelatedUserToNewGroup(
 	return nil
 }
 
-func (s *userRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerIDs []int64) (int64, error) {
-	return s.groupRepo.CountRelationshipGroups(ctx, ownerIDs, nil)
+func (s *userRelationshipGroupService) CountRelationshipGroups(ctx context.Context, ownerIDs []int64, groupIndexes []int32, names []string, creationDateStart *time.Time, creationDateEnd *time.Time) (int64, error) {
+	return s.groupRepo.CountRelationshipGroups(ctx, ownerIDs, groupIndexes, names, creationDateStart, creationDateEnd)
 }
 
 // @MappedFrom countRelationshipGroupMembers(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes)
@@ -563,8 +568,11 @@ func (s *userRelationshipGroupService) QueryRelationshipGroups(
 	ctx context.Context,
 	ownerIDs []int64,
 	groupIndexes []int32,
+	names []string,
+	creationDateStart *time.Time,
+	creationDateEnd *time.Time,
 	page *int,
 	size *int,
 ) ([]*po.UserRelationshipGroup, error) {
-	return s.groupRepo.FindRelationshipGroups(ctx, ownerIDs, groupIndexes, page, size)
+	return s.groupRepo.FindRelationshipGroups(ctx, ownerIDs, groupIndexes, names, creationDateStart, creationDateEnd, page, size)
 }

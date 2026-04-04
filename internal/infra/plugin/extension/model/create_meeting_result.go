@@ -1,5 +1,7 @@
 package model
 
-// Stub for CreateMeetingResult
+// CreateMeetingResult represents the result of creating a meeting.
+// @MappedFrom CreateMeetingResult.java
 type CreateMeetingResult struct {
+	AccessToken string
 }
