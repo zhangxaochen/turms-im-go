@@ -62,6 +62,12 @@ func (r *GroupVersionRepository) UpdateMembersVersion(ctx context.Context, group
 	return r.UpdateVersion(ctx, groupID, "mbr")
 }
 
+// UpdateInformationVersion updates the information version.
+// @MappedFrom updateInformationVersion(@NotNull Long groupId)
+func (r *GroupVersionRepository) UpdateInformationVersion(ctx context.Context, groupID int64) error {
+	return r.UpdateVersion(ctx, groupID, "info")
+}
+
 // UpdateBlocklistVersion updates the blocklist version.
 // @MappedFrom updateBlocklistVersion(@NotNull Long groupId)
 func (r *GroupVersionRepository) UpdateBlocklistVersion(ctx context.Context, groupID int64) error {
@@ -99,6 +105,7 @@ func (r *GroupVersionRepository) Upsert(ctx context.Context, groupID int64, time
 			"jr":   timestamp,
 			"jq":   timestamp,
 			"invt": timestamp,
+			"info": timestamp,
 		},
 	}
 	opts := options.Update().SetUpsert(true)

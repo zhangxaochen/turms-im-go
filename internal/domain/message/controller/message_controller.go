@@ -28,6 +28,11 @@ func NewMessageController(messageService *service.MessageService) *MessageContro
 func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateMessageRequest()
 
+	if createReq.IsSystemMessage != nil && *createReq.IsSystemMessage {
+		// "Users cannot send the system message"
+		return nil, errors.New("ILLEGAL_ARGUMENT: Users cannot send the system message")
+	}
+
 	var targetID int64
 	var text string
 	if createReq.Text != nil {
@@ -41,10 +46,28 @@ func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *s
 	} else {
 		if createReq.RecipientId != nil {
 			targetID = *createReq.RecipientId
+		} else {
+			return nil, errors.New("ILLEGAL_ARGUMENT: The recipientId must not be null for private messages")
 		}
 	}
 
-	createdMsg, err := c.messageService.AuthAndSaveAndSendMessage(ctx, isGroupMessage, s.UserID, targetID, text)
+	var deliveryDate *time.Time
+	if createReq.DeliveryDate != nil {
+		t := time.UnixMilli(*createReq.DeliveryDate)
+		deliveryDate = &t
+	}
+
+	createdMsg, err := c.messageService.AuthAndSaveAndSendMessage(
+		ctx,
+		isGroupMessage,
+		s.UserID,
+		targetID,
+		text,
+		createReq.Records,
+		createReq.BurnAfter,
+		deliveryDate,
+		createReq.PreMessageId,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -127,23 +150,100 @@ func (c *MessageController) HandleQueryMessagesRequest(ctx context.Context, s *s
 		return nil, err
 	}
 
-	// NOTE: withTotal is ignored for now as we don't have a CountMessages method implemented.
-	var protoMessages []*protocol.Message
-	for _, m := range messages {
-		protoMessages = append(protoMessages, ConvertMessageToProto(m))
-	}
+	withTotal := queryReq.WithTotal
 
-	return &protocol.TurmsNotification{
-		RequestId: req.RequestId,
-		Code:      proto.Int32(1000), // SUCCESS
-		Data: &protocol.TurmsNotification_Data{
-			Kind: &protocol.TurmsNotification_Data_Messages{
-				Messages: &protocol.Messages{
-					Messages: protoMessages,
+	if withTotal {
+		// Group by sender key (isGroupMessage, targetID/senderID)
+		type messageFromKey struct {
+			isGroupMessage bool
+			fromId         int64
+		}
+		keyToMessages := make(map[messageFromKey][]*po.Message)
+		for _, m := range messages {
+			isGroup := false
+			if m.IsGroupMessage != nil {
+				isGroup = *m.IsGroupMessage
+			}
+			fromId := m.SenderID
+			if isGroup {
+				fromId = m.TargetID
+			}
+
+			key := messageFromKey{isGroupMessage: isGroup, fromId: fromId}
+			keyToMessages[key] = append(keyToMessages[key], m)
+		}
+
+		var messagesWithTotalList []*protocol.MessagesWithTotal
+		for key, msgs := range keyToMessages {
+			var isGroupMessagePtr *bool
+			isGrp := key.isGroupMessage
+			isGroupMessagePtr = &isGrp
+
+			var senderIDs []int64
+			var targetIDs []int64
+
+			if key.isGroupMessage {
+				targetIDs = []int64{key.fromId}
+			} else {
+				senderIDs = []int64{key.fromId}
+				targetIDs = []int64{s.UserID}
+			}
+
+			// Call CountMessages
+			total, err := c.messageService.CountMessages(
+				ctx,
+				isGroupMessagePtr,
+				senderIDs,
+				targetIDs,
+				deliveryDateAfter,
+				deliveryDateBefore,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			var protoMsgs []*protocol.Message
+			for _, m := range msgs {
+				protoMsgs = append(protoMsgs, ConvertMessageToProto(m))
+			}
+
+			messagesWithTotalList = append(messagesWithTotalList, &protocol.MessagesWithTotal{
+				Total:          int32(total),
+				IsGroupMessage: key.isGroupMessage,
+				FromId:         key.fromId,
+				Messages:       protoMsgs,
+			})
+		}
+
+		return &protocol.TurmsNotification{
+			RequestId: req.RequestId,
+			Code:      proto.Int32(1000), // SUCCESS
+			Data: &protocol.TurmsNotification_Data{
+				Kind: &protocol.TurmsNotification_Data_MessagesWithTotalList{
+					MessagesWithTotalList: &protocol.MessagesWithTotalList{
+						MessagesWithTotalList: messagesWithTotalList,
+					},
 				},
 			},
-		},
-	}, nil
+		}, nil
+	} else {
+		var protoMessages []*protocol.Message
+		for _, m := range messages {
+			protoMessages = append(protoMessages, ConvertMessageToProto(m))
+		}
+
+		return &protocol.TurmsNotification{
+			RequestId: req.RequestId,
+			Code:      proto.Int32(1000), // SUCCESS
+			Data: &protocol.TurmsNotification_Data{
+				Kind: &protocol.TurmsNotification_Data_Messages{
+					Messages: &protocol.Messages{
+						Messages: protoMessages,
+					},
+				},
+			},
+		}, nil
+	}
 }
 
 // @MappedFrom handleUpdateMessageRequest()

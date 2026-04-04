@@ -41,7 +41,7 @@ func TestMessageCore_E2E(t *testing.T) {
 		text := "Hello World"
 
 		// 1. Create message
-		msg, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, text)
+		msg, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, text, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, msg)
 		assert.Equal(t, text, msg.Text)
@@ -79,7 +79,7 @@ func TestMessageCore_E2E(t *testing.T) {
 		targetID := int64(201)
 		text := "A private message"
 
-		msg, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, text)
+		msg, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, text, nil, nil, nil, nil)
 		require.NoError(t, err)
 
 		wrongSenderID := int64(999)

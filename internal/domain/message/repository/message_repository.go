@@ -124,6 +124,44 @@ func (r *MessageRepository) QueryMessages(
 	return msgs, nil
 }
 
+// CountMessages counts messages matching the specific criteria.
+func (r *MessageRepository) CountMessages(
+	ctx context.Context,
+	isGroupMessage *bool,
+	senderIDs []int64,
+	targetIDs []int64,
+	deliveryDateAfter *time.Time,
+	deliveryDateBefore *time.Time,
+) (int64, error) {
+	filter := bson.M{}
+
+	if isGroupMessage != nil {
+		filter["igm"] = *isGroupMessage
+	}
+
+	if len(senderIDs) > 0 {
+		filter["sid"] = bson.M{"$in": senderIDs}
+	}
+
+	if len(targetIDs) > 0 {
+		filter["tid"] = bson.M{"$in": targetIDs}
+	}
+
+	// Date Range
+	dateFilter := bson.M{}
+	if deliveryDateAfter != nil {
+		dateFilter["$gt"] = *deliveryDateAfter
+	}
+	if deliveryDateBefore != nil {
+		dateFilter["$lt"] = *deliveryDateBefore
+	}
+	if len(dateFilter) > 0 {
+		filter["dyd"] = dateFilter
+	}
+
+	return r.col.CountDocuments(ctx, filter)
+}
+
 // UpdateMessage partially updates a message's text, modificationDate, or recallDate.
 func (r *MessageRepository) UpdateMessage(
 	ctx context.Context,

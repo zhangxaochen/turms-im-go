@@ -25,6 +25,10 @@ func (s *GroupVersionService) UpdateMembersVersion(ctx context.Context, groupID 
 	return s.groupVersionRepo.UpdateMembersVersion(ctx, groupID)
 }
 
+func (s *GroupVersionService) UpdateInformationVersion(ctx context.Context, groupID int64) error {
+	return s.groupVersionRepo.UpdateInformationVersion(ctx, groupID)
+}
+
 func (s *GroupVersionService) UpdateBlocklistVersion(ctx context.Context, groupID int64) error {
 	return s.groupVersionRepo.UpdateBlocklistVersion(ctx, groupID)
 }
@@ -48,6 +52,42 @@ func (s *GroupVersionService) QueryGroupInvitationsVersion(ctx context.Context, 
 		return nil, err
 	}
 	return v.Invitations, nil
+}
+
+// @MappedFrom queryGroupJoinRequestsVersion(@NotNull Long groupId)
+func (s *GroupVersionService) QueryGroupJoinRequestsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
+	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
+	if err != nil || v == nil {
+		return nil, err
+	}
+	return v.JoinRequests, nil
+}
+
+// @MappedFrom queryGroupJoinQuestionsVersion(@NotNull Long groupId)
+func (s *GroupVersionService) QueryGroupJoinQuestionsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
+	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
+	if err != nil || v == nil {
+		return nil, err
+	}
+	return v.JoinQuestions, nil
+}
+
+// @MappedFrom queryMembersVersion(@NotNull Long groupId)
+func (s *GroupVersionService) QueryGroupMembersVersion(ctx context.Context, groupID int64) (*time.Time, error) {
+	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
+	if err != nil || v == nil {
+		return nil, err
+	}
+	return v.Members, nil
+}
+
+// @MappedFrom queryBlocklistVersion(@NotNull Long groupId)
+func (s *GroupVersionService) QueryGroupBlocklistVersion(ctx context.Context, groupID int64) (*time.Time, error) {
+	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
+	if err != nil || v == nil {
+		return nil, err
+	}
+	return v.Blocklist, nil
 }
 
 // Upsert creates or updates all group version records.

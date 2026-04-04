@@ -31,3 +31,8 @@ type GroupJoinRequest struct {
 	RequesterID  int64         `bson:"rqid"`
 	ResponderID  *int64        `bson:"rpid,omitempty"` // HASH index
 }
+
+type GroupJoinRequestsWithVersion struct {
+	GroupJoinRequests []*GroupJoinRequest `json:"joinRequests"`
+	LastUpdatedDate   *time.Time          `json:"lastUpdatedDate"`
+}

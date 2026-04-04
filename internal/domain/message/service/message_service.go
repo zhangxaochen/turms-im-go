@@ -67,8 +67,19 @@ func (s *MessageService) Close() {
 	}
 }
 
+// AuthAndSaveMessage handles saving message state
 // @MappedFrom authAndSaveMessage(boolean queryRecipientIds, @Nullable Boolean persist, @Nullable Long messageId, @NotNull Long senderId, @Nullable byte[] senderIp, @NotNull Long targetId, @NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @Nullable String text, @Nullable List<byte[]> records, @Nullable @Min(0)
-func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage bool, senderID int64, targetID int64, text string) (*po.Message, error) {
+func (s *MessageService) AuthAndSaveMessage(
+	ctx context.Context,
+	isGroupMessage bool,
+	senderID int64,
+	targetID int64,
+	text string,
+	records [][]byte,
+	burnAfter *int32,
+	deliveryDate *time.Time,
+	preMessageID *int64,
+) (*po.Message, error) {
 	if targetID <= 0 {
 		return nil, ErrInvalidTargetID
 	}
@@ -97,7 +108,13 @@ func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage 
 
 	seqID32 := int32(sequenceID)
 	msgID := s.idGen.NextIncreasingId()
-	now := time.Now()
+
+	var dDate time.Time
+	if deliveryDate != nil {
+		dDate = *deliveryDate
+	} else {
+		dDate = time.Now()
+	}
 
 	msg := &po.Message{
 		ID:             msgID,
@@ -106,7 +123,10 @@ func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage 
 		TargetID:       targetID,
 		Text:           text,
 		SequenceID:     &seqID32,
-		DeliveryDate:   now,
+		DeliveryDate:   dDate,
+		Records:        records,
+		BurnAfter:      burnAfter,
+		PreMessageID:   preMessageID,
 	}
 
 	if err := s.msgRepo.InsertMessage(ctx, msg); err != nil {
@@ -117,8 +137,18 @@ func (s *MessageService) AuthAndSaveMessage(ctx context.Context, isGroupMessage 
 }
 
 // @MappedFrom authAndSaveAndSendMessage(boolean send, @Nullable Boolean persist, @Nullable Long senderId, @Nullable DeviceType senderDeviceType, @Nullable byte[] senderIp, @Nullable Long messageId, @NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @Nullable String text, @Nullable List<byte[]> records, @NotNull Long targetId, @Nullable @Min(0)
-func (s *MessageService) AuthAndSaveAndSendMessage(ctx context.Context, isGroupMessage bool, senderID int64, targetID int64, text string) (*po.Message, error) {
-	msg, err := s.AuthAndSaveMessage(ctx, isGroupMessage, senderID, targetID, text)
+func (s *MessageService) AuthAndSaveAndSendMessage(
+	ctx context.Context,
+	isGroupMessage bool,
+	senderID int64,
+	targetID int64,
+	text string,
+	records [][]byte,
+	burnAfter *int32,
+	deliveryDate *time.Time,
+	preMessageID *int64,
+) (*po.Message, error) {
+	msg, err := s.AuthAndSaveMessage(ctx, isGroupMessage, senderID, targetID, text, records, burnAfter, deliveryDate, preMessageID)
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +242,26 @@ func (s *MessageService) QueryMessages(
 		deliveryDateBefore,
 		size,
 		ascending,
+	)
+}
+
+func (s *MessageService) CountMessages(
+	ctx context.Context,
+	isGroupMessage *bool,
+	senderIDs []int64,
+	targetIDs []int64,
+	deliveryDateAfter *time.Time,
+	deliveryDateBefore *time.Time,
+) (int64, error) {
+	// Authorization checking isn't explicitly requested for count in the same way,
+	// but generally we should apply the same target restrictions or rely on the caller setup.
+	return s.msgRepo.CountMessages(
+		ctx,
+		isGroupMessage,
+		senderIDs,
+		targetIDs,
+		deliveryDateAfter,
+		deliveryDateBefore,
 	)
 }
 
