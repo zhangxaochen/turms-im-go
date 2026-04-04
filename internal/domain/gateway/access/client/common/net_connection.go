@@ -89,6 +89,7 @@ type BaseNetConnection struct {
 	isConnected            bool
 	isSwitchingToUdp       bool
 	isConnectionRecovering bool
+	isDisposed             bool
 	mu                     sync.RWMutex
 	udpSignalDispatcher    func(*net.UDPAddr) // Injectable callback to notify via UDP
 }
@@ -159,4 +160,16 @@ func (b *BaseNetConnection) IsConnectionRecovering() bool {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 	return b.isConnectionRecovering
+}
+
+func (b *BaseNetConnection) IsDisposed() bool {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.isDisposed
+}
+
+func (b *BaseNetConnection) SetDisposed(disposed bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.isDisposed = disposed
 }

@@ -18,27 +18,28 @@ import (
 )
 
 type mockConnection struct {
-	lastWrittenMsg []byte
+	sent         [][]byte
+	closed       bool
+	closedReason constant.SessionCloseStatus
 }
 
-func (m *mockConnection) Connect() error {
+func (m *mockConnection) Connect() error { return nil }
+func (m *mockConnection) Close(reason constant.SessionCloseStatus) error {
+	m.closed = true
+	m.closedReason = reason
 	return nil
 }
-func (m *mockConnection) Send(payload []byte) error {
-	m.lastWrittenMsg = payload
-	fmt.Printf("MOCK_WRITE: %v\n", payload)
+func (m *mockConnection) Send(data []byte) error {
+	m.sent = append(m.sent, data)
 	return nil
 }
-func (m *mockConnection) Close(reason constant.SessionCloseStatus) error { return nil }
-func (m *mockConnection) RemoteAddr() net.Addr {
-	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 12345}
+func (m *mockConnection) SendWithContext(ctx context.Context, data []byte) error {
+	m.sent = append(m.sent, data)
+	return nil
 }
-
+func (m *mockConnection) RemoteAddr() net.Addr { return &net.IPAddr{} }
 func (m *mockConnection) TryNotifyClientToRecover() {}
-
-func (m *mockConnection) IsActive() bool {
-	return true
-}
+func (m *mockConnection) IsActive() bool            { return !m.closed }
 
 func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()

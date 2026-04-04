@@ -26,6 +26,10 @@ func (c *TCPConnection) Connect() error {
 }
 
 func (c *TCPConnection) Send(payload []byte) error {
+	return c.SendWithContext(context.Background(), payload)
+}
+
+func (c *TCPConnection) SendWithContext(ctx context.Context, payload []byte) error {
 	// TCP requires Varint length prefix
 	buf := make([]byte, binary.MaxVarintLen32+len(payload))
 	n := binary.PutUvarint(buf, uint64(len(payload)))
@@ -33,6 +37,14 @@ func (c *TCPConnection) Send(payload []byte) error {
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Check if context is already done before sending
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	_, err := c.conn.Write(buf[:n+len(payload)])
 	return err
 }

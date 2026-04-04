@@ -28,6 +28,10 @@ func (m *MockConnection) Send(payload []byte) error {
 	return nil
 }
 
+func (m *MockConnection) SendWithContext(ctx context.Context, payload []byte) error {
+	return nil
+}
+
 func (m *MockConnection) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 1234}
 }
