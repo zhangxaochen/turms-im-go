@@ -67,6 +67,38 @@ type NotificationProperties struct {
 	MeetingCanceled          NotificationMeetingCanceledProperties
 	MeetingUpdated           NotificationMeetingUpdatedProperties
 	MeetingInvitationUpdated NotificationMeetingInvitationUpdatedProperties
+	PrivateConversationSettingDeleted NotificationPrivateConversationSettingDeletedProperties
+	PrivateConversationSettingUpdated NotificationPrivateConversationSettingUpdatedProperties
+	GroupConversationSettingDeleted   NotificationGroupConversationSettingDeletedProperties
+	GroupConversationSettingUpdated   NotificationGroupConversationSettingUpdatedProperties
+	PrivateConversationReadDateUpdated NotificationPrivateConversationReadDateUpdatedProperties
+	GroupConversationReadDateUpdated   NotificationGroupConversationReadDateUpdatedProperties
+}
+
+type NotificationPrivateConversationReadDateUpdatedProperties struct {
+	NotifyRequesterOtherOnlineSessions bool
+	NotifyContact                      bool
+}
+
+type NotificationGroupConversationReadDateUpdatedProperties struct {
+	NotifyRequesterOtherOnlineSessions bool
+	NotifyOtherGroupMembers           bool
+}
+
+type NotificationPrivateConversationSettingDeletedProperties struct {
+	NotifyRequesterOtherOnlineSessions bool
+}
+
+type NotificationPrivateConversationSettingUpdatedProperties struct {
+	NotifyRequesterOtherOnlineSessions bool
+}
+
+type NotificationGroupConversationSettingDeletedProperties struct {
+	NotifyRequesterOtherOnlineSessions bool
+}
+
+type NotificationGroupConversationSettingUpdatedProperties struct {
+	NotifyRequesterOtherOnlineSessions bool
 }
 
 type NotificationMeetingCanceledProperties struct {
@@ -159,6 +191,26 @@ func NewTurmsPropertiesManager() *TurmsPropertiesManager {
 					MeetingInvitationUpdated: NotificationMeetingInvitationUpdatedProperties{
 						NotifyRequesterOtherOnlineSessions: true,
 						NotifyMeetingParticipants:          true,
+					},
+					PrivateConversationSettingDeleted: NotificationPrivateConversationSettingDeletedProperties{
+						NotifyRequesterOtherOnlineSessions: true,
+					},
+					PrivateConversationSettingUpdated: NotificationPrivateConversationSettingUpdatedProperties{
+						NotifyRequesterOtherOnlineSessions: true,
+					},
+					GroupConversationSettingDeleted: NotificationGroupConversationSettingDeletedProperties{
+						NotifyRequesterOtherOnlineSessions: true,
+					},
+					GroupConversationSettingUpdated: NotificationGroupConversationSettingUpdatedProperties{
+						NotifyRequesterOtherOnlineSessions: true,
+					},
+					PrivateConversationReadDateUpdated: NotificationPrivateConversationReadDateUpdatedProperties{
+						NotifyRequesterOtherOnlineSessions: true,
+						NotifyContact:                      true,
+					},
+					GroupConversationReadDateUpdated: NotificationGroupConversationReadDateUpdatedProperties{
+						NotifyRequesterOtherOnlineSessions: true,
+						NotifyOtherGroupMembers:           true,
 					},
 				},
 			},
