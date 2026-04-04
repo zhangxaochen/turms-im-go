@@ -2226,3 +2226,55 @@
   - [x] `newSequenceIdRedisClientManager(RedisProperties properties)` -> [NewSequenceIdRedisClientManager()](../internal/storage/redis/redis_config.go#L7)
   - [x] `sequenceIdRedisClientManager()` -> [SequenceIdRedisClientManager()](../internal/storage/redis/redis_config.go#L12)
 
+
+- **AdminApiRateLimitingManager.java** ([java/im/turms/service/access/admin/throttle/AdminApiRateLimitingManager.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/admin/throttle/AdminApiRateLimitingManager.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
+- **ClientRequestHandler.java** ([java/im/turms/service/access/servicerequest/dispatcher/ClientRequestHandler.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dispatcher/ClientRequestHandler.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
+- **ServiceRequestMapping.java** ([java/im/turms/service/access/servicerequest/dispatcher/ServiceRequestMapping.java](../turms-orig/turms-service/src/main/java/im/turms/service/access/servicerequest/dispatcher/ServiceRequestMapping.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
+- **BaseServiceController.java** ([java/im/turms/service/domain/common/access/servicerequest/controller/BaseServiceController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/access/servicerequest/controller/BaseServiceController.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
+- **Expirable.java** ([java/im/turms/service/domain/common/po/Expirable.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/po/Expirable.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
+- **CustomSettingService.java** ([java/im/turms/service/domain/common/service/CustomSettingService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/service/CustomSettingService.java))
+> [简述功能]
+
+  - [ ] `updateGlobalProperties(CustomSettingsProperties properties)`
+
+- **CustomValueService.java** ([java/im/turms/service/domain/common/service/CustomValueService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/service/CustomValueService.java))
+> [简述功能]
+
+  - [ ] `parseBoolValue(String sourceName, Value value)`
+  - [ ] `parseLanguageValue(String sourceName, Value value)`
+
+- **UsesNonIndexedData.java** ([java/im/turms/service/domain/common/suggestion/UsesNonIndexedData.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/common/suggestion/UsesNonIndexedData.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
+- **Meeting.java** ([java/im/turms/service/domain/conference/po/Meeting.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conference/po/Meeting.java))
+> [简述功能]
+
+  - [x] type Meeting struct -> [Meeting](../internal/domain/conference/po/meeting.go#L7)
+
+- **ConversationSettings.java** ([java/im/turms/service/domain/conversation/po/ConversationSettings.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/po/ConversationSettings.java))
+> [简述功能]
+
+  - [ ] `TODO`
+
