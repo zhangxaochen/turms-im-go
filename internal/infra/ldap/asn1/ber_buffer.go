@@ -23,7 +23,8 @@ func (b *BerBuffer) ReadTag() int {
 }
 
 // @MappedFrom peekAndCheckTag(int tag)
-func (b *BerBuffer) PeekAndCheckTag(tag int) {
+func (b *BerBuffer) PeekAndCheckTag(tag int) bool {
+	return false
 }
 
 // @MappedFrom skipLength()

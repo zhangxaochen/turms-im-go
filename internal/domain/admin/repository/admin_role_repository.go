@@ -38,39 +38,28 @@ func (r *adminRoleRepository) Insert(ctx context.Context, adminRole *po.AdminRol
 }
 
 func (r *adminRoleRepository) UpdateAdminRoles(ctx context.Context, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error) {
-	filter := bson.M{}
-	if len(roleIds) > 0 {
-		filter[po.AdminRoleFieldID] = bson.M{"$in": roleIds}
+	if len(roleIds) == 0 {
+		return 0, nil
+	}
+	filter := bson.M{
+		po.AdminRoleFieldID: bson.M{"$in": roleIds},
 	}
 
 	set := bson.M{}
-	unset := bson.M{}
-
 	if newName != nil {
 		set[po.AdminRoleFieldName] = *newName
 	}
-	if permissions != nil {
-		if len(permissions) == 0 {
-			unset[po.AdminRoleFieldPermissions] = ""
-		} else {
-			set[po.AdminRoleFieldPermissions] = permissions
-		}
+	if len(permissions) > 0 {
+		set[po.AdminRoleFieldPermissions] = permissions
 	}
 	if rank != nil {
 		set[po.AdminRoleFieldRank] = *rank
 	}
 
-	update := bson.M{}
-	if len(set) > 0 {
-		update["$set"] = set
-	}
-	if len(unset) > 0 {
-		update["$unset"] = unset
-	}
-
-	if len(update) == 0 {
+	if len(set) == 0 {
 		return 0, nil
 	}
+	update := bson.M{"$set": set}
 
 	res, err := r.coll.UpdateMany(ctx, filter, update)
 	if err != nil {
@@ -109,9 +98,11 @@ func (r *adminRoleRepository) FindAdminRoles(ctx context.Context, roleIds []int6
 }
 
 func (r *adminRoleRepository) FindAdminRolesByIdsAndRankGreaterThan(ctx context.Context, roleIds []int64, rankGreaterThan *int) ([]*po.AdminRole, error) {
-	filter := bson.M{}
-	if len(roleIds) > 0 {
-		filter[po.AdminRoleFieldID] = bson.M{"$in": roleIds}
+	if len(roleIds) == 0 {
+		return nil, nil
+	}
+	filter := bson.M{
+		po.AdminRoleFieldID: bson.M{"$in": roleIds},
 	}
 	if rankGreaterThan != nil {
 		filter[po.AdminRoleFieldRank] = bson.M{"$gt": *rankGreaterThan}
@@ -152,9 +143,11 @@ func (r *adminRoleRepository) FindHighestRankByRoleIds(ctx context.Context, role
 }
 
 func (r *adminRoleRepository) DeleteAdminRoles(ctx context.Context, ids []int64) (int64, error) {
-	filter := bson.M{}
-	if len(ids) > 0 {
-		filter[po.AdminRoleFieldID] = bson.M{"$in": ids}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	filter := bson.M{
+		po.AdminRoleFieldID: bson.M{"$in": ids},
 	}
 	res, err := r.coll.DeleteMany(ctx, filter)
 	if err != nil {

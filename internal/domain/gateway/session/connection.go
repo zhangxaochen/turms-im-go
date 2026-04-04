@@ -2,6 +2,8 @@ package session
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net"
 	"sync/atomic"
 	"time"
@@ -29,8 +31,12 @@ type UserSession struct {
 	Permissions                 map[any]bool
 	isDeleteSessionLockAcquired uint32
 
-	lastHeartbeat int64 // Use atomic operations if accessed concurrently
-	lastRequest   int64 // Use atomic operations if accessed concurrently
+	lastHeartbeat      int64 // Use atomic operations if accessed concurrently
+	lastHeartbeatNanos int64
+	lastRequest        int64 // Use atomic operations if accessed concurrently
+	lastRequestNanos   int64
+
+	isSessionOpen uint32 // 1 for open, 0 for closed
 
 	// Channel to cleanly shutdown the connection loops
 	CloseChan chan struct{}
@@ -39,7 +45,9 @@ type UserSession struct {
 // SetLastHeartbeatRequestTimestampToNow updates the heartbeat to now.
 // @MappedFrom setLastHeartbeatRequestTimestampToNow()
 func (s *UserSession) SetLastHeartbeatRequestTimestampToNow() {
-	atomic.StoreInt64(&s.lastHeartbeat, time.Now().UnixMilli())
+	now := time.Now()
+	atomic.StoreInt64(&s.lastHeartbeat, now.UnixMilli())
+	atomic.StoreInt64(&s.lastHeartbeatNanos, now.UnixNano())
 }
 
 // GetLastHeartbeatRequestTimestamp returns the last heartbeat received in milliseconds.
@@ -50,7 +58,9 @@ func (s *UserSession) GetLastHeartbeatRequestTimestamp() int64 {
 // SetLastRequestTimestampToNow updates the last request to now.
 // @MappedFrom setLastRequestTimestampToNow()
 func (s *UserSession) SetLastRequestTimestampToNow() {
-	atomic.StoreInt64(&s.lastRequest, time.Now().UnixMilli())
+	now := time.Now()
+	atomic.StoreInt64(&s.lastRequest, now.UnixMilli())
+	atomic.StoreInt64(&s.lastRequestNanos, now.UnixNano())
 }
 
 // GetLastRequestTimestamp returns the last request timestamp in milliseconds.
@@ -61,7 +71,7 @@ func (s *UserSession) GetLastRequestTimestamp() int64 {
 // IsOpen returns whether the session's connection is active
 // @MappedFrom isOpen()
 func (s *UserSession) IsOpen() bool {
-	return s.Conn != nil
+	return atomic.LoadUint32(&s.isSessionOpen) == 1
 }
 
 // Connection abstracts away the difference between net.TCPConn and gorilla websocket.Conn
@@ -89,13 +99,14 @@ type Connection interface {
 type MessageHandler func(ctx context.Context, session *UserSession, payload []byte)
 
 // @MappedFrom setConnection(NetConnection connection, ByteArrayWrapper ip)
-func (s *UserSession) SetConnection(connection Connection, ip string) {
+func (s *UserSession) SetConnection(connection Connection, ip net.IP) {
 	s.Conn = connection
+	s.IP = ip
 }
 
 // @MappedFrom isConnected()
 func (s *UserSession) IsConnected() bool {
-	return s.Conn != nil
+	return s.Conn != nil && s.Conn.IsActive()
 }
 
 // @MappedFrom supportsSwitchingToUdp()
@@ -105,7 +116,8 @@ func (s *UserSession) SupportsSwitchingToUdp() bool {
 
 // @MappedFrom toString()
 func (s *UserSession) ToString() string {
-	return "UserSession{}"
+	return fmt.Sprintf("UserSession{id=%d, version=%d, userId=%d, deviceType=%v, loginDate=%v, loginLocation=%v, isSessionOpen=%v, connection=%v}",
+		s.ID, s.Version, s.UserID, s.DeviceType, s.LoginDate, s.Location, s.IsOpen(), s.Conn)
 }
 
 // @MappedFrom acquireDeleteSessionRequestLoggingLock()
@@ -123,8 +135,23 @@ func (s *UserSession) HasPermission(requestType any) bool {
 }
 
 // @MappedFrom close(@NotNull CloseReason closeReason)
-func (s *UserSession) Close(closeReason any) {
-	if s.Conn != nil {
-		_ = s.Conn.Close()
+func (s *UserSession) Close(closeReason any) bool {
+	if atomic.CompareAndSwapUint32(&s.isSessionOpen, 1, 0) {
+		if s.Conn != nil {
+			_ = s.Conn.Close() // In the future, pass closeReason if Conn supports it
+		} else {
+			log.Printf("The connection is missing for the user session: %v", s.ID)
+		}
+		return true
 	}
+	return false
+}
+
+// SendNotification forwards a notification payload to the client.
+// @MappedFrom sendNotification(ByteBuf byteBuf)
+func (s *UserSession) SendNotification(payload []byte) error {
+	if s.Conn != nil {
+		return s.Conn.WriteMessage(payload)
+	}
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -19,6 +20,16 @@ import (
 var (
 	ErrSessionAlreadyExists = errors.New("cluster session already exists but conflicting action denied")
 )
+
+// SessionAuthError is returned when authentication fails with a specific status code.
+// @MappedFrom Java: ResponseException.get(statusCode)
+type SessionAuthError struct {
+	Code constant.ResponseStatusCode
+}
+
+func (e *SessionAuthError) Error() string {
+	return fmt.Sprintf("session authentication failed with code: %d", e.Code)
+}
 
 type MultiDeviceStrategy int
 
@@ -191,7 +202,8 @@ func (s *SessionService) CountOnlineUsers() int {
 }
 
 func (s *SessionService) Destroy(ctx context.Context) error {
-	s.CloseAllLocalSessions(ctx, nil)
+	// @MappedFrom Java: destroy() calls heartbeatManager.destroy() then closeAllLocalSessions(SERVER_CLOSED)
+	s.CloseAllLocalSessions(ctx, constant.SessionCloseStatus_SERVER_CLOSED)
 	return nil
 }
 
@@ -215,6 +227,10 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	permissionInfo, err := s.sessionAuthenticationManager.VerifyAndGrant(ctx, loginInfo)
 	if err != nil {
 		return nil, err
+	}
+	// @MappedFrom Java: checks statusCode == ResponseStatusCode.OK before tryRegisterOnlineUser
+	if permissionInfo.AuthenticationCode != constant.ResponseStatusCode_OK {
+		return nil, &SessionAuthError{Code: permissionInfo.AuthenticationCode}
 	}
 
 	return s.TryRegisterOnlineUser(ctx, version, permissionInfo.Permissions, ip, userId, deviceType, deviceDetails, userStatus, location)

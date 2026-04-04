@@ -2,7 +2,8 @@ package config
 
 // GatewayProperties maps to turms properties for the gateway module.
 type GatewayProperties struct {
-	ClientAPI *ClientAPIProperties
+	ClientAPI                *ClientAPIProperties
+	IdentityAccessManagement *IdentityAccessManagementProperties
 }
 
 // ClientAPIProperties maps client API configurations.
@@ -16,5 +17,6 @@ func NewGatewayProperties() *GatewayProperties {
 		ClientAPI: &ClientAPIProperties{
 			ReturnReasonForServerError: false, // Default matching Java behaviour via security
 		},
+		IdentityAccessManagement: NewIdentityAccessManagementProperties(),
 	}
 }

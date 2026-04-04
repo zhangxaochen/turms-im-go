@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"net"
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
@@ -99,7 +100,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 
 	if isConnectionAlive {
 		if conn := sessionWrapper.GetConnection(); conn != nil {
-			session.SetConnection(conn, sessionWrapper.GetIPStr())
+			session.SetConnection(conn, net.ParseIP(sessionWrapper.GetIPStr()))
 		}
 		sessionWrapper.SetUserSession(session)
 

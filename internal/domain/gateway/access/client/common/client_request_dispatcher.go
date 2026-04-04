@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
+	"sync/atomic"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -22,12 +24,12 @@ var HeartbeatFailureRequestId int64 = -100
 
 type BlocklistService interface {
 	TryBlockUserIdForCorruptedRequest(userId int64)
-	TryBlockIpForCorruptedRequest(ip string)
-	TryBlockIpForFrequentRequest(ip string)
+	TryBlockIpForCorruptedRequest(ip []byte)
+	TryBlockIpForFrequentRequest(ip []byte)
 	TryBlockUserIdForFrequentRequest(userId int64)
 
-	IsIpBlocked(ip string) bool
-	TryBlockIpForCorruptedFrame(ip string)
+	IsIpBlocked(ip []byte) bool
+	TryBlockIpForCorruptedFrame(ip []byte)
 	TryBlockUserIdForCorruptedFrame(userId int64)
 }
 
@@ -80,12 +82,19 @@ type ClientRequestDispatcher struct {
 	ServerStatusManager   ServerStatusManager
 
 	NotificationFactory *NotificationFactory
+
+	PendingRequestCount  atomic.Int32
+	OnAllRequestsHandled func()
 }
 
 // HandleRequest wraps handleRequest0 with error handling.
 // @MappedFrom handleRequest(UserSessionWrapper sessionWrapper, ByteBuf serviceRequestBuffer)
 func (d *ClientRequestDispatcher) HandleRequest(ctx context.Context, sessionWrapper *UserSessionWrapper, serviceRequestBuffer []byte) (buff []byte, err error) {
+	d.PendingRequestCount.Add(1)
 	defer func() {
+		if d.PendingRequestCount.Add(-1) == 0 && d.OnAllRequestsHandled != nil {
+			d.OnAllRequestsHandled()
+		}
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic in HandleRequest: %v", r)
 		}
@@ -99,7 +108,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 	if len(serviceRequestBuffer) == 0 {
 		availability := d.ServerStatusManager.GetServiceAvailability()
 		if !availability.Available {
-			notif := d.NotificationFactory.CreateWithReason(&HeartbeatFailureRequestId, constant.ResponseStatusCode_SERVER_UNAVAILABLE, availability.Reason)
+			notif := d.NotificationFactory.CreateWithReason(&HeartbeatFailureRequestId, constant.ResponseStatusCode_SERVER_UNAVAILABLE, &availability.Reason)
 			return proto.Marshal(notif)
 		}
 		return d.handleHeartbeatRequest(sessionWrapper)
@@ -119,7 +128,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 		if sessionWrapper.HasUserSession() {
 			d.BlocklistService.TryBlockUserIdForCorruptedRequest(sessionWrapper.UserSession.UserID)
 		}
-		d.BlocklistService.TryBlockIpForCorruptedRequest(sessionWrapper.GetIPStr())
+		d.BlocklistService.TryBlockIpForCorruptedRequest(net.ParseIP(sessionWrapper.GetIPStr()))
 		if req.RequestId != nil {
 			requestID = *req.RequestId
 		}
@@ -134,21 +143,28 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 
 		canLogRequest := true
 		if sessionWrapper.HasUserSession() {
-			// if !sessionWrapper.UserSession.HasPermission(requestType) {
-			//	 notification = d.NotificationFactory.Create(&requestID, constant.ResponseStatusCode_UNAUTHORIZED_REQUEST)
-			// }
-			if _, ok := req.Kind.(*protocol.TurmsRequest_DeleteSessionRequest); ok { // MOCK: userSession.AcquireDeleteSessionRequestLoggingLock()
-				canLogRequest = true
+			if !sessionWrapper.UserSession.HasPermission(requestType) {
+				exc := exception.NewTurmsError(int32(constant.ResponseStatusCode_UNAUTHORIZED_REQUEST), "")
+				notification = d.NotificationFactory.CreateFromError(exc, &requestID)
+			} else if _, ok := req.Kind.(*protocol.TurmsRequest_DeleteSessionRequest); ok {
+				canLogRequest = sessionWrapper.UserSession.AcquireDeleteSessionRequestLoggingLock()
 			}
 		}
 
-		notification, err = d.HandleServiceRequest(ctx, sessionWrapper, req, serviceRequestBuffer)
-		if err != nil {
-			notification = d.NotificationFactory.CreateFromError(err, &requestID)
+		if notification == nil {
+			notification, err = d.HandleServiceRequest(ctx, sessionWrapper, req, serviceRequestBuffer)
+			if err != nil {
+				notification = d.NotificationFactory.CreateFromError(err, &requestID)
+			}
 		}
 
 		finalCanLogRequest := canLogRequest
 		isServerError := constant.IsServerError(notification.GetCode())
+
+		if isServerError {
+			// standard logging:
+			fmt.Printf("ERROR: Failed to handle the service request: type=%T, code=%d\n", requestType, notification.GetCode())
+		}
 
 		if isServerError || (d.ApiLoggingContext.ShouldLogRequest(requestType) && finalCanLogRequest) {
 			var version *int32
@@ -157,10 +173,15 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 			var deviceType *protocol.DeviceType
 
 			if sessionWrapper.HasUserSession() {
-				// MOCK parameters for userSession
 				userId = &sessionWrapper.UserSession.UserID
 				devType := sessionWrapper.UserSession.DeviceType
 				deviceType = &devType
+
+				ver := int32(sessionWrapper.UserSession.Version)
+				version = &ver
+				
+				sid := int32(sessionWrapper.UserSession.ID)
+				sessionId = &sid
 			}
 
 			processingTimeMilli := (time.Now().UnixNano() - startTime) / 1000000
@@ -176,17 +197,19 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 func (d *ClientRequestDispatcher) HandleServiceRequest(ctx context.Context, sessionWrapper *UserSessionWrapper, request *protocol.TurmsRequest, serviceRequestBuffer []byte) (*protocol.TurmsNotification, error) {
 	requestID := request.GetRequestId()
 	if requestID <= 0 {
-		return d.NotificationFactory.CreateWithReason(&requestID, constant.ResponseStatusCode_INVALID_REQUEST, "The request ID must be greater than 0"), nil
+		reason := "The request ID must be greater than 0"
+		return d.NotificationFactory.CreateWithReason(&requestID, constant.ResponseStatusCode_INVALID_REQUEST, &reason), nil
 	}
 
 	availability := d.ServerStatusManager.GetServiceAvailability()
 	if !availability.Available {
-		return d.NotificationFactory.CreateWithReason(&requestID, constant.ResponseStatusCode_SERVER_UNAVAILABLE, availability.Reason), nil
+		return d.NotificationFactory.CreateWithReason(&requestID, constant.ResponseStatusCode_SERVER_UNAVAILABLE, &availability.Reason), nil
 	}
 
 	// Rate limiting
-	if !d.IpRequestThrottler.TryAcquireToken(sessionWrapper.GetIPStr()) {
-		d.BlocklistService.TryBlockIpForFrequentRequest(sessionWrapper.GetIPStr())
+	now := time.Now().UnixNano()
+	if !d.IpRequestThrottler.TryAcquireToken(sessionWrapper.GetIPStr(), now) {
+		d.BlocklistService.TryBlockIpForFrequentRequest(net.ParseIP(sessionWrapper.GetIPStr()))
 		if sessionWrapper.HasUserSession() {
 			d.BlocklistService.TryBlockUserIdForFrequentRequest(sessionWrapper.UserSession.UserID)
 		}
@@ -253,6 +276,12 @@ func (d *ClientRequestDispatcher) handleHeartbeatRequest(sessionWrapper *UserSes
 			userId = &sessionWrapper.UserSession.UserID
 			devType := sessionWrapper.UserSession.DeviceType
 			deviceType = &devType
+
+			ver := int32(sessionWrapper.UserSession.Version)
+			version = &ver
+			
+			sid := int32(sessionWrapper.UserSession.ID)
+			sessionId = &sid
 		}
 
 		var notification *protocol.TurmsNotification
@@ -260,7 +289,11 @@ func (d *ClientRequestDispatcher) handleHeartbeatRequest(sessionWrapper *UserSes
 			notification = d.NotificationFactory.Create(&HeartbeatFailureRequestId, constant.ResponseStatusCode_UPDATE_HEARTBEAT_OF_NONEXISTENT_SESSION)
 		}
 
-		d.ApiLoggingContext.LogRequest(sessionId, userId, deviceType, version, sessionWrapper.GetIPStr(), 0, "HEARTBEAT", 0, time.Now().UnixMilli(), notification, 0)
+		logSuccess := 0
+		if isSuccess {
+			logSuccess = 1
+		}
+		d.ApiLoggingContext.LogRequest(sessionId, userId, deviceType, version, sessionWrapper.GetIPStr(), 0, "HEARTBEAT", 0, time.Now().UnixMilli(), notification, int64(logSuccess))
 	}
 	return data, nil
 }

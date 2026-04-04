@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"reflect"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -26,13 +27,21 @@ type Router struct {
 
 // NewRouter initializes the gateway request router with core components.
 func NewRouter(sessionService *session.SessionService) *Router {
-	return &Router{
+	r := &Router{
 		sessionService:      sessionService,
 		controllers:         make(ControllerMap),
 		throttler:           common.DefaultIpRequestThrottler(),
 		availabilityHandler: common.NewServiceAvailabilityHandler(),
 		notifFactory:        common.NewNotificationFactory(config.NewGatewayProperties()),
 	}
+
+	sessionService.AddOnSessionClosedListeners(context.Background(), func(s *session.UserSession) {
+		if s.IP != nil {
+			r.throttler.CleanupByIp(s.IP.String())
+		}
+	})
+
+	return r
 }
 
 // SetServiceAvailability changes the availability status (e.g., shutting down).
@@ -59,7 +68,8 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 			ipStr = tcpAddr.IP.String()
 		}
 	}
-	if !r.throttler.TryAcquireToken(ipStr) {
+	timestamp := time.Now().UnixNano()
+	if !r.throttler.TryAcquireToken(ipStr, timestamp) {
 		r.sendNotification(s, nil, 1400, "Too many requests") // e.g. Turms 1400/429
 		return
 	}

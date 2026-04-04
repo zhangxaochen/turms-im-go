@@ -31,12 +31,12 @@ func NewNotificationFactory(props *config.GatewayProperties) *NotificationFactor
 // Create generates a generic Notification payload.
 // @MappedFrom create(ResponseStatusCode code, long requestId)
 func (f *NotificationFactory) Create(requestID *int64, code constant.ResponseStatusCode) *protocol.TurmsNotification {
-	return f.CreateWithReason(requestID, code, "")
+	return f.CreateWithReason(requestID, code, nil)
 }
 
 // CreateWithReason generates a payload allowing reason texts depending on config.
 // @MappedFrom create(ResponseStatusCode code, @Nullable String reason, long requestId)
-func (f *NotificationFactory) CreateWithReason(requestID *int64, code constant.ResponseStatusCode, reason string) *protocol.TurmsNotification {
+func (f *NotificationFactory) CreateWithReason(requestID *int64, code constant.ResponseStatusCode, reason *string) *protocol.TurmsNotification {
 	notification := &protocol.TurmsNotification{
 		Timestamp: time.Now().UnixMilli(),
 		RequestId: requestID,
@@ -51,13 +51,14 @@ func (f *NotificationFactory) CreateWithReason(requestID *int64, code constant.R
 // @MappedFrom create(ThrowableInfo info, long requestId)
 func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *protocol.TurmsNotification {
 	code := constant.ResponseStatusCode_SERVER_INTERNAL_ERROR
-	var reason string
+	var reason *string
 
 	if te, ok := err.(*exception.TurmsError); ok {
 		code = constant.ResponseStatusCode(te.Code)
-		reason = te.Message
+		reason = &te.Message
 	} else if err != nil {
-		reason = err.Error()
+		errStr := err.Error()
+		reason = &errStr
 	}
 
 	notification := &protocol.TurmsNotification{
@@ -73,7 +74,7 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 // CreateBuffer generates the serialized protobuf bytes directly.
 // @MappedFrom createBuffer(CloseReason closeReason)
 func (f *NotificationFactory) CreateBuffer(requestID *int64, code constant.ResponseStatusCode, reason string) ([]byte, error) {
-	notification := f.CreateWithReason(requestID, code, reason)
+	notification := f.CreateWithReason(requestID, code, &reason)
 	return proto.Marshal(notification)
 }
 
@@ -87,15 +88,21 @@ func (f *NotificationFactory) SessionClosed(requestID *int64) *protocol.TurmsNot
 	}
 }
 
-func (f *NotificationFactory) trySetReason(notification *protocol.TurmsNotification, code constant.ResponseStatusCode, reason string) {
-	if reason == "" {
-		return
-	}
-	if constant.IsServerError(int32(code)) {
-		if f.propsManager.ClientAPI.ReturnReasonForServerError {
-			notification.Reason = proto.String(reason)
+func (f *NotificationFactory) trySetReason(notification *protocol.TurmsNotification, code constant.ResponseStatusCode, reason *string) {
+	if reason != nil {
+		if *reason == "" {
+			return
+		}
+		if constant.IsServerError(int32(code)) {
+			if f.propsManager.ClientAPI.ReturnReasonForServerError {
+				notification.Reason = reason
+			}
+		} else {
+			notification.Reason = reason
 		}
 	} else {
-		notification.Reason = proto.String(reason)
+		// Fallback to default reason based on standard code values if missing
+		// Since we don't have GetReason() on ResponseStatusCode mapped yet in Go,
+		// we skip setting a reason if it's nil.
 	}
 }
