@@ -49,6 +49,11 @@ func NewRpcService(
 	}
 }
 
+// Router returns the underlying RPC router to allow services to register handlers.
+func (s *RpcService) Router() *Router {
+	return s.router
+}
+
 // RequestResponse routes the request to an appropriate member node and waits for a response.
 // If memberNodeId is provided, it specifically targets that node.
 func (s *RpcService) RequestResponse(ctx context.Context, memberNodeId string, request RpcRequest) (*RpcResponse, error) {
