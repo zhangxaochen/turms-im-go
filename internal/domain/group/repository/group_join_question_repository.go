@@ -20,6 +20,7 @@ type GroupJoinQuestionRepository interface {
 	FindQuestions(ctx context.Context, ids []int64, groupIds []int64, page *int, size *int) ([]po.GroupJoinQuestion, error)
 	CountQuestions(ctx context.Context, ids []int64, groupIds []int64) (int64, error)
 	UpdateQuestions(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int) error
+	CheckQuestionAnswerAndGetScore(ctx context.Context, questionID int64, answer string, groupID *int64) (*int, error)
 }
 
 type groupJoinQuestionRepository struct {
@@ -160,3 +161,27 @@ func (r *groupJoinQuestionRepository) UpdateQuestions(ctx context.Context, ids [
 	_, err := r.coll.UpdateMany(ctx, filter, update)
 	return err
 }
+
+func (r *groupJoinQuestionRepository) CheckQuestionAnswerAndGetScore(ctx context.Context, questionID int64, answer string, groupID *int64) (*int, error) {
+	filter := bson.M{
+		"_id": questionID,
+		"ans": answer,
+	}
+	if groupID != nil {
+		filter["gid"] = *groupID
+	}
+	
+	opts := options.FindOne().SetProjection(bson.M{"score": 1})
+	var result struct {
+		Score int `bson:"score"`
+	}
+	err := r.coll.FindOne(ctx, filter, opts).Decode(&result)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &result.Score, nil
+}
+

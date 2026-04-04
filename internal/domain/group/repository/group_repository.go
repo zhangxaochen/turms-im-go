@@ -141,6 +141,178 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, groupID int64, update
 	return err
 }
 
+// UpdateGroupsDeletionDate updates the deletion date of groups.
+func (r *GroupRepository) UpdateGroupsDeletionDate(ctx context.Context, groupIDs []int64, deletionDate *time.Time, session mongo.SessionContext) error {
+	filter := bson.M{"_id": bson.M{"$in": groupIDs}}
+	update := bson.M{}
+	if deletionDate == nil {
+		update["$unset"] = bson.M{"dd": ""}
+	} else {
+		update["$set"] = bson.M{"dd": *deletionDate}
+	}
+
+	var err error
+	if session != nil {
+		_, err = r.col.UpdateMany(session, filter, update)
+	} else {
+		_, err = r.col.UpdateMany(ctx, filter, update)
+	}
+	return err
+}
+
+// CountCreatedGroups counts groups created within a date range.
+func (r *GroupRepository) CountCreatedGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
+	filter := bson.M{}
+	if dateRange != nil {
+		dateFilter := bson.M{}
+		if dateRange.Start != nil {
+			dateFilter["$gte"] = *dateRange.Start
+		}
+		if dateRange.End != nil {
+			dateFilter["$lte"] = *dateRange.End
+		}
+		if len(dateFilter) > 0 {
+			filter["cd"] = dateFilter
+		}
+	}
+	return r.col.CountDocuments(ctx, filter)
+}
+
+// CountDeletedGroups counts groups deleted within a date range.
+func (r *GroupRepository) CountDeletedGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
+	filter := bson.M{"dd": bson.M{"$exists": true}}
+	if dateRange != nil {
+		dateFilter := bson.M{}
+		if dateRange.Start != nil {
+			dateFilter["$gte"] = *dateRange.Start
+		}
+		if dateRange.End != nil {
+			dateFilter["$lte"] = *dateRange.End
+		}
+		if len(dateFilter) > 0 {
+			filter["dd"] = dateFilter
+		}
+	}
+	return r.col.CountDocuments(ctx, filter)
+}
+
+// FindNotDeletedGroups retrieves groups that are not deleted.
+func (r *GroupRepository) FindNotDeletedGroups(ctx context.Context, groupIDs []int64, lastUpdatedDate *time.Time) ([]*po.Group, error) {
+	filter := bson.M{
+		"_id": bson.M{"$in": groupIDs},
+		"dd":  bson.M{"$exists": false},
+	}
+	if lastUpdatedDate != nil {
+		filter["lud"] = bson.M{"$gt": *lastUpdatedDate}
+	}
+
+	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var groups []*po.Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
+// FindTypeID retrieves the type ID of a group.
+func (r *GroupRepository) FindTypeID(ctx context.Context, groupID int64) (*int64, error) {
+	filter := bson.M{"_id": groupID}
+	opts := options.FindOne().SetProjection(bson.M{"tid": 1})
+	type Result struct {
+		TypeID int64 `bson:"tid"`
+	}
+	var res Result
+	if err := r.col.FindOne(ctx, filter, opts).Decode(&res); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res.TypeID, nil
+}
+
+// FindTypeIDIfActiveAndNotDeleted retrieves the type ID if the group is active and not deleted.
+func (r *GroupRepository) FindTypeIDIfActiveAndNotDeleted(ctx context.Context, groupID int64) (*int64, error) {
+	filter := bson.M{
+		"_id": groupID,
+		"ac":  true,
+		"dd":  bson.M{"$exists": false},
+	}
+	opts := options.FindOne().SetProjection(bson.M{"tid": 1})
+	type Result struct {
+		TypeID int64 `bson:"tid"`
+	}
+	var res Result
+	if err := r.col.FindOne(ctx, filter, opts).Decode(&res); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res.TypeID, nil
+}
+
+// FindMinimumScore retrieves the minimum score of a group.
+func (r *GroupRepository) FindMinimumScore(ctx context.Context, groupID int64) (*int32, error) {
+	filter := bson.M{"_id": groupID}
+	opts := options.FindOne().SetProjection(bson.M{"ms": 1})
+	type Result struct {
+		MinimumScore int32 `bson:"ms"`
+	}
+	var res Result
+	if err := r.col.FindOne(ctx, filter, opts).Decode(&res); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &res.MinimumScore, nil
+}
+
+// IsGroupMuted checks if a group is muted.
+func (r *GroupRepository) IsGroupMuted(ctx context.Context, groupID int64) (bool, error) {
+	filter := bson.M{
+		"_id": groupID,
+		"med": bson.M{"$gt": time.Now()},
+	}
+	count, err := r.col.CountDocuments(ctx, filter)
+	return count > 0, err
+}
+
+// IsGroupActiveAndNotDeleted checks if a group is active and not deleted.
+func (r *GroupRepository) IsGroupActiveAndNotDeleted(ctx context.Context, groupID int64) (bool, error) {
+	filter := bson.M{
+		"_id": groupID,
+		"ac":  true,
+		"dd":  bson.M{"$exists": false},
+	}
+	count, err := r.col.CountDocuments(ctx, filter)
+	return count > 0, err
+}
+
+// FindTypeIDAndGroupID retrieves type IDs and group IDs for multiple groups.
+func (r *GroupRepository) FindTypeIDAndGroupID(ctx context.Context, groupIDs []int64) ([]*po.Group, error) {
+	filter := bson.M{"_id": bson.M{"$in": groupIDs}}
+	opts := options.Find().SetProjection(bson.M{"tid": 1})
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var groups []*po.Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
 // DeleteGroup removes a group from MongoDB.
 func (r *GroupRepository) DeleteGroup(ctx context.Context, groupID int64) error {
 	filter := bson.M{"_id": groupID}

@@ -143,8 +143,24 @@ const mappings = [
 
 for (let i = 0; i < mappings.length; i++) {
     const [javaSig, goPath] = mappings[i];
+    const [filePath, goMethodSig] = goPath.split(':');
+    
+    let lineNum = 1;
+    if (fs.existsSync(filePath)) {
+        const fileLines = fs.readFileSync(filePath, 'utf8').split('\n');
+        const methodNameMatch = goMethodSig.match(/^([A-Za-z0-9_]+)/);
+        const methodName = methodNameMatch ? methodNameMatch[1] : goMethodSig.split('(')[0];
+        for (let j = 0; j < fileLines.length; j++) {
+            const funcRegex = new RegExp(`func\\s*(?:\\([^)]+\\)\\s*)?${methodName}\\s*\\(`, 'i');
+            if (funcRegex.test(fileLines[j])) {
+                lineNum = j + 1;
+                break;
+            }
+        }
+    }
+    
     const searchString = `- [ ] \`${javaSig}\``;
-    const replacementString = `- [x] \`${javaSig}\` -> [${goPath}](../${goPath.split(':')[0]})`;
+    const replacementString = `- [x] \`${javaSig}\` -> [${goMethodSig}](../${filePath}#L${lineNum})`;
     
     content = content.replace(searchString, replacementString);
 }
