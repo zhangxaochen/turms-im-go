@@ -111,7 +111,7 @@ func (s *UserSession) GetIPStr() string {
 
 func (s *UserSession) HasPermission(requestType any) bool {
 	if s.Permissions == nil {
-		return true
+		return false
 	}
 	return s.Permissions[requestType]
 }

@@ -109,7 +109,14 @@ func (c *WSConnection) GetAddress() net.Addr {
 	return c.conn.RemoteAddr()
 }
 
-func (c *WSConnection) Send(ctx context.Context, buffer []byte) error {
+func (c *WSConnection) Send(buffer []byte) error {
+	return c.SendWithContext(context.Background(), buffer)
+}
+
+func (c *WSConnection) SendWithContext(ctx context.Context, buffer []byte) error {
+	if !c.IsConnected() {
+		return nil
+	}
 	c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	return c.conn.WriteMessage(websocket.BinaryMessage, buffer)
 }
@@ -125,7 +132,7 @@ func (c *WSConnection) CloseWithReason(reason common.CloseReason) bool {
 				nf := common.NewNotificationFactory(nil)
 				payload, err := nf.CreateCloseReasonBuffer(reason)
 				if err == nil {
-					err = c.Send(context.Background(), payload)
+					err = c.SendWithContext(context.Background(), payload)
 				}
 				if err == nil || exception.IsDisconnectedClientError(err) {
 					break
