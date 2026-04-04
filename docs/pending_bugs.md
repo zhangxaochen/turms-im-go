@@ -21,7 +21,7 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 
 ## HandleRequest
 
-- [ ] **Missing pending request counting**: The Java `handleRequest` increments `pendingRequestCount` and wraps `handleRequest0` with `doFinally` to decrement it (shutdown hook coordination). The Go `HandleRequest` has no equivalent pending request tracking or `onPendingRequestHandled()` call. It only has a `defer` for panic recovery, which is not present in the Java version.
+- [x] **Missing pending request counting**: The Java `handleRequest` increments `pendingRequestCount` and wraps `handleRequest0` with `doFinally` to decrement it (shutdown hook coordination). The Go `HandleRequest` has no equivalent pending request tracking or `onPendingRequestHandled()` call. It only has a `defer` for panic recovery, which is not present in the Java version.
 
 - [ ] **Error handling mismatch**: In Java, `handleRequest` catches synchronous exceptions from `handleRequest0` and returns `Mono.error(e)` while still calling `onPendingRequestHandled()`. In Go, `HandleRequest` returns whatever `HandleRequest0` returns directly. The panic recovery via `defer recover()` is Go-specific and doesn't correspond to the Java exception handling, which catches only `Exception` (not `Error`/throwable).
 
@@ -37,11 +37,11 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 
 - [ ] **Missing TracingContext propagation**: Java code at lines 191-193 creates a `TracingContext` based on `supportsTracing(requestType)`, updates it at line 304, clears it in the `finally` block at line 320, and propagates it via `.contextWrite()` at lines 260-264. The Go code has no tracing context at all.
 
-- [ ] **Missing permission check**: Java code at line 198 checks `session.hasPermission(requestType)` and sets `notificationMono = UNAUTHORIZED_REQUEST_ERROR_MONO` if permission is denied. The Go code at line 137-139 has this commented out (`// if !sessionWrapper.UserSession.HasPermission(requestType) { ... }`), meaning unauthorized requests will proceed to be handled instead of being rejected.
+- [x] **Missing permission check**: Java code at line 198 checks `session.hasPermission(requestType)` and sets `notificationMono = UNAUTHORIZED_REQUEST_ERROR_MONO` if permission is denied. The Go code at line 137-139 has this commented out (`// if !sessionWrapper.UserSession.HasPermission(requestType) { ... }`), meaning unauthorized requests will proceed to be handled instead of being rejected.
 
 - [ ] **DeleteSessionRequest logging lock not properly implemented**: Java code at line 202 calls `session.acquireDeleteSessionRequestLoggingLock()` which is an atomic compare-and-swap that returns `false` if already locked (preventing duplicate logging of delete session). The Go code at line 140-142 just sets `canLogRequest = true` unconditionally, with a `// MOCK` comment. This means duplicate logging is not prevented.
 
-- [ ] **Missing `version` and `sessionId` extraction in logging**: Java code at lines 235-244 extracts `version` and `sessionId` from `userSession` when logging. The Go code at lines 154-164 does not extract `version` or `sessionId` from the user session — `version` and `sessionId` remain `nil`.
+- [x] **Missing `version` and `sessionId` extraction in logging**: Java code at lines 235-244 extracts `version` and `sessionId` from `userSession` when logging. The Go code at lines 154-164 does not extract `version` or `sessionId` from the user session — `version` and `sessionId` remain `nil`.
 
 - [ ] **HandleServiceRequest called even when parse fails**: In Java, when parsing fails, `notificationMono` is already set to an error mono, and `handleServiceRequest` is NOT called (line 206 check: `if notificationMono == null`). In Go, when parsing fails, the code goes to the `else` branch... wait, actually in Go the parse failure sets `notification` and then the `else` block (lines 129-168) is skipped. However, looking more carefully: the Go code's structure is `if err != nil { ... } else { ... }`, so the service request is NOT called on parse failure. This is actually correct behavior. But the logging/metrics for the error case is still missing (see above).
 
