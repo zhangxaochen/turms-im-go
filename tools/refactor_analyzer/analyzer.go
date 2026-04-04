@@ -210,6 +210,53 @@ func main() {
 		})
 	}
 
+	// Parse existing Markdown to preserve manual notes and header links
+	type ClassInfo struct {
+		HeaderLine  string
+		Description string
+	}
+	existingInfo := make(map[string]ClassInfo)
+	if existingBytes, err := os.ReadFile("docs/refactor_progress_report.md"); err == nil {
+		lines := strings.Split(string(existingBytes), "\n")
+		var currentClass string
+		var currentDesc strings.Builder
+		inMethodSection := false
+
+		for _, line := range lines {
+			if strings.HasPrefix(line, "- **") && strings.Contains(line, ".java**") {
+				if currentClass != "" {
+					existingInfo[currentClass] = ClassInfo{
+						HeaderLine:  existingInfo[currentClass].HeaderLine,
+						Description: strings.TrimRight(currentDesc.String(), "\n\r"),
+					}
+				}
+
+				start := 4
+				end := strings.Index(line[start:], "**")
+				if end != -1 {
+					currentClass = line[start : start+end]
+				} else {
+					currentClass = line
+				}
+				existingInfo[currentClass] = ClassInfo{HeaderLine: line}
+				currentDesc.Reset()
+				inMethodSection = false
+			} else if currentClass != "" {
+				if strings.HasPrefix(line, "  - [ ]") || strings.HasPrefix(line, "  - [x]") || strings.HasPrefix(line, "  - `") {
+					inMethodSection = true
+				} else if !inMethodSection {
+					currentDesc.WriteString(line + "\n")
+				}
+			}
+		}
+		if currentClass != "" {
+			existingInfo[currentClass] = ClassInfo{
+				HeaderLine:  existingInfo[currentClass].HeaderLine,
+				Description: strings.TrimRight(currentDesc.String(), "\n\r"),
+			}
+		}
+	}
+
 	// Generate Markdown
 	var sb strings.Builder
 	sb.WriteString("# Turms Refactoring Progress Report\n\n")
@@ -239,8 +286,19 @@ func main() {
 
 		sb.WriteString("#### Java source tracking\n\n")
 		for _, f := range mod.Files {
-			sb.WriteString(fmt.Sprintf("- **%s** ([%s](../%s/%s))\n", f.ClassName, f.RelativePath, f.Root, f.RelativePath))
-			sb.WriteString("> [简述功能]\n\n")
+			info, ok := existingInfo[f.ClassName]
+			if ok && info.HeaderLine != "" {
+				sb.WriteString(info.HeaderLine + "\n")
+				desc := strings.TrimSpace(info.Description)
+				if desc == "" {
+					sb.WriteString("> [简述功能]\n\n")
+				} else {
+					sb.WriteString(desc + "\n\n")
+				}
+			} else {
+				sb.WriteString(fmt.Sprintf("- **%s** ([%s](../%s/%s))\n", f.ClassName, f.RelativePath, f.Root, f.RelativePath))
+				sb.WriteString("> [简述功能]\n\n")
+			}
 			for _, m := range f.Methods {
 				goMethods, exists := goMethodMap[strings.ToLower(m.Name)]
 				if exists && len(goMethods) > 0 {

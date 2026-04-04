@@ -3,7 +3,9 @@ package session
 import (
 	"context"
 
+	"go.mongodb.org/mongo-driver/mongo"
 	"im.turms/server/internal/domain/user/repository"
+	"im.turms/server/internal/pkg/security"
 )
 
 // UserService maps to UserService in Java for gateway session handling.
@@ -25,13 +27,16 @@ func NewUserService(userRepository repository.UserRepository) *UserService {
 func (s *UserService) Authenticate(ctx context.Context, userID int64, rawPassword string) (bool, error) {
 	passwordHash, err := s.userRepository.FindPassword(ctx, userID)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil // user not found
+		}
 		return false, err
 	}
 	if passwordHash == nil {
-		return false, nil
+		// Should not happen with our explicit FindPassword implementation, but for safety
+		return rawPassword == "", nil
 	}
-	// In Java, this delegates to PasswordManager. For this refactor, we do basic string equality.
-	return *passwordHash == rawPassword, nil
+	return security.MatchesPassword(rawPassword, *passwordHash), nil
 }
 
 // @MappedFrom isActiveAndNotDeleted(@NotNull Long userId)

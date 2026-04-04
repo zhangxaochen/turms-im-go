@@ -60,9 +60,9 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 
 	deviceDetails := req.DeviceDetails
 
-	var location map[string]string
+	var location *protocol.UserLocation
 	if req.Location != nil {
-		location = req.Location.Details
+		location = req.Location
 	}
 
 	session, err := c.sessionService.HandleLoginRequest(
@@ -93,7 +93,14 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 
 	// Ensure the network connection is still open before cementing the session
 	isConnectionAlive := true
+	if conn := sessionWrapper.GetConnection(); conn != nil {
+		isConnectionAlive = conn.IsActive()
+	}
+
 	if isConnectionAlive {
+		if conn := sessionWrapper.GetConnection(); conn != nil {
+			session.SetConnection(conn, sessionWrapper.GetIPStr())
+		}
 		sessionWrapper.SetUserSession(session)
 
 		userSessionsManager := c.sessionService.GetUserSessionsManager(ctx, userID)

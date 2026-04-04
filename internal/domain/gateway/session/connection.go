@@ -116,7 +116,8 @@ func (s *UserSession) AcquireDeleteSessionRequestLoggingLock() bool {
 // @MappedFrom hasPermission(TurmsRequest.KindCase requestType)
 func (s *UserSession) HasPermission(requestType any) bool {
 	if s.Permissions == nil {
-		return false
+		// In Go refactor, a nil permissions map signifies TurmsRequestTypePool.ALL
+		return true
 	}
 	return s.Permissions[requestType]
 }

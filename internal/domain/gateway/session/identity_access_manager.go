@@ -3,6 +3,8 @@ package session
 import (
 	"context"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session/bo"
 	userservice "im.turms/server/internal/domain/user/service"
@@ -45,7 +47,7 @@ func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, login
 	}
 
 	if !m.enableIdentityAccessManagement {
-		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, map[any]bool{}), nil
+		return bo.GrantedWithAllPermissions, nil
 	}
 
 	// TODO: 插件系统尚未实现: 调用 PluginManager (UserAuthenticator) 的钩子
@@ -85,13 +87,8 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 
 	// Wait, is it a direct check or through encoding? Passwords in Turms use Spring Security PasswordEncoder.
 	// As this is a port, if bcrypt is used, we can verify with bcrypt.CompareHashAndPassword.
-	// For now, if the user exists and active, and password matches (direct string match placeholder):
-	if user.Password != *loginInfo.Password {
-		// // If bcrypt was used uniformly:
-		// err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(*loginInfo.Password))
-		// if err != nil {
-		// 	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
-		// }
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(*loginInfo.Password))
+	if err != nil {
 		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED, nil), nil
 	}
 
