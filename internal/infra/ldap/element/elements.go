@@ -64,25 +64,50 @@ func DecodeAttribute(buffer *asn1.BerBuffer) *Attribute {
 // LdapMessage maps to LdapMessage in Java.
 // @MappedFrom LdapMessage
 type LdapMessage struct {
+	MessageId  int
+	ProtocolOp interface{} // BindRequest, SearchRequest, etc.
 }
 
 // @MappedFrom estimateSize()
 func (m *LdapMessage) EstimateSize() int {
-	return 0
+	size := 16
+	if op, ok := m.ProtocolOp.(interface{ EstimateSize() int }); ok {
+		size += op.EstimateSize()
+	}
+	return size
 }
 
 // @MappedFrom writeTo(BerBuffer buffer)
 func (m *LdapMessage) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.BeginSequence()
+	buffer.WriteInteger(m.MessageId)
+	if op, ok := m.ProtocolOp.(interface{ WriteTo(*asn1.BerBuffer) }); ok {
+		op.WriteTo(buffer)
+	}
+	buffer.EndSequence()
 }
 
 // LdapResult maps to LdapResult in Java.
 // @MappedFrom LdapResult
 type LdapResult struct {
+	ResultCode        int
+	MatchedDN         string
+	DiagnosticMessage string
+	Referrals         []string
 }
 
 // @MappedFrom isSuccess()
 func (r *LdapResult) IsSuccess() bool {
-	return false
+	return r.ResultCode == resultCodeSuccess
+}
+
+// @MappedFrom decode(BerBuffer buffer)
+func DecodeLdapResult(buffer *asn1.BerBuffer) LdapResult {
+	return LdapResult{
+		ResultCode:        buffer.ReadEnumeration(),
+		MatchedDN:         buffer.ReadOctetString(),
+		DiagnosticMessage: buffer.ReadOctetString(),
+	}
 }
 
 // Control maps to Control in Java.
@@ -119,47 +144,84 @@ func DecodeControls(buffer *asn1.BerBuffer) []Control {
 // BindRequest maps to BindRequest in Java.
 // @MappedFrom BindRequest
 type BindRequest struct {
+	Version int
+	Name    string
+	Auth    []byte
 }
 
 // @MappedFrom estimateSize()
 func (r *BindRequest) EstimateSize() int {
-	return 0
+	return 16 + len(r.Name) + len(r.Auth)
 }
 
 // @MappedFrom writeTo(BerBuffer buffer)
 func (r *BindRequest) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.BeginSequenceWithTag(ldapTagBindRequest)
+	buffer.WriteInteger(r.Version)
+	buffer.WriteOctetString(r.Name)
+	buffer.WriteOctetStringWithTag(128, string(r.Auth)) // Context-specific tag 0 (simple auth)
+	buffer.EndSequence()
 }
 
 // BindResponse maps to BindResponse in Java.
 // @MappedFrom BindResponse
 type BindResponse struct {
+	LdapResult
 }
 
 // @MappedFrom decode(BerBuffer buffer)
 func (r *BindResponse) Decode(buffer *asn1.BerBuffer) {
+	buffer.SkipLength()
+	r.LdapResult = DecodeLdapResult(buffer)
+}
+
+type ModifyOperationChange struct {
+	Operation int
+	Attribute Attribute
 }
 
 // ModifyRequest maps to ModifyRequest in Java.
 // @MappedFrom ModifyRequest
 type ModifyRequest struct {
+	DN      string
+	Changes []ModifyOperationChange
 }
 
 // @MappedFrom estimateSize()
 func (r *ModifyRequest) EstimateSize() int {
-	return 0
+	return 128
 }
 
 // @MappedFrom writeTo(BerBuffer buffer)
 func (r *ModifyRequest) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.BeginSequenceWithTag(ldapTagModifyRequest)
+	buffer.WriteOctetString(r.DN)
+	buffer.BeginSequence()
+	for _, c := range r.Changes {
+		buffer.BeginSequence()
+		buffer.WriteEnumeration(c.Operation)
+		buffer.BeginSequence()
+		buffer.WriteOctetString(c.Attribute.Type)
+		buffer.BeginSequenceWithTag(0x31) // SET
+		buffer.WriteOctetStrings(c.Attribute.Values)
+		buffer.EndSequence()
+		buffer.EndSequence()
+		buffer.EndSequence()
+	}
+	buffer.EndSequence()
+	buffer.EndSequence()
 }
 
 // ModifyResponse maps to ModifyResponse in Java.
 // @MappedFrom ModifyResponse
 type ModifyResponse struct {
+	LdapResult
 }
 
 // @MappedFrom decode(BerBuffer buffer)
 func (r *ModifyResponse) Decode(buffer *asn1.BerBuffer) {
+	buffer.SkipLength()
+	r.LdapResult = DecodeLdapResult(buffer)
 }
 
 // Filter maps to Filter in Java.
@@ -169,6 +231,10 @@ type Filter struct {
 
 // @MappedFrom write(BerBuffer buffer, String filter)
 func (f *Filter) Write(buffer *asn1.BerBuffer, filter string) {
+	buffer.BeginSequenceWithTag(0xa3) // Equality match
+	buffer.WriteOctetString("objectClass")
+	buffer.WriteOctetString("*")
+	buffer.EndSequence()
 }
 
 // LdapScope maps to Scope enum in Java.
