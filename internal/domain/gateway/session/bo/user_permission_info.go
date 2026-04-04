@@ -29,7 +29,7 @@ func NewUserPermissionInfoCodeOnly(authenticationCode constant.ResponseStatusCod
 }
 
 var (
-	GrantedWithAllPermissions = NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_OK)
+	GrantedWithAllPermissions = NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil)
 	LoginAuthenticationFailed = NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED)
 	LoggingInUserNotActive    = NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_LOGGING_IN_USER_NOT_ACTIVE)
 )

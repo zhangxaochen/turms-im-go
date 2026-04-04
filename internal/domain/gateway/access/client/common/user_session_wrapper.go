@@ -9,6 +9,11 @@ type UserSessionWrapper struct {
 	IP          string
 	IPStr       string
 	UserSession *session.UserSession
+	Conn        session.Connection
+}
+
+func (w *UserSessionWrapper) GetConnection() session.Connection {
+	return w.Conn
 }
 
 // @MappedFrom getIp()

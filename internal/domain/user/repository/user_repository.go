@@ -6,6 +6,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"im.turms/server/internal/domain/user/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
@@ -269,11 +270,16 @@ func (r *userRepository) FindUserRoleID(ctx context.Context, userID int64) (*int
 // @MappedFrom isActiveAndNotDeleted(Long userId)
 // @MappedFrom isActiveAndNotDeleted(@NotNull Long userId)
 func (r *userRepository) IsActiveAndNotDeleted(ctx context.Context, userID int64) (bool, error) {
-	user, err := r.FindByID(ctx, userID)
-	if err != nil || user == nil {
+	filter := bson.M{
+		"_id": userID,
+		"act": true, // IsActive
+		"dd":  nil,  // DeletionDate == nil
+	}
+	count, err := r.coll.CountDocuments(ctx, filter)
+	if err != nil {
 		return false, err
 	}
-	return user.IsActive && user.DeletionDate == nil, nil
+	return count > 0, nil
 }
 
 func (r *userRepository) Aggregate(ctx context.Context, pipeline mongo.Pipeline) (*mongo.Cursor, error) {
@@ -282,12 +288,21 @@ func (r *userRepository) Aggregate(ctx context.Context, pipeline mongo.Pipeline)
 
 // @MappedFrom findPassword(Long userId)
 func (r *userRepository) FindPassword(ctx context.Context, userID int64) (*string, error) {
-	user, err := r.FindByID(ctx, userID)
-	if err != nil || user == nil {
+	filter := bson.M{"_id": userID}
+	var result struct {
+		Password string `bson:"pw"`
+	}
+	opts := options.FindOne().SetProjection(bson.M{"pw": 1})
+	err := r.coll.FindOne(ctx, filter, opts).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, mongo.ErrNoDocuments
+		}
 		return nil, err
 	}
-	if user.Password == "" {
-		return nil, nil // Return empty or nil depending on DB layout
+	if result.Password == "" {
+		empty := ""
+		return &empty, nil
 	}
-	return &user.Password, nil
+	return &result.Password, nil
 }
