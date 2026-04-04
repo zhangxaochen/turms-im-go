@@ -2278,3 +2278,53 @@
 
   - [ ] `TODO`
 
+- **GroupBlocklistController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupBlocklistController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupBlocklistController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射组黑名单控制器到 Go 的统一控制器文件。
+
+  - [x] 添加组黑名单请求存根
+
+- **GroupController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射群组主控制器。
+
+  - [x] 群组 API 请求存根
+
+- **GroupInvitationController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupInvitationController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupInvitationController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射群组邀请控制器。
+
+  - [x] 群组邀请请求 API 存根
+
+- **GroupJoinRequestController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupJoinRequestController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupJoinRequestController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射群组加入请求控制器。
+
+  - [x] 群组加入请求 API 存根
+
+- **GroupMemberController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupMemberController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupMemberController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射群组成员控制器。
+
+  - [x] 群组成员管理 API 存根
+
+- **GroupQuestionController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupQuestionController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupQuestionController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射进群问题控制器。
+
+  - [x] 进群问题 API 存根
+
+- **GroupTypeController.java** ([java/im/turms/service/domain/group/access/admin/controller/GroupTypeController.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/controller/GroupTypeController.java)) ➡️ [`internal/domain/group/access/admin/controller/group_controllers.go`](../internal/domain/group/access/admin/controller/group_controllers.go)
+> 映射群组类型控制器。
+
+  - [x] 群组类型 API 存根
+
+- **AddGroupBlockedUserDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupBlockedUserDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupBlockedUserDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
+> 映射添加群组阻止用户 DTO。
+
+  - [x] `AddGroupBlockedUserDTO` 结构体映射
+
+- **AddGroupDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
+> 映射添加群组 DTO。
+
+  - [x] `AddGroupDTO` 结构体映射
+
+- **AddGroupInvitationDTO.java** ([java/im/turms/service/domain/group/access/admin/dto/request/AddGroupInvitationDTO.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/access/admin/dto/request/AddGroupInvitationDTO.java)) ➡️ [`internal/domain/group/access/admin/dto/dtos.go`](../internal/domain/group/access/admin/dto/dtos.go)
+> 映射添加群组邀请 DTO。
+
+  - [x] `AddGroupInvitationDTO` 结构体映射
+
