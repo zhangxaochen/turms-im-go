@@ -676,6 +676,14 @@ func (s *GroupMemberService) QueryGroupManagersAndOwnerId(ctx context.Context, g
 	return s.groupMemberRepo.FindGroupManagersAndOwnerId(ctx, groupID)
 }
 
+func (s *GroupMemberService) QueryGroupMembersWithPagination(ctx context.Context, page, size *int) ([]po.GroupMember, error) {
+	return s.QueryGroupMembersWithFilter(ctx, nil, nil, nil, nil, nil, nil, nil, page, size)
+}
+
+func (s *GroupMemberService) QueryGroupMembersWithFilter(ctx context.Context, groupIds, userIds []int64, roles []int, joinDateStart, joinDateEnd, muteEndDateStart, muteEndDateEnd *time.Time, page, size *int) ([]po.GroupMember, error) {
+	return s.groupMemberRepo.FindGroupsMembers(ctx, groupIds, userIds, roles, joinDateStart, joinDateEnd, muteEndDateStart, muteEndDateEnd, page, size)
+}
+
 // AuthAndQueryGroupMembersWithVersion queries group members with version control and auth checks.
 // @MappedFrom authAndQueryGroupMembersWithVersion
 func (s *GroupMemberService) AuthAndQueryGroupMembersWithVersion(

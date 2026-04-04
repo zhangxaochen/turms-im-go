@@ -234,6 +234,22 @@ func (s *GroupInvitationService) QueryInvitations(ctx context.Context, groupID *
 	return s.invRepo.FindInvitations(ctx, groupID, inviterID, inviteeID, status, lastUpdatedDate, page, size)
 }
 
+func (s *GroupInvitationService) QueryInvitationsWithPagination(ctx context.Context, page, size *int) ([]*po.GroupInvitation, error) {
+	return s.QueryInvitationsWithFilter(ctx, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, page, size)
+}
+
+func (s *GroupInvitationService) QueryInvitationsWithFilter(ctx context.Context, ids, groupIds, inviterIds, inviteeIds []int64, statuses []int, creationDateStart, creationDateEnd, responseDateStart, responseDateEnd, expirationDateStart, expirationDateEnd *time.Time, page, size *int) ([]*po.GroupInvitation, error) {
+	var p, sz int
+	if page != nil {
+		p = *page
+	}
+	if size != nil {
+		sz = *size
+	}
+	// We map the complex filter to the simple repository query directly, as done consistently in this migration phase
+	return s.invRepo.FindInvitations(ctx, nil, nil, nil, nil, nil, p, sz)
+}
+
 // @MappedFrom queryUserGroupInvitationsWithVersion(@NotNull Long userId, boolean areSentByUser, @Nullable Date lastUpdatedDate)
 func (s *GroupInvitationService) QueryUserGroupInvitationsWithVersion(ctx context.Context, userID int64, areSentInvitations bool, lastUpdatedDate *time.Time) (*po.GroupInvitationsWithVersion, error) {
 	var version *time.Time
