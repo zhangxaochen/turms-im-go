@@ -115,6 +115,28 @@ const (
 	ResponseStatusCode_BLOCKED_USER_SEND_GROUP_MESSAGE           ResponseStatusCode = 5012
 )
 
+// Reason returns the default explanation for a specific status code.
+// Note: In a full Go port, we would want to generate this from the proto or Java source.
+func (c ResponseStatusCode) Reason() string {
+	switch c {
+	case ResponseStatusCode_OK:
+		return "ok"
+	case ResponseStatusCode_SERVER_INTERNAL_ERROR:
+		return "Internal server error"
+	case ResponseStatusCode_SERVER_UNAVAILABLE:
+		return "The server is unavailable"
+	case ResponseStatusCode_INVALID_REQUEST:
+		return "The client request is invalid"
+	case ResponseStatusCode_ILLEGAL_ARGUMENT:
+		return "The arguments are illegal"
+	case ResponseStatusCode_UNAUTHORIZED_REQUEST:
+		return "The request is unauthorized"
+	default:
+		// Fallback similar to code.name() in Java but keeping it simple
+		return "status code " + string(rune(c))
+	}
+}
+
 // IsServerError returns true if the turms business code implies a server-side runtime error.
 func IsServerError(code int32) bool {
 	// Roughly based on original Turms ResponseStatusCode mapping ranges:

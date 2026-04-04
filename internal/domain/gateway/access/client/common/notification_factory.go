@@ -43,7 +43,15 @@ func (f *NotificationFactory) CreateWithReason(requestID *int64, code constant.R
 		Code:      proto.Int32(int32(code)),
 	}
 
-	f.trySetReason(notification, code, reason)
+	var actualReason *string
+	if reason == nil {
+		r := code.Reason()
+		actualReason = &r
+	} else {
+		actualReason = reason
+	}
+
+	f.trySetReason(notification, code, actualReason)
 	return notification
 }
 
@@ -55,10 +63,20 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 
 	if te, ok := err.(*exception.TurmsError); ok {
 		code = constant.ResponseStatusCode(te.Code)
-		reason = &te.Message
+		if te.Message != "" {
+			reason = &te.Message
+		} else {
+			r := code.Reason()
+			reason = &r
+		}
 	} else if err != nil {
+		// In a real port, we'd map ThrowableInfo to TurmsError mapping table.
+		// For now we map to SERVER_INTERNAL_ERROR but keep the original message
 		errStr := err.Error()
 		reason = &errStr
+	} else {
+		r := code.Reason()
+		reason = &r
 	}
 
 	notification := &protocol.TurmsNotification{
