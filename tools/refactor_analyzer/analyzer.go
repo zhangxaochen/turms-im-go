@@ -35,13 +35,24 @@ func extractPublicMethods(code string) []MethodDef {
 
 func extractGoMethods(code string) []GoMethod {
 	matches := goMethodRegex.FindAllStringSubmatch(code, -1)
+	indices := goMethodRegex.FindAllStringSubmatchIndex(code, -1)
 	var methods []GoMethod
 	mappedFromRegex := regexp.MustCompile(`@MappedFrom\s+([^\n]+)`)
 
-	for _, match := range matches {
+	for i, match := range matches {
 		mappedFromBlock := match[1]
 		name := match[2]
 		args := cleanWhitespace(match[3])
+
+		// Calculate line number of the 'func ' declaration
+		// match[0] is the entire regex match including comments.
+		// We want the line number where 'func ' starts.
+		funcIdx := strings.Index(match[0], "func ")
+		if funcIdx == -1 {
+			funcIdx = 0
+		}
+		absoluteFuncIdx := indices[i][0] + funcIdx
+		lineNum := strings.Count(code[:absoluteFuncIdx], "\n") + 1
 
 		if mappedFromBlock != "" {
 			lines := strings.Split(mappedFromBlock, "\n")
@@ -57,17 +68,19 @@ func extractGoMethods(code string) []GoMethod {
 						MappedFrom: strings.TrimSpace(subMatch[1]),
 						Name:       name,
 						Args:       args,
+						Line:       lineNum,
 					})
 				}
 			}
 			if !hasAtLeastOne {
-				methods = append(methods, GoMethod{Name: name, Args: args})
+				methods = append(methods, GoMethod{Name: name, Args: args, Line: lineNum})
 			}
 		} else {
 			methods = append(methods, GoMethod{
 				MappedFrom: "",
 				Name:       name,
 				Args:       args,
+				Line:       lineNum,
 			})
 		}
 	}
@@ -98,6 +111,7 @@ type GoMethod struct {
 	Name       string
 	Args       string
 	MappedFrom string
+	Line       int
 }
 
 func main() {
@@ -254,7 +268,7 @@ func main() {
 					if len(matchesToUse) > 0 {
 						var goStrs []string
 						for _, gm := range matchesToUse {
-							goStrs = append(goStrs, fmt.Sprintf("`%s:%s(%s)`", gm.Path, gm.Name, gm.Args))
+							goStrs = append(goStrs, fmt.Sprintf("[%s(%s)](../%s#L%d)", gm.Name, gm.Args, gm.Path, gm.Line))
 						}
 						sb.WriteString(fmt.Sprintf("  - [x] `%s(%s)` -> %s\n", m.Name, m.Args, strings.Join(goStrs, ", ")))
 					} else {
