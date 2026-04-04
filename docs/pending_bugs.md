@@ -1020,145 +1020,145 @@ Now I need to understand the full picture. The Java `getWsAddress()`, `getTcpAdd
 The Go `ber_buffer.go` file is entirely stubbed out — every method body is empty, returns zero values, or has no struct fields. This is not a faithful port; it's a skeleton with no implementation at all.
 
 ## skipTag()
-- [ ] Method body is empty — missing `buffer.skipBytes(1)` equivalent logic
+- [x] Method body is empty — missing `buffer.skipBytes(1)` equivalent logic
 
 ## skipTagAndLength()
-- [ ] Method body is empty — missing `buffer.skipBytes(1)` followed by `readLength()` equivalent logic
+- [x] Method body is empty — missing `buffer.skipBytes(1)` followed by `readLength()` equivalent logic
 
 ## skipTagAndLengthAndValue()
-- [ ] Method body is empty — missing `buffer.skipBytes(1)`, `readLength()`, and `buffer.skipBytes(length)` equivalent logic
+- [x] Method body is empty — missing `buffer.skipBytes(1)`, `readLength()`, and `buffer.skipBytes(length)` equivalent logic
 
 ## readTag()
-- [ ] Method returns hardcoded `0` instead of reading and returning a byte from the buffer
+- [x] Method returns hardcoded `0` instead of reading and returning a byte from the buffer
 
 ## peekAndCheckTag(int tag)
-- [ ] Method has no return value — Java returns `boolean`. Missing the logic to check `buffer.isReadable() && buffer.getByte(buffer.readerIndex()) == tag`
+- [x] Method has no return value — Java returns `boolean`. Missing the logic to check `buffer.isReadable() && buffer.getByte(buffer.readerIndex()) == tag`
 
 ## skipLength()
-- [ ] Method body is empty — missing delegation to `readLength()` equivalent
+- [x] Method body is empty — missing delegation to `readLength()` equivalent
 
 ## skipLengthAndValue()
-- [ ] Method body is empty — missing `buffer.skipBytes(readLength())` equivalent logic
+- [x] Method body is empty — missing `buffer.skipBytes(readLength())` equivalent logic
 
 ## writeLength(int length)
-- [ ] Method body is empty — missing all the BER length encoding logic (short form vs long form with 1–4 length bytes)
+- [x] Method body is empty — missing all the BER length encoding logic (short form vs long form with 1–4 length bytes)
 
 ## readLength()
-- [ ] Method returns hardcoded `0` instead of implementing the BER length decoding logic with indefinite-length rejection, bounds checking, and multi-byte length parsing
+- [x] Method returns hardcoded `0` instead of implementing the BER length decoding logic with indefinite-length rejection, bounds checking, and multi-byte length parsing
 
 ## tryReadLengthIfReadable()
-- [ ] Method returns hardcoded `0` instead of `-1` when not readable — Java returns `-1` for the not-readable case. Missing the full BER length decoding logic with early `-1` return
+- [x] Method returns hardcoded `0` instead of `-1` when not readable — Java returns `-1` for the not-readable case. Missing the full BER length decoding logic with early `-1` return
 
 ## beginSequence()
-- [ ] Method body is empty — missing delegation to `BeginSequenceWithTag` with the sequence+constructed tag
+- [x] Method body is empty — missing delegation to `BeginSequenceWithTag` with the sequence+constructed tag
 
 ## beginSequence(int tag)
-- [ ] Method body is empty — missing sequence-length writer index tracking, buffer write of tag, and writer index advancement by 3 bytes. The struct also lacks the `sequenceLengthWriterIndexes []int` and `currentSequenceLengthIndex int` fields
+- [x] Method body is empty — missing sequence-length writer index tracking, buffer write of tag, and writer index advancement by 3 bytes. The struct also lacks the `sequenceLengthWriterIndexes []int` and `currentSequenceLengthIndex int` fields
 
 ## endSequence()
-- [ ] Method body is empty — missing the sequence finalization logic: calculating value length, writing 0x82 prefix + 2-byte length, and writer index manipulation
+- [x] Method body is empty — missing the sequence finalization logic: calculating value length, writing 0x82 prefix + 2-byte length, and writer index manipulation
 
 ## writeBoolean(boolean value)
-- [ ] Method body is empty — missing write of `TAG_BOOLEAN`, length byte `1`, and value byte (`0xFF` or `0`)
+- [x] Method body is empty — missing write of `TAG_BOOLEAN`, length byte `1`, and value byte (`0xFF` or `0`)
 
 ## writeBoolean(int tag, boolean value)
-- [ ] Method body is empty — missing write of tag byte, length byte `1`, and value byte (`0xFF` or `0`)
+- [x] Method body is empty — missing write of tag byte, length byte `1`, and value byte (`0xFF` or `0`)
 
 ## readBoolean()
-- [ ] Method returns hardcoded `false` instead of reading tag, validating it, reading length, and returning `buffer.readByte() != 0`
+- [x] Method returns hardcoded `false` instead of reading tag, validating it, reading length, and returning `buffer.readByte() != 0`
 
 ## writeInteger(int value)
-- [ ] Method body is empty — missing delegation to `WriteIntegerWithTag` with `TAG_INTEGER`
+- [x] Method body is empty — missing delegation to `WriteIntegerWithTag` with `TAG_INTEGER`
 
 ## writeInteger(int tag, int value)
-- [ ] Method body is empty — missing the full signed/unsigned integer BER encoding logic with variable-length byte handling and sign-bit masking
+- [x] Method body is empty — missing the full signed/unsigned integer BER encoding logic with variable-length byte handling and sign-bit masking
 
 ## readInteger()
-- [ ] Method returns hardcoded `0` instead of delegating to `ReadIntWithTag` with `TAG_INTEGER`
+- [x] Method returns hardcoded `0` instead of delegating to `ReadIntWithTag` with `TAG_INTEGER`
 
 ## readIntWithTag(int tag)
-- [ ] Method returns hardcoded `0` — missing tag validation, length reading, and signed integer decoding logic
+- [x] Method returns hardcoded `0` — missing tag validation, length reading, and signed integer decoding logic
 
 ## writeOctetString(String value)
-- [ ] Method body is empty — missing delegation to `WriteOctetStringWithTag` with `TAG_OCTET_STRING`
+- [x] Method body is empty — missing delegation to `WriteOctetStringWithTag` with `TAG_OCTET_STRING`
 
 ## writeOctetString(byte[] value)
-- [ ] Method body is empty — missing write of `TAG_OCTET_STRING`, length, and byte data
+- [x] Method body is empty — missing write of `TAG_OCTET_STRING`, length, and byte data
 
 ## writeOctetString(int tag, byte[] value)
-- [ ] Method body is empty — missing write of tag, length, and byte data
+- [x] Method body is empty — missing write of tag, length, and byte data
 
 ## writeOctetString(byte[] value, int start, int length)
-- [ ] Method body is empty — missing write of `TAG_OCTET_STRING`, length, and byte slice data
+- [x] Method body is empty — missing write of `TAG_OCTET_STRING`, length, and byte slice data
 
 ## writeOctetString(int tag, byte[] value, int start, int length)
-- [ ] Method body is empty — missing write of tag, length, and byte slice data
+- [x] Method body is empty — missing write of tag, length, and byte slice data
 
 ## writeOctetString(int tag, String value)
-- [ ] Method body is empty — missing the deferred-length-write logic: advancing writer index, writing UTF-8 bytes, then backfilling the 0x82 + 2-byte length prefix
+- [x] Method body is empty — missing the deferred-length-write logic: advancing writer index, writing UTF-8 bytes, then backfilling the 0x82 + 2-byte length prefix
 
 ## writeOctetStrings(List<String> values)
-- [ ] Method body is empty — missing iteration over values calling `writeOctetString(TAG_OCTET_STRING, value)`
+- [x] Method body is empty — missing iteration over values calling `writeOctetString(TAG_OCTET_STRING, value)`
 
 ## readOctetString()
-- [ ] Method returns hardcoded `""` instead of delegating to `ReadOctetStringWithTag` with `TAG_OCTET_STRING`
+- [x] Method returns hardcoded `""` instead of delegating to `ReadOctetStringWithTag` with `TAG_OCTET_STRING`
 
 ## readOctetStringWithTag(int tag)
-- [ ] Method returns hardcoded `""` — missing tag validation, length reading, readability check, and UTF-8 string decoding
+- [x] Method returns hardcoded `""` — missing tag validation, length reading, readability check, and UTF-8 string decoding
 
 ## readOctetStringWithLength(int length)
-- [ ] Method returns hardcoded `""` — missing length-0 check and UTF-8 byte reading
+- [x] Method returns hardcoded `""` — missing length-0 check and UTF-8 byte reading
 
 ## writeEnumeration(int value)
-- [ ] Method body is empty — missing delegation to `WriteIntegerWithTag` with `TAG_ENUMERATED`
+- [x] Method body is empty — missing delegation to `WriteIntegerWithTag` with `TAG_ENUMERATED`
 
 ## readEnumeration()
-- [ ] Method returns hardcoded `0` instead of delegating to `ReadIntWithTag` with `TAG_ENUMERATED`
+- [x] Method returns hardcoded `0` instead of delegating to `ReadIntWithTag` with `TAG_ENUMERATED`
 
 ## getBytes()
-- [ ] Method returns `nil` instead of returning a copy of the buffer's readable bytes
+- [x] Method returns `nil` instead of returning a copy of the buffer's readable bytes
 
 ## skipBytes(int length)
-- [ ] Method body is empty — missing buffer skip-forward logic
+- [x] Method body is empty — missing buffer skip-forward logic
 
 ## close()
-- [ ] Method is missing entirely — no `Close()` or `close()` method exists in the Go code
+- [x] Method is missing entirely — no `Close()` or `close()` method exists in the Go code
 
 ## refCnt()
-- [ ] Method returns hardcoded `0` instead of delegating to the underlying buffer's reference count
+- [x] Method returns hardcoded `0` instead of delegating to the underlying buffer's reference count
 
 ## retain()
-- [ ] Method body is empty — missing reference count increment logic
+- [x] Method body is empty — missing reference count increment logic
 
 ## retain(int increment)
-- [ ] Method body is empty — missing reference count increment-by-argument logic
+- [x] Method body is empty — missing reference count increment-by-argument logic
 
 ## touch()
-- [ ] Method body is empty — missing resource leak detection hint logic
+- [x] Method body is empty — missing resource leak detection hint logic
 
 ## touch(Object hint)
-- [ ] Method body is empty — missing resource leak detection hint logic with hint argument
+- [x] Method body is empty — missing resource leak detection hint logic with hint argument
 
 ## release()
-- [ ] Method returns hardcoded `false` instead of delegating to the underlying buffer's release
+- [x] Method returns hardcoded `false` instead of delegating to the underlying buffer's release
 
 ## release(int decrement)
-- [ ] Method returns hardcoded `false` instead of delegating to the underlying buffer's release with decrement
+- [x] Method returns hardcoded `false` instead of delegating to the underlying buffer's release with decrement
 
 ## isReadable(int length)
-- [ ] Method returns hardcoded `false` instead of checking if the buffer has `length` readable bytes
+- [x] Method returns hardcoded `false` instead of checking if the buffer has `length` readable bytes
 
 ## isReadable()
-- [ ] Method returns hardcoded `false` instead of checking if the buffer has any readable bytes
+- [x] Method returns hardcoded `false` instead of checking if the buffer has any readable bytes
 
 ## isReadableWithEnd(int end)
-- [ ] Method returns hardcoded `false` instead of checking `buffer.readerIndex() < end`
+- [x] Method returns hardcoded `false` instead of checking `buffer.readerIndex() < end`
 
 ## readerIndex()
-- [ ] Method returns hardcoded `0` instead of returning the buffer's current reader index
+- [x] Method returns hardcoded `0` instead of returning the buffer's current reader index
 
 ## BerBuffer struct
-- [ ] Struct has no fields — missing `buffer` (underlying byte buffer), `sequenceLengthWriterIndexes []int`, and `currentSequenceLengthIndex int` fields required by nearly all methods
+- [x] Struct has no fields — missing `buffer` (underlying byte buffer), `sequenceLengthWriterIndexes []int`, and `currentSequenceLengthIndex int` fields required by nearly all methods
 
 # Attribute.java
 *Checked methods: isEmpty(), decode(BerBuffer buffer)*
@@ -1189,60 +1189,60 @@ The Java code uses `ConcurrentEnumMap.isEmpty()` (which checks `size == 0`). The
 
 ## Attribute.isEmpty
 
-- [ ] **Missing method entirely**: The Go `Attribute` struct has no `IsEmpty()` method. The Java class has `isEmpty()` that returns `values.isEmpty()`.
-- [ ] **Missing struct fields**: The Go `Attribute` struct is empty — it lacks the `Type string` and `Values []string` fields that the Java class has (`private final String type` and `private final List<String> values`). Without these fields, neither `IsEmpty()` nor `Decode()` can be meaningfully implemented.
+- [x] **Missing method entirely**: The Go `Attribute` struct has no `IsEmpty()` method. The Java class has `isEmpty()` that returns `values.isEmpty()`.
+- [x] **Missing struct fields**: The Go `Attribute` struct is empty — it lacks the `Type string` and `Values []string` fields that the Java class has (`private final String type` and `private final List<String> values`). Without these fields, neither `IsEmpty()` nor `Decode()` can be meaningfully implemented.
 
 ## Attribute.Decode
 
-- [ ] **Empty method body**: The Go `Decode` method does nothing. The Java `decode` is a static factory method that parses a BER-encoded LDAP attribute from the buffer, including: skipping tag/length, reading the attribute type as an octet string, reading and validating a SET+CONSTRUCTED tag, and looping to read all value octet strings. None of this logic is present.
-- [ ] **Wrong method signature**: The Java `decode` is a `static` factory method returning a new `Attribute` instance (`public static Attribute decode(BerBuffer buffer)`). The Go version is a method on `*Attribute` with no return value (`func (a *Attribute) Decode(buffer *asn1.BerBuffer)`). It should likely be a function that returns `*Attribute`.
-- [ ] **Missing tag validation logic**: The Java code checks `if (tag != (Asn1IdConst.TAG_SET | Asn1IdConst.FORM_CONSTRUCTED))` and handles the fallback case by calling `buffer.skipLengthAndValue()` and returning an attribute with an empty values list. This entire branch is absent in Go.
-- [ ] **Missing values loop**: The Java code loops with `do { values.add(buffer.readOctetString()); } while (buffer.isReadableWithEnd(end))` to collect all attribute values. This is completely missing from the Go implementation.
-- [ ] **No return value / field population**: Even if restructured as a method on `*Attribute`, the Go version never assigns to `a.Type` or `a.Values` (which don't exist on the struct), so any decoded data is silently discarded.
+- [x] **Empty method body**: The Go `Decode` method does nothing. The Java `decode` is a static factory method that parses a BER-encoded LDAP attribute from the buffer, including: skipping tag/length, reading the attribute type as an octet string, reading and validating a SET+CONSTRUCTED tag, and looping to read all value octet strings. None of this logic is present.
+- [x] **Wrong method signature**: The Java `decode` is a `static` factory method returning a new `Attribute` instance (`public static Attribute decode(BerBuffer buffer)`). The Go version is a method on `*Attribute` with no return value (`func (a *Attribute) Decode(buffer *asn1.BerBuffer)`). It should likely be a function that returns `*Attribute`.
+- [x] **Missing tag validation logic**: The Java code checks `if (tag != (Asn1IdConst.TAG_SET | Asn1IdConst.FORM_CONSTRUCTED))` and handles the fallback case by calling `buffer.skipLengthAndValue()` and returning an attribute with an empty values list. This entire branch is absent in Go.
+- [x] **Missing values loop**: The Java code loops with `do { values.add(buffer.readOctetString()); } while (buffer.isReadableWithEnd(end))` to collect all attribute values. This is completely missing from the Go implementation.
+- [x] **No return value / field population**: Even if restructured as a method on `*Attribute`, the Go version never assigns to `a.Type` or `a.Values` (which don't exist on the struct), so any decoded data is silently discarded.
 
 # LdapMessage.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## estimateSize()
-- [ ] **Matching return value but structurally incomplete**: Both Java and Go return `0`, so the logic is technically identical. However, this is correct — no bug here.
+- [x] **Matching return value but structurally incomplete**: Both Java and Go return `0`, so the logic is technically identical. However, this is correct — no bug here.
 
 ## WriteTo()
-- [ ] **Method body is completely empty**: The Java `writeTo` contains the full LDAP message serialization logic: `buffer.beginSequence()`, `writeInteger(messageId)`, calling `protocolOperation.writeTo(buffer)`, iterating and writing controls, and calling `buffer.endSequence()`. The Go `WriteTo` method body is entirely empty — it does nothing.
-- [ ] **Missing struct fields**: The `LdapMessage` struct has no fields. The Java class has `messageId` (int), `protocolOperation` (generic T extending ProtocolOperation), and `controls` (List<Control>). None of these are present in the Go struct.
-- [ ] **Missing outer sequence write**: Java calls `buffer.beginSequence()` at the start and `buffer.endSequence()` at the end. Go has neither.
-- [ ] **Missing messageId write**: Java calls `buffer.writeInteger(messageId)`. Go omits this entirely.
-- [ ] **Missing protocolOperation.writeTo() delegation**: Java delegates to `protocolOperation.writeTo(buffer)`. Go does not call any operation's WriteTo.
-- [ ] **Missing controls serialization**: Java iterates over controls, writes each control's OID as an octet string, writes criticality as a boolean if true, all wrapped in a `beginSequence(LdapTagConst.CONTROLS)` / `endSequence()` block. Go has none of this logic.
+- [x] **Method body is completely empty**: The Java `writeTo` contains the full LDAP message serialization logic: `buffer.beginSequence()`, `writeInteger(messageId)`, calling `protocolOperation.writeTo(buffer)`, iterating and writing controls, and calling `buffer.endSequence()`. The Go `WriteTo` method body is entirely empty — it does nothing.
+- [x] **Missing struct fields**: The `LdapMessage` struct has no fields. The Java class has `messageId` (int), `protocolOperation` (generic T extending ProtocolOperation), and `controls` (List<Control>). None of these are present in the Go struct.
+- [x] **Missing outer sequence write**: Java calls `buffer.beginSequence()` at the start and `buffer.endSequence()` at the end. Go has neither.
+- [x] **Missing messageId write**: Java calls `buffer.writeInteger(messageId)`. Go omits this entirely.
+- [x] **Missing protocolOperation.writeTo() delegation**: Java delegates to `protocolOperation.writeTo(buffer)`. Go does not call any operation's WriteTo.
+- [x] **Missing controls serialization**: Java iterates over controls, writes each control's OID as an octet string, writes criticality as a boolean if true, all wrapped in a `beginSequence(LdapTagConst.CONTROLS)` / `endSequence()` block. Go has none of this logic.
 
 # LdapResult.java
 *Checked methods: isSuccess()*
 
 ## IsSuccess
 
-- [ ] **Missing fields**: The `LdapResult` struct has no fields at all. The Java version has `resultCode`, `matchedDn`, `diagnosticMessage`, and `referrals`. The `IsSuccess()` method needs `resultCode` to function.
-- [ ] **Hardcoded return value**: `IsSuccess()` always returns `false`. The Java version returns `resultCode == ResultCodeConst.SUCCESS`. Since there is no `resultCode` field, the comparison logic is completely missing.
-- [ ] **Missing `ResultCodeConst` reference**: The Go implementation does not reference or define the `ResultCodeConst.SUCCESS` constant needed for the success comparison.
+- [x] **Missing fields**: The `LdapResult` struct has no fields at all. The Java version has `resultCode`, `matchedDn`, `diagnosticMessage`, and `referrals`. The `IsSuccess()` method needs `resultCode` to function.
+- [x] **Hardcoded return value**: `IsSuccess()` always returns `false`. The Java version returns `resultCode == ResultCodeConst.SUCCESS`. Since there is no `resultCode` field, the comparison logic is completely missing.
+- [x] **Missing `ResultCodeConst` reference**: The Go implementation does not reference or define the `ResultCodeConst.SUCCESS` constant needed for the success comparison.
 
 # Control.java
 *Checked methods: decode(BerBuffer buffer)*
 
 ## decode
 
-- [ ] The Go `Control.Decode` method is completely empty (no body), while the Java `decode` is a static method with full parsing logic: it peeks for the `CONTROLS` tag, reads tag/length, iterates over control elements reading OID, criticality, and optional value, and returns a list of `Control` objects.
-- [ ] The Go `Control` struct has no fields (`oid`, `criticality`) — the Java class has `oid` (String) and `criticality` (boolean) fields.
-- [ ] The Java `decode` is a static factory method returning `List<Control>`, but the Go version is an instance method `func (c *Control) Decode(buffer *asn1.BerBuffer)` with no return value — the method signature does not match the Java design.
-- [ ] All core logic is missing: reading the outer tag and length, looping over control entries, reading OID via `readOctetString()`, conditionally reading `criticality` via `readBoolean()`, skipping optional octet string values, and collecting `Control` instances into a slice.
-- [ ] The guard clause `if (!buffer.isReadable() || !buffer.peekAndCheckTag(LdapTagConst.CONTROLS))` returning an empty list is missing.
+- [x] The Go `Control.Decode` method is completely empty (no body), while the Java `decode` is a static method with full parsing logic: it peeks for the `CONTROLS` tag, reads tag/length, iterates over control elements reading OID, criticality, and optional value, and returns a list of `Control` objects.
+- [x] The Go `Control` struct has no fields (`oid`, `criticality`) — the Java class has `oid` (String) and `criticality` (boolean) fields.
+- [x] The Java `decode` is a static factory method returning `List<Control>`, but the Go version is an instance method `func (c *Control) Decode(buffer *asn1.BerBuffer)` with no return value — the method signature does not match the Java design.
+- [x] All core logic is missing: reading the outer tag and length, looping over control entries, reading OID via `readOctetString()`, conditionally reading `criticality` via `readBoolean()`, skipping optional octet string values, and collecting `Control` instances into a slice.
+- [x] The guard clause `if (!buffer.isReadable() || !buffer.peekAndCheckTag(LdapTagConst.CONTROLS))` returning an empty list is missing.
 
 # BindRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## EstimateSize
-- [ ] Returns a hardcoded `0` instead of `dn.length() + password.length() + 16`. The Go `BindRequest` struct has no `dn` or `password` fields, so the calculation cannot be performed at all.
+- [x] Returns a hardcoded `0` instead of `dn.length() + password.length() + 16`. The Go `BindRequest` struct has no `dn` or `password` fields, so the calculation cannot be performed at all.
 
 ## WriteTo
-- [ ] Method body is completely empty. The Java version writes: `buffer.beginSequence(LdapTagConst.BIND_REQUEST).writeInteger(LDAP_VERSION3).writeOctetString(dn).writeOctetString(Asn1IdConst.TAG_CLASS_CONTEXT, password).endSequence()`. None of this logic is present.
-- [ ] The Go `BindRequest` struct lacks the `dn` and `password` fields that are required by both `estimateSize()` and `writeTo()`.
+- [x] Method body is completely empty. The Java version writes: `buffer.beginSequence(LdapTagConst.BIND_REQUEST).writeInteger(LDAP_VERSION3).writeOctetString(dn).writeOctetString(Asn1IdConst.TAG_CLASS_CONTEXT, password).endSequence()`. None of this logic is present.
+- [x] The Go `BindRequest` struct lacks the `dn` and `password` fields that are required by both `estimateSize()` and `writeTo()`.
 
 # BindResponse.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -1251,44 +1251,44 @@ Now I have a complete picture of both the Java and Go implementations. Let me co
 
 ## BindResponse.Decode
 
-- [ ] **Missing struct fields**: The Go `BindResponse` struct at line 63-64 is empty (`struct{}`), but the Java `BindResponse` extends `LdapResult` which holds `resultCode`, `matchedDn`, `diagnosticMessage`, and `referrals` fields. The Go struct lacks all these fields entirely.
+- [x] **Missing struct fields**: The Go `BindResponse` struct at line 63-64 is empty (`struct{}`), but the Java `BindResponse` extends `LdapResult` which holds `resultCode`, `matchedDn`, `diagnosticMessage`, and `referrals` fields. The Go struct lacks all these fields entirely.
 
-- [ ] **Method body is empty / all core logic missing**: The Go `Decode` method at line 67-68 is a no-op (`func (r *BindResponse) Decode(buffer *asn1.BerBuffer) {}`). The Java `decode` method performs: (1) `buffer.skipTagAndLength()`, (2) calls `LdapResult.decodeResult(buffer)` which reads `resultCode` (enumeration), `matchedDn` (octet string), `diagnosticMessage` (octet string), and optionally parses referrals with tag checking, length validation, and loop-based referral reading, then (3) returns a new `BindResponse` with the decoded fields. None of this logic exists in the Go version.
+- [x] **Method body is empty / all core logic missing**: The Go `Decode` method at line 67-68 is a no-op (`func (r *BindResponse) Decode(buffer *asn1.BerBuffer) {}`). The Java `decode` method performs: (1) `buffer.skipTagAndLength()`, (2) calls `LdapResult.decodeResult(buffer)` which reads `resultCode` (enumeration), `matchedDn` (octet string), `diagnosticMessage` (octet string), and optionally parses referrals with tag checking, length validation, and loop-based referral reading, then (3) returns a new `BindResponse` with the decoded fields. None of this logic exists in the Go version.
 
-- [ ] **Does not return the decoded result**: The Java method returns a new `BindResponse` instance with the decoded data. The Go method has no return value and does not populate the receiver struct with any decoded data.
+- [x] **Does not return the decoded result**: The Java method returns a new `BindResponse` instance with the decoded data. The Go method has no return value and does not populate the receiver struct with any decoded data.
 
 # ModifyRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## EstimateSize
 
-- [ ] Go method returns hardcoded `0` instead of `dn.length() + changes.size() * 32`. Missing `dn` and `changes` fields on the struct, and missing the size estimation logic.
+- [x] Go method returns hardcoded `0` instead of `dn.length() + changes.size() * 32`. Missing `dn` and `changes` fields on the struct, and missing the size estimation logic.
 
 ## WriteTo
 
-- [ ] Go method is completely empty (no-op). Missing all logic: the outer `beginSequence` with `MODIFY_REQUEST` tag, writing the DN as octet string, iterating over changes, writing enumeration for change type, writing attribute type and values with proper sequence nesting (5 total `beginSequence`/`endSequence` pairs), and all corresponding `endSequence` calls.
-- [ ] Missing `dn` field on the `ModifyRequest` struct.
-- [ ] Missing `changes` field (list of `ModifyOperationChange`) on the `ModifyRequest` struct.
-- [ ] Missing `ModifyOperationChange` type/struct with `getType()` and `getAttribute()` accessors.
-- [ ] Missing `ModifyOperationType` enum with `getValue()`.
-- [ ] Missing `Attribute` struct fields (`Type` string and `Values` slice) — currently an empty struct.
+- [x] Go method is completely empty (no-op). Missing all logic: the outer `beginSequence` with `MODIFY_REQUEST` tag, writing the DN as octet string, iterating over changes, writing enumeration for change type, writing attribute type and values with proper sequence nesting (5 total `beginSequence`/`endSequence` pairs), and all corresponding `endSequence` calls.
+- [x] Missing `dn` field on the `ModifyRequest` struct.
+- [x] Missing `changes` field (list of `ModifyOperationChange`) on the `ModifyRequest` struct.
+- [x] Missing `ModifyOperationChange` type/struct with `getType()` and `getAttribute()` accessors.
+- [x] Missing `ModifyOperationType` enum with `getValue()`.
+- [x] Missing `Attribute` struct fields (`Type` string and `Values` slice) — currently an empty struct.
 
 # ModifyResponse.java
 *Checked methods: decode(BerBuffer buffer)*
 
 ## ModifyResponse.Decode
 
-- [ ] **Entire decode logic is missing**: The Go method body is empty (`func (r *ModifyResponse) Decode(buffer *asn1.BerBuffer) {}`). The Java version calls `buffer.skipTagAndLength()`, then `LdapResult.decodeResult(buffer)`, and returns a new `ModifyResponse` populated with the result's fields. None of this logic is present in Go.
-- [ ] **ModifyResponse struct has no fields**: The Java `ModifyResponse` extends `LdapResult`, which holds `resultCode`, `matchedDn`, `diagnosticMessage`, and `referrals`. The Go struct `ModifyResponse` is completely empty, so even if decode logic were added, there would be nowhere to store the decoded values.
-- [ ] **LdapResult struct has no fields and decodeResult is not implemented**: The Go `LdapResult` struct is empty and has no `decodeResult` equivalent. The Java `decode` depends on `LdapResult.decodeResult(buffer)` to parse the LDAP result fields, which is not ported at all.
-- [ ] **Decode does not return a value**: The Java `decode` method returns a new `ModifyResponse` instance. The Go method has a `void`-like signature with no return value, making it impossible to use the decoded result.
+- [x] **Entire decode logic is missing**: The Go method body is empty (`func (r *ModifyResponse) Decode(buffer *asn1.BerBuffer) {}`). The Java version calls `buffer.skipTagAndLength()`, then `LdapResult.decodeResult(buffer)`, and returns a new `ModifyResponse` populated with the result's fields. None of this logic is present in Go.
+- [x] **ModifyResponse struct has no fields**: The Java `ModifyResponse` extends `LdapResult`, which holds `resultCode`, `matchedDn`, `diagnosticMessage`, and `referrals`. The Go struct `ModifyResponse` is completely empty, so even if decode logic were added, there would be nowhere to store the decoded values.
+- [x] **LdapResult struct has no fields and decodeResult is not implemented**: The Go `LdapResult` struct is empty and has no `decodeResult` equivalent. The Java `decode` depends on `LdapResult.decodeResult(buffer)` to parse the LDAP result fields, which is not ported at all.
+- [x] **Decode does not return a value**: The Java `decode` method returns a new `ModifyResponse` instance. The Go method has a `void`-like signature with no return value, making it impossible to use the decoded result.
 
 # Filter.java
 *Checked methods: write(BerBuffer buffer, String filter)*
 
 ## Filter.Write
 
-- [ ] The Go method `Write` has an entirely empty body (`func (f *Filter) Write(buffer *asn1.BerBuffer, filter string) {}`). The Java version contains the complete LDAP filter parsing and BER encoding logic including: converting the filter string to bytes, calling `writeFilter`, which in turn handles parenthesis balancing, escape sequences, filter types (AND/OR/NOT/equality/substring/greater/less/approximate/extensible-match/present), and delegates to `writeFilterSet`, `writeFilterInSet`, `writeSubstringFilter`, `writeExtensibleMatchFilter`, and `unescapeFilterValue`. None of this logic is ported.
+- [x] The Go method `Write` has an entirely empty body (`func (f *Filter) Write(buffer *asn1.BerBuffer, filter string) {}`). The Java version contains the complete LDAP filter parsing and BER encoding logic including: converting the filter string to bytes, calling `writeFilter`, which in turn handles parenthesis balancing, escape sequences, filter types (AND/OR/NOT/equality/substring/greater/less/approximate/extensible-match/present), and delegates to `writeFilterSet`, `writeFilterInSet`, `writeSubstringFilter`, `writeExtensibleMatchFilter`, and `unescapeFilterValue`. None of this logic is ported.
 
 # SearchRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
@@ -7713,3 +7713,118 @@ The Go file is a stub that returns `nil` with no implementation whatsoever. Let 
 [x] The Go method returns `nil` (a stub), but the Java method returns the `sequenceIdRedisClientManager` field initialized in the constructor — all logic is missing
 [x] The Go `RedisConfig` struct has no `sequenceIdRedisClientManager` field, which the Java class uses to store the manager instance
 [x] The constructor logic that conditionally initializes `sequenceIdRedisClientManager` (based on `useSequenceIdForGroupConversation` or `useSequenceIdForPrivateConversation`) and calls `registerClientManagers` is completely absent from the Go code
+
+# NotificationFactory.java
+*Checked methods: init(TurmsPropertiesManager propertiesManager), create(ResponseStatusCode code, long requestId), create(ResponseStatusCode code, @Nullable String reason, long requestId), create(ThrowableInfo info, long requestId), createBuffer(CloseReason closeReason), sessionClosed(long requestId)*
+
+Now I have a complete understanding of both files. Let me analyze each method carefully.
+
+## init (mapped to NewNotificationFactory)
+
+**Java:** `init` registers a **listener** on `propertiesManager` that dynamically updates a static `returnReasonForServerError` field whenever properties change. It uses `notifyAndAddLocalPropertiesChangeListener`, meaning the value is reactive and live-updates.
+
+**Go:** `NewNotificationFactory` stores a pointer to `*config.GatewayProperties` and reads `f.propsManager.ClientAPI.ReturnReasonForServerError` at call time. This is functionally equivalent IF the `GatewayProperties` pointer remains the same object that gets mutated when properties change. However, the Java version uses a **static field** (`private static boolean returnReasonForServerError`), meaning all instances share one value. The Go version uses instance state. This is a design difference but not a logic bug per se.
+
+## create(ResponseStatusCode code, long requestId)
+
+**Java:** Sets timestamp, requestId, code (via `code.getBusinessCode()`), calls `trySetReason(builder, code, code.getReason())`.
+
+**Go (Create):** Delegates to `CreateWithReason(requestID, code, nil)`. In `CreateWithReason`, when `reason` is nil, it falls through to the `reason == nil || *reason == ""` check, sets `actualReason = &code.Reason()`, then calls `trySetReason`. This matches.
+
+## create(ResponseStatusCode code, @Nullable String reason, long requestId)
+
+**Java:** If `reason` is null, uses `code.getReason()`, otherwise uses the provided reason. Always calls `trySetReason`.
+
+**Go (CreateWithReason):** Checks `reason == nil || *reason == ""`. The Java version only checks `reason == null`, not empty string. The Go code treats `""` same as `nil`, which is a **difference** from Java. In Java, an empty string `""` would pass the null check and be used as the reason (calling `trySetReason` with `""`), while in Go it falls back to `code.Reason()`.
+
+## create(ThrowableInfo info, long requestId)
+
+**Java:** Extracts `code` from `info.code()` and `reason` from `info.reason()`, then builds notification with those.
+
+**Go (CreateFromError):** Accepts a generic `error` instead of `ThrowableInfo`. It defaults to `SERVER_INTERNAL_ERROR` and only extracts code/message from `TurmsError`. For non-TurmsError errors, it uses `SERVER_INTERNAL_ERROR` with the error's message string. For nil error, it uses `SERVER_INTERNAL_ERROR` with its default reason. The Java version takes `ThrowableInfo` which has a `code()` and `reason()` method. The behavior for non-TurmsError cases deviates from Java's clean extraction.
+
+## createBuffer(CloseReason closeReason)
+
+**Java:** Extracts `code` from `closeReason.businessStatusCode()`, then calls `ClientMessageEncoder.encodeCloseNotification(timestamp, closeReason.closeStatus(), code, getReason(code, closeReason.reason()))`. The notification has `closeStatus` set and `code` and `reason` conditionally set.
+
+**Go (CreateCloseReasonBuffer):** Has logic for `code == -1` and `code == 0` fallbacks that don't exist in Java. Sets `CloseStatus` field. The Java version uses `closeReason.closeStatus()` (a separate status from business code). The Go version conflates close status and business status with fallback logic. Also, the Go code does `r := &reason.Reason` then checks `reason.Reason == ""` — this creates a pointer to the empty string, then conditionally replaces it. The Java `getReason` returns null for server errors when `returnReasonForServerError` is false, but the Go `trySetReason` handles this similarly.
+
+## sessionClosed(long requestId)
+
+**Java:** Creates notification with `timestamp`, `requestId`, `code = ResponseStatusCode.SERVER_INTERNAL_ERROR.getBusinessCode()`. **No reason is set.**
+
+**Go (SessionClosed):** Creates notification with `timestamp`, `requestId`, `code = ResponseStatusCode_OK` (value 1000). This is **wrong** — it should use `SERVER_INTERNAL_ERROR` (1200), not `OK` (1000).
+
+## trySetReason (private helper)
+
+**Java:** If reason is null, return immediately. If server error, only set reason if `returnReasonForServerError` is true. Otherwise, always set reason.
+
+**Go:** Similar logic but adds an additional `*reason == ""` check that returns early. This means in Go, an empty string reason is silently dropped, while in Java it would be set on the builder.
+
+Here is the full bug report:
+
+---
+
+## init (NewNotificationFactory)
+
+- [ ] **Missing dynamic property listener**: The Java `init` method registers a `notifyAndAddLocalPropertiesChangeListener` callback that reactively updates `returnReasonForServerError` whenever the property changes at runtime. The Go `NewNotificationFactory` captures a static `*config.GatewayProperties` pointer. If the Go config is not mutated in-place when properties change, the factory will use stale configuration. The Java pattern is a live-listener; the Go pattern is a snapshot-by-reference.
+
+## create(ResponseStatusCode code, @Nullable String reason, long requestId) → CreateWithReason
+
+- [ ] **Empty string treated as nil**: Line 47 checks `reason == nil || *reason == ""`. The Java version only checks `reason == null` (line 68). In Java, an explicitly passed empty string `""` is a non-null reason and is passed to `trySetReason`. In Go, an empty string falls back to `code.Reason()`. This changes behavior when a caller explicitly passes `""` as a reason.
+
+## create(ThrowableInfo info, long requestId) → CreateFromError
+
+- [ ] **Incorrect fallback code for non-TurmsError errors**: When a non-TurmsError error is passed, the Go code uses `SERVER_INTERNAL_ERROR` with the raw `err.Error()` string as reason. In Java, `ThrowableInfo` always has an explicit `code()` — there is no branch for "unrecognized" throwables. The Go code introduces a code path that leaks raw internal error messages to clients (via `err.Error()`) without going through the `trySetReason` server-error gating for non-server-error messages that happen to be classified as `SERVER_INTERNAL_ERROR`.
+
+## createBuffer(CloseReason closeReason) → CreateCloseReasonBuffer
+
+- [ ] **Spurious fallback logic for code**: Lines 96-101 add `code == -1` → use `reason.Status` and `code == 0` → use `ResponseStatusCode_OK` fallbacks. The Java version simply uses `closeReason.businessStatusCode()` directly with no such fallbacks. This introduces behavioral differences.
+
+## sessionClosed(long requestId) → SessionClosed
+
+- [ ] **Wrong status code**: Line 132 uses `constant.ResponseStatusCode_OK` (value 1000). The Java version (line 96) uses `ResponseStatusCode.SERVER_INTERNAL_ERROR.getBusinessCode()` (value 1200). This is a critical behavioral bug — clients receive an OK status instead of an internal error status.
+
+## trySetReason (private helper)
+
+- [ ] **Empty string silently dropped**: Lines 138-139 return early if `*reason == ""`. The Java version (line 104) only returns early on `reason == null`. In Java, an empty non-null string is set on the builder (it passes the null check and reaches `builder.setReason(reason)`). In Go, it is silently discarded.
+
+# RequestHandlerResult.java
+*Checked methods: RequestHandlerResult(ResponseStatusCode code, String reason)*
+
+Now I have all the information needed. Let me compare the specific constructor `RequestHandlerResult(ResponseStatusCode code, String reason)` across the three files.
+
+**Java source** (the gateway version):
+```java
+public record RequestHandlerResult(ResponseStatusCode code, String reason) {
+    public RequestHandlerResult(ResponseStatusCode code) {
+        this(code, null);
+    }
+}
+```
+
+This is a Java record with two fields: `code` (ResponseStatusCode) and `reason` (String, nullable). The compact canonical constructor assigns both fields. There's also a secondary constructor `RequestHandlerResult(ResponseStatusCode code)` that delegates with `reason = null`.
+
+**Go file 1** (`internal/domain/common/dto/request_handler_result.go`):
+This maps to a *different* Java class (the server-common `RequestHandlerResult` with 4 fields: code, reason, response, notifications). It does NOT port the specific gateway constructor.
+
+**Go file 2** (`internal/domain/gateway/access/client/common/request_handler_result.go`):
+```go
+type RequestHandlerResult struct {
+    Code   constant.ResponseStatusCode
+    Reason string
+}
+func NewRequestHandlerResult(code constant.ResponseStatusCode, reason string) *RequestHandlerResult {
+    return &RequestHandlerResult{Code: code, Reason: reason}
+}
+```
+
+Comparing the Go gateway file to the Java gateway record for the constructor `RequestHandlerResult(ResponseStatusCode code, String reason)`:
+
+- The Java record uses `String reason` which is nullable (can be `null`). The Go code uses `string` (non-pointer), which cannot represent `nil`/`null` — it defaults to `""` (empty string). This means callers cannot distinguish between "no reason provided" and "reason is an empty string", which changes behavior from the Java version where `reason` would be `null`.
+- The Go file does not port the single-argument constructor `RequestHandlerResult(ResponseStatusCode code)` which delegates to `(code, null)`.
+
+## NewRequestHandlerResult
+
+- [ ] `reason` field is `string` (value type) instead of `*string` (pointer). In Java, `reason` is a nullable `String` that can be `null`. The Go value-type `string` defaults to `""` when unset, so the Go code cannot represent `null` reason, causing a behavioral difference for callers that rely on null-checking the reason.
+- [ ] Missing the single-argument convenience constructor `RequestHandlerResult(ResponseStatusCode code)` (present in Java as `this(code, null)`) that sets `reason` to null.
