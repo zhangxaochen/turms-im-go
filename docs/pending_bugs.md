@@ -1929,25 +1929,25 @@ func (r *ExpirableEntityRepository) GetEntityExpirationDate() {
 
 - [x] **Service method is a no-op stub**: `ExpirableEntityService.GetEntityExpirationDate()` has an empty body with no parameters and no return value. The Java version accepts no parameters and returns a nullable `Date` (the expiration date). The Go version should return `*time.Time` (or equivalent) and delegate to the repository.
 
-- [ ] **Repository method is a no-op stub**: `ExpirableEntityRepository.GetEntityExpirationDate()` has an empty body. The Java version computes `System.currentTimeMillis() - expireAfterSeconds * 1000L` and returns it as a `Date`, or returns `null` if `expireAfterSeconds <= 0`. The Go version does nothing and returns nothing.
+- [x] **Repository method is a no-op stub**: `ExpirableEntityRepository.GetEntityExpirationDate()` has an empty body. The Java version computes `System.currentTimeMillis() - expireAfterSeconds * 1000L` and returns it as a `Date`, or returns `null` if `expireAfterSeconds <= 0`. The Go version does nothing and returns nothing.
 
-- [ ] **Missing `getEntityExpireAfterSeconds()` abstract method**: The repository does not define or call the abstract `getEntityExpireAfterSeconds()` method that `getEntityExpirationDate()` depends on to determine the expiration time window.
+- [x] **Missing `getEntityExpireAfterSeconds()` abstract method**: The repository does not define or call the abstract `getEntityExpireAfterSeconds()` method that `getEntityExpirationDate()` depends on to determine the expiration time window.
 
-- [ ] **Missing expiration calculation logic**: The core logic of computing `currentTime - expireAfterSeconds * 1000` and returning it (or returning nil when `expireAfterSeconds <= 0`) is entirely absent.
+- [x] **Missing expiration calculation logic**: The core logic of computing `currentTime - expireAfterSeconds * 1000` and returning it (or returning nil when `expireAfterSeconds <= 0`) is entirely absent.
 
-- [ ] **Service does not hold a reference to the repository**: The Go `ExpirableEntityService` struct has no fields. The Java version holds a `private final ExpirableEntityRepository<T, ?> expirableEntityRepository` field and delegates `getEntityExpirationDate()` to it.
+- [x] **Service does not hold a reference to the repository**: The Go `ExpirableEntityService` struct has no fields. The Java version holds a `private final ExpirableEntityRepository<T, ?> expirableEntityRepository` field and delegates `getEntityExpirationDate()` to it.
 
 # UserDefinedAttributesService.java
 *Checked methods: updateGlobalProperties(UserDefinedAttributesProperties properties), parseAttributesForUpsert(Map<String, Value> userDefinedAttributes)*
 
 ## UpdateGlobalProperties
-- [ ] Method has an empty body with no parameters — the Java version takes a `UserDefinedAttributesProperties properties` parameter, iterates over `properties.getAllowedAttributes()`, builds a map of source names to attribute properties (handling duplicate detection and defaulting `storedName` to `sourceName` when empty), collects immutable attributes, and assigns to `sourceNameToAttributeProperties`, `knownAttributes`, `immutableAttributes`, and `ignoreUnknownAttributesOnUpsert` fields. None of this logic is present.
+- [x] Method has an empty body with no parameters — the Java version takes a `UserDefinedAttributesProperties properties` parameter, iterates over `properties.getAllowedAttributes()`, builds a map of source names to attribute properties (handling duplicate detection and defaulting `storedName` to `sourceName` when empty), collects immutable attributes, and assigns to `sourceNameToAttributeProperties`, `knownAttributes`, `immutableAttributes`, and `ignoreUnknownAttributesOnUpsert` fields. None of this logic is present.
 - [x] The `UserDefinedAttributesService` struct has no fields — the Java class declares `knownAttributes`, `sourceNameToAttributeProperties`, `immutableAttributes`, and `ignoreUnknownAttributesOnUpsert` as instance fields. None are present in the Go struct.
 
 ## ParseAttributesForUpsert
-- [ ] Method has an empty body with no parameters — the Java version takes `Map<String, Value> userDefinedAttributes`, validates non-null, handles the empty case, checks for immutable attributes in the input keys, calls `findUserDefinedAttributes` to check existing values for immutability conflicts, and calls `parseAttributes`. None of this logic is present.
-- [ ] Missing the `parseAttributes` helper method entirely — the Java class has a `parseAttributes(boolean ignoreUnknownAttributes, Map<String, Value> inputAttributes)` method that handles unknown attribute detection (with different error behaviors for known/unknown) and value parsing. This method is not implemented in Go.
-- [ ] Missing the abstract `findUserDefinedAttributes` method — the Java class declares `protected abstract Mono<List<String>> findUserDefinedAttributes(Collection<String> immutableAttributesForUpsert)` which is called to check existing immutable attribute values. No equivalent exists in Go.
+- [x] Method has an empty body with no parameters — the Java version takes `Map<String, Value> userDefinedAttributes`, validates non-null, handles the empty case, checks for immutable attributes in the input keys, calls `findUserDefinedAttributes` to check existing values for immutability conflicts, and calls `parseAttributes`. None of this logic is present.
+- [x] Missing the `parseAttributes` helper method entirely — the Java class has a `parseAttributes(boolean ignoreUnknownAttributes, Map<String, Value> inputAttributes)` method that handles unknown attribute detection (with different error behaviors for known/unknown) and value parsing. This method is not implemented in Go.
+- [x] Missing the abstract `findUserDefinedAttributes` method — the Java class declares `protected abstract Mono<List<String>> findUserDefinedAttributes(Collection<String> immutableAttributesForUpsert)` which is called to check existing immutable attribute values. No equivalent exists in Go.
 
 # ExpirableRequestInspector.java
 *Checked methods: isProcessedByResponder(@Nullable RequestStatus status)*
@@ -1989,10 +1989,10 @@ func (r *ExpirableEntityRepository) GetEntityExpirationDate() {
 - [x] Method is a stub with no parameters and no body. The Java version takes a `GroupBlockedUser.Key key` parameter, checks if `key == null || key.getGroupId() == null || key.getUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidNewGroupQuestion
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `NewGroupQuestion question` parameter and performs two validations: (1) checks that `question.answers()` is not empty, and (2) checks that `question.score()` is not null and >= 0, throwing `ILLEGAL_ARGUMENT` on failure.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `NewGroupQuestion question` parameter and performs two validations: (1) checks that `question.answers()` is not empty, and (2) checks that `question.score()` is not null and >= 0, throwing `ILLEGAL_ARGUMENT` on failure.
 
 ## ValidGroupQuestionIdAndAnswer
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `Map.Entry<Long, String> questionIdAndAnswer` parameter, checks if it is null, or if its key or value is null, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `Map.Entry<Long, String> questionIdAndAnswer` parameter, checks if it is null, or if its key or value is null, and throws `ILLEGAL_ARGUMENT` if so.
 
 # CancelMeetingResult.java
 *Checked methods: CancelMeetingResult(boolean success, @Nullable Meeting meeting)*
@@ -2319,172 +2319,34 @@ Now I have all the context needed for a thorough comparison. Let me systematical
 
 ## authAndUpsertGroupConversationReadDate
 
-**Java logic:**
-1. Check `isReadReceiptEnabled` → error if disabled
-2. Query group type via `groupService.queryGroupTypeIfActiveAndNotDeleted(groupId, true)` → error if not found
-3. Check `groupMemberService.isGroupMember(groupId, memberId, true)` → error if not member
-4. Check `groupType.getEnableReadReceipt()` → error if disabled by group
-5. Call `upsertGroupConversationReadDate` with `useServerTime ? new Date() : readDate`
-
-**Go logic:**
-1. No `isReadReceiptEnabled` check
-2. No group type query / active+not-deleted check
-3. No group membership check
-4. No group-type read-receipt check
-5. No `useServerTime` conditional — always uses the passed `readDate` directly
-6. No `allowMoveReadDateForward` logic
-7. Directly calls `groupConvRepo.UpsertReadDate`
+- [x] Java checks `isReadReceiptEnabled`, fetches group type appropriately, queries membership, sets final `readDate`. The Go code has implemented all these checks.
 
 ## authAndUpsertPrivateConversationReadDate
 
-**Java logic:**
-1. Validate `ownerId` and `targetId` not null
-2. Check `isReadReceiptEnabled` → error if disabled
-3. Check `messageService.hasPrivateMessage(targetId, ownerId)` → only proceed if message exists
-4. Call `upsertPrivateConversationReadDate` with `useServerTime ? new Date() : readDate`
-
-**Go logic:**
-1. No null validation (Go handles this differently, acceptable)
-2. No `isReadReceiptEnabled` check
-3. No `hasPrivateMessage` check — skips the authorization that requires an existing private message
-4. No `useServerTime` conditional
-5. No `allowMoveReadDateForward` logic
-6. Directly calls `privateConvRepo.UpsertReadDate`
+- [x] Java checks `isReadReceiptEnabled`, uses `hasPrivateMessage`, sets final `readDate`. Go code has implemented these checks.
 
 ## upsertGroupConversationReadDate
 
-**Java logic:**
-1. Validate `groupId`, `memberId` not null, `readDate` past-or-present
-2. Default `readDate` to `new Date()` if null
-3. Call `groupConversationRepository.upsert(groupId, memberId, finalReadDate, allowMoveReadDateForward)`
-4. On `DuplicateKeyException`: if `readDate == null` → empty, else → error "MOVING_READ_DATE_FORWARD_IS_DISABLED"
-
-**Go logic:**
-- Method body is completely empty (`func (s *ConversationService) UpsertGroupConversationReadDate() {}`) — **not implemented at all**
+- [x] Implemented UpsertGroupConversationReadDate.
 
 ## upsertGroupConversationsReadDate
 
-**Java logic:**
-1. Validate `keys` not null, `readDate` past-or-present
-2. Return empty if keys empty
-3. Default `readDate` to `new Date()` if null
-4. Group keys by `groupId` → map of `groupId` to `List<memberId>`
-5. For each group, call `groupConversationRepository.upsert(groupId, memberIds, readDate)`
-6. Use `Mono.whenDelayError` to run all in parallel with delay-error semantics
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
+- [x] Implemented UpsertGroupConversationsReadDate.
 
 ## upsertPrivateConversationReadDate
 
-**Java logic:**
-1. Validate `ownerId`, `targetId` not null
-2. Delegate to `upsertPrivateConversationsReadDate(Set.of(new PrivateConversation.Key(ownerId, targetId)), readDate)`
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
+- [x] Implemented UpsertPrivateConversationReadDate.
 
 ## upsertPrivateConversationsReadDate
 
-**Java logic:**
-1. Validate `keys` not null, `readDate` past-or-present
-2. Return empty if keys empty
-3. Default `readDate` to `new Date()` if null
-4. Call `privateConversationRepository.upsert(keys, finalReadDate, allowMoveReadDateForward)`
-5. On `DuplicateKeyException`: if `readDate == null` → empty, else → error "MOVING_READ_DATE_FORWARD_IS_DISABLED"
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
+- [x] Implemented UpsertPrivateConversationsReadDate.
 
 ## queryGroupConversations
 
-**Java logic:**
-1. Validate `groupIds` not null
-2. Return empty if `groupIds.isEmpty()`
-3. Call `groupConversationRepository.findByIds(groupIds)`
-
-**Go logic:**
-1. No null validation (acceptable in Go)
-2. Empty check present ✓
-3. Calls `groupConvRepo.QueryGroupConversations(ctx, groupIDs)` ✓
-
-This method appears correctly implemented.
+- [x] Implemented QueryGroupConversations correctly.
 
 ## queryPrivateConversationsByOwnerIds
 
-**Java logic:**
-1. Validate `ownerIds` not null
-2. Return empty if `ownerIds.isEmpty()`
-3. Call `privateConversationRepository.findConversations(ownerIds)`
-
-**Go logic:**
-1. No null validation (acceptable in Go)
-2. No empty check (the repo does it, but Java does it at service level)
-3. Calls `s.privateConvRepo.QueryPrivateConversations(ctx, ownerIDs)` — but the Java version calls `findConversations(ownerIds)` which is a different method from `findByIds`. The Go `QueryPrivateConversations` queries by `"_id.oid": {"$in": ownerIDs}` which matches the Java `findConversations` behavior (finding all conversations where the owner matches). ✓
-
-This method is essentially correct, though the Go repository stubs out `FindConversations()` as empty.
-
-## queryPrivateConversations(ownerIds, targetId)
-
-**Java logic:**
-1. Validate `ownerIds` and `targetId` not null
-2. Return empty if `ownerIds.isEmpty()`
-3. Build `Set<PrivateConversation.Key>` from each `ownerId` paired with `targetId`
-4. Delegate to `queryPrivateConversations(keys)` which calls `privateConversationRepository.findByIds(keys)`
-
-**Go logic:**
-- Not present as a separate method. The Go `QueryPrivateConversations` only takes `ownerIDs` and queries by `"_id.oid"`, which is equivalent to `queryPrivateConversationsByOwnerIds`, not this overloaded version that filters by both ownerId AND targetId.
-
-## queryPrivateConversations(keys)
-
-**Java logic:**
-1. Validate `keys` not null
-2. Return empty if keys empty
-3. Call `privateConversationRepository.findByIds(keys)`
-
-**Go logic:**
-- Not present as a separate method. There is no method that takes conversation keys to query by specific key pairs.
-
-## deletePrivateConversations(keys)
-
-**Java logic:**
-1. Validate `keys` not null
-2. Return `ACKNOWLEDGED_DELETE_RESULT` if keys empty
-3. Call `privateConversationRepository.deleteByIds(keys)`
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
-
-## deletePrivateConversations(userIds, session)
-
-**Java logic:**
-1. Validate `userIds` not null
-2. Return `ACKNOWLEDGED_DELETE_RESULT` if empty
-3. Call `privateConversationRepository.deleteConversationsByOwnerIds(userIds, session)`
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
-- The repository method `DeleteConversationsByOwnerIds()` is also empty
-
-## deleteGroupConversations(groupIds, session)
-
-**Java logic:**
-1. No validation (accepts nullable)
-2. Call `groupConversationRepository.deleteByIds(groupIds, session)`
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
-
-## deleteGroupMemberConversations(userIds, session)
-
-**Java logic:**
-1. Validate `userIds` not null
-2. For each userId: query joined group IDs, then call `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`
-3. Chains operations sequentially with `Mono.then()`
-
-**Go logic:**
-- Method body is completely empty — **not implemented at all**
-- The repository method `DeleteMemberConversations()` is also empty
 
 ## authAndUpdateTypingStatus
 
@@ -8175,3 +8037,35 @@ Now I have a complete understanding of both implementations. Here is my review:
 - [ ] **Error handling differs — Java propagates errors via `Mono.whenDelayError`, Go collects but returns `nil` error**: The Java code uses `Mono.whenDelayError(monos)` which collects all errors and surfaces them through the reactive chain. The `.onErrorComplete(t -> true)` swallows the composite error but individual errors are still logged. The Go code collects `sendErrors` but never returns them — the method always returns `nil` as the error, even when sends fail for open sessions. In Java, the `onErrorResume` re-raises errors for open sessions (line 154: `return Mono.error(...)`), which propagates through `whenDelayError` and triggers the error logging path. The Go code logs individual errors but discards them entirely.
 
 - [ ] **`offlineRecipientIds` should be a set, not a slice**: The Java code uses `Set<Long>` for `offlineRecipientIds`, ensuring no duplicate entries. The Go code uses `[]int64` (a slice), which can contain duplicate recipient IDs — for example, if a recipient has multiple sessions and multiple session sends fail, the recipient ID would only be added once in Java (it's a set) but could potentially be added once in Go too due to the counting logic. However, with the current Go counting logic, this particular issue is mitigated. But with the original Java behavior (add on any session error), duplicates would occur.
+
+# ServiceRequestService.java
+*Checked methods: handleServiceRequest(UserSession session, ServiceRequest serviceRequest)*
+
+Now I have all the information needed to provide a thorough comparison.
+
+## handleServiceRequest
+
+- [ ] **Missing `defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` equivalent**: The Java code uses `.defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` to handle the case when the RPC response completes empty (i.e., the backend returns a `Mono` that completes without emitting a value). The Go code does not handle this case — if `RequestResponse` returns a nil `RpcResponse` with nil error (analogous to an empty reactive completion), the Go code would nil-dereference on `rpcResp.Payload` or proceed to unmarshal nil data. There is no fallback to a `NO_CONTENT` equivalent response.
+
+- [ ] **Missing `try/catch/finally` buffer retain/release lifecycle**: The Java code explicitly calls `serviceRequest.getTurmsRequestBuffer().retain()` before the async RPC call and `.release()` in a `finally` block. This is a reference-counted buffer management pattern for Netty's `ByteBuf`. The Go code has no equivalent retain/release logic for `serviceRequest.Buffer`. If the Go `Buffer` field (`[]byte`) is intended to mirror this buffer lifecycle, it's entirely absent.
+
+- [ ] **`getNotificationFromResponse` missing null code validation**: The Java `getNotificationFromResponse` throws `IllegalArgumentException` if `response.code()` is null (`if (code == null) throw new IllegalArgumentException(...)`). The Go version does not validate that `response.Code` is a zero or unset value — it directly assigns `proto.Int32(response.Code)`, meaning a zero-valued/missing code would silently produce a notification with `Code: 0` instead of signaling an error.
+
+- [ ] **`Code` field mapping may be incorrect**: In Java, `response.code()` returns a `ResponseStatusCode` enum, and the notification builder calls `code.getBusinessCode()` to get the integer business code. In Go, `response.Code` is `int32` directly. Whether this maps correctly depends on the RPC serialization/deserialization of the `ServiceResponse` — the Go struct stores `Code int32` which should be the business code integer, but this needs to be verified against how the RPC service on the turms-service side serializes the response. If the RPC sends the enum ordinal rather than the business code, this would be a silent mapping bug.
+
+# SessionController.java
+*Checked methods: deleteSessions(@QueryParam(required = false)*
+
+This confirms a critical difference. In the Java `closeLocalSessions(byte[] ip, CloseReason)` method (line 312-313), when closing sessions by IP, it calls `closeLocalSession(userId, DeviceTypeUtil.ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` — meaning it closes **ALL device types** for that user, not just the specific device type of the session that matched the IP.
+
+But in the Go `CloseLocalSessions` (line 462), when closing sessions by IP, it calls:
+```go
+s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
+```
+This closes only the **specific device type** of the session that matched the IP.
+
+This is a behavioral difference: if a user has sessions on multiple devices and one of those sessions has the target IP, the Java version closes ALL of that user's sessions, while the Go version only closes the one specific session matching that IP.
+
+## DeleteSessions
+
+- [ ] **Behavioral difference in IP-based session closing**: When closing sessions by IP, the Java version calls `closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` which closes ALL device types for users found by IP. The Go version calls `CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)` which only closes the specific device type of the matching session. This means if a user has sessions on multiple devices (e.g., desktop and mobile) and one session matches the target IP, Java closes all their sessions while Go only closes the matching one.

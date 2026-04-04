@@ -23,15 +23,17 @@ type TcpConnection struct {
 	*common.BaseNetConnection
 	conn           net.Conn
 	closeTimeout   time.Duration
+	writeTimeout   time.Duration
 	maxFrameLength int
 	onClose        chan struct{}
 }
 
-func NewTcpConnection(conn net.Conn, isConnected bool, closeTimeout time.Duration, maxFrameLength int, onClose chan struct{}) *TcpConnection {
+func NewTcpConnection(conn net.Conn, isConnected bool, closeTimeout time.Duration, writeTimeout time.Duration, maxFrameLength int, onClose chan struct{}) *TcpConnection {
 	return &TcpConnection{
 		BaseNetConnection: common.NewBaseNetConnection(isConnected),
 		conn:              conn,
 		closeTimeout:      closeTimeout,
+		writeTimeout:      writeTimeout,
 		maxFrameLength:    maxFrameLength,
 		onClose:           onClose,
 	}
@@ -43,13 +45,25 @@ func (c *TcpConnection) GetAddress() net.Addr {
 }
 
 // @MappedFrom send(ByteBuf buffer)
-func (c *TcpConnection) Send(ctx context.Context, buffer []byte) error {
+func (c *TcpConnection) Send(buffer []byte) error {
+	return c.SendWithContext(context.Background(), buffer)
+}
+
+func (c *TcpConnection) SendWithContext(ctx context.Context, buffer []byte) error {
+	if !c.IsConnected() {
+		return nil
+	}
+
 	// Prepend varint length
 	length := len(buffer)
 	var varint [binary.MaxVarintLen64]byte
 	n := binary.PutUvarint(varint[:], uint64(length))
 
-	c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	timeout := c.writeTimeout
+	if timeout == 0 {
+		timeout = 5 * time.Second // Default fallback
+	}
+	_ = c.conn.SetWriteDeadline(time.Now().Add(timeout))
 
 	// Combined write if possible, or just two writes.
 	// For small buffers, combining is better.
@@ -114,7 +128,7 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) bool {
 					break
 				}
 
-				err = c.Send(context.Background(), payload)
+				err = c.SendWithContext(context.Background(), payload)
 				if err == nil {
 					break
 				}
@@ -177,12 +191,14 @@ func (f *TcpServerFactory) Create(
 	lc := net.ListenConfig{
 		Control: func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				if props.ReuseAddr {
-					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-				}
+				// SO_REUSEADDR (Bug 873)
+				_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+				// TCP Keep-alive
 				if props.KeepAlive {
 					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
 				}
+				// Bug 872: Set backlog to 4096 (matching Turms Java)
+				_ = syscall.Listen(int(fd), 4096)
 			})
 		},
 	}
@@ -283,7 +299,8 @@ func (a *TcpUserSessionAssembler) GetPort() (int, error) {
 
 // @MappedFrom createConnection(Connection connection, Duration closeTimeout)
 func (a *TcpUserSessionAssembler) CreateConnection(conn net.Conn, closeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
-	c := NewTcpConnection(conn, true, closeTimeout, a.MaxFrameLength, onClose)
+	// Ideally, writeTimeout should come from config too.
+	c := NewTcpConnection(conn, true, closeTimeout, 5*time.Second, a.MaxFrameLength, onClose)
 	c.SetUdpSignalDispatcher(func(addr *net.UDPAddr) {
 		if udp.Instance != nil {
 			udp.Instance.SendSignal(addr, udp.OpenConnectionNotification)

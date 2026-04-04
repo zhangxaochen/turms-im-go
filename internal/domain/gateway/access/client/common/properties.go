@@ -14,6 +14,7 @@ type TcpProperties struct {
 	ReuseAddr             bool
 	TcpNoDelay            bool
 	Backlog               int
+	WriteTimeoutMillis    int
 }
 
 type RemoteAddressSourceProxyProtocolMode int

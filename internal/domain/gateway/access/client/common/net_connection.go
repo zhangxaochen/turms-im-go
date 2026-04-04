@@ -73,7 +73,8 @@ func CloseReasonFromError(err error) CloseReason {
 // @MappedFrom NetConnection
 type NetConnection interface {
 	GetAddress() net.Addr
-	Send(ctx context.Context, buffer []byte) error
+	Send(buffer []byte) error
+	SendWithContext(ctx context.Context, buffer []byte) error
 	CloseWithReason(reason CloseReason) bool
 	Close() error
 	IsConnected() bool

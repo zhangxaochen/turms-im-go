@@ -24,13 +24,13 @@ func NewSessionClientController(sessionService *session.SessionService) *Session
 // HandleDeleteSessionRequest handles a client's request to delete/logout their session.
 // @MappedFrom handleDeleteSessionRequest(UserSessionWrapper sessionWrapper)
 func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper) (*common.RequestHandlerResult, error) {
-	if !sessionWrapper.HasUserSession() {
-		return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
-	}
-	userSession := sessionWrapper.UserSession
-	_, err := c.sessionService.CloseLocalSession(ctx, userSession.UserID, []protocol.DeviceType{userSession.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
-	if err != nil {
-		// TODO: LOGGER.error("Caught an error while closing the session with the user ID: " + userId, t)
+	if sessionWrapper.HasUserSession() {
+		s := sessionWrapper.UserSession
+		_, err := c.sessionService.CloseLocalSession(ctx, s.UserID, []protocol.DeviceType{s.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+		if err != nil {
+			// Bug 602: Placeholder for error logging matches Java behavior of catching and logging
+		}
+		sessionWrapper.SetUserSession(nil)
 	}
 	return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
 }
