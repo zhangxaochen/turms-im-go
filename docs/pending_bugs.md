@@ -82,3 +82,20 @@ Here is the consolidated bug list:
 - [ ] **DeleteSessionRequest result handling differs**: Java's `handleDeleteSessionRequest(sessionWrapper)` returns a `Mono<TurmsNotification>` directly. Go calls `getNotificationFromHandlerResult()` on the result, wrapping it differently than Java which returns the notification as-is from the controller.
 
 - [ ] **Missing tracing context update and clear**: Java calls `tracingContext.updateThreadContext()` before the switch and `tracingContext.clearThreadContext()` in the finally block. Go has no tracing.
+
+# IpRequestThrottler.java
+*Checked methods: tryAcquireToken(ByteArrayWrapper ip, long timestamp)*
+
+## TryAcquireToken
+
+- [ ] **Missing `timestamp` parameter**: The Java method signature is `tryAcquireToken(ByteArrayWrapper ip, long timestamp)` and passes `timestamp` to `bucket.tryAcquire(timestamp)` for refill calculation. The Go version `TryAcquireToken(ip string)` drops the `timestamp` parameter entirely and uses `rate.Limiter.Allow()` which uses `time.Now()` internally. This means the Go version cannot honor caller-provided timestamps for refill computation, changing behavior when timestamps are externally controlled or batched.
+
+- [ ] **Different rate limiting algorithm**: Java uses a custom `TokenBucket` with explicit token counting, CAS-based refill logic, configurable `capacity`, `tokensPerPeriod`, and `refillIntervalNanos`. Go uses `golang.org/x/time/rate.Limiter` which is a token bucket with a continuous refill model (not discrete period-based). This produces different throttling behavior: Java refills tokens in discrete batches per period (e.g., 10 tokens every 1 second), while Go's `rate.Limiter` adds tokens continuously at a steady rate.
+
+- [ ] **Shared context vs. static configuration**: In Java, all `TokenBucket` instances share a single `TokenBucketContext` that can be dynamically updated at runtime (via `propertiesManager.addGlobalPropertiesChangeListener`). The Go version stores `Limit` and `Burst` as struct fields at construction time, and new limiters created after an update would use the updated values, but **existing per-IP limiters are never updated** when `Limit`/`Burst` fields change. Java's shared context means all buckets immediately reflect new rate limiting settings.
+
+- [ ] **Unlimited condition is wrong**: Go returns `true` (unlimited) when `t.Burst <= 0 || t.Limit == 0`. In Java, whether the bucket is "unlimited" depends on the `TokenBucketContext` configuration — specifically, if `refillIntervalNanos <= 0`, the bucket returns `false` when empty (no refill). When `capacity` and `tokensPerPeriod` allow unlimited access, it's the initial token count that matters. The Go condition `t.Limit == 0` treating zero limit as "unlimited" is backwards — `rate.Limit == 0` means zero rate (no tokens), not infinite rate. And `Burst <= 0` as unlimited is also incorrect since `rate.NewLimiter` with burst 0 would allow zero requests.
+
+- [ ] **Cleanup logic is fundamentally different**: Java's cleanup iterates entries and only removes those that are both idle for 30+ minutes **and** have tokens >= initial tokens (i.e., fully replenished). Go's cleanup does a full map reset every 10 minutes, wiping **all** entries including actively-used ones. This means active IPs lose their rate limiting state and start fresh every 10 minutes, which is a behavioral difference.
+
+- [ ] **Missing session-closed listener**: Java registers a listener on `SessionService` that removes an IP's token bucket when a session closes (if tokens are replenished). The Go version has no equivalent mechanism for cleaning up on session close.

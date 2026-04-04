@@ -1193,20 +1193,21 @@
 - **GroupTypeRepository.java** ([java/im/turms/service/domain/group/repository/GroupTypeRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/repository/GroupTypeRepository.java))
 > [简述功能]
 
-  - [ ] `updateTypes(Set<Long> ids, @Nullable String name, @Nullable Integer groupSizeLimit, @Nullable GroupInvitationStrategy groupInvitationStrategy, @Nullable GroupJoinStrategy groupJoinStrategy, @Nullable GroupUpdateStrategy groupInfoUpdateStrategy, @Nullable GroupUpdateStrategy memberInfoUpdateStrategy, @Nullable Boolean guestSpeakable, @Nullable Boolean selfInfoUpdatable, @Nullable Boolean enableReadReceipt, @Nullable Boolean messageEditable)`
+  - [x] `updateTypes(Set<Long> ids, @Nullable String name, @Nullable Integer groupSizeLimit, @Nullable GroupInvitationStrategy groupInvitationStrategy, @Nullable GroupJoinStrategy groupJoinStrategy, @Nullable GroupUpdateStrategy groupInfoUpdateStrategy, @Nullable GroupUpdateStrategy memberInfoUpdateStrategy, @Nullable Boolean guestSpeakable, @Nullable Boolean selfInfoUpdatable, @Nullable Boolean enableReadReceipt, @Nullable Boolean messageEditable)` -> [UpdateTypes(ctx context.Context, ids []int64, name *string, groupSizeLimit *int32, invitationStrategy *constant.GroupInvitationStrategy, joinStrategy *constant.GroupJoinStrategy, groupInfoUpdateStrategy *constant.GroupUpdateStrategy, memberInfoUpdateStrategy *constant.GroupUpdateStrategy, guestSpeakable *bool, selfInfoUpdatable *bool, enableReadReceipt *bool, messageEditable *bool)](../internal/domain/group/repository/group_type_repository.go#L56)
 
 - **GroupVersionRepository.java** ([java/im/turms/service/domain/group/repository/GroupVersionRepository.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/repository/GroupVersionRepository.java))
 > [简述功能]
 
-  - [ ] `updateVersions(String field)`
-  - [ ] `updateVersions(@Nullable Set<Long> groupIds, String field)`
+  - [x] `updateVersions(String field)` -> [UpdateVersions(ctx context.Context, groupIDs []int64, field string)](../internal/domain/group/repository/group_version_repository.go#L139)
+  - [x] `updateVersions(@Nullable Set<Long> groupIds, String field)` -> [UpdateVersions(ctx context.Context, groupIDs []int64, field string)](../internal/domain/group/repository/group_version_repository.go#L139)
   - [x] `updateVersion(Long groupId, String field)` -> [UpdateVersion(ctx context.Context, groupID int64, field string)](../internal/domain/group/repository/group_version_repository.go#L48)
   - [x] `updateVersion(Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)` -> [UpdateVersion(ctx context.Context, groupID int64, field string)](../internal/domain/group/repository/group_version_repository.go#L48)
-  - [ ] `findBlocklist(Long groupId)`
+  - [x] `findBlocklist(Long groupId)` -> [FindBlocklist(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_version_repository.go#L150)
   - [x] `findInvitations(Long groupId)` -> [FindInvitations(ctx context.Context, groupID *int64, inviterID *int64, inviteeID *int64, status *po.RequestStatus, lastUpdatedDate *time.Time, page, size int)](../internal/domain/group/repository/group_invitation_repository.go#L135)
-  - [ ] `findJoinRequests(Long groupId)`
-  - [ ] `findJoinQuestions(Long groupId)`
-  - [ ] `findMembers(Long groupId)`
+  - [x] `findJoinRequests(Long groupId)` -> [FindJoinRequests(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_version_repository.go#L155)
+  - [x] `findJoinQuestions(Long groupId)` -> [FindJoinQuestions(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_version_repository.go#L160)
+  - [x] `findMembers(Long groupId)` -> [FindMembers(ctx context.Context, groupID int64)](../internal/domain/group/repository/group_version_repository.go#L165)
+
 
 - **GroupBlocklistService.java** ([java/im/turms/service/domain/group/service/GroupBlocklistService.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/group/service/GroupBlocklistService.java))
 > [简述功能]
