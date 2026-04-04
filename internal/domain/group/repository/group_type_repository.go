@@ -6,6 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 )
@@ -48,5 +49,51 @@ func (r *GroupTypeRepository) InsertGroupType(ctx context.Context, groupType *po
 func (r *GroupTypeRepository) UpdateGroupType(ctx context.Context, typeID int64, update bson.M) error {
 	filter := bson.M{"_id": typeID}
 	_, err := r.col.UpdateOne(ctx, filter, bson.M{"$set": update})
+	return err
+}
+
+// UpdateTypes modifies existing GroupTypes based on filtering criteria.
+func (r *GroupTypeRepository) UpdateTypes(ctx context.Context, ids []int64, name *string, groupSizeLimit *int32, invitationStrategy *constant.GroupInvitationStrategy, joinStrategy *constant.GroupJoinStrategy, groupInfoUpdateStrategy *constant.GroupUpdateStrategy, memberInfoUpdateStrategy *constant.GroupUpdateStrategy, guestSpeakable *bool, selfInfoUpdatable *bool, enableReadReceipt *bool, messageEditable *bool) error {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter["_id"] = bson.M{"$in": ids}
+	}
+	updateOps := bson.M{}
+	if name != nil {
+		updateOps["n"] = *name
+	}
+	if groupSizeLimit != nil {
+		updateOps["gsl"] = *groupSizeLimit
+	}
+	if invitationStrategy != nil {
+		updateOps["is"] = *invitationStrategy
+	}
+	if joinStrategy != nil {
+		updateOps["js"] = *joinStrategy
+	}
+	if groupInfoUpdateStrategy != nil {
+		updateOps["gius"] = *groupInfoUpdateStrategy
+	}
+	if memberInfoUpdateStrategy != nil {
+		updateOps["mius"] = *memberInfoUpdateStrategy
+	}
+	if guestSpeakable != nil {
+		updateOps["gs"] = *guestSpeakable
+	}
+	if selfInfoUpdatable != nil {
+		updateOps["siu"] = *selfInfoUpdatable
+	}
+	if enableReadReceipt != nil {
+		updateOps["err"] = *enableReadReceipt
+	}
+	if messageEditable != nil {
+		updateOps["me"] = *messageEditable
+	}
+
+	if len(updateOps) == 0 {
+		return nil
+	}
+
+	_, err := r.col.UpdateMany(ctx, filter, bson.M{"$set": updateOps})
 	return err
 }

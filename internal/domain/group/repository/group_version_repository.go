@@ -135,3 +135,58 @@ func (r *GroupVersionRepository) FindVersion(ctx context.Context, groupID int64)
 	}
 	return &version, nil
 }
+
+// UpdateVersions updates a specific version field for multiple groups.
+func (r *GroupVersionRepository) UpdateVersions(ctx context.Context, groupIDs []int64, field string) error {
+	filter := bson.M{}
+	if len(groupIDs) > 0 {
+		filter["_id"] = bson.M{"$in": groupIDs}
+	}
+	update := bson.M{"$set": bson.M{field: time.Now()}}
+	_, err := r.col.UpdateMany(ctx, filter, update)
+	return err
+}
+
+// FindBlocklist retrieves the blocklist version.
+func (r *GroupVersionRepository) FindBlocklist(ctx context.Context, groupID int64) (*time.Time, error) {
+	return r.findSpecificVersion(ctx, groupID, "bl")
+}
+
+// FindJoinRequests retrieves the join requests version.
+func (r *GroupVersionRepository) FindJoinRequests(ctx context.Context, groupID int64) (*time.Time, error) {
+	return r.findSpecificVersion(ctx, groupID, "jr")
+}
+
+// FindJoinQuestions retrieves the join questions version.
+func (r *GroupVersionRepository) FindJoinQuestions(ctx context.Context, groupID int64) (*time.Time, error) {
+	return r.findSpecificVersion(ctx, groupID, "jq")
+}
+
+// FindMembers retrieves the members version.
+func (r *GroupVersionRepository) FindMembers(ctx context.Context, groupID int64) (*time.Time, error) {
+	return r.findSpecificVersion(ctx, groupID, "mbr")
+}
+
+func (r *GroupVersionRepository) findSpecificVersion(ctx context.Context, groupID int64, field string) (*time.Time, error) {
+	filter := bson.M{"_id": groupID}
+	opts := options.FindOne().SetProjection(bson.M{field: 1})
+	var version po.GroupVersion
+	if err := r.col.FindOne(ctx, filter, opts).Decode(&version); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, err
+	}
+	switch field {
+	case "bl":
+		return version.Blocklist, nil
+	case "jr":
+		return version.JoinRequests, nil
+	case "jq":
+		return version.JoinQuestions, nil
+	case "mbr":
+		return version.Members, nil
+	}
+	return nil, nil
+}
+
