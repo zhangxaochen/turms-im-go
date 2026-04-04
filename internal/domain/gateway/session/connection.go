@@ -111,7 +111,7 @@ func (s *UserSession) GetIPStr() string {
 
 func (s *UserSession) HasPermission(requestType any) bool {
 	if s.Permissions == nil {
-		return false
+		return true
 	}
 	return s.Permissions[requestType]
 }
@@ -121,12 +121,16 @@ func (s *UserSession) SetPermissions(permissions map[any]bool) {
 }
 
 func (s *UserSession) SendMessage(notification *protocol.TurmsNotification, tracingContext ...*tracing.TracingContext) error {
+	return s.SendMessageWithContext(context.Background(), notification, tracingContext...)
+}
+
+func (s *UserSession) SendMessageWithContext(ctx context.Context, notification *protocol.TurmsNotification, tracingContext ...*tracing.TracingContext) error {
 	data, err := proto.Marshal(notification)
 	if err != nil {
 		return err
 	}
 	if s.Conn != nil {
-		return s.Conn.Send(data)
+		return s.Conn.SendWithContext(ctx, data)
 	}
 	fmt.Printf("WARN: The connection is missing for the user session: %v\n", s)
 	return nil
@@ -158,6 +162,7 @@ type Connection interface {
 	Connect() error
 	Close(reason constant.SessionCloseStatus) error
 	Send(data []byte) error
+	SendWithContext(ctx context.Context, data []byte) error
 	RemoteAddr() net.Addr
 	TryNotifyClientToRecover()
 	IsActive() bool

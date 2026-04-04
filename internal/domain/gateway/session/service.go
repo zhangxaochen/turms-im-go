@@ -243,7 +243,7 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	if s.userSimultaneousLoginService.IsForbiddenDeviceType(deviceType) {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_LOGIN_FROM_FORBIDDEN_DEVICE_TYPE}
 	}
-	if userStatus == protocol.UserStatus_OFFLINE || userStatus == protocol.UserStatus_UNRECOGNIZED {
+	if userStatus == protocol.UserStatus_OFFLINE {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT}
 	}
 
@@ -292,10 +292,12 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 
 	// 4. Create and local register session
 	session := &UserSession{
-		ID:         s.nextSessionID(),
-		Version:    version,
-		UserID:     userId,
-		DeviceType: deviceType,
+		ID:            s.nextSessionID(),
+		Version:       version,
+		UserID:        userId,
+		DeviceType:    deviceType,
+		DeviceDetails: deviceDetails,
+		Permissions:   permissions.(map[any]bool),
 		IP:            net.IP(ip),
 		LoginDate:     now,
 		CloseChan:     make(chan struct{}),
@@ -329,22 +331,27 @@ func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, dev
 		return false, nil
 	}
 
+	// Group by NodeID to minimize RPC calls (Bug 892)
+	nodeToConflictedTypes := make(map[string][]protocol.DeviceType)
 	for _, conflictedDT := range conflictedDeviceTypes {
 		if info, exists := status.OnlineDeviceTypeToSessionInfo[conflictedDT]; exists && info.IsActive {
 			if s.userSimultaneousLoginService.ShouldDisconnectLoggingInDeviceIfConflicts() {
 				return true, nil
 			}
-			// Kick existing
-			if info.NodeID == s.nodeID {
-				_, _ = s.CloseLocalSession(ctx, userId, []protocol.DeviceType{conflictedDT}, constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE)
-			} else if s.rpcService != nil {
-				req := &rpc.SetUserOfflineRequest{
-					UserID:             userId,
-					DeviceTypes:        []protocol.DeviceType{conflictedDT},
-					SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
-				}
-				_, _ = s.rpcService.RequestResponse(ctx, info.NodeID, req)
+			nodeToConflictedTypes[info.NodeID] = append(nodeToConflictedTypes[info.NodeID], conflictedDT)
+		}
+	}
+
+	for nodeID, dts := range nodeToConflictedTypes {
+		if nodeID == s.nodeID {
+			_, _ = s.CloseLocalSession(ctx, userId, dts, constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE)
+		} else if s.rpcService != nil {
+			req := &rpc.SetUserOfflineRequest{
+				UserID:             userId,
+				DeviceTypes:        dts,
+				SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
 			}
+			_, _ = s.rpcService.RequestResponse(ctx, nodeID, req)
 		}
 	}
 	return false, nil
@@ -430,7 +437,6 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIDs {
-		// Java: closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)
 		for userId := range userIdSet {
 			n, _ := s.CloseLocalSession(ctx, userId, nil, closeReason)
 			totalCount += n
@@ -438,26 +444,21 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
-		// Java: lookup via ipToSessions, then for each userId, close ALL its device types
-		userIdsToClose := make(map[int64]struct{})
+		// Close only EXACT sessions that match the IP
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
-					userIdsToClose[sess.UserID] = struct{}{}
+					// Avoid redundant close if user was already fully closed via checkIDs
+					if _, ok := userIdSet[sess.UserID]; !ok {
+						if closed := s.CloseLocalSessionByDeviceType(ctx, sess.UserID, sess.DeviceType, closeReason); closed {
+							totalCount++
+						}
+					}
 					return true
 				})
 			}
-		}
-
-		for userId := range userIdsToClose {
-			// Skip if already processed in checkIDs
-			if _, ok := userIdSet[userId]; ok {
-				continue
-			}
-			n, _ := s.CloseLocalSession(ctx, userId, nil, closeReason)
-			totalCount += n
 		}
 	}
 

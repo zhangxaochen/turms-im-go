@@ -13,7 +13,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
-	"im.turms/server/internal/domain/common/constant"
+	adminconstant "im.turms/server/internal/domain/admin/constant"
+	commonconstant "im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common/authorization"
 	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/domain/gateway/session/bo"
@@ -34,11 +35,13 @@ type SessionIdentityAccessManager struct {
 	support                        SessionIdentityAccessManagementSupport
 	userService                    userservice.UserService
 	policyManager                  *authorization.PolicyManager
+	pluginManager                  *plugin.PluginManager
 }
 
 func NewSessionIdentityAccessManager(
 	gatewayProperties *config.GatewayProperties,
 	userService userservice.UserService,
+	pluginManager *plugin.PluginManager,
 ) *SessionIdentityAccessManager {
 	iamProps := gatewayProperties.IdentityAccessManagement
 	policyManager := &authorization.PolicyManager{}
@@ -49,6 +52,7 @@ func NewSessionIdentityAccessManager(
 		support:                        support,
 		userService:                    userService,
 		policyManager:                  policyManager,
+		pluginManager:                  pluginManager,
 	}
 }
 
@@ -89,7 +93,7 @@ func (m *SessionIdentityAccessManager) UpdateGlobalProperties(properties interfa
 
 // @MappedFrom verifyAndGrant(int version, Long userId, String password, DeviceType deviceType, Map<String, String> deviceDetails, UserStatus userStatus, Location location, String ip)
 func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
-	if loginInfo.UserID == 0 {
+	if loginInfo.UserID == adminconstant.AdminRequesterId {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -97,7 +101,17 @@ func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, login
 		return bo.GrantedWithAllPermissions, nil
 	}
 
-	// TODO: 插件系统尚未实现: 调用 PluginManager (UserAuthenticator) 的钩子
+	// 1. Check PluginManager for UserAuthenticator hooks
+	if m.pluginManager != nil && m.pluginManager.HasRunningExtensions("UserAuthenticator") {
+		ok, err := m.pluginManager.InvokeExtensionPoints(ctx, "UserAuthenticator", "Authenticate", loginInfo)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			return bo.GrantedWithAllPermissions, nil
+		}
+		return bo.LoginAuthenticationFailed, nil
+	}
 
 	if m.support != nil {
 		return m.support.VerifyAndGrant(ctx, loginInfo)
@@ -242,7 +256,7 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	for _, rt := range allowedRequestTypes {
 		permissions[rt] = true
 	}
-	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
+	return bo.NewUserPermissionInfo(commonconstant.ResponseStatusCode_OK, permissions), nil
 }
 
 func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) {
@@ -329,7 +343,7 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 			for _, rt := range allowedRequestTypes {
 				permissions[rt] = true
 			}
-			return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
+			return bo.NewUserPermissionInfo(commonconstant.ResponseStatusCode_OK, permissions), nil
 		}
 	}
 

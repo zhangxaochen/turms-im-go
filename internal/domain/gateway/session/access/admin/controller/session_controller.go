@@ -6,6 +6,7 @@ import (
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 )
 
 // SessionController handles HTTP admin API requests related to sessions.
@@ -17,6 +18,12 @@ func NewSessionController(sessionService *session.SessionService) *SessionContro
 	return &SessionController{
 		sessionService: sessionService,
 	}
+}
+
+// QuerySessions returns session info based on the provided user IDs.
+// @MappedFrom querySessions(@QueryParam(required = false) Set<Long> ids)
+func (c *SessionController) QuerySessions(ctx context.Context, ids []int64) ([]*sessionbo.UserSessionsInfo, error) {
+	return c.sessionService.GetLocalUserSessionsInfo(ctx, ids), nil
 }
 
 // DeleteSessions deletes sessions based on the provided user IDs and/or IPs.

@@ -34,8 +34,20 @@ func (c *WSConnection) Connect() error {
 }
 
 func (c *WSConnection) Send(payload []byte) error {
+	return c.SendWithContext(context.Background(), payload)
+}
+
+func (c *WSConnection) SendWithContext(ctx context.Context, payload []byte) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Check if context is already done before sending
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	// Turms uses BinaryMessage to carry Protobuf payloads
 	return c.conn.WriteMessage(websocket.BinaryMessage, payload)
 }
