@@ -327,9 +327,6 @@ func (c *UserRelationshipController) HandleUpdateRelationshipRequest(ctx context
 		if updateReq.GetBlocked() {
 			now := time.Now()
 			blockDate = &now
-		} else {
-			// Unblock -> typically pass time.Unix(0, 0) or blockDate remains nil but check Java logic
-			// Actually Java sets check on isBlocked
 		}
 	}
 

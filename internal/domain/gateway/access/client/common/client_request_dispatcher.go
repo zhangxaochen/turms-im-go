@@ -46,12 +46,13 @@ type SessionService interface {
 }
 
 type ServiceRequest struct {
-	Ip         []byte
-	UserId     int64
-	DeviceType protocol.DeviceType
-	RequestId  int64
-	Type       interface{}
-	Buffer     []byte
+	Ip           []byte
+	UserId       int64
+	DeviceType   protocol.DeviceType
+	RequestId    int64
+	TurmsRequest *protocol.TurmsRequest
+	Type         interface{}
+	Buffer       []byte
 }
 
 type ServiceRequestService interface {
@@ -272,12 +273,13 @@ func (d *ClientRequestDispatcher) handleGenericServiceRequest(ctx context.Contex
 
 	session := sessionWrapper.UserSession
 	svcReq := &ServiceRequest{
-		Ip:         []byte(sessionWrapper.GetIPStr()),
-		UserId:     session.UserID,
-		DeviceType: session.DeviceType,
-		RequestId:  request.GetRequestId(),
-		Type:       request.GetKind(),
-		Buffer:     serviceRequestBuffer,
+		Ip:           []byte(sessionWrapper.GetIPStr()),
+		UserId:       session.UserID,
+		DeviceType:   session.DeviceType,
+		RequestId:    request.GetRequestId(),
+		TurmsRequest: request,
+		Type:         request.GetKind(),
+		Buffer:       serviceRequestBuffer,
 	}
 	return d.ServiceRequestService.HandleServiceRequest(ctx, session, svcReq)
 }

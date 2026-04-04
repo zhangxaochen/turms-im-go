@@ -253,7 +253,7 @@ func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.
 					},
 				},
 			}
-			c.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, friendIDs)
+			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, friendIDs)
 		}
 	}
 
@@ -318,7 +318,7 @@ func (c *UserServiceController) HandleUpdateUserRequest(ctx context.Context, s *
 						},
 					},
 				}
-				c.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, friendIDs)
+				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notification, friendIDs)
 			}
 		}
 	}

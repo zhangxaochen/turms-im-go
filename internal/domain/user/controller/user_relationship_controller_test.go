@@ -107,6 +107,11 @@ func (m *mockUserRelationshipService) HasRelationshipAndNotBlocked(ctx context.C
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *mockUserRelationshipService) HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	args := m.Called(ctx, ownerID, relatedUserID)
+	return args.Bool(0), args.Error(1)
+}
+
 type mockUserFriendRequestService struct {
 	mock.Mock
 }

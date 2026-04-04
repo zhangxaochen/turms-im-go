@@ -18,6 +18,8 @@ import "model/group/group_join_requests_with_version.proto";
 import "model/group/group_members_with_version.proto";
 import "model/group/groups_with_version.proto";
 import "model/conversation/conversations.proto";
+import "model/conversation/conversation_settings_list.proto";
+
 import "model/message/messages.proto";
 import "model/message/messages_with_total_list.proto";
 import "model/storage/storage_resource_infos.proto";
@@ -83,6 +85,8 @@ message TurmsNotification {
             GroupJoinQuestionsWithVersion group_join_questions_with_version = 18;
             GroupMembersWithVersion group_members_with_version = 19;
             GroupsWithVersion groups_with_version = 20;
+            ConversationSettingsList conversation_settings_list = 21;
+
 
             // Conference
             Meetings meetings = 40;
