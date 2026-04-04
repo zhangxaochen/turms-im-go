@@ -14,3 +14,8 @@ type GroupConversation struct {
 	// The map keys are string representations of member int64 IDs.
 	MemberIDToReadDate map[string]time.Time `bson:"mr,omitempty"`
 }
+
+type GroupConversionMemberKey struct {
+	GroupID  int64
+	MemberID int64
+}

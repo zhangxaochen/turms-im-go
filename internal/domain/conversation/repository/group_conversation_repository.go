@@ -108,11 +108,10 @@ func (r *GroupConversationRepository) DeleteMemberConversations(ctx context.Cont
 	return err
 }
 
-func (r *GroupConversationRepository) DeleteByIds(ctx context.Context, groupIDs []int64) error {
+func (r *GroupConversationRepository) DeleteByIds(ctx context.Context, groupIDs []int64) (*mongo.DeleteResult, error) {
 	if len(groupIDs) == 0 {
-		return nil
+		return &mongo.DeleteResult{}, nil
 	}
 	filter := bson.M{"_id": bson.M{"$in": groupIDs}}
-	_, err := r.collection.DeleteMany(ctx, filter)
-	return err
+	return r.collection.DeleteMany(ctx, filter)
 }

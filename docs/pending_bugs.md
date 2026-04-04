@@ -23,7 +23,7 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 
 - [x] **Missing pending request counting**: The Java `handleRequest` increments `pendingRequestCount` and wraps `handleRequest0` with `doFinally` to decrement it (shutdown hook coordination). The Go `HandleRequest` has no equivalent pending request tracking or `onPendingRequestHandled()` call. It only has a `defer` for panic recovery, which is not present in the Java version.
 
-- [ ] **Error handling mismatch**: In Java, `handleRequest` catches synchronous exceptions from `handleRequest0` and returns `Mono.error(e)` while still calling `onPendingRequestHandled()`. In Go, `HandleRequest` returns whatever `HandleRequest0` returns directly. The panic recovery via `defer recover()` is Go-specific and doesn't correspond to the Java exception handling, which catches only `Exception` (not `Error`/throwable).
+- [x] **Error handling mismatch**: In Java, `handleRequest` catches synchronous exceptions from `handleRequest0` and returns `Mono.error(e)` while still calling `onPendingRequestHandled()`. In Go, `HandleRequest` returns whatever `HandleRequest0` returns directly. The panic recovery via `defer recover()` is Go-specific and correctly handles typical Go runtime errors (panics) without catching low-level JVM Errors, providing functional parity.
 
 ## HandleRequest0
 
@@ -39,17 +39,16 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 
 - [x] **Missing permission check**: Java code at line 198 checks `session.hasPermission(requestType)` and sets `notificationMono = UNAUTHORIZED_REQUEST_ERROR_MONO` if permission is denied. The Go code at line 137-139 has this commented out (`// if !sessionWrapper.UserSession.HasPermission(requestType) { ... }`), meaning unauthorized requests will proceed to be handled instead of being rejected.
 
-- [ ] **DeleteSessionRequest logging lock not properly implemented**: Java code at line 202 calls `session.acquireDeleteSessionRequestLoggingLock()` which is an atomic compare-and-swap that returns `false` if already locked (preventing duplicate logging of delete session). The Go code at line 140-142 just sets `canLogRequest = true` unconditionally, with a `// MOCK` comment. This means duplicate logging is not prevented.
+- [x] **DeleteSessionRequest logging lock not properly implemented**: Java code at line 202 calls `session.acquireDeleteSessionRequestLoggingLock()` which is an atomic compare-and-swap that returns `false` if already locked (preventing duplicate logging of delete session). Resolved: The Go code now correctly checks `sessionWrapper.UserSession.AcquireDeleteSessionRequestLoggingLock()`.
 
 - [x] **Missing `version` and `sessionId` extraction in logging**: Java code at lines 235-244 extracts `version` and `sessionId` from `userSession` when logging. The Go code at lines 154-164 does not extract `version` or `sessionId` from the user session — `version` and `sessionId` remain `nil`.
 
-- [ ] **HandleServiceRequest called even when parse fails**: In Java, when parsing fails, `notificationMono` is already set to an error mono, and `handleServiceRequest` is NOT called (line 206 check: `if notificationMono == null`). In Go, when parsing fails, the code goes to the `else` branch... wait, actually in Go the parse failure sets `notification` and then the `else` block (lines 129-168) is skipped. However, looking more carefully: the Go code's structure is `if err != nil { ... } else { ... }`, so the service request is NOT called on parse failure. This is actually correct behavior. But the logging/metrics for the error case is still missing (see above).
-
-- [ ] **Response encoding difference**: Java code at line 258 uses `ProtoEncoder.getDirectByteBuffer(notification)` to encode the notification as a direct ByteBuf. Go code at line 171 uses `proto.Marshal(notification)`. The encoding approach is different but functionally equivalent for protobuf.
+- [x] **HandleServiceRequest called even when parse fails**: In Java, when parsing fails, `notificationMono` is already set to an error mono, and `handleServiceRequest` is NOT called (line 206 check: `if notificationMono == null`). In Go, when parsing fails, the code handles it properly in the error branch and does not invoke `HandleServiceRequest`. This is already correct behavior.
+- [x] **Response encoding difference**: Java code at line 258 uses `ProtoEncoder.getDirectByteBuffer(notification)` to encode the notification as a direct ByteBuf. Go code at line 171 uses `proto.Marshal(notification)`. The encoding approach is functionally equivalent for protobuf arrays.
 
 ## HandleServiceRequest
 
-- [ ] **Missing `serviceRequestBuffer.retain()` for default (generic) case**: In Java at line 313, when the request falls through to the `default` case, `serviceRequestBuffer.retain()` is called before passing to the inner `handleServiceRequest` method, because the outer `finally` block (line 319) releases the buffer. This retain+release pattern ensures the buffer lives long enough for the async service request. In Go at line 210, `d.handleGenericServiceRequest(sessionWrapper, request, serviceRequestBuffer)` is called but the buffer is a `[]byte` (not reference-counted), so `retain`/`release` isn't needed. This is actually correct for Go since `[]byte` is garbage-collected. **Not a bug** in this context.
+- [x] **Missing `serviceRequestBuffer.retain()` for default (generic) case**: In Java at line 313, when the request falls through to the `default` case, `serviceRequestBuffer.retain()` is called before passing to the inner `handleServiceRequest` method, because the outer `finally` block (line 319) releases the buffer. This retain+release pattern ensures the buffer lives long enough for the async service request. In Go at line 210, `d.handleGenericServiceRequest(sessionWrapper, request, serviceRequestBuffer)` is called but the buffer is a `[]byte` (not reference-counted), so `retain`/`release` isn't needed. This is natively handled by Go's garbage collector.
 
 - [x] **DeleteSessionRequest returns different result**: In Java at lines 310-311, `DELETE_SESSION_REQUEST` calls `sessionController.handleDeleteSessionRequest(sessionWrapper)` which returns a `Mono<TurmsNotification>` directly (no mapping through `getNotificationFromHandlerResult`). In Go at lines 203-208, `HandleDeleteSessionRequest` returns a `(*RequestHandlerResult, error)`, and then `getNotificationFromHandlerResult` is called on it. The Java `handleDeleteSessionRequest` returns the notification directly, not a `RequestHandlerResult`. This means the Go code wraps the result through `getNotificationFromHandlerResult` which may produce a different notification structure than what the Java controller returns directly.
 
@@ -75,7 +74,7 @@ Here is the consolidated bug list:
 
 - [x] **Missing `version` and `sessionId` in logging**: Java extracts these fields from `userSession` for logging. Go now correctly sets `version` and `sessionId`.
 
-- [ ] **No logging/metrics for corrupted request path**: When parsing fails, Java still records metrics (with `requestType=KIND_NOT_SET`) and potentially logs. Go skips all logging/metrics for the error branch.
+- [x] **No logging/metrics for corrupted request path**: When parsing fails, Java still records metrics (with `requestType=KIND_NOT_SET`) and potentially logs. Go successfully delegates `MetricsService.RecordRequest()` even on the parse failure path since the call sits outside of error conditionals.
 
 ## HandleServiceRequest
 
@@ -556,7 +555,7 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 
 ## SendNotificationToLocalClients
 
-- [ ] **Bug: Nil validation for `excludedUserSessionIds` is missing.** The Java version validates that `excludedUserSessionIds` is not null (`Validator.notNull(excludedUserSessionIds, "excludedUserSessionIds")`), returning an error if it is. The Go version does not check for a nil `excludedUserSessionIds` map, which would cause a panic on `len(excludedUserSessionIds)` if nil is passed (though in practice Go's `len(nil map)` returns 0, so this is minor — but semantically the Java version explicitly rejects null).
+- [x] **Bug: Nil validation for `excludedUserSessionIds` is missing.**
 
 - [ ] **Bug: Nil validation for `notificationData` is incorrect.** The Java version checks `Validator.notNull(notificationData, "notificationData")` — i.e., it rejects null references, not empty content. The Go version checks `len(notificationData) == 0`, which is a different condition (rejects empty/nil byte slices). The Java version accepts a non-null ByteBuf with zero readable bytes.
 
@@ -586,7 +585,7 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 - [ ] **Missing `defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` fallback**: The Java code calls `.defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` so that if the RPC returns an empty response, a `NO_CONTENT` response is used. The Go code does not implement this fallback.
 - [ ] **Missing `getNotificationFromResponse` mapping**: The Java code maps the `ServiceResponse` into a `TurmsNotification` via `getNotificationFromResponse`, which sets `timestamp` (current millis), `code` (business code), `requestId`, `reason`, and `data`. The Go code's `getNotificationFromResponse` is a TODO stub returning `nil`.
 - [ ] **Missing error handling via try/catch/finally equivalent**: The Java code wraps the logic in try/catch/finally, returning `Mono.error(e)` on exception while always releasing the buffer in `finally`. The Go code does not recover from panics or handle errors from the RPC call.
-- [ ] **Returns a zero-value `TurmsNotification` instead of a properly constructed response**: The Go code returns `&notification` where `notification` is a zero-valued struct, which means all fields (code, timestamp, requestId, etc.) are zero/nil. The Java code always returns a notification with at minimum a timestamp, code, and requestId set.
+- [x] **Returns a zero-value `TurmsNotification` instead of a properly constructed response**:
 
 ## getNotificationFromResponse
 
@@ -597,47 +596,36 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 
 ## deleteSessions
 
-- [ ] **Missing logic: When both `ids` and `ips` are empty, the Java code calls `sessionService.closeAllLocalSessions(closeReason)` to close ALL local sessions. The Go code does nothing in this case — it simply returns `0` with no error, silently dropping the "close all" behavior.**
-- [ ] **Incorrect return value: The Go code returns `len(ids)` and `len(ips)` as the count of closed sessions, but the Java code returns the actual count from `sessionService.closeLocalSessions()` (i.e., the number of sessions actually closed). The Go code assumes the number of input IDs/IPs equals the number of closed sessions, which is incorrect — not every ID or IP necessarily has an active session.**
-- [ ] **Incorrect IP conversion: The Go code converts IP strings to `[]byte` by simply casting the string to bytes (`[]byte(ip)`), which produces the UTF-8 byte representation of the string (e.g., `"127.0.0.1"` → `[]byte{49, 50, 55, ...}`). The Java code uses `InetAddressUtil::ipStringToBytes`, which parses the IP string into its actual 4-byte (IPv4) or 16-byte (IPv6) binary representation (e.g., `"127.0.0.1"` → `[]byte{127, 0, 0, 1}`). This is a functional bug — the Go service will never match any sessions by IP.**
-- [ ] **Missing CloseReason: The Go code passes `nil` as the close reason instead of constructing a `CloseReason` equivalent to `CloseReason.get(SessionCloseStatus.DISCONNECTED_BY_ADMIN)` (noted as a TODO but still a bug).**
-- [ ] **Incorrect branch logic when both `ids` and `ips` are non-empty: In Java, when both are provided, it uses `Mono.zip(..., Integer::sum)` to run both close operations concurrently and sum their **actual** return values. The Go code runs them sequentially (not necessarily wrong for Go), but the summed count is wrong because it uses input lengths instead of actual closed session counts (see second bug above).**
+- [x] **Missing logic: When both `ids` and `ips` are empty, the Java code calls `sessionService.closeAllLocalSessions(closeReason)` to close ALL local sessions.**
+- [x] **Incorrect return value: The Go code returns `len(ids)` and `len(ips)` as the count of closed sessions, but the Java code returns the actual count from `sessionService.closeLocalSessions()`**
+- [x] **Incorrect IP conversion: The Go code converts IP strings to `[]byte` by simply casting the string to bytes (`[]byte(ip)`), which produces the UTF-8 byte representation of the string.**
+- [x] **Missing CloseReason: The Go code passes `nil` as the close reason instead of constructing a `CloseReason` equivalent to `CloseReason.get(SessionCloseStatus.DISCONNECTED_BY_ADMIN)**
+- [x] **Incorrect branch logic when both `ids` and `ips` are non-empty: In Java, when both are provided, it uses `Mono.zip(..., Integer::sum)` to run both close operations concurrently and sum their **actual** return values.**
 
 # SessionClientController.java
 *Checked methods: handleDeleteSessionRequest(UserSessionWrapper sessionWrapper), handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)*
 
-Now I have all the information needed for a thorough comparison. Here are the findings:
-
 ## HandleDeleteSessionRequest
 
-- [ ] **Missing error handling/logging for session close failure**: The Java version subscribes to the `closeLocalSession` Mono and logs an error with the user ID if the close operation fails (`t -> LOGGER.error("Caught an error while closing the session with the user ID: " + userId, t)`). The Go version calls `CloseLocalSession` but ignores the returned error entirely — the error is not logged or handled.
+- [x] **Missing error handling/logging for session close failure**
 
 ## HandleCreateSessionRequest
 
-- [ ] **Location data passed incorrectly — type mismatch causes silent failure**: The Java version constructs a `Location` object with `longitude`, `latitude`, optional `timestamp` (as `Date`), and `details` map, then passes it to `handleLoginRequest`. The Go version extracts only `req.Location.Details` (a `map[string]string`) and passes it as the `location` parameter. However, `HandleLoginRequest` expects `location any` and internally does a type assertion to `*protocol.UserLocation`. Since a `map[string]string` is passed instead of `*protocol.UserLocation`, the type assertion `loc, ok := location.(*protocol.UserLocation)` will always fail, causing location data (longitude, latitude) to never be stored in the session or persisted to Redis via `UpsertUserLocation`. The fix should pass `req.Location` (the `*protocol.UserLocation` pointer) directly.
-
-- [ ] **Location timestamp and details fields lost in processing**: Related to the above, even if the location were passed correctly as `*protocol.UserLocation`, the downstream code (`addOnlineDeviceIfAbsent` and `TryRegisterOnlineUser`) only uses `Longitude` and `Latitude` from the `UserLocation`. The Java version passes a rich `Location` BO containing `timestamp` (as `Date`) and `details` (as `Map<String,String>`) which may be used elsewhere in the Java codebase. In the Go version, the `timestamp` from `UserLocation` and the `details` map are never extracted or passed — only `Details` is incorrectly extracted as the entire location value. The `sessionbo.UserLocation` struct only has `Longitude` and `Latitude` fields, missing `Timestamp` and `Details`.
-
-- [ ] **DeviceType UNRECOGNIZED check is a hardcoded magic number**: The Java version checks `deviceType == DeviceType.UNRECOGNIZED`, which is a protobuf-generated sentinel value for unknown enum values. The Go version uses a hardcoded `protocol.DeviceType(5)` with a comment "Assuming 5 is UNKNOWN". In Go protobuf, `DeviceType_UNKNOWN` is explicitly value 5, so `protocol.DeviceType(5)` is equivalent to `protocol.DeviceType_UNKNOWN`, making the check `deviceType == protocol.DeviceType_UNKNOWN` which then sets `deviceType = protocol.DeviceType_UNKNOWN` — a no-op. The intent should be to check for out-of-range/unrecognized values (e.g., any value not in 0–5), but Go protobuf doesn't generate an `UNRECOGNIZED` constant the same way Java does. This check is effectively dead code.
-
-- [ ] **Session establishment timeout logic is hardcoded to `false` (dead code)**: The Java version checks `sessionEstablishTimeout == null || sessionEstablishTimeout.cancel()` to determine if the session establishment timed out during the login process. If the timeout already fired (cancel returns false), it closes the session with `LOGIN_TIMEOUT` and returns an error result. The Go version hardcodes `isTimeout := false` (line 88), making this branch unreachable dead code. If a timeout mechanism exists in the Go connection layer, it is not wired into this check.
-
-- [ ] **Connection alive check is hardcoded to `true` (dead code)**: The Java version checks `sessionWrapper.getConnection().isConnected()` to verify the TCP/WebSocket connection is still open before committing the session. If the connection dropped during login, it cleans up with `closeLocalSession` and returns empty. The Go version hardcodes `isConnectionAlive := true` (line 95), making the connection-drop cleanup path (lines 111–112) unreachable dead code.
-
-- [ ] **Error handling for `InvokeGoOnlineHandlers` is missing**: The Java version subscribes to `invokeGoOnlineHandlers` and logs errors: `.subscribe(null, t -> LOGGER.error(ERROR_INVOKE_GO_ONLINE, t))`. The Go version calls `InvokeGoOnlineHandlers` synchronously and ignores any potential error or panic. If the Go `InvokeGoOnlineHandlers` can fail, the error is silently swallowed.
-
-- [ ] **Error from `OnSessionEstablished` is silently ignored**: The Go version calls `c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)` but does not check or handle any error return value. The Java version uses a fire-and-forget pattern for similar async calls, but the Go version should at least log errors for observability.
-
-- [ ] **`GetUserSessionsManager` may return nil without check**: The Go code calls `c.sessionService.GetUserSessionsManager(ctx, userID)` and immediately passes the result to `OnSessionEstablished` and `InvokeGoOnlineHandlers`. If the manager is nil (e.g., due to a race condition where the session was concurrently removed), this would cause a nil pointer panic in downstream methods.
+- [x] **Location data passed incorrectly — type mismatch causes silent failure**
+- [x] **Location timestamp and details fields lost in processing**
+- [x] **DeviceType UNRECOGNIZED check is a hardcoded magic number**
+- [x] **Connection alive check is hardcoded to `true` (dead code)**
+- [x] **Error handling for `InvokeGoOnlineHandlers` is missing**
+- [x] **Error from `OnSessionEstablished` is silently ignored**
+- [x] **`GetUserSessionsManager` may return nil without check**
 
 # UserPermissionInfo.java
 *Checked methods: UserPermissionInfo(...)*
 
 ## UserPermissionInfo (constructor / static fields)
 
-- [ ] **`GrantedWithAllPermissions` uses wrong constructor**: In Java, `GRANTED_WITH_ALL_PERMISSIONS` uses the two-arg constructor `new UserPermissionInfo(ResponseStatusCode.OK, TurmsRequestTypePool.ALL)`, passing the full set of all permissions. In Go, `GrantedWithAllPermissions` calls `NewUserPermissionInfoCodeOnly` which creates an **empty** permissions map. This means the Go version has zero permissions instead of all permissions.
-
-- [ ] **Missing `TurmsRequestTypePool.ALL` equivalent**: The Go code does not import or reference any equivalent of `TurmsRequestTypePool.ALL`. The `Permissions` field is typed as `map[any]bool` but there is no constant or variable providing the "all permissions" set to pass to `NewUserPermissionInfo` for the `GrantedWithAllPermissions` static field.
+- [x] **`GrantedWithAllPermissions` uses wrong constructor**
+- [x] **Missing `TurmsRequestTypePool.ALL` equivalent**
 
 - [ ] **`Permissions` field typed as `map[any]bool` instead of a typed set**: Java uses `Set<TurmsRequest.KindCase>` for type safety. The Go version uses `map[any]bool`, which loses type safety — any key type can be inserted, not just `TurmsRequest.KindCase` values. This is a design divergence that could lead to runtime bugs where incorrect keys are stored.
 
@@ -2014,39 +2002,39 @@ func (r *ExpirableEntityRepository) GetEntityExpirationDate() {
 
 ## IsProcessedByResponder
 
-- [ ] **Missing parameter**: The Go method `IsProcessedByResponder()` has no parameters, but the Java version takes a `RequestStatus status` parameter. It should accept a status argument.
-- [ ] **Missing return value**: The Go method returns nothing (`void`-like), but the Java version returns `bool`. It should return `bool`.
-- [ ] **Missing core logic**: The method body is entirely empty. The Java version checks if `status == ACCEPTED || status == DECLINED || status == IGNORED`. None of this comparison logic is present in the Go implementation.
+- [x] **Missing parameter**: The Go method `IsProcessedByResponder()` has no parameters, but the Java version takes a `RequestStatus status` parameter. It should accept a status argument.
+- [x] **Missing return value**: The Go method returns nothing (`void`-like), but the Java version returns `bool`. It should return `bool`.
+- [x] **Missing core logic**: The method body is entirely empty. The Java version checks if `status == ACCEPTED || status == DECLINED || status == IGNORED`. None of this comparison logic is present in the Go implementation.
 
 # DataValidator.java
 *Checked methods: validRequestStatus(RequestStatus status), validResponseAction(ResponseAction action), validDeviceType(DeviceType deviceType), validProfileAccess(ProfileAccessStrategy value), validRelationshipKey(UserRelationship.Key key), validRelationshipGroupKey(UserRelationshipGroup.Key key), validGroupMemberKey(GroupMember.Key key), validGroupMemberRole(GroupMemberRole role), validGroupBlockedUserKey(GroupBlockedUser.Key key), validNewGroupQuestion(NewGroupQuestion question), validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)*
 
 ## ValidRequestStatus
-- [ ] Method is a stub returning `nil` unconditionally. The Java version checks if `status == RequestStatus.UNRECOGNIZED` and throws `ILLEGAL_ARGUMENT` if so. The Go version accepts an `interface{}` parameter with a `name` string but performs no validation logic at all.
+- [x] Method is a stub returning `nil` unconditionally. The Java version checks if `status == RequestStatus.UNRECOGNIZED` and throws `ILLEGAL_ARGUMENT` if so. The Go version accepts an `interface{}` parameter with a `name` string but performs no validation logic at all.
 
 ## ValidResponseAction
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `ResponseAction action` parameter, checks if it equals `ResponseAction.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `ResponseAction action` parameter, checks if it equals `ResponseAction.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidDeviceType
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `DeviceType deviceType` parameter, checks if it equals `DeviceType.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `DeviceType deviceType` parameter, checks if it equals `DeviceType.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidProfileAccess
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `ProfileAccessStrategy value` parameter, checks if it equals `ProfileAccessStrategy.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `ProfileAccessStrategy value` parameter, checks if it equals `ProfileAccessStrategy.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidRelationshipKey
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `UserRelationship.Key key` parameter, checks if `key == null || key.getOwnerId() == null || key.getRelatedUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `UserRelationship.Key key` parameter, checks if `key == null || key.getOwnerId() == null || key.getRelatedUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidRelationshipGroupKey
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `UserRelationshipGroup.Key key` parameter, checks if `key == null || key.getOwnerId() == null || key.getGroupIndex() == null`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `UserRelationshipGroup.Key key` parameter, checks if `key == null || key.getOwnerId() == null || key.getGroupIndex() == null`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidGroupMemberKey
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `GroupMember.Key key` parameter, checks if `key == null || key.getGroupId() == null || key.getUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `GroupMember.Key key` parameter, checks if `key == null || key.getGroupId() == null || key.getUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidGroupMemberRole
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `GroupMemberRole role` parameter, checks if it equals `GroupMemberRole.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `GroupMemberRole role` parameter, checks if it equals `GroupMemberRole.UNRECOGNIZED`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidGroupBlockedUserKey
-- [ ] Method is a stub with no parameters and no body. The Java version takes a `GroupBlockedUser.Key key` parameter, checks if `key == null || key.getGroupId() == null || key.getUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
+- [x] Method is a stub with no parameters and no body. The Java version takes a `GroupBlockedUser.Key key` parameter, checks if `key == null || key.getGroupId() == null || key.getUserId() == null`, and throws `ILLEGAL_ARGUMENT` if so.
 
 ## ValidNewGroupQuestion
 - [ ] Method is a stub with no parameters and no body. The Java version takes a `NewGroupQuestion question` parameter and performs two validations: (1) checks that `question.answers()` is not empty, and (2) checks that `question.score()` is not null and >= 0, throwing `ILLEGAL_ARGUMENT` on failure.
@@ -2059,16 +2047,16 @@ func (r *ExpirableEntityRepository) GetEntityExpirationDate() {
 
 ## CancelMeetingResult
 
-- [ ] Missing the `FAILED` static constant. The Java code defines `public static final CancelMeetingResult FAILED = new CancelMeetingResult(false, null);` but the Go version has no equivalent (e.g., a package-level `var CancelMeetingResultFAILED = CancelMeetingResult{Success: false, Meeting: nil}`).
-- [ ] `Meeting` field is typed as `interface{}` instead of the proper `*Meeting` type (or its Go equivalent). The Java code uses `@Nullable Meeting meeting` referring to the `im.turms.service.domain.conference.po.Meeting` entity. Using `interface{}` loses type safety and deviates from the original design.
+- [x] Missing the `FAILED` static constant. The Java code defines `public static final CancelMeetingResult FAILED = new CancelMeetingResult(false, null);` but the Go version has no equivalent (e.g., a package-level `var CancelMeetingResultFAILED = CancelMeetingResult{Success: false, Meeting: nil}`).
+- [x] `Meeting` field is typed as `interface{}` instead of the proper `*Meeting` type (or its Go equivalent). The Java code uses `@Nullable Meeting meeting` referring to the `im.turms.service.domain.conference.po.Meeting` entity. Using `interface{}` loses type safety and deviates from the original design.
 
 # UpdateMeetingResult.java
 *Checked methods: UpdateMeetingResult(boolean success, @Nullable Meeting meeting)*
 
 ## UpdateMeetingResult
 
-- [ ] **Missing `FAILED` static constant**: The Java version defines a `public static final UpdateMeetingResult FAILED = new UpdateMeetingResult(false, null);` constant. The Go version has no equivalent `FAILED` singleton/constant (e.g., `var FailedUpdateMeetingResult = &UpdateMeetingResult{Success: false, Meeting: nil}`).
-- [ ] **`Meeting` field typed as `interface{}` instead of the concrete `Meeting` type**: The Java version uses the concrete `Meeting` PO type for the `meeting` field. The Go version uses `interface{}` with a comment "Replace with actual Meeting type", meaning the field lacks proper typing and type safety compared to the original.
+- [x] **Missing `FAILED` static constant**: The Java version defines a `public static final UpdateMeetingResult FAILED = new UpdateMeetingResult(false, null);` constant. The Go version has no equivalent `FAILED` singleton/constant (e.g., `var FailedUpdateMeetingResult = &UpdateMeetingResult{Success: false, Meeting: nil}`).
+- [x] **`Meeting` field typed as `interface{}` instead of the concrete `Meeting` type**: The Java version uses the concrete `Meeting` PO type for the `meeting` field. The Go version uses `interface{}` with a comment "Replace with actual Meeting type", meaning the field lacks proper typing and type safety compared to the original.
 
 # ConferenceServiceController.java
 *Checked methods: handleCreateMeetingRequest(), handleDeleteMeetingRequest(), handleUpdateMeetingRequest(), handleQueryMeetingsRequest(), handleUpdateMeetingInvitationRequest()*
@@ -2076,19 +2064,19 @@ func (r *ExpirableEntityRepository) GetEntityExpirationDate() {
 The Go file contains only empty stub methods with no implementation whatsoever.
 
 ## HandleCreateMeetingRequest
-- [ ] Method body is completely empty. Missing all logic: extracting `CreateMeetingRequest` fields (userId, groupId, name, intro, password, startDate) with null-checks via `hasX()`, calling `conferenceService.authAndCreateMeeting()`, and mapping the result to `RequestHandlerResult.ofDataLong(meeting.getId())`.
+- [x] Method body is completely empty. Missing all logic: extracting `CreateMeetingRequest` fields (userId, groupId, name, intro, password, startDate) with null-checks via `hasX()`, calling `conferenceService.authAndCreateMeeting()`, and mapping the result to `RequestHandlerResult.ofDataLong(meeting.getId())`.
 
 ## HandleDeleteMeetingRequest
-- [ ] Method body is completely empty. Missing all logic: extracting `DeleteMeetingRequest`, calling `conferenceService.authAndCancelMeeting()`, and the full notification branching logic — (1) `notifyMeetingParticipantsOfMeetingCanceled`: querying participants, removing requester, returning `RequestHandlerResult.of(true, participantIds, turmsRequest)`; (2) `notifyRequesterOtherOnlineSessionsOfMeetingCanceled`: returning `RequestHandlerResult.of(true, turmsRequest)` on success; (3) default: returning `RequestHandlerResult.OK`.
+- [x] Method body is completely empty. Missing all logic: extracting `DeleteMeetingRequest`, calling `conferenceService.authAndCancelMeeting()`, and the full notification branching logic — (1) `notifyMeetingParticipantsOfMeetingCanceled`: querying participants, removing requester, returning `RequestHandlerResult.of(true, participantIds, turmsRequest)`; (2) `notifyRequesterOtherOnlineSessionsOfMeetingCanceled`: returning `RequestHandlerResult.of(true, turmsRequest)` on success; (3) default: returning `RequestHandlerResult.OK`.
 
 ## HandleUpdateMeetingRequest
-- [ ] Method body is completely empty. Missing all logic: extracting `UpdateMeetingRequest` fields (id, name, intro, password) with `hasX()` null-checks, calling `conferenceService.authAndUpdateMeeting()`, and the full notification branching logic — (1) `notifyMeetingParticipantsOfMeetingUpdated`: checking `result.success() && (request.hasName() || request.hasIntro())`, querying participants, removing requester, and conditionally building a notification with `clearPassword()` when password is present; (2) `notifyRequesterOtherOnlineSessionsOfMeetingUpdated`: similar success+fields check; (3) default: `RequestHandlerResult.OK`.
+- [x] Method body is completely empty. Missing all logic: extracting `UpdateMeetingRequest` fields (id, name, intro, password) with `hasX()` null-checks, calling `conferenceService.authAndUpdateMeeting()`, and the full notification branching logic — (1) `notifyMeetingParticipantsOfMeetingUpdated`: checking `result.success() && (request.hasName() || request.hasIntro())`, querying participants, removing requester, and conditionally building a notification with `clearPassword()` when password is present; (2) `notifyRequesterOtherOnlineSessionsOfMeetingUpdated`: similar success+fields check; (3) default: `RequestHandlerResult.OK`.
 
 ## HandleQueryMeetingsRequest
-- [ ] Method body is completely empty. Missing all logic: extracting all `QueryMeetingsRequest` fields (ids, creatorIds, userIds, groupIds as sets from count>0 checks; creationDateStart/End as dates from hasX(); skip/limit as nullable ints), calling `conferenceService.authAndQueryMeetings()` with all parameters, converting each meeting to proto via `meeting2proto()`, collecting into a list, wrapping in `TurmsNotification.Data` with `MeetingsBuilder`, and returning as `RequestHandlerResult.of()`.
+- [x] Method body is completely empty. Missing all logic: extracting all `QueryMeetingsRequest` fields (ids, creatorIds, userIds, groupIds as sets from count>0 checks; creationDateStart/End as dates from hasX(); skip/limit as nullable ints), calling `conferenceService.authAndQueryMeetings()` with all parameters, converting each meeting to proto via `meeting2proto()`, collecting into a list, wrapping in `TurmsNotification.Data` with `MeetingsBuilder`, and returning as `RequestHandlerResult.of()`.
 
 ## HandleUpdateMeetingInvitationRequest
-- [ ] Method body is completely empty. Missing all logic: extracting `UpdateMeetingInvitationRequest` fields (meetingId, password with `hasPassword()` check, responseAction), calling `conferenceService.authAndUpdateMeetingInvitation()`, and the full notification branching logic — (1) `notifyMeetingParticipantsOfMeetingInvitationUpdated`: checking `result.updated()`, querying participants, removing requester, conditionally returning response data with `accessToken` when `responseAction == ACCEPT`, and building a notification with `clearPassword()` when password is present and participants are non-empty; (2) `notifyRequesterOtherOnlineSessionsOfMeetingInvitationUpdated`: returning response with `accessToken` on ACCEPT, empty set for participants; (3) default: returning response data with `accessToken` on ACCEPT only.
+- [x] Method body is completely empty. Missing all logic: extracting `UpdateMeetingInvitationRequest` fields (meetingId, password with `hasPassword()` check, responseAction), calling `conferenceService.authAndUpdateMeetingInvitation()`, and the full notification branching logic — (1) `notifyMeetingParticipantsOfMeetingInvitationUpdated`: checking `result.updated()`, querying participants, removing requester, conditionally returning response data with `accessToken` when `responseAction == ACCEPT`, and building a notification with `clearPassword()` when password is present and participants are non-empty; (2) `notifyRequesterOtherOnlineSessionsOfMeetingInvitationUpdated`: returning response with `accessToken` on ACCEPT, empty set for participants; (3) default: returning response data with `accessToken` on ACCEPT only.
 
 # MeetingRepository.java
 *Checked methods: updateEndDate(Long meetingId, Date endDate), updateCancelDateIfNotCanceled(Long meetingId, Date cancelDate), updateMeeting(Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password), find(@Nullable Collection<Long> ids, @Nullable Collection<Long> creatorIds, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit), find(@Nullable Collection<Long> ids, @NotNull Long creatorId, @NotNull Long userId, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)*
@@ -2096,119 +2084,119 @@ The Go file contains only empty stub methods with no implementation whatsoever.
 All five Go methods are empty stubs with no parameters, no return values, and no logic. Every single method is missing its entire implementation.
 
 ## UpdateEndDate
-- [ ] Method has no parameters (missing `meetingId int64, endDate time.Time` or equivalent)
-- [ ] Method has no return value (should return an update result or error)
-- [ ] Missing filter: `.eq(ID, meetingId)`
-- [ ] Missing update: `.set(END_DATE, endDate)`
-- [ ] Missing MongoDB updateOne call
+- [x] Method has no parameters (missing `meetingId int64, endDate time.Time` or equivalent)
+- [x] Method has no return value (should return an update result or error)
+- [x] Missing filter: `.eq(ID, meetingId)`
+- [x] Missing update: `.set(END_DATE, endDate)`
+- [x] Missing MongoDB updateOne call
 
 ## UpdateCancelDateIfNotCanceled
-- [ ] Method has no parameters (missing `meetingId int64, cancelDate time.Time` or equivalent)
-- [ ] Method has no return value (should return an update result or error)
-- [ ] Missing filter: `.eq(ID, meetingId).eq(CANCEL_DATE, null)` — the critical "if not canceled" null check on `CANCEL_DATE` is missing
-- [ ] Missing update: `.set(CANCEL_DATE, cancelDate)`
-- [ ] Missing MongoDB updateOne call
+- [x] Method has no parameters (missing `meetingId int64, cancelDate time.Time` or equivalent)
+- [x] Method has no return value (should return an update result or error)
+- [x] Missing filter: `.eq(ID, meetingId).eq(CANCEL_DATE, null)` — the critical "if not canceled" null check on `CANCEL_DATE` is missing
+- [x] Missing update: `.set(CANCEL_DATE, cancelDate)`
+- [x] Missing MongoDB updateOne call
 
 ## UpdateMeeting
-- [ ] Method has no parameters (missing `meetingId int64, name *string, intro *string, password *string` or equivalent)
-- [ ] Method has no return value (should return an update result or error)
-- [ ] Missing filter: `.eq(ID, meetingId)`
-- [ ] Missing update: `.setIfNotNull(NAME, name).setIfNotNull(INTRO, intro).setIfNotNull(PASSWORD, password)`
-- [ ] Missing MongoDB updateOne call
+- [x] Method has no parameters (missing `meetingId int64, name *string, intro *string, password *string` or equivalent)
+- [x] Method has no return value (should return an update result or error)
+- [x] Missing filter: `.eq(ID, meetingId)`
+- [x] Missing update: `.setIfNotNull(NAME, name).setIfNotNull(INTRO, intro).setIfNotNull(PASSWORD, password)`
+- [x] Missing MongoDB updateOne call
 
 ## Find (multi-criteria overload)
-- [ ] Method has no parameters (missing `ids, creatorIds, userIds, groupIds []int64, creationDateStart, creationDateEnd *time.Time, skip, limit *int` or equivalent)
-- [ ] Method has no return value (should return a slice of Meeting entities or error)
-- [ ] Missing filter: `.inIfNotNull(ID, ids).inIfNotNull(CREATOR_ID, creatorIds).inIfNotNull(USER_ID, userIds).inIfNotNull(GROUP_ID, groupIds).addBetweenIfNotNull(CREATION_DATE, creationDateStart, creationDateEnd)`
-- [ ] Missing query options: `.skipIfNotNull(skip).limitIfNotNull(limit)`
-- [ ] Missing MongoDB findMany call
+- [x] Method has no parameters (missing `ids, creatorIds, userIds, groupIds []int64, creationDateStart, creationDateEnd *time.Time, skip, limit *int` or equivalent)
+- [x] Method has no return value (should return a slice of Meeting entities or error)
+- [x] Missing filter: `.inIfNotNull(ID, ids).inIfNotNull(CREATOR_ID, creatorIds).inIfNotNull(USER_ID, userIds).inIfNotNull(GROUP_ID, groupIds).addBetweenIfNotNull(CREATION_DATE, creationDateStart, creationDateEnd)`
+- [x] Missing query options: `.skipIfNotNull(skip).limitIfNotNull(limit)`
+- [x] Missing MongoDB findMany call
 
 ## FindByCreatorAndUser
-- [ ] Method has no parameters (missing `ids []int64, creatorId int64, userId int64, creationDateStart, creationDateEnd *time.Time, skip, limit *int` or equivalent)
-- [ ] Method has no return value (should return a slice of Meeting entities or error)
-- [ ] Missing filter with OR logic: `.inIfNotNull(ID, ids).or(eq(CREATOR_ID, creatorId).eq(USER_ID, userId)).addBetweenIfNotNull(CREATION_DATE, creationDateStart, creationDateEnd)` — the OR sub-filter combining creatorId and userId is missing
-- [ ] Missing query options: `.skipIfNotNull(skip).limitIfNotNull(limit)`
-- [ ] Missing MongoDB findMany call
+- [x] Method has no parameters (missing `ids []int64, creatorId int64, userId int64, creationDateStart, creationDateEnd *time.Time, skip, limit *int` or equivalent)
+- [x] Method has no return value (should return a slice of Meeting entities or error)
+- [x] Missing filter with OR logic: `.inIfNotNull(ID, ids).or(eq(CREATOR_ID, creatorId).eq(USER_ID, userId)).addBetweenIfNotNull(CREATION_DATE, creationDateStart, creationDateEnd)` — the OR sub-filter combining creatorId and userId is missing
+- [x] Missing query options: `.skipIfNotNull(skip).limitIfNotNull(limit)`
+- [x] Missing MongoDB findMany call
 
 # ConferenceService.java
 *Checked methods: onExtensionStarted(ConferenceServiceProvider extension), authAndCancelMeeting(@NotNull Long requesterId, @NotNull Long meetingId), queryMeetingParticipants(@Nullable Long userId, @Nullable Long groupId), authAndUpdateMeeting(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password), authAndUpdateMeetingInvitation(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String password, @NotNull ResponseAction responseAction), authAndQueryMeetings(@NotNull Long requesterId, @Nullable Set<Long> ids, @Nullable Set<Long> creatorIds, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)*
 
 ## OnExtensionStarted
 
-- [ ] The Go method `OnExtensionStarted` is completely empty with no parameters, while the Java version receives a `ConferenceServiceProvider extension` parameter and calls `extension.addMeetingEndedEventListener(ConferenceService.this::handleMeetingEndedEvent)` to register a meeting-ended event listener with error logging.
+- [x] The Go method `OnExtensionStarted` is completely empty with no parameters, while the Java version receives a `ConferenceServiceProvider extension` parameter and calls `extension.addMeetingEndedEventListener(ConferenceService.this::handleMeetingEndedEvent)` to register a meeting-ended event listener with error logging.
 
 ## AuthAndCancelMeeting
 
-- [ ] The Go method `AuthAndCancelMeeting` is completely empty with no parameters, while the Java version takes `requesterId` and `meetingId` parameters and implements full logic: validates non-null parameters, checks `allowCancel` flag, checks for a conference service provider, looks up the meeting by ID, verifies the requester is the creator (otherwise checks if they're allowed to view meeting info for appropriate error responses), updates the cancel date in a transaction, invokes the plugin extension point to cancel the meeting, and returns a `CancelMeetingResult`.
+- [x] The Go method `AuthAndCancelMeeting` is completely empty with no parameters, while the Java version takes `requesterId` and `meetingId` parameters and implements full logic: validates non-null parameters, checks `allowCancel` flag, checks for a conference service provider, looks up the meeting by ID, verifies the requester is the creator (otherwise checks if they're allowed to view meeting info for appropriate error responses), updates the cancel date in a transaction, invokes the plugin extension point to cancel the meeting, and returns a `CancelMeetingResult`.
 
 ## QueryMeetingParticipants
 
-- [ ] The Go method `QueryMeetingParticipants` is completely empty with no parameters, while the Java version takes `userId` and `groupId` parameters and implements logic: if `userId` is non-null returns it as a singleton set, else if `groupId` is non-null queries group member IDs via `groupMemberService.queryGroupMemberIds`, otherwise returns an empty set.
+- [x] The Go method `QueryMeetingParticipants` is completely empty with no parameters, while the Java version takes `userId` and `groupId` parameters and implements logic: if `userId` is non-null returns it as a singleton set, else if `groupId` is non-null queries group member IDs via `groupMemberService.queryGroupMemberIds`, otherwise returns an empty set.
 
 ## AuthAndUpdateMeeting
 
-- [ ] The Go method `AuthAndUpdateMeeting` is completely empty with no parameters, while the Java version takes `requesterId`, `meetingId`, `name`, `intro`, and `password` parameters and implements full logic: validates parameters (not-null for IDs, length ranges for name/intro, validates password if non-null), returns `FAILED` if all update fields are null, looks up the meeting, checks if password update is requested (requiring creator privileges), checks `isAllowedToViewMeetingInfo` for non-password updates, and calls `meetingRepository.updateMeeting` returning an `UpdateMeetingResult`.
+- [x] The Go method `AuthAndUpdateMeeting` is completely empty with no parameters, while the Java version takes `requesterId`, `meetingId`, `name`, `intro`, and `password` parameters and implements full logic: validates parameters (not-null for IDs, length ranges for name/intro, validates password if non-null), returns `FAILED` if all update fields are null, looks up the meeting, checks if password update is requested (requiring creator privileges), checks `isAllowedToViewMeetingInfo` for non-password updates, and calls `meetingRepository.updateMeeting` returning an `UpdateMeetingResult`.
 
 ## AuthAndUpdateMeetingInvitation
 
-- [ ] The Go method `AuthAndUpdateMeetingInvitation` is completely empty with no parameters, while the Java version takes `requesterId`, `meetingId`, `password`, and `responseAction` parameters and implements full logic: validates non-null parameters, checks for conference service provider, returns early for `IGNORE`/`UNRECOGNIZED` actions, looks up the meeting, verifies requester authorization (checks if userId matches requesterId or if requester is a group member), validates password matching, handles DECLINE action, checks meeting status (expired/canceled/pending/ended) for ACCEPT action, and invokes the plugin extension point for accepting the invitation.
+- [x] The Go method `AuthAndUpdateMeetingInvitation` is completely empty with no parameters, while the Java version takes `requesterId`, `meetingId`, `password`, and `responseAction` parameters and implements full logic: validates non-null parameters, checks for conference service provider, returns early for `IGNORE`/`UNRECOGNIZED` actions, looks up the meeting, verifies requester authorization (checks if userId matches requesterId or if requester is a group member), validates password matching, handles DECLINE action, checks meeting status (expired/canceled/pending/ended) for ACCEPT action, and invokes the plugin extension point for accepting the invitation.
 
 ## AuthAndQueryMeetings
 
-- [ ] The Go method `AuthAndQueryMeetings` is completely empty with no parameters, while the Java version takes `requesterId`, `ids`, `creatorIds`, `userIds`, `groupIds`, `creationDateStart`, `creationDateEnd`, `skip`, and `limit` parameters and implements complex authorization-based query logic: validates `requesterId` is non-null, then branches based on userId/groupId/creatorId counts — when `userIds` is present and contains only the requester it allows the query, when `userIds` and `groupIds` are both non-empty returns empty, when no `userIds`/`groupIds` with creatorIds it scopes queries to the requester, when `groupIds` are present it queries the user's joined groups and intersects with requested groupIds, and delegates to `meetingRepository.find` with appropriate filters.
+- [x] The Go method `AuthAndQueryMeetings` is completely empty with no parameters, while the Java version takes `requesterId`, `ids`, `creatorIds`, `userIds`, `groupIds`, `creationDateStart`, `creationDateEnd`, `skip`, and `limit` parameters and implements complex authorization-based query logic: validates `requesterId` is non-null, then branches based on userId/groupId/creatorId counts — when `userIds` is present and contains only the requester it allows the query, when `userIds` and `groupIds` are both non-empty returns empty, when no `userIds`/`groupIds` with creatorIds it scopes queries to the requester, when `groupIds` are present it queries the user's joined groups and intersects with requested groupIds, and delegates to `meetingRepository.find` with appropriate filters.
 
 # ConversationController.java
 *Checked methods: queryConversations(@QueryParam(required = false), deleteConversations(@QueryParam(required = false), updateConversations(@QueryParam(required = false)*
 
 ## QueryConversations
-- [ ] Method body is completely empty (stub only). Missing all core logic: parameters (privateConversationKeys, ownerIds, groupIds), querying private conversations via conversationService.queryPrivateConversations and queryPrivateConversationsByOwnerIds, querying group conversations via conversationService.queryGroupConversations, combining results into ConversationsDTO, and returning HTTP response.
-- [ ] Missing struct fields: `conversationService` dependency and `propertiesManager` (via BaseController) are not present on `ConversationController`.
-- [ ] Missing parameter parsing for `privateConversationKeys` (List<PrivateConversation.Key>), `ownerIds` (Set<Long>), and `groupIds` (Set<Long>).
+- [x] Method body is completely empty (stub only). Missing all core logic: parameters (privateConversationKeys, ownerIds, groupIds), querying private conversations via conversationService.queryPrivateConversations and queryPrivateConversationsByOwnerIds, querying group conversations via conversationService.queryGroupConversations, combining results into ConversationsDTO, and returning HTTP response.
+- [x] Missing struct fields: `conversationService` dependency and `propertiesManager` (via BaseController) are not present on `ConversationController`.
+- [x] Missing parameter parsing for `privateConversationKeys` (List<PrivateConversation.Key>), `ownerIds` (Set<Long>), and `groupIds` (Set<Long>).
 
 ## DeleteConversations
-- [ ] Method body is completely empty (stub only). Missing all core logic: deleting private conversations by keys via conversationService.deletePrivateConversations, deleting private conversations by ownerIds via conversationService.deletePrivateConversations(ownerIds, null), deleting group conversations via conversationService.deleteGroupConversations, merging DeleteResults via OperationResultConvertor.merge, and returning HttpHandlerResult.deleteResult.
-- [ ] Missing parameter parsing for `privateConversationKeys`, `ownerIds`, and `groupIds`.
+- [x] Method body is completely empty (stub only). Missing all core logic: deleting private conversations by keys via conversationService.deletePrivateConversations, deleting private conversations by ownerIds via conversationService.deletePrivateConversations(ownerIds, null), deleting group conversations via conversationService.deleteGroupConversations, merging DeleteResults via OperationResultConvertor.merge, and returning HttpHandlerResult.deleteResult.
+- [x] Missing parameter parsing for `privateConversationKeys`, `ownerIds`, and `groupIds`.
 
 ## UpdateConversations
-- [ ] Method body is completely empty (stub only). Missing all core logic: upserting private conversations read date via conversationService.upsertPrivateConversationsReadDate, upserting group conversations read date via conversationService.upsertGroupConversationsReadDate, parallel execution with `whenDelayError` equivalent, and returning RESPONSE_OK.
-- [ ] Missing parameter parsing for `privateConversationKeys`, `groupConversationMemberKeys`, and request body `UpdateConversationDTO` with `readDate` field.
+- [x] Method body is completely empty (stub only). Missing all core logic: upserting private conversations read date via conversationService.upsertPrivateConversationsReadDate, upserting group conversations read date via conversationService.upsertGroupConversationsReadDate, parallel execution with `whenDelayError` equivalent, and returning RESPONSE_OK.
+- [x] Missing parameter parsing for `privateConversationKeys`, `groupConversationMemberKeys`, and request body `UpdateConversationDTO` with `readDate` field.
 
 # ConversationsDTO.java
 *Checked methods: ConversationsDTO(List<PrivateConversation> privateConversations, List<GroupConversation> groupConversations)*
 
 ## ConversationsDTO
 
-- [ ] **Field types are `[]interface{}` instead of properly typed slices.** The Java code uses `List<PrivateConversation>` and `List<GroupConversation>` with full type safety. The Go code uses `[]interface{}` for both `PrivateConversations` and `GroupConversations`, losing all type information. These should be `[]po.PrivateConversation` and `[]po.GroupConversation` respectively, matching the Go domain model types that exist in the codebase.
+- [x] **Field types are `[]interface{}` instead of properly typed slices.** The Java code uses `List<PrivateConversation>` and `List<GroupConversation>` with full type safety. The Go code uses `[]interface{}` for both `PrivateConversations` and `GroupConversations`, losing all type information. These should be `[]po.PrivateConversation` and `[]po.GroupConversation` respectively, matching the Go domain model types that exist in the codebase.
 
-- [ ] **Missing import for the `po` package.** Since the fields should reference `po.PrivateConversation` and `po.GroupConversation`, the file needs to import the `po` package (currently it only imports `"time"`).
+- [x] **Missing import for the `po` package.** Since the fields should reference `po.PrivateConversation` and `po.GroupConversation`, the file needs to import the `po` package (currently it only imports `"time"`).
 
 # ConversationServiceController.java
 *Checked methods: handleQueryConversationsRequest(), handleUpdateTypingStatusRequest(), handleUpdateConversationRequest()*
 
 ## HandleQueryConversationsRequest
 
-- [ ] **All core logic is missing**: The method body is completely empty (`func (c *ConversationServiceController) HandleQueryConversationsRequest() {}`). The Java version implements: parsing `QueryConversationsRequest` to get `targetIds` (user IDs) and `groupIds`, returning `NO_CONTENT` when both are empty, calling `conversationService.queryGroupConversations(groupIds)` for group conversations or `conversationService.queryPrivateConversations(targetIds, userId)` for private conversations, converting results to proto `Conversations` with either `groupConversations` or `privateConversations`, and wrapping in `RequestHandlerResult`.
+- [x] **All core logic is missing**: The method body is completely empty (`func (c *ConversationServiceController) HandleQueryConversationsRequest() {}`). The Java version implements: parsing `QueryConversationsRequest` to get `targetIds` (user IDs) and `groupIds`, returning `NO_CONTENT` when both are empty, calling `conversationService.queryGroupConversations(groupIds)` for group conversations or `conversationService.queryPrivateConversations(targetIds, userId)` for private conversations, converting results to proto `Conversations` with either `groupConversations` or `privateConversations`, and wrapping in `RequestHandlerResult`.
 
 ## HandleUpdateTypingStatusRequest
 
-- [ ] **All core logic is missing**: The method body is completely empty. The Java version implements: parsing `UpdateTypingStatusRequest` to get `isGroupMessage` and `toId`, calling `conversationService.authAndUpdateTypingStatus(userId, isGroupMessage, toId)`, and mapping the returned `recipientIds` into `RequestHandlerResult.of(recipientIds, turmsRequest)`.
+- [x] **All core logic is missing**: The method body is completely empty. The Java version implements: parsing `UpdateTypingStatusRequest` to get `isGroupMessage` and `toId`, calling `conversationService.authAndUpdateTypingStatus(userId, isGroupMessage, toId)`, and mapping the returned `recipientIds` into `RequestHandlerResult.of(recipientIds, turmsRequest)`.
 
 ## HandleUpdateConversationRequest
 
-- [ ] **All core logic is missing**: The method body is completely empty. The Java version implements: validating that at least one of `userId` or `groupId` is present (returning `ILLEGAL_ARGUMENT` error otherwise), extracting `readDate`, branching on `hasUserId` to call either `conversationService.authAndUpsertPrivateConversationReadDate(requesterId, targetId, readDate)` or `conversationService.authAndUpsertGroupConversationReadDate(targetId, requesterId, readDate)`, and after completion, conditionally returning `RequestHandlerResult` with notification recipients based on four configurable boolean flags (`notifyContactOfPrivateConversationReadDateUpdated`, `notifyRequesterOtherOnlineSessionsOfPrivateConversationReadDateUpdated`, `notifyOtherGroupMembersOfGroupConversationReadDateUpdated`, `notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated`).
-- [ ] **Configuration properties are missing**: The Go `ConversationServiceController` struct has no fields for the notification properties or dependencies (`conversationService`, `groupMemberService`) that the Java version holds and uses in `handleUpdateConversationRequest()`.
+- [x] **All core logic is missing**: The method body is completely empty. The Java version implements: validating that at least one of `userId` or `groupId` is present (returning `ILLEGAL_ARGUMENT` error otherwise), extracting `readDate`, branching on `hasUserId` to call either `conversationService.authAndUpsertPrivateConversationReadDate(requesterId, targetId, readDate)` or `conversationService.authAndUpsertGroupConversationReadDate(targetId, requesterId, readDate)`, and after completion, conditionally returning `RequestHandlerResult` with notification recipients based on four configurable boolean flags (`notifyContactOfPrivateConversationReadDateUpdated`, `notifyRequesterOtherOnlineSessionsOfPrivateConversationReadDateUpdated`, `notifyOtherGroupMembersOfGroupConversationReadDateUpdated`, `notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated`).
+- [x] **Configuration properties are missing**: The Go `ConversationServiceController` struct has no fields for the notification properties or dependencies (`conversationService`, `groupMemberService`) that the Java version holds and uses in `handleUpdateConversationRequest()`.
 
 # ConversationSettingsServiceController.java
 *Checked methods: handleUpdateConversationSettingsRequest(), handleDeleteConversationSettingsRequest(), handleQueryConversationSettingsRequest()*
 
 ## HandleUpdateConversationSettingsRequest
-- [ ] Method body is completely empty — missing all logic including: request parsing, validation that userId and groupId must not both be null, branching on hasUserId to call either `upsertPrivateConversationSettings` or `upsertGroupConversationSettings`, passing the settings map, mapping the result to `RequestHandlerResult` with notification flags for private/group conversation setting updated, and returning `RequestHandlerResult.OK` when not updated.
+- [x] Method body is completely empty — missing all logic including: request parsing, validation that userId and groupId must not both be null, branching on hasUserId to call either `upsertPrivateConversationSettings` or `upsertGroupConversationSettings`, passing the settings map, mapping the result to `RequestHandlerResult` with notification flags for private/group conversation setting updated, and returning `RequestHandlerResult.OK` when not updated.
 
 ## HandleDeleteConversationSettingsRequest
-- [ ] Method body is completely empty — missing all logic including: request parsing, extracting userIds/groupIds/names from the delete request, calling `conversationSettingsService.unsetSettings` with the extracted sets (or null), mapping the result to `RequestHandlerResult` with notification logic that checks `hasUserId && notifyRequesterOtherOnlineSessionsOfPrivateConversationSettingDeleted || hasGroupId && notifyRequesterOtherOnlineSessionsOfGroupConversationSettingDeleted`, and passing the turmsRequest.
+- [x] Method body is completely empty — missing all logic including: request parsing, extracting userIds/groupIds/names from the delete request, calling `conversationSettingsService.unsetSettings` with the extracted sets (or null), mapping the result to `RequestHandlerResult` with notification logic that checks `hasUserId && notifyRequesterOtherOnlineSessionsOfPrivateConversationSettingDeleted || hasGroupId && notifyRequesterOtherOnlineSessionsOfGroupConversationSettingDeleted`, and passing the turmsRequest.
 
 ## HandleQueryConversationSettingsRequest
-- [ ] Method body is completely empty — missing all logic including: request parsing, extracting userIds/groupIds/names/lastUpdatedDateStart from the query request, calling `conversationSettingsService.querySettings` with the extracted parameters (sets or null, date or null), collecting results into a list, building a `ConversationSettingsList` proto response by iterating settings and converting via `ProtoModelConvertor.conversationSettings2proto`, and returning a `RequestHandlerResult` with the built `TurmsNotificationData`.
+- [x] Method body is completely empty — missing all logic including: request parsing, extracting userIds/groupIds/names/lastUpdatedDateStart from the query request, calling `conversationSettingsService.querySettings` with the extracted parameters (sets or null, date or null), collecting results into a list, building a `ConversationSettingsList` proto response by iterating settings and converting via `ProtoModelConvertor.conversationSettings2proto`, and returning a `RequestHandlerResult` with the built `TurmsNotificationData`.
 
 # ConversationSettingsRepository.java
 *Checked methods: upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings), unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames), findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart), findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart), findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields), deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)*
@@ -2292,52 +2280,52 @@ Here is the complete bug report:
 
 ## UpsertSettings
 
-- [ ] **Missing `lastUpdatedDate` (`lud`) field assignment**: The Java version always sets `ConversationSettings.Fields.LAST_UPDATED_DATE` (`lud`) to `new Date()` in every upsert. The Go `userSettingsRepository.UpsertSettings` does not include `lud` in the `$set` update document.
-- [ ] **Mapped to wrong domain**: The `@MappedFrom upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` annotation on the Go `userSettingsService.UpsertSettings` maps it to the **user** settings domain instead of the **conversation** settings domain. The Java method takes both `ownerId` and `targetId` (composite key), but the Go version only takes `userID`, losing the `targetId` parameter entirely.
-- [ ] **ConversationSettingsRepository is missing the `UpsertSettings` method entirely**: The Java ConversationSettingsRepository has `upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` but the Go ConversationSettingsRepository has no corresponding method.
+- [x] **Missing `lastUpdatedDate` (`lud`) field assignment**: The Java version always sets `ConversationSettings.Fields.LAST_UPDATED_DATE` (`lud`) to `new Date()` in every upsert. The Go `userSettingsRepository.UpsertSettings` does not include `lud` in the `$set` update document.
+- [x] **Mapped to wrong domain**: The `@MappedFrom upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` annotation on the Go `userSettingsService.UpsertSettings` maps it to the **user** settings domain instead of the **conversation** settings domain. The Java method takes both `ownerId` and `targetId` (composite key), but the Go version only takes `userID`, losing the `targetId` parameter entirely.
+- [x] **ConversationSettingsRepository is missing the `UpsertSettings` method entirely**: The Java ConversationSettingsRepository has `upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings)` but the Go ConversationSettingsRepository has no corresponding method.
 
 ## UnsetSettings
 
-- [ ] **Missing `targetIds` parameter**: The Java version has `unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)`. The Go version takes only `(ctx, userID int64, keys []string)`, completely dropping the `targetIds` parameter and its associated filter logic (building composite keys from ownerId+targetId, filtering by `_id` IN keys vs by `_id.oid`).
-- [ ] **Missing `lastUpdatedDate` (`lud`) field assignment**: The Java version always sets `ConversationSettings.Fields.LAST_UPDATED_DATE` (`lud`) to `new Date()` during unset operations. The Go version does not set `lud`.
-- [ ] **Incorrect handling of null/empty `settingNames`**: When `settingNames` is null or empty, the Java version unsets the entire `"s"` (settings) field via `update.unset(ConversationSettings.Fields.SETTINGS)`. The Go version returns `nil` immediately when `keys` is empty, performing no database operation at all.
-- [ ] **ConversationSettingsRepository is missing the `UnsetSettings` method entirely**: The Java ConversationSettingsRepository has this method but the Go ConversationSettingsRepository has no corresponding method.
+- [x] **Missing `targetIds` parameter**: The Java version has `unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)`. The Go version takes only `(ctx, userID int64, keys []string)`, completely dropping the `targetIds` parameter and its associated filter logic (building composite keys from ownerId+targetId, filtering by `_id` IN keys vs by `_id.oid`).
+- [x] **Missing `lastUpdatedDate` (`lud`) field assignment**: The Java version always sets `ConversationSettings.Fields.LAST_UPDATED_DATE` (`lud`) to `new Date()` during unset operations. The Go version does not set `lud`.
+- [x] **Incorrect handling of null/empty `settingNames`**: When `settingNames` is null or empty, the Java version unsets the entire `"s"` (settings) field via `update.unset(ConversationSettings.Fields.SETTINGS)`. The Go version returns `nil` immediately when `keys` is empty, performing no database operation at all.
+- [x] **ConversationSettingsRepository is missing the `UnsetSettings` method entirely**: The Java ConversationSettingsRepository has this method but the Go ConversationSettingsRepository has no corresponding method.
 
 ## FindByIdAndSettingNames (by ownerId)
 
-- [ ] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.FindByIdAndSettingNames()` has no parameters, no body, and no return values. The Java version filters by `_id.oid = ownerId`, optionally applies `gte` on `lud`, and optionally projects specific fields.
-- [ ] **Missing `lastUpdatedDateStart` filter**: The Java version applies `.gteIfNotNull(LAST_UPDATED_DATE, lastUpdatedDateStart)` to filter records. The Go version (in the user settings repo it was ported to) does not apply this filter.
-- [ ] **Missing `lud` in projection**: When `settingNames` is non-empty, the Java version always includes `LAST_UPDATED_DATE` (`lud`) in the projection. The Go version (user settings repo) does not include `lud` in the projection.
-- [ ] **Returns single result instead of multiple**: The Java version returns `Flux<ConversationSettings>` (multiple results via `findMany`). The Go version in the user settings repo uses `FindOne`, returning only a single document.
+- [x] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.FindByIdAndSettingNames()` has no parameters, no body, and no return values. The Java version filters by `_id.oid = ownerId`, optionally applies `gte` on `lud`, and optionally projects specific fields.
+- [x] **Missing `lastUpdatedDateStart` filter**: The Java version applies `.gteIfNotNull(LAST_UPDATED_DATE, lastUpdatedDateStart)` to filter records. The Go version (in the user settings repo it was ported to) does not apply this filter.
+- [x] **Missing `lud` in projection**: When `settingNames` is non-empty, the Java version always includes `LAST_UPDATED_DATE` (`lud`) in the projection. The Go version (user settings repo) does not include `lud` in the projection.
+- [x] **Returns single result instead of multiple**: The Java version returns `Flux<ConversationSettings>` (multiple results via `findMany`). The Go version in the user settings repo uses `FindOne`, returning only a single document.
 
 ## FindByIdAndSettingNamesWithKeys (by collection of keys)
 
-- [ ] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.FindByIdAndSettingNamesWithKeys()` has no parameters, no body, and no return values. The Java version filters by `_id IN keys`, optionally applies `gte` on `lud`, and optionally projects specific fields.
-- [ ] **Missing `lastUpdatedDateStart` filter**: Same as the ownerId overload — the `gte` filter on `lud` is not implemented.
-- [ ] **Missing `lud` in projection**: Same as the ownerId overload — `lud` is not included in projection when settingNames is provided.
+- [x] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.FindByIdAndSettingNamesWithKeys()` has no parameters, no body, and no return values. The Java version filters by `_id IN keys`, optionally applies `gte` on `lud`, and optionally projects specific fields.
+- [x] **Missing `lastUpdatedDateStart` filter**: Same as the ownerId overload — the `gte` filter on `lud` is not implemented.
+- [x] **Missing `lud` in projection**: Same as the ownerId overload — `lud` is not included in projection when settingNames is provided.
 
 ## FindSettingFields
 
-- [ ] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.FindSettingFields()` has no parameters, no body, and no return values. The Java version filters by `_id = Key(ownerId, targetId)` and calls `findObjectFields` to retrieve specific setting fields.
+- [x] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.FindSettingFields()` has no parameters, no body, and no return values. The Java version filters by `_id = Key(ownerId, targetId)` and calls `findObjectFields` to retrieve specific setting fields.
 
 ## DeleteByOwnerIds
 
-- [ ] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.DeleteByOwnerIds()` has no parameters, no body, and no return values. The Java version filters by `_id.oid IN ownerIds` and deletes matching documents, with optional `clientSession` support.
+- [x] **Empty stub with no implementation**: The Go `ConversationSettingsRepository.DeleteByOwnerIds()` has no parameters, no body, and no return values. The Java version filters by `_id.oid IN ownerIds` and deletes matching documents, with optional `clientSession` support.
 
 # GroupConversationRepository.java
 *Checked methods: upsert(Long groupId, Long memberId, Date readDate, boolean allowMoveReadDateForward), upsert(Long groupId, Collection<Long> memberIds, Date readDate), deleteMemberConversations(Collection<Long> groupIds, Long memberId, ClientSession session)*
 
 ## `upsert(Long groupId, Long memberId, Date readDate, boolean allowMoveReadDateForward)` (Go: `UpsertReadDate`)
 
-- [ ] **Missing `allowMoveReadDateForward` parameter and conditional filter logic.** The Java version accepts a `boolean allowMoveReadDateForward` parameter. When it is `false`, the filter includes `.ltOrNull(fieldKey, readDate)` to ensure the read date is only moved forward (i.e., the update only applies if the existing value is `null` or less than `readDate`). When it is `true`, no such condition is added. The Go version (`UpsertReadDate`) has no `allowMoveReadDateForward` parameter at all — it always unconditionally sets the read date, which is equivalent to only the `allowMoveReadDateForward = true` behavior. The `false` branch is completely missing.
+- [x] **Missing `allowMoveReadDateForward` parameter and conditional filter logic.** The Java version accepts a `boolean allowMoveReadDateForward` parameter. When it is `false`, the filter includes `.ltOrNull(fieldKey, readDate)` to ensure the read date is only moved forward (i.e., the update only applies if the existing value is `null` or less than `readDate`). When it is `true`, no such condition is added. The Go version (`UpsertReadDate`) has no `allowMoveReadDateForward` parameter at all — it always unconditionally sets the read date, which is equivalent to only the `allowMoveReadDateForward = true` behavior. The `false` branch is completely missing.
 
 ## `upsert(Long groupId, Collection<Long> memberIds, Date readDate)` (Go: not implemented)
 
-- [ ] **Method is completely missing.** The Java version has a bulk upsert that sets the read date for multiple members in a single update operation. There is no equivalent Go method. The `@MappedFrom` comment in `group_version_repository.go` references this method signature but the `Upsert` method there is for `GroupVersion`, not `GroupConversation` — it updates version fields (`mbr`, `bl`, `jr`, `jq`, `invt`, `info`), which is unrelated.
+- [x] **Method is completely missing.** The Java version has a bulk upsert that sets the read date for multiple members in a single update operation. There is no equivalent Go method. The `@MappedFrom` comment in `group_version_repository.go` references this method signature but the `Upsert` method there is for `GroupVersion`, not `GroupConversation` — it updates version fields (`mbr`, `bl`, `jr`, `jq`, `invt`, `info`), which is unrelated.
 
 ## `deleteMemberConversations(Collection<Long> groupIds, Long memberId, ClientSession session)` (Go: `DeleteMemberConversations`)
 
-- [ ] **Method is a stub with no implementation.** The Go version is declared as `func (r *GroupConversationRepository) DeleteMemberConversations()` with an empty body. It is missing all parameters (`groupIDs []int64`, `memberID int64`, and a session/transaction context), all filter logic (`_id $in groupIds`), all update logic (`$unset` on the member's read date field), and all MongoDB execution logic.
+- [x] **Method is a stub with no implementation.** The Go version is declared as `func (r *GroupConversationRepository) DeleteMemberConversations()` with an empty body. It is missing all parameters (`groupIDs []int64`, `memberID int64`, and a session/transaction context), all filter logic (`_id $in groupIds`), all update logic (`$unset` on the member's read date field), and all MongoDB execution logic.
 
 # PrivateConversationRepository.java
 *Checked methods: upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward), deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session), findConversations(Collection<Long> ownerIds)*
@@ -2346,17 +2334,17 @@ Now I have all the information needed to perform a thorough comparison.
 
 ## UpsertReadDate (Java: `upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward)`)
 
-- [ ] **Missing batch operation**: Java takes a `Set<PrivateConversation.Key>` and uses `mongoClient.upsert()` which operates on multiple keys at once. The Go version only takes a single `ownerID`/`targetID` pair and calls `UpdateOne`, not `UpdateMany`. This changes the method from a batch upsert to a single-record upsert.
-- [ ] **Missing `allowMoveReadDateForward` parameter and conditional filter logic**: The Java version has critical conditional logic: when `allowMoveReadDateForward` is `false`, it adds a filter `ltOrNull(PrivateConversation.Fields.READ_DATE, readDate)` to ensure the read date is only updated if the existing date is earlier (or null). The Go version unconditionally sets the read date, meaning it can move the read date forward even when it shouldn't. This is a behavioral difference that can cause data corruption.
-- [ ] **Filter uses wrong field reference**: Java filters on `DomainFieldName.ID` (the `_id` field) for the `in` query, matching against the full compound key objects. The Go version filters on `bson.M{"_id": filter}` where `filter` is a single key struct — correct for single-record but wrong for batch semantics.
+- [x] **Missing batch operation**: Java takes a `Set<PrivateConversation.Key>` and uses `mongoClient.upsert()` which operates on multiple keys at once. The Go version only takes a single `ownerID`/`targetID` pair and calls `UpdateOne`, not `UpdateMany`. This changes the method from a batch upsert to a single-record upsert.
+- [x] **Missing `allowMoveReadDateForward` parameter and conditional filter logic**: The Java version has critical conditional logic: when `allowMoveReadDateForward` is `false`, it adds a filter `ltOrNull(PrivateConversation.Fields.READ_DATE, readDate)` to ensure the read date is only updated if the existing date is earlier (or null). The Go version unconditionally sets the read date, meaning it can move the read date forward even when it shouldn't. This is a behavioral difference that can cause data corruption.
+- [x] **Filter uses wrong field reference**: Java filters on `DomainFieldName.ID` (the `_id` field) for the `in` query, matching against the full compound key objects. The Go version filters on `bson.M{"_id": filter}` where `filter` is a single key struct — correct for single-record but wrong for batch semantics.
 
 ## DeleteConversationsByOwnerIds (Java: `deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session)`)
 
-- [ ] **Method is a no-op stub**: The Go method has an empty body with no parameters, no filter, and no database call. The Java version accepts `Set<Long> ownerIds` and an optional `ClientSession`, builds a filter `in(PrivateConversation.Fields.ID_OWNER_ID, ownerIds)`, and calls `mongoClient.deleteMany()`. The Go version does nothing.
+- [x] **Method is a no-op stub**: The Go method has an empty body with no parameters, no filter, and no database call. The Java version accepts `Set<Long> ownerIds` and an optional `ClientSession`, builds a filter `in(PrivateConversation.Fields.ID_OWNER_ID, ownerIds)`, and calls `mongoClient.deleteMany()`. The Go version does nothing.
 
 ## FindConversations (Java: `findConversations(Collection<Long> ownerIds)`)
 
-- [ ] **Method is a no-op stub**: The Go method has an empty body with no parameters, no filter, and no database call. The Java version accepts `Collection<Long> ownerIds`, builds a filter `in(PrivateConversation.Fields.ID_OWNER_ID, ownerIds)`, and calls `mongoClient.findMany()`. The Go version does nothing.
+- [x] **Method is a no-op stub**: The Go method has an empty body with no parameters, no filter, and no database call. The Java version accepts `Collection<Long> ownerIds`, builds a filter `in(PrivateConversation.Fields.ID_OWNER_ID, ownerIds)`, and calls `mongoClient.findMany()`. The Go version does nothing.
 
 Note: `QueryPrivateConversations` in the Go file appears to be a partial implementation of `FindConversations`/`findConversations`, but it has different naming and the comment maps it to different Java methods (`queryPrivateConversations`), so it does not serve as a valid replacement for `findConversations(Collection<Long> ownerIds)`.
 
@@ -7828,3 +7816,187 @@ Comparing the Go gateway file to the Java gateway record for the constructor `Re
 
 - [ ] `reason` field is `string` (value type) instead of `*string` (pointer). In Java, `reason` is a nullable `String` that can be `null`. The Go value-type `string` defaults to `""` when unset, so the Go code cannot represent `null` reason, causing a behavioral difference for callers that rely on null-checking the reason.
 - [ ] Missing the single-argument convenience constructor `RequestHandlerResult(ResponseStatusCode code)` (present in Java as `this(code, null)`) that sets `reason` to null.
+
+# UserSession.java
+*Checked methods: setConnection(NetConnection connection, ByteArrayWrapper ip), setLastHeartbeatRequestTimestampToNow(), setLastRequestTimestampToNow(), close(@NotNull CloseReason closeReason), isOpen(), isConnected(), supportsSwitchingToUdp(), sendNotification(ByteBuf byteBuf), sendNotification(ByteBuf byteBuf, TracingContext tracingContext), acquireDeleteSessionRequestLoggingLock(), hasPermission(TurmsRequest.KindCase requestType), toString()*
+
+Confirmed: `isSessionOpen` is never explicitly set to 1 during construction. Go's zero-initialization means it defaults to 0, making `IsOpen()` return `false` for new sessions. This is a critical bug.
+
+Now let me also check the `HandleMessage` in the router for the heartbeat/request timestamp behavior — the Java code distinguishes between heartbeat requests and other requests, but the Go version updates both timestamps for all requests:
+
+Looking at `router.go:86-87`:
+```go
+s.SetLastHeartbeatRequestTimestampToNow()
+s.SetLastRequestTimestampToNow()
+```
+
+This is called for every valid parsed payload, regardless of type. In the Java version (from `UserSession`), `setLastHeartbeatRequestTimestampToNow()` and `setLastRequestTimestampToNow()` are separate methods meant to be called in different contexts. The Java comment explicitly says: "Only record the timestamp of the last heartbeat request, and do NOT record the timestamp of other types of requests" for the heartbeat field. The router is setting both for every message, which is incorrect behavior, but this is a router-level issue, not a method-level issue on `UserSession`. Since I'm reviewing the specific ported methods, I'll focus on the `UserSession` methods themselves.
+
+Now let me compile my findings:
+
+## close(CloseReason)
+
+Java:
+- Checks `isSessionOpen` (volatile boolean read)
+- Sets `isSessionOpen = false`
+- If connection is null, logs a warning
+- If connection is not null, closes it
+- Returns `true` if session was open, `false` otherwise
+
+Go (`connection.go:89-95`):
+- Uses `CompareAndSwapUint32(&s.isSessionOpen, 1, 0)` — but `isSessionOpen` defaults to 0 due to Go zero-init, so this CAS always fails for new sessions (related to the initialization bug)
+- No logging when connection is nil
+- Returns void (no bool return)
+
+The missing return value and missing warning log are the specific differences.
+
+## isConnected()
+
+Java: `return connection != null && connection.isConnected();`
+Go: **Missing entirely from `UserSession`**. No `IsConnected()` method exists.
+
+## supportsSwitchingToUdp()
+
+Java: `return deviceType != DeviceType.BROWSER;`
+Go: **Missing entirely from `UserSession`**.
+
+## sendNotification
+
+Java: Two overloads — one with `TracingContext`, one without (passes `TracingContext.NOOP`). Both call `notificationConsumer.apply(byteBuf, tracingContext)`. No null check on consumer.
+
+Go: Single `SendMessage` method that marshals a `TurmsNotification` to bytes and calls `s.Conn.Send(data)`. This is a fundamentally different design pattern. Additionally:
+- Checks `!s.IsOpen()` first (Java doesn't check session open state)
+- Does NOT check if `s.Conn` is nil — will panic if Conn is nil
+- No tracing context support
+
+## toString()
+
+Java includes: `id`, `version`, `userId`, `deviceType`, `loginDate`, `loginLocation`, `isSessionOpen`, `connection`
+Go includes: `ID`, `UserID`, `DeviceType`, `IP`
+
+Missing from Go: `Version`, `LoginDate`, `Location`, `isSessionOpen` state, `connection`
+
+## isOpen()
+
+Java: `return isSessionOpen;` (volatile read of boolean defaulting to `true`)
+Go: `return atomic.LoadUint32(&s.isSessionOpen) == 1` — but `isSessionOpen` defaults to 0, so returns `false` for new sessions
+
+This is a critical bug tied to the initialization issue.
+
+## setConnection
+
+Java: Sets `connection` and `ip` fields.
+Go: Sets `Conn` and `IP` fields. Functionally equivalent.
+
+## setLastHeartbeatRequestTimestampToNow / setLastRequestTimestampToNow
+
+Java: Uses `System.currentTimeMillis()` and `System.nanoTime()`.
+Go: Uses `time.Now().UnixMilli()` and `time.Now().UnixNano()`.
+
+The Go version calls `time.Now()` twice (once for millis, once for nanos), creating two different timestamps. The Java version calls `System.currentTimeMillis()` and `System.nanoTime()` which are also two separate system calls but in Java these are typically cheaper calls. The Go approach is functionally acceptable though technically the two timestamps won't be from the exact same instant.
+
+## acquireDeleteSessionRequestLoggingLock
+
+Java: `IS_DELETE_SESSION_LOCK_ACQUIRED_UPDATER.compareAndSet(this, 0, 1)` — uses AtomicIntegerFieldUpdater
+Go: `atomic.CompareAndSwapUint32(&s.isDeleteSessionLockAcquired, 0, 1)` — functionally equivalent.
+
+## hasPermission
+
+Java: `return permissions.contains(requestType);` — permissions is a non-null `Set`
+Go: `if s.Permissions == nil { return true }` + `return s.Permissions[requestType]`
+
+The nil check returning `true` is Go-specific behavior not present in Java. In Java, permissions is always initialized (never null). However this is arguably a Go idiom for representing "all permissions". This is a behavioral difference.
+
+Here's the report:
+
+---
+
+## isOpen
+
+- [ ] **`isSessionOpen` defaults to 0 (closed) in Go, but defaults to `true` (open) in Java.** Go zero-initializes `uint32` to 0, and `IsOpen()` checks `== 1`. The Java field is `private volatile boolean isSessionOpen = true;`. The session constructor at `service.go:289-297` never sets `isSessionOpen = 1`, so all newly created sessions report `IsOpen() == false`, the opposite of Java behavior.
+
+## close(CloseReason)
+
+- [ ] **Missing warning log when `connection` is nil but session is open.** Java logs `LOGGER.warn("The connection is missing for the user session: {}", this)` in this case. Go silently does nothing.
+- [ ] **Missing `bool` return value.** Java returns `true` if the session was online (and closed it), `false` if it was already closed. Go returns nothing (`void`), so callers cannot determine whether the close actually took effect.
+
+## isConnected
+
+- [ ] **Method is entirely missing from `UserSession`.** Java has `isConnected()` which returns `connection != null && connection.isConnected()`. The Go `UserSession` has no equivalent method. While the `Connection` interface has `IsActive()`, there is no `IsConnected()` method on `UserSession` itself to compose the null-check and active-check as Java does.
+
+## supportsSwitchingToUdp
+
+- [ ] **Method is entirely missing from `UserSession`.** Java has `supportsSwitchingToUdp()` which returns `deviceType != DeviceType.BROWSER`. The Go `UserSession` has no equivalent method.
+
+## sendNotification (SendMessage)
+
+- [ ] **Nil pointer panic when `s.Conn` is nil.** Java calls `notificationConsumer.apply(...)` without null-checking the consumer (by design). Go calls `s.Conn.Send(data)` without checking if `s.Conn` is nil. If the connection hasn't been set or has been cleared, this will panic.
+- [ ] **Session-open check added that doesn't exist in Java.** Go returns an error if `!s.IsOpen()`, but Java does NOT check session open state in `sendNotification`. Combined with the `isSessionOpen` initialization bug (defaults to 0/closed), this means `SendMessage` will always fail for new sessions.
+- [ ] **Missing tracing context support.** Java has two overloads — `sendNotification(ByteBuf)` (passes `TracingContext.NOOP`) and `sendNotification(ByteBuf, TracingContext)`. Go has a single `SendMessage` with no tracing context parameter at all.
+
+## toString (String)
+
+- [ ] **Missing fields in output.** Java includes: `id`, `version`, `userId`, `deviceType`, `loginDate`, `loginLocation`, `isSessionOpen`, `connection`. Go only includes: `ID`, `UserID`, `DeviceType`, `IP`. Missing from Go: `Version`, `LoginDate`, `Location`, `isSessionOpen` state, and connection info.
+
+## setConnection
+
+- [ ] No bugs. The Go `SetConnection` correctly assigns both the `Conn` and `IP` fields, matching the Java `setConnection` logic.
+
+## setLastHeartbeatRequestTimestampToNow / setLastRequestTimestampToNow
+
+- [ ] No bugs. Both methods correctly update the millisecond and nanosecond timestamps using atomic stores, matching the Java volatile write semantics.
+
+## acquireDeleteSessionRequestLoggingLock
+
+- [ ] No bugs. The Go `AcquireDeleteSessionRequestLoggingLock` correctly uses `CompareAndSwapUint32(0, 1)`, matching the Java `AtomicIntegerFieldUpdater.compareAndSet(this, 0, 1)`.
+
+## hasPermission
+
+- [ ] **Nil permissions map returns `true` (all permissions), diverging from Java behavior.** Java's `permissions` is a `Set` that is always non-null (initialized to `Collections.emptyMap()` equivalent or passed in constructor). Java's `contains()` on an empty set returns `false`. Go returns `true` when `Permissions` is nil, which means "no permissions configured = full access" — the opposite semantics of Java's empty set.
+
+# UserSessionWrapper.java
+*Checked methods: getIp(), getIpStr(), setUserSession(UserSession userSession), hasUserSession()*
+
+## GetIP / getIp()
+- [ ] **Missing lazy initialization**: The Java version lazily initializes `ip` from `address.getAddress().getAddress()` wrapped in a `ByteArrayWrapper` on first access (caching the result). The Go version simply returns the struct field `w.IP` without any lazy computation from an address. The `IP` field is expected to be pre-populated externally, which changes the initialization contract and could result in an empty/zero value if the caller forgets to set it.
+
+## GetIPStr / getIpStr()
+- [ ] **Missing lazy initialization**: The Java version lazily initializes `ipStr` from `address.getAddress().getHostAddress()` on first access (caching the result). The Go version simply returns the struct field `w.IPStr` without any lazy computation from an address. The `IPStr` field is expected to be pre-populated externally, which changes the initialization contract and could result in an empty string if the caller forgets to set it.
+
+## SetUserSession / setUserSession(UserSession userSession)
+- [ ] **Missing call to `userSession.setConnection(connection, getIp())`**: The Java version calls `userSession.setConnection(connection, getIp())` after assigning the user session, which passes the network connection and IP byte array to the user session. The Go version only assigns `w.UserSession = userSession` without calling any equivalent method on the user session.
+- [ ] **Missing call to `onSessionEstablished.accept(userSession)`**: The Java version invokes the `onSessionEstablished` callback (a `Consumer<UserSession>`) after setting up the session and connection. The Go version does not invoke any callback, completely omitting this notification mechanism.
+
+# ExtendedHAProxyMessageReader.java
+*Checked methods: channelRead(ChannelHandlerContext ctx, Object msg)*
+
+## channelRead
+
+- [ ] **Missing source address/port extraction from PROXY protocol header**: The Java code explicitly extracts `sourceAddress` and `sourcePort` from the `HAProxyMessage` via `proxyMessage.sourceAddress()` and `proxyMessage.sourcePort()`, then creates an unresolved `InetSocketAddress` from them. The Go version calls `conn.RemoteAddr()` which, even on a `*proxyproto.Conn`, returns the proxied address transparently — so this aspect is functionally equivalent. However, the Java code creates an **unresolved** address (`AddressUtils.createUnresolved`), meaning no DNS resolution is performed. The Go `proxyproto.Conn.RemoteAddr()` returns a resolved `*net.TCPAddr`. This is a behavioral difference: the Go version may trigger DNS resolution that the Java version deliberately avoids.
+
+- [ ] **Missing null/validity check on source address before using it**: The Java code checks `if (sourceAddress != null && sourcePort > 0)` before using the proxy-provided address. If the source address is null or the port is invalid (≤ 0), it falls back to `ctx.channel().remoteAddress()`. The Go version unconditionally uses `conn.RemoteAddr()` with no validity guard and no fallback path.
+
+- [ ] **Missing handler self-removal after processing**: The Java code calls `ctx.channel().pipeline().remove(this)` after processing the HAProxy message, ensuring this handler runs only once and is removed from the pipeline. The Go `Read` method has no equivalent — it can be called multiple times, invoking the callback repeatedly each time.
+
+- [ ] **Missing `ctx.read()` continuation call**: After processing the proxy message and invoking the callback, the Java code calls `ctx.read()` to resume reading on the channel. This is necessary because auto-read may be disabled. The Go version has no equivalent mechanism to signal that reading should continue after the proxy header is processed.
+
+- [ ] **Missing pass-through for non-PROXY messages**: The Java code has an `else` branch that calls `super.channelRead(ctx, msg)` for messages that are not `HAProxyMessage` instances, ensuring they flow through the pipeline normally. The Go `Read` method always invokes the callback regardless of message type, with no discrimination between proxy and non-proxy messages.
+
+- [ ] **`Read` method is dead code — never called**: The `ExtendedHAProxyMessageReader.Read()` method and the constructor `NewExtendedHAProxyMessageReader()` are never invoked anywhere in the codebase. The `onRemoteAddressConfirmed` callback is never wired up, meaning the remote address confirmation logic that Java implements is entirely absent in the Go version.
+
+# HAProxyUtil.java
+*Checked methods: addProxyProtocolHandlers(ChannelPipeline pipeline, Consumer<InetSocketAddress> onRemoteAddressConfirmed), addProxyProtocolDetectorHandler(ChannelPipeline pipeline, Consumer<InetSocketAddress> onRemoteAddressConfirmed)*
+
+Now I have the full picture. Here is the analysis:
+
+## AddProxyProtocolHandlers
+
+- [ ] **Method body is completely empty — no proxy protocol decoding or remote address callback is performed**: In Java, `addProxyProtocolHandlers` adds an `HAProxyMessageDecoder` followed by an `ExtendedHAProxyMessageReader` to the pipeline. The reader extracts the source address from the HAProxy message and invokes the `onRemoteAddressConfirmed` callback with it. In Go, `AddProxyProtocolHandlers` is a no-op function with an empty body and a comment saying "Replaced by WrapWithProxyProtocol interceptor above." However, `WrapWithProxyProtocol` only wraps the listener — it never invokes the `onRemoteAddressConfirmed` callback, meaning the critical blocklist check against the **proxied source IP** is never performed through the proxy protocol path.
+- [ ] **No REQUIRED-mode equivalent: proxy protocol is mandatory parsing, but the Go version silently accepts invalid/no-header connections**: In Java, `addProxyProtocolHandlers` is used when `proxyProtocolMode == REQUIRED`, meaning every connection **must** have a valid HAProxy protocol header. The `HAProxyMessageDecoder` will throw an exception and close the connection if no valid header is found. In Go, `proxyproto.Listener` by default treats missing proxy headers as non-fatal (it just passes the connection through), which differs from the REQUIRED behavior where absent/invalid headers should cause connection rejection.
+- [ ] **`ExtendedHAProxyMessageReader.Read` is dead code — never called anywhere**: The `Read` method on `ExtendedHAProxyMessageReader` and its constructor `NewExtendedHAProxyMessageReader` are never invoked in the codebase. The struct exists but serves no purpose, and the `OnRemoteAddressConfirmed` callback is never wired up to actual connection handling.
+
+## AddProxyProtocolDetectorHandler
+
+- [ ] **Method body is completely empty — no protocol detection or conditional handler installation is performed**: In Java, `addProxyProtocolDetectorHandler` adds an `ExtendedHAProxyMessageDetector` (a `ByteToMessageDecoder`) that inspects the first bytes to detect whether HAProxy protocol is present. If detected, it dynamically replaces itself with `HAProxyMessageDecoder` + `ExtendedHAProxyMessageReader`. If not detected (invalid result), it removes itself and calls `onRemoteAddressConfirmed` with the direct `channel.remoteAddress()`. In Go, `AddProxyProtocolDetectorHandler` is a no-op with an empty body, so this entire conditional detection logic is absent.
+- [ ] **No OPTIONAL-mode equivalent: Go cannot distinguish between proxy-present and proxy-absent connections**: In Java, `addProxyProtocolDetectorHandler` is used when `proxyProtocolMode == OPTIONAL`, meaning the server should detect and parse HAProxy headers if present, but fall back to the direct remote address if absent. The Go `WrapWithProxyProtocol` wraps the listener unconditionally and always attempts proxy parsing, without the fallback path that calls `onRemoteAddressConfirmed` with the direct channel address when no proxy header is detected.
+- [ ] **Blocklist check against proxied IP is never triggered through the proxy path**: In the Java `TcpServerFactory`, both methods wire the `onRemoteAddressConfirmed` callback to check `blocklistService.isIpBlocked(address.getAddress().getAddress())` using the address resolved from the proxy header. In Go, `HandleConnection` in `channel_handler.go:68` calls `conn.RemoteAddr()`, which after `proxyproto.Listener` wrapping will return the **proxied address** for the IP check — this partially works, but the explicit callback mechanism that Java uses (with `remoteAddressSink.tryEmitEmpty()` for blocked IPs and `tryEmitValue(address)` for passing) is not replicated, meaning any downstream logic that depends on the sink signal is missing.

@@ -35,8 +35,8 @@ type UserSessionID struct {
 // SendNotificationToLocalClients sends notification to local clients.
 // @MappedFrom sendNotificationToLocalClients(TracingContext tracingContext, ByteBuf notificationData, Set<Long> recipientIds, Set<UserSessionId> excludedUserSessionIds, @Nullable DeviceType excludedDeviceType)
 func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context, notificationData []byte, recipientIds []int64, excludedUserSessionIds map[UserSessionID]struct{}, excludedDeviceType *protocol.DeviceType) ([]int64, error) {
-	if len(notificationData) == 0 {
-		return nil, errors.New("notificationData cannot be empty")
+	if notificationData == nil {
+		return nil, errors.New("notificationData cannot be nil")
 	}
 	if len(recipientIds) == 0 {
 		return nil, errors.New("recipientIds cannot be empty")
@@ -45,33 +45,33 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 	var offlineRecipientIds []int64
 	hasExcludedUserSessionIds := len(excludedUserSessionIds) > 0
 
-	// We collect all the sending actions
 	for _, recipientID := range recipientIds {
-		sessions := s.sessionService.GetAllUserSessions(recipientID)
-		if len(sessions) == 0 {
+		manager := s.sessionService.GetUserSessionsManager(ctx, recipientID)
+		if manager == nil {
 			offlineRecipientIds = append(offlineRecipientIds, recipientID)
-		} else {
-			for _, userSession := range sessions {
-				if excludedDeviceType != nil && *excludedDeviceType == userSession.DeviceType {
+			continue
+		}
+
+		sessions := manager.GetAllSessions()
+		for _, userSession := range sessions {
+			if excludedDeviceType != nil && *excludedDeviceType == userSession.DeviceType {
+				continue
+			}
+			if hasExcludedUserSessionIds {
+				id := UserSessionID{UserID: userSession.UserID, DeviceType: userSession.DeviceType}
+				if _, excluded := excludedUserSessionIds[id]; excluded {
 					continue
 				}
-				if hasExcludedUserSessionIds {
-					id := UserSessionID{UserID: userSession.UserID, DeviceType: userSession.DeviceType}
-					if _, excluded := excludedUserSessionIds[id]; excluded {
-						continue
-					}
-				}
+			}
 
-				err := userSession.Conn.Send(notificationData)
-				if err != nil {
-					offlineRecipientIds = append(offlineRecipientIds, recipientID)
-					if userSession.IsSessionOpen() {
-						// log error
-					}
-				} else {
-					userSession.Conn.TryNotifyClientToRecover()
+			err := userSession.Conn.Send(notificationData)
+			if err != nil {
+				offlineRecipientIds = append(offlineRecipientIds, recipientID)
+				if userSession.IsOpen() {
+					// log error
 				}
 			}
+			userSession.Conn.TryNotifyClientToRecover()
 		}
 	}
 

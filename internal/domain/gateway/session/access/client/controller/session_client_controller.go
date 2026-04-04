@@ -23,14 +23,16 @@ func NewSessionClientController(sessionService *session.SessionService) *Session
 
 // HandleDeleteSessionRequest handles a client's request to delete/logout their session.
 // @MappedFrom handleDeleteSessionRequest(UserSessionWrapper sessionWrapper)
-func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper) (*protocol.TurmsNotification, error) {
-	userSession := sessionWrapper.UserSession
-	if userSession == nil {
-		return nil, nil
+func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper) (*common.RequestHandlerResult, error) {
+	if !sessionWrapper.HasUserSession() {
+		return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
 	}
-
-	c.sessionService.CloseLocalSession(ctx, userSession.UserID, []protocol.DeviceType{userSession.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
-	return nil, nil
+	userSession := sessionWrapper.UserSession
+	_, err := c.sessionService.CloseLocalSession(ctx, userSession.UserID, []protocol.DeviceType{userSession.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
+	if err != nil {
+		// TODO: LOGGER.error("Caught an error while closing the session with the user ID: " + userId, t)
+	}
+	return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
 }
 
 // HandleCreateSessionRequest handles a client's request to create/login a session.
@@ -47,20 +49,16 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	}
 
 	var userStatus protocol.UserStatus
-	// If the value is somehow unrecognized, use a default/nil. Go protoc doesn't gen UNRECOGNIZED constants explicitly if skipping, but let's assume valid.
 	if req.UserStatus != nil {
 		userStatus = *req.UserStatus
 	}
 
 	deviceType := req.DeviceType
-	// Go doesn't inherently have UNRECOGNIZED on generated pb unless using protoc-gen-go specific output.
-	// The protoc generated enum unknown case usually maps to whatever default is or UNKNOWN.
-	if deviceType == protocol.DeviceType(5) { // Assuming 5 is UNKNOWN
-		deviceType = protocol.DeviceType_UNKNOWN
+	if deviceType == protocol.DeviceType_UNKNOWN {
+		deviceType = protocol.DeviceType_DESKTOP // Default or throw as per Java
 	}
 
 	deviceDetails := req.DeviceDetails
-
 	var location *protocol.UserLocation
 	if req.Location != nil {
 		location = req.Location
@@ -69,7 +67,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	session, err := c.sessionService.HandleLoginRequest(
 		ctx,
 		int(req.Version),
-		[]byte(sessionWrapper.GetIP()),
+		net.ParseIP(sessionWrapper.GetIPStr()),
 		userID,
 		password,
 		deviceType,
@@ -82,18 +80,8 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		return nil, err
 	}
 
-	// The sessionEstablishTimeout task cancellation logic from Java
-	// (sessionEstablishTimeout == null || sessionEstablishTimeout.cancel())
-	// (sessionEstablishTimeout == null || sessionEstablishTimeout.cancel())
-	// In Go, timeouts are usually managed via Context or custom connection layer timers.
-	isTimeout := false
-	if isTimeout {
-		c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
-		return common.NewRequestHandlerResult(constant.ResponseStatusCode_LOGIN_TIMEOUT, ""), nil
-	}
-
 	// Ensure the network connection is still open before cementing the session
-	isConnectionAlive := true
+	isConnectionAlive := false
 	if conn := sessionWrapper.GetConnection(); conn != nil {
 		isConnectionAlive = conn.IsActive()
 	}
@@ -105,17 +93,18 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		sessionWrapper.SetUserSession(session)
 
 		userSessionsManager := c.sessionService.GetUserSessionsManager(ctx, userID)
+		if userSessionsManager != nil {
+			// Fire session established hooks
+			c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)
 
-		// Fire session established hooks
-		c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)
-
-		// Invoke online handlers (plugins)
-		c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)
+			// Invoke online handlers (plugins)
+			c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)
+		}
 
 		return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
 	}
 
 	// If the connection dropped during the process, clean up
 	c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
-	return nil, nil
+	return common.NewRequestHandlerResult(constant.ResponseStatusCode_LOGIN_TIMEOUT, ""), nil
 }

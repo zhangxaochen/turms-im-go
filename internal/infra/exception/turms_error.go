@@ -9,6 +9,14 @@ type TurmsError struct {
 	Message string
 }
 
+type FeatureDisabledError struct {
+	Message string
+}
+
+func (e *FeatureDisabledError) Error() string {
+	return e.Message
+}
+
 func (e *TurmsError) Error() string {
 	return fmt.Sprintf("TurmsError(code=%d, message=%s)", e.Code, e.Message)
 }

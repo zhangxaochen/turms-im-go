@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"net"
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
@@ -21,26 +22,26 @@ func NewSessionController(sessionService *session.SessionService) *SessionContro
 // DeleteSessions deletes sessions based on the provided user IDs and/or IPs.
 // @MappedFrom deleteSessions(@QueryParam(required = false) Set<Long> ids, @QueryParam(required = false) Set<String> ips)
 func (c *SessionController) DeleteSessions(ctx context.Context, ids []int64, ips []string) (int, error) {
-	count := 0
-	if len(ids) > 0 {
-		err := c.sessionService.CloseLocalSessionsByUserIds(ctx, ids, constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN)
-		if err != nil {
-			return 0, err
-		}
-		count += len(ids)
+	closeReason := constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN
+	if len(ids) == 0 && len(ips) == 0 {
+		return c.sessionService.CloseAllLocalSessions(ctx, closeReason)
 	}
 
+	var ipsBytes [][]byte
 	if len(ips) > 0 {
-		var byteIps [][]byte
-		for _, ip := range ips {
-			byteIps = append(byteIps, []byte(ip))
+		ipsBytes = make([][]byte, len(ips))
+		for i, ip := range ips {
+			parsedIp := net.ParseIP(ip)
+			if parsedIp == nil {
+				ipsBytes[i] = []byte(ip)
+			} else {
+				if ipv4 := parsedIp.To4(); ipv4 != nil {
+					ipsBytes[i] = ipv4
+				} else {
+					ipsBytes[i] = parsedIp
+				}
+			}
 		}
-		n, err := c.sessionService.CloseLocalSessionsByIp(ctx, byteIps, constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN)
-		if err != nil {
-			return 0, err
-		}
-		count += n
 	}
-
-	return count, nil
+	return c.sessionService.CloseLocalSessions(ctx, ids, ipsBytes, closeReason)
 }

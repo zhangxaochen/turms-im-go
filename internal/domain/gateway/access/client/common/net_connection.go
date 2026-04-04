@@ -13,10 +13,23 @@ type CloseReason struct {
 	Status             constant.SessionCloseStatus
 	BusinessStatusCode constant.ResponseStatusCode
 	Reason             string
+	IsNotifyClient      bool
 }
 
 func NewCloseReason(status constant.SessionCloseStatus) CloseReason {
-	return CloseReason{Status: status}
+	// SessionCloseStatus.isNotifyClient() logic from Java
+	isNotify := false
+	if status == constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE ||
+		status == constant.SessionCloseStatus_DISCONNECTED_BY_ADMIN ||
+		status == constant.SessionCloseStatus_DISCONNECTED_BY_SERVER ||
+		status == constant.SessionCloseStatus_SWITCH ||
+		status == constant.SessionCloseStatus_HEARTBEAT_TIMEOUT {
+		isNotify = true
+	}
+	return CloseReason{
+		Status:         status,
+		IsNotifyClient: isNotify,
+	}
 }
 
 func CloseReasonFromError(err error) CloseReason {
@@ -61,7 +74,7 @@ func CloseReasonFromError(err error) CloseReason {
 type NetConnection interface {
 	GetAddress() net.Addr
 	Send(ctx context.Context, buffer []byte) error
-	CloseWithReason(reason CloseReason) error
+	CloseWithReason(reason CloseReason) bool
 	Close() error
 	IsConnected() bool
 	IsSwitchingToUdp() bool
@@ -94,13 +107,16 @@ func (b *BaseNetConnection) SetUdpSignalDispatcher(dispatcher func(*net.UDPAddr)
 }
 
 // @MappedFrom close(CloseReason closeReason)
-func (b *BaseNetConnection) CloseWithReason(reason CloseReason) error {
+func (b *BaseNetConnection) CloseWithReason(reason CloseReason) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if !b.isConnected {
+		return false
+	}
 	b.isConnected = false
 	b.isConnectionRecovering = false
 	b.isSwitchingToUdp = reason.Status == constant.SessionCloseStatus_SWITCH
-	return nil
+	return true
 }
 
 // @MappedFrom close()

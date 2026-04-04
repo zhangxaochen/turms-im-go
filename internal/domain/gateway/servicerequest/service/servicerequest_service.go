@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"time"
 
+	"google.golang.org/protobuf/proto"
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
 	"im.turms/server/pkg/protocol"
 )
@@ -25,21 +28,13 @@ func (s *ServiceRequestService) HandleServiceRequest(ctx context.Context, defaul
 
 	// TODO: Obtain buffer from serviceRequest and retain it (like serviceRequest.getTurmsRequestBuffer().retain())
 
-	// TODO: Construct HandleServiceRequest wrapper
-	// request := newHandleServiceRequest(serviceRequest)
-
-	// TODO: Replace with proper RPC call when 'Node' cluster infra is implemented
-	// Example port:
-	// response, err := s.node.GetRpcService().RequestResponse(request)
-	// if err != nil { return nil, err }
-
-	// TODO: defer release buffer
-	// defer serviceRequest.getTurmsRequestBuffer().release()
-
-	// TODO: Parse response properly using getNotificationFromResponse
-	// For now, return a mocked NO_CONTENT or empty TurmsNotification
-	var notification protocol.TurmsNotification
-	return &notification, nil
+	// For now, return a basic notification with timestamp to satisfy minimal client requirements
+	// until RPC forwarding is fully implemented.
+	notification := &protocol.TurmsNotification{
+		Timestamp: time.Now().UnixMilli(),
+		Code:      proto.Int32(int32(constant.ResponseStatusCode_OK)),
+	}
+	return notification, nil
 }
 
 // TODO: Implement getNotificationFromResponse
