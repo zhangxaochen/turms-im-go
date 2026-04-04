@@ -27,9 +27,9 @@ func NewConversationSettingsRepository(client *turmsmongo.Client) *ConversationS
 }
 
 // @MappedFrom upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings, Date lastUpdatedDate)
-func (r *ConversationSettingsRepository) UpsertSettings(ctx context.Context, ownerId int64, targetId int64, settings map[string]any, lastUpdatedDate time.Time) error {
+func (r *ConversationSettingsRepository) UpsertSettings(ctx context.Context, ownerId int64, targetId int64, settings map[string]any, lastUpdatedDate time.Time) (bool, error) {
 	if len(settings) == 0 {
-		return nil
+		return false, nil
 	}
 	filter := bson.M{"_id": po.ConversationSettingsKey{OwnerId: ownerId, TargetId: targetId}}
 	set := bson.M{po.ConversationSettingsFieldLastUpdatedDate: lastUpdatedDate}
@@ -38,12 +38,15 @@ func (r *ConversationSettingsRepository) UpsertSettings(ctx context.Context, own
 	}
 	update := bson.M{"$set": set}
 	opts := options.Update().SetUpsert(true)
-	_, err := r.col.UpdateOne(ctx, filter, update, opts)
-	return err
+	res, err := r.col.UpdateOne(ctx, filter, update, opts)
+	if err != nil {
+		return false, err
+	}
+	return res.ModifiedCount > 0 || res.UpsertedCount > 0, nil
 }
 
 // @MappedFrom unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames)
-func (r *ConversationSettingsRepository) UnsetSettings(ctx context.Context, ownerId int64, targetIds []int64, settingNames []string) error {
+func (r *ConversationSettingsRepository) UnsetSettings(ctx context.Context, ownerId int64, targetIds []int64, settingNames []string) (bool, error) {
 	filter := bson.M{po.ConversationSettingsFieldIdOwnerId: ownerId}
 	if len(targetIds) > 0 {
 		filter["_id.tid"] = bson.M{"$in": targetIds}
@@ -60,8 +63,11 @@ func (r *ConversationSettingsRepository) UnsetSettings(ctx context.Context, owne
 		update = bson.M{"$unset": bson.M{po.ConversationSettingsFieldSettings: ""}}
 	}
 
-	_, err := r.col.UpdateMany(ctx, filter, update)
-	return err
+	res, err := r.col.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return false, err
+	}
+	return res.ModifiedCount > 0, nil
 }
 
 // @MappedFrom unsetSettings(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames)
@@ -217,4 +223,19 @@ func (r *ConversationSettingsRepository) DeleteByOwnerIds(ctx context.Context, o
 		return 0, err
 	}
 	return res.DeletedCount, nil
+}
+
+func (r *ConversationSettingsRepository) FindByOwnerIdAndTargetIds(ctx context.Context, ownerId int64, targetIds []int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
+	if len(targetIds) == 0 {
+		return nil, nil
+	}
+	keys := make([]po.ConversationSettingsKey, len(targetIds))
+	for i, tid := range targetIds {
+		keys[i] = po.ConversationSettingsKey{OwnerId: ownerId, TargetId: tid}
+	}
+	return r.FindByIdAndSettingNamesWithKeys(ctx, keys, settingNames, lastUpdatedDateStart)
+}
+
+func (r *ConversationSettingsRepository) FindByOwnerId(ctx context.Context, ownerId int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
+	return r.FindByOwnerIdAndSettingNames(ctx, ownerId, settingNames, lastUpdatedDateStart)
 }
