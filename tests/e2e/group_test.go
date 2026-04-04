@@ -46,7 +46,7 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 	groupName := "Turms Alpha Test Group"
 
 	t.Run("Create Group", func(t *testing.T) {
-		group, err := groupSvc.CreateGroup(ctx, creatorID, groupID, &groupName, nil, nil)
+		group, err := groupSvc.CreateGroup(ctx, creatorID, groupID, &groupName, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, group)
 		assert.Equal(t, groupID, group.ID)

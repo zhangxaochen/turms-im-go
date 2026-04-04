@@ -55,7 +55,7 @@ func TestGroupCore_E2E(t *testing.T) {
 		name := "Go Developers"
 		intro := "A group for Go enthusiasts"
 
-		group, err := groupService.CreateGroup(ctx, creatorID, groupID, &name, &intro, nil)
+		group, err := groupService.CreateGroup(ctx, creatorID, groupID, &name, &intro, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, group)
 		assert.Equal(t, name, *group.Name)
