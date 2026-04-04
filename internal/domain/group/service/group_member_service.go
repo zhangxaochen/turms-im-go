@@ -455,3 +455,56 @@ func (s *GroupMemberService) AuthAndUpdateGroupMember(
 
 	return s.groupVersionService.UpdateMembersVersion(ctx, groupID)
 }
+
+// QueryUserJoinedGroupIds returns the group IDs the user has joined.
+func (s *GroupMemberService) QueryUserJoinedGroupIds(ctx context.Context, userID int64) ([]int64, error) {
+	return s.groupMemberRepo.FindUserJoinedGroupIDs(ctx, userID)
+}
+
+// AuthAndQueryGroupMembersWithVersion queries group members with version control and auth checks.
+// @MappedFrom authAndQueryGroupMembersWithVersion
+func (s *GroupMemberService) AuthAndQueryGroupMembersWithVersion(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	memberIDs []int64,
+	lastUpdatedDate *time.Time,
+) ([]*po.GroupMember, *time.Time, error) {
+	isMember, err := s.IsGroupMember(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !isMember {
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_QUERY_GROUP_MEMBER_INFO), "Only group members can query member info")
+	}
+
+	var version *time.Time
+	if lastUpdatedDate != nil {
+		v, err := s.groupVersionService.QueryGroupMembersVersion(ctx, groupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
+			return nil, nil, nil // Not modified since lastUpdatedDate
+		}
+		version = v
+	}
+
+	var members []po.GroupMember
+	if len(memberIDs) > 0 {
+		members, err = s.groupMemberRepo.FindGroupMembersWithIds(ctx, groupID, memberIDs)
+	} else {
+		members, err = s.groupMemberRepo.FindGroupMembers(ctx, groupID)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Convert to pointers for response
+	result := make([]*po.GroupMember, len(members))
+	for i := range members {
+		result[i] = &members[i]
+	}
+
+	return result, version, nil
+}

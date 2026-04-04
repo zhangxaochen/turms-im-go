@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -40,6 +41,50 @@ func (r *GroupRepository) FindGroups(ctx context.Context, groupIDs []int64) ([]*
 	}
 
 	cursor, err := r.col.Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var groups []*po.Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
+// QueryGroups retrieves groups based on various filters.
+func (r *GroupRepository) QueryGroups(ctx context.Context, groupIDs []int64, name *string, lastUpdatedDate *time.Time, skip *int32, limit *int32) ([]*po.Group, error) {
+	filter := bson.M{}
+	if len(groupIDs) > 0 {
+		filter["_id"] = bson.M{"$in": groupIDs}
+	}
+	if name != nil {
+		filter["n"] = *name
+	}
+	if lastUpdatedDate != nil {
+		filter["lud"] = bson.M{"$gt": *lastUpdatedDate}
+	}
+	// By default, do not return deleted groups if filtering doesn't explicitly look for it
+	// Actually, the original typically does not check deletion date unless specified, but for groups usually yes.
+	// Turms original:
+	// @MappedFrom findGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size)
+	// We'll mimic the logic simply. For exact parity we'd check if we need to filter `dd`. Let's assume we filter out deleted groups by default for queries unless lastUpdatedDate is used. Wait, in Turms if lastUpdatedDate is provided, it returns even deleted groups to let clients sync.
+	if lastUpdatedDate == nil {
+		filter["dd"] = bson.M{"$exists": false}
+	}
+
+	opts := options.Find()
+	if skip != nil {
+		opts.SetSkip(int64(*skip))
+	}
+	if limit != nil {
+		opts.SetLimit(int64(*limit))
+	} else {
+		// Parity: use default limit if necessary, but we'll let service handle limit constraints
+	}
+
+	cursor, err := r.col.Find(ctx, filter, opts)
 	if err != nil {
 		return nil, err
 	}

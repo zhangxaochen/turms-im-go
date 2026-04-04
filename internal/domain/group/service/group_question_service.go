@@ -8,6 +8,7 @@ import (
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
+	"im.turms/server/pkg/protocol"
 )
 
 type GroupQuestionService struct {
@@ -126,8 +127,80 @@ func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionI
 	return s.AuthAndUpdateQuestion(ctx, 0, groupID, questionID, newQuestion, newAnswers, newScore)
 }
 
-func (s *GroupQuestionService) CheckGroupQuestionAnswerAndJoin(ctx context.Context, requesterID int64, questionID int64, groupID int64, answer string) (bool, error) {
-	return s.AuthAndCheckAnswer(ctx, requesterID, questionID, answer)
+func (s *GroupQuestionService) CheckGroupJoinQuestionsAnswersAndJoin(ctx context.Context, requesterID int64, questionIdToAnswer map[int64]string) (*protocol.GroupJoinQuestionsAnswerResult, error) {
+	if len(questionIdToAnswer) == 0 {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "The questions answers shouldn't be empty")
+	}
+
+	var questionIDs []int64
+	for id := range questionIdToAnswer {
+		questionIDs = append(questionIDs, id)
+	}
+
+	questions, err := s.questionRepo.FindQuestions(ctx, questionIDs, nil, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(questions) != len(questionIDs) {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED), "Question not found or disabled")
+	}
+
+	var groupID *int64
+	totalScore := 0
+	for _, q := range questions {
+		if groupID == nil {
+			groupID = &q.GroupID
+		} else if *groupID != q.GroupID {
+			return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "The questions should belong to the same group")
+		}
+
+		userAnswer := questionIdToAnswer[q.ID]
+		isCorrect := false
+		for _, ans := range q.Answers {
+			if ans == userAnswer {
+				isCorrect = true
+				break
+			}
+		}
+
+		if isCorrect {
+			totalScore += q.Score
+		}
+	}
+
+	if groupID == nil {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED), "Question not found or disabled")
+	}
+
+	minimumScore, err := s.groupService.QueryGroupMinimumScoreIfActiveAndNotDeleted(ctx, *groupID)
+	if err != nil {
+		return nil, err
+	}
+	if minimumScore == nil {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP), "Group does not exist or has been deleted")
+	}
+
+	joined := false
+	if int32(totalScore) >= *minimumScore {
+		// Add user to group
+		err = s.groupMemberService.AddGroupMember(ctx, *groupID, requesterID, protocol.GroupMemberRole_MEMBER, nil, nil)
+		if err != nil {
+			if exception.IsCode(err, int32(constant.ResponseStatusCode_USER_ALREADY_GROUP_MEMBER)) {
+				joined = true
+			} else {
+				return nil, err
+			}
+		} else {
+			joined = true
+		}
+	}
+
+	return &protocol.GroupJoinQuestionsAnswerResult{
+		Score:       int32(totalScore),
+		QuestionIds: questionIDs,
+		Joined:      joined,
+	}, nil
 }
 
 func (s *GroupQuestionService) QueryJoinQuestions(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error) {
@@ -135,6 +208,51 @@ func (s *GroupQuestionService) QueryJoinQuestions(ctx context.Context, groupID i
 }
 
 // Internal
+
+func (s *GroupQuestionService) AuthAndQueryGroupJoinQuestionsWithVersion(ctx context.Context, requesterID int64, groupID int64, withAnswers bool, lastUpdatedDate *time.Time) (*po.GroupJoinQuestionsWithVersion, error) {
+	groupTypeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if groupTypeID == nil {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP), "Group does not exist or has been deleted")
+	}
+
+	version, err := s.groupVersionService.QueryGroupJoinQuestionsVersion(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if lastUpdatedDate != nil && version != nil && !version.After(*lastUpdatedDate) {
+		ts := version.UnixMilli()
+		lastUpdatedDateInt := &ts
+		return &po.GroupJoinQuestionsWithVersion{
+			LastUpdatedDate: lastUpdatedDateInt,
+		}, nil
+	}
+
+	questions, err := s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	
+	questionPtrs := make([]*po.GroupJoinQuestion, len(questions))
+	for i := range questions {
+		if !withAnswers {
+			questions[i].Answers = nil
+		}
+		questionPtrs[i] = &questions[i]
+	}
+
+	var lastUpdatedDateInt *int64
+	if version != nil {
+		ts := version.UnixMilli()
+		lastUpdatedDateInt = &ts
+	}
+	return &po.GroupJoinQuestionsWithVersion{
+		JoinQuestions:   questionPtrs,
+		LastUpdatedDate: lastUpdatedDateInt,
+	}, nil
+}
 
 func (s *GroupQuestionService) QueryJoinQuestionsWithAnswers(ctx context.Context, groupID int64) ([]po.GroupJoinQuestion, error) {
 	return s.questionRepo.FindQuestionsByGroupID(ctx, groupID)

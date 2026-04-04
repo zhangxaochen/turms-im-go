@@ -57,7 +57,7 @@ func TestGroupRelationshipService(t *testing.T) {
 	blockSvc.SetGroupMemberService(memberSvc)
 	groupSvc.SetGroupMemberService(memberSvc)
 
-	joinReqSvc := service.NewGroupJoinRequestService(joinReqRepo, memberSvc, blockSvc, groupSvc, typeSvc, groupVerSvc)
+	joinReqSvc := service.NewGroupJoinRequestService(joinReqRepo, memberSvc, blockSvc, groupSvc, typeSvc, groupVerSvc, userVerSvc)
 	invSvc := service.NewGroupInvitationService(invRepo, memberSvc, groupSvc, typeSvc, groupVerSvc, userVerSvc, idGen)
 	questionSvc := service.NewGroupQuestionService(questionRepo, memberSvc, groupSvc, groupVerSvc)
 
@@ -180,9 +180,11 @@ func TestGroupRelationshipService(t *testing.T) {
 		assert.Equal(t, "Updated Question?", questions[0].Question)
 		assert.Equal(t, 200, questions[0].Score)
 
-		match, err := questionSvc.CheckGroupQuestionAnswerAndJoin(ctx, userID, q.ID, groupID, "yes")
+		result, err := questionSvc.CheckGroupJoinQuestionsAnswersAndJoin(ctx, userID, map[int64]string{
+			q.ID: "yes",
+		})
 		require.NoError(t, err)
-		assert.True(t, match)
+		assert.True(t, result.Joined)
 
 		err = questionSvc.AuthAndDeleteQuestion(ctx, adminID, groupID, q.ID)
 		require.NoError(t, err)

@@ -10,6 +10,7 @@ import (
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/pkg/protocol"
+	user_service "im.turms/server/internal/domain/user/service"
 )
 
 type GroupJoinRequestService struct {
@@ -19,6 +20,7 @@ type GroupJoinRequestService struct {
 	groupService          *GroupService
 	groupTypeService      *GroupTypeService
 	groupVersionService   *GroupVersionService
+	userVersionService    *user_service.UserVersionService
 }
 
 func NewGroupJoinRequestService(
@@ -28,6 +30,7 @@ func NewGroupJoinRequestService(
 	groupService *GroupService,
 	groupTypeService *GroupTypeService,
 	groupVersionService *GroupVersionService,
+	userVersionService *user_service.UserVersionService,
 ) *GroupJoinRequestService {
 	return &GroupJoinRequestService{
 		joinReqRepo:           joinReqRepo,
@@ -36,6 +39,7 @@ func NewGroupJoinRequestService(
 		groupService:          groupService,
 		groupTypeService:      groupTypeService,
 		groupVersionService:   groupVersionService,
+		userVersionService:    userVersionService,
 	}
 }
 
@@ -174,6 +178,56 @@ func (s *GroupJoinRequestService) AuthAndHandleJoinRequest(ctx context.Context, 
 // @MappedFrom queryJoinRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (s *GroupJoinRequestService) QueryJoinRequests(ctx context.Context, groupID *int64, requesterID *int64, responderID *int64, status *po.RequestStatus, creationDate *time.Time, page int, size int) ([]*po.GroupJoinRequest, error) {
 	return s.joinReqRepo.FindRequests(ctx, groupID, requesterID, responderID, status, creationDate, nil, nil, page, size)
+}
+
+// AuthAndQueryGroupJoinRequestsWithVersion queries the group join requests requested.
+func (s *GroupJoinRequestService) AuthAndQueryGroupJoinRequestsWithVersion(ctx context.Context, requesterID int64, groupID int64, lastUpdatedDate *time.Time) (*po.GroupJoinRequestsWithVersion, error) {
+	role, err := s.groupMemberService.QueryGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil || (*role != protocol.GroupMemberRole_OWNER && *role != protocol.GroupMemberRole_MANAGER) {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_QUERY_GROUP_JOIN_REQUEST), "No permission to query group join requests")
+	}
+
+	version, err := s.groupVersionService.QueryGroupJoinRequestsVersion(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if lastUpdatedDate != nil && version != nil && !version.After(*lastUpdatedDate) {
+		return &po.GroupJoinRequestsWithVersion{LastUpdatedDate: version}, nil
+	}
+
+	reqs, err := s.joinReqRepo.FindRequests(ctx, &groupID, nil, nil, nil, nil, nil, nil, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	return &po.GroupJoinRequestsWithVersion{
+		GroupJoinRequests: reqs,
+		LastUpdatedDate:   version,
+	}, nil
+}
+
+// QueryUserGroupJoinRequestsWithVersion queries the group join requests for a user.
+func (s *GroupJoinRequestService) QueryUserGroupJoinRequestsWithVersion(ctx context.Context, requesterID int64, lastUpdatedDate *time.Time) (*po.GroupJoinRequestsWithVersion, error) {
+	version, err := s.userVersionService.QueryGroupJoinRequestsVersion(ctx, requesterID)
+	if err != nil {
+		return nil, err
+	}
+	if lastUpdatedDate != nil && version != nil && !version.After(*lastUpdatedDate) {
+		return &po.GroupJoinRequestsWithVersion{LastUpdatedDate: version}, nil
+	}
+	
+	reqs, err := s.joinReqRepo.FindRequests(ctx, nil, &requesterID, nil, nil, nil, nil, nil, 0, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	return &po.GroupJoinRequestsWithVersion{
+		GroupJoinRequests: reqs,
+		LastUpdatedDate:   version,
+	}, nil
 }
 
 // Backward Compatibility Aliases

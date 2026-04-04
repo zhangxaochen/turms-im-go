@@ -111,6 +111,22 @@ func (s *GroupService) QueryGroupTypeIdIfActiveAndNotDeleted(ctx context.Context
 	return group.TypeID, nil
 }
 
+// @MappedFrom queryGroupMinimumScoreIfActiveAndNotDeleted(@NotNull Long groupId)
+func (s *GroupService) QueryGroupMinimumScoreIfActiveAndNotDeleted(ctx context.Context, groupID int64) (*int32, error) {
+	group, err := s.groupRepo.FindGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil || group.DeletionDate != nil || (group.IsActive != nil && !*group.IsActive) {
+		return nil, nil
+	}
+	if group.MinimumScore == nil {
+		var zero int32 = 0
+		return &zero, nil
+	}
+	return group.MinimumScore, nil
+}
+
 // @MappedFrom authAndTransferGroupOwnership(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long successorId, boolean quitAfterTransfer, @Nullable ClientSession session)
 func (s *GroupService) AuthAndTransferGroupOwnership(
 	ctx context.Context,
@@ -214,5 +230,104 @@ func (s *GroupService) DeleteGroupsAndGroupMembers(ctx context.Context, groupIDs
 	}
 
 	// TODO: cascading message sequence IDs and conversations
+	return nil
+}
+
+// AuthAndQueryGroups queries groups. In Java, this method is called on groupService.
+// @MappedFrom authAndQueryGroups
+func (s *GroupService) AuthAndQueryGroups(ctx context.Context, groupIDs []int64, name *string, lastUpdatedDate *time.Time, skip *int32, limit *int32, fieldsToHighlight []int32) ([]*po.Group, error) {
+	// TODO: Add auth and highlights logic if necessary based on fieldsToHighlight
+	// For basic parity, we just delegate to QueryGroups
+	return s.groupRepo.QueryGroups(ctx, groupIDs, name, lastUpdatedDate, skip, limit)
+}
+
+// AuthAndUpdateGroup updates a group.
+// @MappedFrom authAndUpdateGroup(@NotNull Long requesterId, @NotNull Long groupId, @Nullable Long typeId, @Nullable Long successorId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0) Integer minimumScore, @Nullable @ValidGroupType GroupType groupType, @Nullable Boolean isActive, @Nullable Boolean quitAfterTransfer)
+func (s *GroupService) AuthAndUpdateGroup(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	typeID *int64,
+	successorID *int64,
+	name *string,
+	intro *string,
+	announcement *string,
+	minimumScore *int32,
+	isActive *bool,
+	quitAfterTransfer *bool,
+) error {
+	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
+	if err != nil {
+		return err
+	}
+	if ownerID == nil {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP), "Group does not exist")
+	}
+
+	isManager := false
+	if *ownerID != requesterID {
+		role, err := s.groupMemberService.FindGroupMemberRole(ctx, groupID, requesterID)
+		if err != nil {
+			return err
+		}
+		if role == nil || (*role != protocol.GroupMemberRole_MANAGER) {
+			return exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_INFO), "Only owner or manager can update group info")
+		}
+		isManager = true
+	}
+
+	if isManager && (typeID != nil || successorID != nil || isActive != nil) {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_TO_UPDATE_GROUP_INFO), "Only owner can update type, owner, or active status")
+	}
+
+	if successorID != nil {
+		transferQuit := false
+		if quitAfterTransfer != nil {
+			transferQuit = *quitAfterTransfer
+		}
+		err := s.AuthAndTransferGroupOwnership(ctx, requesterID, groupID, *successorID, transferQuit, nil)
+		if err != nil {
+			return err
+		}
+		if name == nil && intro == nil && announcement == nil && minimumScore == nil && typeID == nil && isActive == nil {
+			return nil
+		}
+	}
+
+	update := bson.M{}
+	if typeID != nil {
+		update["tid"] = *typeID
+	}
+	if name != nil {
+		update["n"] = *name
+	}
+	if intro != nil {
+		update["intro"] = *intro
+	}
+	if announcement != nil {
+		update["annc"] = *announcement
+	}
+	if minimumScore != nil {
+		update["ms"] = *minimumScore
+	}
+	if isActive != nil {
+		update["ac"] = *isActive
+	}
+
+	if len(update) == 0 {
+		return nil
+	}
+
+	update["lud"] = time.Now()
+
+	err = s.groupRepo.UpdateGroup(ctx, groupID, update)
+	if err != nil {
+		return err
+	}
+
+	if s.groupVersionService != nil {
+		return s.groupVersionService.UpdateInformationVersion(ctx, groupID)
+	}
+
 	return nil
 }

@@ -11,3 +11,8 @@ type GroupJoinQuestion struct {
 	Answers  []string `bson:"ans"` // Set of strings
 	Score    int      `bson:"score"`
 }
+
+type GroupJoinQuestionsWithVersion struct {
+	JoinQuestions   []*GroupJoinQuestion
+	LastUpdatedDate *int64
+}

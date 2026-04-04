@@ -119,10 +119,6 @@ func (s *GroupBlocklistService) UnblockUser(ctx context.Context, groupID int64, 
 // @MappedFrom queryBlockedUsers(int page, @QueryParam(required = false)
 // @MappedFrom queryBlockedUsers(Set<Long> ids)
 // @MappedFrom queryBlockedUsers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange blockDateRange, @Nullable Set<Long> requesterIds, @Nullable Integer page, @Nullable Integer size)
-func (s *GroupBlocklistService) QueryBlockedUsers(ctx context.Context, groupID int64) ([]po.GroupBlockedUser, error) {
-	return s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
-}
-
 // @MappedFrom isBlocked(Long ownerId, Long relatedUserId)
 // @MappedFrom isBlocked(@NotNull Long groupId, @NotNull Long userId)
 // @MappedFrom isBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache)
@@ -132,4 +128,90 @@ func (s *GroupBlocklistService) IsBlocked(ctx context.Context, groupID int64, us
 
 func (s *GroupBlocklistService) FilterBlockedUserIDs(ctx context.Context, groupID int64, userIDs []int64) ([]int64, error) {
 	return s.blockedUserRepo.FilterBlockedUserIDs(ctx, groupID, userIDs)
+}
+
+// AuthAndQueryGroupBlockedUserIds queries blocked user IDs with auth check.
+func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserIds(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	lastUpdatedDate *time.Time,
+) ([]int64, *time.Time, error) {
+	// 1. Authorization
+	role, err := s.groupMemberService.FindGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if role == nil {
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_QUERY_GROUP_MEMBER_INFO), "Only group members can query blocked user info")
+	}
+
+	// 2. Version check
+	var version *time.Time
+	if lastUpdatedDate != nil {
+		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
+			return nil, nil, nil
+		}
+		version = v
+	}
+
+	// 3. Query
+	users, err := s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var userIDs []int64
+	for _, u := range users {
+		userIDs = append(userIDs, u.ID.UserID)
+	}
+
+	return userIDs, version, nil
+}
+
+// AuthAndQueryGroupBlockedUserInfos queries blocked user infos with auth check.
+func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserInfos(
+	ctx context.Context,
+	requesterID int64,
+	groupID int64,
+	lastUpdatedDate *time.Time,
+) ([]po.GroupBlockedUser, *time.Time, error) {
+	// 1. Authorization
+	role, err := s.groupMemberService.FindGroupMemberRole(ctx, groupID, requesterID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if role == nil {
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_QUERY_GROUP_MEMBER_INFO), "Only group members can query blocked user info")
+	}
+
+	// 2. Version check
+	var version *time.Time
+	if lastUpdatedDate != nil {
+		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
+			return nil, nil, nil
+		}
+		version = v
+	}
+
+	// 3. Query
+	users, err := s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return users, version, nil
+}
+
+// QueryBlockedUsers returns blocked users for backward compatibility with tests
+func (s *GroupBlocklistService) QueryBlockedUsers(ctx context.Context, groupID int64) ([]po.GroupBlockedUser, error) {
+	return s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
 }
