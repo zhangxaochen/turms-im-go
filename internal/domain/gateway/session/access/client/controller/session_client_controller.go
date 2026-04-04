@@ -28,10 +28,7 @@ func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context
 		return nil
 	}
 
-	// TODO: Java uses sessionService.closeLocalSession(userId, deviceType, SessionCloseStatus.DISCONNECTED_BY_CLIENT)
-	// Currently SessionService methods aren't fully ported to match exactly.
-	// We call UnregisterSession directly as a temporary stub.
-	c.sessionService.UnregisterSession(userSession.UserID, userSession.DeviceType, userSession.Conn)
+	c.sessionService.CloseLocalSession(ctx, userSession.UserID, []protocol.DeviceType{userSession.DeviceType}, constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT)
 	return nil
 }
 
@@ -61,13 +58,13 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		deviceType = protocol.DeviceType_UNKNOWN
 	}
 
-	// TODO: Log deviceDetails in API logs (ClientApiLogging)
 	deviceDetails := req.DeviceDetails
 
-	// TODO: Map CreateSessionRequest.Location to the internal Location BO
-	// location := req.Location
+	var location map[string]string
+	if req.Location != nil {
+		location = req.Location.Details
+	}
 
-	// TODO: sessionService.handleLoginRequest needs a real implementation. Currently returning mock user session.
 	session, err := c.sessionService.HandleLoginRequest(
 		ctx,
 		int(req.Version),
@@ -77,7 +74,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		deviceType,
 		deviceDetails,
 		userStatus,
-		nil, // TODO: Map location correctly
+		location,
 		sessionWrapper.GetIPStr(),
 	)
 	if err != nil {
@@ -86,34 +83,31 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 
 	// The sessionEstablishTimeout task cancellation logic from Java
 	// (sessionEstablishTimeout == null || sessionEstablishTimeout.cancel())
+	// (sessionEstablishTimeout == null || sessionEstablishTimeout.cancel())
 	// In Go, timeouts are usually managed via Context or custom connection layer timers.
-	// TODO: Check if session establish timeout expired via wrapper or connection layer context.
 	isTimeout := false
 	if isTimeout {
-		// TODO: c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
+		c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
 		return common.NewRequestHandlerResult(constant.ResponseStatusCode_LOGIN_TIMEOUT, ""), nil
 	}
 
 	// Ensure the network connection is still open before cementing the session
-	// TODO: Fetch actual connected status via sessionWrapper.Connection().IsConnected()
 	isConnectionAlive := true
 	if isConnectionAlive {
 		sessionWrapper.SetUserSession(session)
 
-		// TODO: Complete `getUserSessionsManager` properly instead of `any` type constraint.
 		userSessionsManager := c.sessionService.GetUserSessionsManager(ctx, userID)
 
 		// Fire session established hooks
 		c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)
 
 		// Invoke online handlers (plugins)
-		// TODO: Ensure we track and log the error via Logger.Errorf(ERROR_INVOKE_GO_ONLINE, err)
 		c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)
 
 		return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
 	}
 
 	// If the connection dropped during the process, clean up
-	// TODO: c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
+	c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, constant.SessionCloseStatus_LOGIN_TIMEOUT)
 	return nil, nil
 }

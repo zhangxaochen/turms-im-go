@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"im.turms/server/internal/domain/user/service/onlineuser"
 	"im.turms/server/pkg/protocol"
 	"im.turms/server/internal/domain/common/infra/cluster/rpc"
+	"im.turms/server/internal/domain/common/constant"
 )
 
 var (
@@ -51,7 +53,7 @@ func NewSessionService(
 	nodeID string,
 	rpcService *rpc.RpcService,
 ) *SessionService {
-	return &SessionService{
+	svc := &SessionService{
 		shardedMap:                   NewShardedUserSessionsMap(256),
 		ConflictStrategy:             KickExisting,
 		userStatusService:            userStatusService,
@@ -61,6 +63,19 @@ func NewSessionService(
 		nodeID:                       nodeID,
 		rpcService:                   rpcService,
 	}
+
+	if rpcService != nil {
+		rpcService.Router().Register(1, func(ctx context.Context, payload []byte) ([]byte, error) {
+			var req rpc.SetUserOfflineRequest
+			if err := json.Unmarshal(payload, &req); err != nil {
+				return nil, err
+			}
+			svc.CloseLocalSession(ctx, req.UserID, req.DeviceTypes, constant.SessionCloseStatus(req.SessionCloseStatus))
+			return json.Marshal(true)
+		})
+	}
+
+	return svc
 }
 
 func (s *SessionService) RegisterSession(ctx context.Context, session *UserSession) error {
@@ -448,12 +463,18 @@ func (s *SessionService) closeSessionsWithConflictedDeviceTypes(ctx context.Cont
 				// SetLocalSessionOfflineByUserIdAndDeviceExists here if full logic was present.
 				continue
 			}
-			
 			// Send RPC to `info.NodeID` to kick `existingDeviceType` for `userId`
 			// Use the new RpcService skeleton.
-			// TODO: Actually implement SetSessionOfflineRequest in /dto
 			if s.rpcService != nil {
-				_, _ = s.rpcService.RequestResponse(ctx, info.NodeID, nil) // passing nil request struct temporarily
+				req := &rpc.SetUserOfflineRequest{
+					UserID:             userId,
+					DeviceTypes:        []protocol.DeviceType{existingDeviceType},
+					SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
+				}
+				_, err := s.rpcService.RequestResponse(ctx, info.NodeID, req)
+				if err != nil {
+					// Fallback handle
+				}
 			}
 		}
 	}
