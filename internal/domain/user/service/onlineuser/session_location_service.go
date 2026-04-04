@@ -12,6 +12,7 @@ import (
 type SessionLocationService interface {
 	UpsertUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude float32, latitude float32) error
 	RemoveUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType) error
+	RemoveUserLocations(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType) error
 	GetUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType) (*protocol.UserLocation, error)
 }
 
@@ -39,9 +40,18 @@ func (s *sessionLocationService) UpsertUserLocation(ctx context.Context, userID 
 }
 
 func (s *sessionLocationService) RemoveUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType) error {
-	member := fmt.Sprintf("%d:%d", userID, deviceType)
-	err := s.redisClient.RDB.ZRem(ctx, redis.KeyLocation, member).Err()
-	return err
+	return s.RemoveUserLocations(ctx, userID, []protocol.DeviceType{deviceType})
+}
+
+func (s *sessionLocationService) RemoveUserLocations(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType) error {
+	if len(deviceTypes) == 0 {
+		return nil
+	}
+	members := make([]any, len(deviceTypes))
+	for i, dt := range deviceTypes {
+		members[i] = fmt.Sprintf("%d:%d", userID, dt)
+	}
+	return s.redisClient.RDB.ZRem(ctx, redis.KeyLocation, members...).Err()
 }
 
 func (s *sessionLocationService) GetUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType) (*protocol.UserLocation, error) {

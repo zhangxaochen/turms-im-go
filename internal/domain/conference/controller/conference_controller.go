@@ -7,21 +7,31 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"im.turms/server/internal/domain/common/constant"
+	commonservice "im.turms/server/internal/domain/common/service"
 	"im.turms/server/internal/domain/conference/service"
 	"im.turms/server/internal/domain/gateway/access/router"
 	"im.turms/server/internal/domain/gateway/session"
+	"im.turms/server/internal/infra/property"
 	"im.turms/server/pkg/protocol"
 )
 
 // ConferenceServiceController maps to ConferenceServiceController.java
 // @MappedFrom ConferenceServiceController
 type ConferenceServiceController struct {
-	conferenceService *service.ConferenceService
+	conferenceService      *service.ConferenceService
+	outboundMessageService commonservice.OutboundMessageService
+	propertiesManager      *property.TurmsPropertiesManager
 }
 
-func NewConferenceServiceController(conferenceService *service.ConferenceService) *ConferenceServiceController {
+func NewConferenceServiceController(
+	conferenceService *service.ConferenceService,
+	outboundMessageService commonservice.OutboundMessageService,
+	propertiesManager *property.TurmsPropertiesManager,
+) *ConferenceServiceController {
 	return &ConferenceServiceController{
-		conferenceService: conferenceService,
+		conferenceService:      conferenceService,
+		outboundMessageService: outboundMessageService,
+		propertiesManager:      propertiesManager,
 	}
 }
 
@@ -75,6 +85,33 @@ func (c *ConferenceServiceController) HandleDeleteMeetingRequest(ctx context.Con
 	if !result.Success {
 		return nil, nil // Should be handled by error
 	}
+
+	p := c.propertiesManager.GetLocalProperties()
+	if p.Service.Notification.MeetingCanceled.NotifyMeetingParticipants {
+		participantIds, err := c.conferenceService.QueryMeetingParticipants(ctx, result.Meeting.UserID, result.Meeting.GroupID)
+		if err == nil && len(participantIds) > 0 {
+			filteredIds := make([]int64, 0, len(participantIds))
+			for _, id := range participantIds {
+				if id != s.UserID {
+					filteredIds = append(filteredIds, id)
+				}
+			}
+			if len(filteredIds) > 0 && c.outboundMessageService != nil {
+				notif := &protocol.TurmsNotification{
+					RelayedRequest: req,
+				}
+				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, filteredIds)
+			}
+		}
+	} else if p.Service.Notification.MeetingCanceled.NotifyRequesterOtherOnlineSessions {
+		if c.outboundMessageService != nil {
+			notif := &protocol.TurmsNotification{
+				RelayedRequest: req,
+			}
+			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID}) // Forward to other sessions
+		}
+	}
+
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(int32(constant.ResponseStatusCode_OK)),
@@ -94,13 +131,19 @@ func (c *ConferenceServiceController) HandleQueryMeetingsRequest(ctx context.Con
 		t := time.UnixMilli(*queryMeetingsRequest.CreationDateEnd)
 		creationDateEnd = &t
 	}
+	
+	ids := queryMeetingsRequest.Ids
+	creatorIds := queryMeetingsRequest.CreatorIds
+	userIds := queryMeetingsRequest.UserIds
+	groupIds := queryMeetingsRequest.GroupIds
+	
 	meetings, err := c.conferenceService.AuthAndQueryMeetings(
 		ctx,
 		s.UserID,
-		queryMeetingsRequest.Ids,
-		queryMeetingsRequest.CreatorIds,
-		queryMeetingsRequest.UserIds,
-		queryMeetingsRequest.GroupIds,
+		ids,
+		creatorIds,
+		userIds,
+		groupIds,
 		creationDateStart,
 		creationDateEnd,
 		queryMeetingsRequest.Skip,
@@ -164,6 +207,36 @@ func (c *ConferenceServiceController) HandleUpdateMeetingRequest(ctx context.Con
 	if !result.Success {
 		return nil, nil
 	}
+
+	p := c.propertiesManager.GetLocalProperties()
+	if p.Service.Notification.MeetingUpdated.NotifyMeetingParticipants && (updateMeetingRequest.Name != nil || updateMeetingRequest.Intro != nil) {
+		participantIds, err := c.conferenceService.QueryMeetingParticipants(ctx, result.Meeting.UserID, result.Meeting.GroupID)
+		if err == nil && len(participantIds) > 0 {
+			filteredIds := make([]int64, 0, len(participantIds))
+			for _, id := range participantIds {
+				if id != s.UserID {
+					filteredIds = append(filteredIds, id)
+				}
+			}
+			if len(filteredIds) > 0 && c.outboundMessageService != nil {
+				// Clear password before sending
+				copiedReq := proto.Clone(req).(*protocol.TurmsRequest)
+				copiedReq.GetUpdateMeetingRequest().Password = nil
+				notif := &protocol.TurmsNotification{
+					RelayedRequest: copiedReq,
+				}
+				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, filteredIds)
+			}
+		}
+	} else if p.Service.Notification.MeetingUpdated.NotifyRequesterOtherOnlineSessions && (updateMeetingRequest.Name != nil || updateMeetingRequest.Intro != nil) {
+		if c.outboundMessageService != nil {
+			notif := &protocol.TurmsNotification{
+				RelayedRequest: req,
+			}
+			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID})
+		}
+	}
+
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(int32(constant.ResponseStatusCode_OK)),
@@ -183,11 +256,49 @@ func (c *ConferenceServiceController) HandleUpdateMeetingInvitationRequest(ctx c
 	if err != nil {
 		return nil, err
 	}
-	if !result.Updated {
-		// Parity: Java version might return different codes depending on result.
+
+	var data *protocol.TurmsNotification_Data
+	if result.Updated && updateMeetingInvitationRequest.GetResponseAction() == protocol.ResponseAction_ACCEPT && result.AccessToken != nil {
+		data = &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_String_{
+				String_: *result.AccessToken,
+			},
+		}
 	}
+
+	p := c.propertiesManager.GetLocalProperties()
+	if result.Updated {
+		if p.Service.Notification.MeetingInvitationUpdated.NotifyMeetingParticipants {
+			participantIds, err := c.conferenceService.QueryMeetingParticipants(ctx, result.Meeting.UserID, result.Meeting.GroupID)
+			if err == nil && len(participantIds) > 0 {
+				filteredIds := make([]int64, 0, len(participantIds))
+				for _, id := range participantIds {
+					if id != s.UserID {
+						filteredIds = append(filteredIds, id)
+					}
+				}
+				if len(filteredIds) > 0 && c.outboundMessageService != nil {
+					copiedReq := proto.Clone(req).(*protocol.TurmsRequest)
+					copiedReq.GetUpdateMeetingInvitationRequest().Password = nil
+					notif := &protocol.TurmsNotification{
+						RelayedRequest: copiedReq,
+					}
+					_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, filteredIds)
+				}
+			}
+		} else if p.Service.Notification.MeetingInvitationUpdated.NotifyRequesterOtherOnlineSessions {
+			if c.outboundMessageService != nil {
+				notif := &protocol.TurmsNotification{
+					RelayedRequest: req,
+				}
+				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID})
+			}
+		}
+	}
+
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(int32(constant.ResponseStatusCode_OK)),
+		Data:      data,
 	}, nil
 }

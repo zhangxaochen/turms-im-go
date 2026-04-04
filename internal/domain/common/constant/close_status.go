@@ -18,4 +18,6 @@ const (
 	SessionCloseStatus_LOGIN_TIMEOUT                      SessionCloseStatus = 111
 	SessionCloseStatus_SWITCH                             SessionCloseStatus = 112
 	SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY SessionCloseStatus = 113
+	SessionCloseStatus_DISCONNECTED_BY_SERVER             SessionCloseStatus = 114
+	SessionCloseStatus_REDUNDANT_REQUEST                  SessionCloseStatus = 115
 )

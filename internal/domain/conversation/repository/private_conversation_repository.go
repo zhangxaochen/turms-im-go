@@ -86,20 +86,17 @@ func (r *PrivateConversationRepository) FindConversations(ctx context.Context, o
 
 // DeleteConversationsByOwnerIds deletes all private conversations for given ownerIDs.
 // @MappedFrom deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session)
-func (r *PrivateConversationRepository) DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64) error {
+func (r *PrivateConversationRepository) DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64) (*mongo.DeleteResult, error) {
 	if len(ownerIDs) == 0 {
-		return nil
+		return &mongo.DeleteResult{}, nil
 	}
 	filter := bson.M{"_id.oid": bson.M{"$in": ownerIDs}}
-	_, err := r.collection.DeleteMany(ctx, filter)
-	return err
+	return r.collection.DeleteMany(ctx, filter)
 }
-
-func (r *PrivateConversationRepository) DeleteByIds(ctx context.Context, keys []po.PrivateConversationKey) error {
+func (r *PrivateConversationRepository) DeleteByIds(ctx context.Context, keys []po.PrivateConversationKey) (*mongo.DeleteResult, error) {
 	if len(keys) == 0 {
-		return nil
+		return &mongo.DeleteResult{}, nil
 	}
 	filter := bson.M{"_id": bson.M{"$in": keys}}
-	_, err := r.collection.DeleteMany(ctx, filter)
-	return err
+	return r.collection.DeleteMany(ctx, filter)
 }

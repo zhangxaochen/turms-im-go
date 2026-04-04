@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -18,7 +17,7 @@ import (
 	"im.turms/server/pkg/protocol"
 )
 
-var ErrCorruptedFrame = errors.New("corrupted frame")
+// Errors are centralized in channel_handler.go
 var HeartbeatFailureRequestId int64 = -100
 
 // Placeholder interfaces and structs pending migration
@@ -37,12 +36,12 @@ type BlocklistService interface {
 
 type SessionClientController interface {
 	HandleCreateSessionRequest(ctx context.Context, wrapper *UserSessionWrapper, req *protocol.CreateSessionRequest) (*RequestHandlerResult, error)
-	HandleDeleteSessionRequest(ctx context.Context, wrapper *UserSessionWrapper) (*protocol.TurmsNotification, error)
+	HandleDeleteSessionRequest(ctx context.Context, wrapper *UserSessionWrapper) (*RequestHandlerResult, error)
 }
 
 type SessionService interface {
 	HandleHeartbeatUpdateRequest(session *session.UserSession)
-	GetLocalUserSession(ip string) []*session.UserSession
+	GetLocalUserSessionsByIp(ip []byte) []*session.UserSession
 }
 
 type ServiceRequest struct {
@@ -255,11 +254,11 @@ func (d *ClientRequestDispatcher) HandleServiceRequest(ctx context.Context, sess
 		}
 		return d.getNotificationFromHandlerResult(result, requestID), nil
 	case *protocol.TurmsRequest_DeleteSessionRequest:
-		notification, err := d.SessionController.HandleDeleteSessionRequest(context.Background(), sessionWrapper)
+		result, err := d.SessionController.HandleDeleteSessionRequest(context.Background(), sessionWrapper)
 		if err != nil {
 			return nil, err
 		}
-		return notification, nil
+		return d.getNotificationFromHandlerResult(result, requestID), nil
 	default:
 		return d.handleGenericServiceRequest(ctx, sessionWrapper, request, serviceRequestBuffer)
 	}

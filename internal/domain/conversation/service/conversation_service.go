@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"go.mongodb.org/mongo-driver/mongo"
+
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/conversation/po"
 	"im.turms/server/internal/domain/conversation/repository"
@@ -204,27 +206,27 @@ func (s *ConversationService) QueryPrivateConversations(ctx context.Context, key
 
 // DeletePrivateConversationsByKeys
 // @MappedFrom deletePrivateConversations(@NotNull Set<PrivateConversation.Key> keys)
-func (s *ConversationService) DeletePrivateConversationsByKeys(ctx context.Context, keys []po.PrivateConversationKey) error {
+func (s *ConversationService) DeletePrivateConversationsByKeys(ctx context.Context, keys []po.PrivateConversationKey) (*mongo.DeleteResult, error) {
 	if len(keys) == 0 {
-		return nil
+		return &mongo.DeleteResult{}, nil
 	}
 	return s.privateConvRepo.DeleteByIds(ctx, keys)
 }
 
 // DeletePrivateConversationsByUserIds
 // @MappedFrom deletePrivateConversations(@NotNull Set<Long> userIds, @Nullable ClientSession session)
-func (s *ConversationService) DeletePrivateConversationsByUserIds(ctx context.Context, userIDs []int64) error {
+func (s *ConversationService) DeletePrivateConversationsByUserIds(ctx context.Context, userIDs []int64) (*mongo.DeleteResult, error) {
 	if len(userIDs) == 0 {
-		return nil
+		return &mongo.DeleteResult{}, nil
 	}
 	return s.privateConvRepo.DeleteConversationsByOwnerIds(ctx, userIDs)
 }
 
 // DeleteGroupConversations
 // @MappedFrom deleteGroupConversations(@Nullable Set<Long> groupIds, @Nullable ClientSession session)
-func (s *ConversationService) DeleteGroupConversations(ctx context.Context, groupIDs []int64) error {
+func (s *ConversationService) DeleteGroupConversations(ctx context.Context, groupIDs []int64) (*mongo.DeleteResult, error) {
 	if len(groupIDs) == 0 {
-		return nil
+		return &mongo.DeleteResult{}, nil
 	}
 	return s.groupConvRepo.DeleteByIds(ctx, groupIDs)
 }

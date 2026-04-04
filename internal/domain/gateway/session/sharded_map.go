@@ -3,6 +3,7 @@ package session
 import (
 	"sync"
 
+	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -20,6 +21,21 @@ func NewUserSessionsManager(userID int64, userStatus protocol.UserStatus) *UserS
 		UserStatus: userStatus,
 		Sessions:   make(map[protocol.DeviceType]*UserSession),
 	}
+}
+
+func (m *UserSessionsManager) SessionCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return len(m.Sessions)
+}
+
+func (m *UserSessionsManager) CloseAllSessions(closeReason constant.SessionCloseStatus) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, sess := range m.Sessions {
+		sess.Close(closeReason)
+	}
+	m.Sessions = make(map[protocol.DeviceType]*UserSession)
 }
 
 func (m *UserSessionsManager) AddSession(session *UserSession) {

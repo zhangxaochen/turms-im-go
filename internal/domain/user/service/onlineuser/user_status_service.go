@@ -14,6 +14,7 @@ import (
 type UserStatusService interface {
 	AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time) (bool, error)
 	RemoveOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, nodeID string) (bool, error)
+	RemoveOnlineDevices(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType, nodeID string) (bool, error)
 	UpdateStatus(ctx context.Context, userID int64, status protocol.UserStatus) (bool, error)
 	FetchUserSessionsStatus(ctx context.Context, userID int64) (*bo.UserSessionsStatus, error)
 }
@@ -53,10 +54,17 @@ func (s *userStatusService) AddOnlineDevice(ctx context.Context, userID int64, d
 }
 
 func (s *userStatusService) RemoveOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, nodeID string) (bool, error) {
-	userIDStr := strconv.FormatInt(userID, 10)
-	deviceTypeStr := string(byte(deviceType))
+	return s.RemoveOnlineDevices(ctx, userID, []protocol.DeviceType{deviceType}, nodeID)
+}
 
-	keys := []string{userIDStr, nodeID, deviceTypeStr}
+func (s *userStatusService) RemoveOnlineDevices(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType, nodeID string) (bool, error) {
+	userIDStr := strconv.FormatInt(userID, 10)
+	var dtStrs []string
+	for _, dt := range deviceTypes {
+		dtStrs = append(dtStrs, string(byte(dt)))
+	}
+
+	keys := append([]string{userIDStr, nodeID}, dtStrs...)
 	res, err := s.scriptManager.Run(ctx, "remove_user_statuses", keys).Result()
 	if err != nil {
 		return false, err
@@ -67,7 +75,7 @@ func (s *userStatusService) RemoveOnlineDevice(ctx context.Context, userID int64
 		return false, fmt.Errorf("unexpected script return type: %T", res)
 	}
 
-	return resInt == 1, nil
+	return resInt > 0, nil
 }
 
 func (s *userStatusService) UpdateStatus(ctx context.Context, userID int64, status protocol.UserStatus) (bool, error) {

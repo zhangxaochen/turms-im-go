@@ -77,50 +77,77 @@ func PastOrPresent(date *time.Time, name string) error {
 	return nil
 }
 
-// ValidRequestStatus (Placeholder for specific business validator)
+// ValidRequestStatus
 // @MappedFrom validRequestStatus(RequestStatus status)
 func ValidRequestStatus(status interface{}, name string) error {
+	// Simple stub for missing PB logic
 	return nil
 }
 
 // @MappedFrom validResponseAction(ResponseAction action)
-func ValidResponseAction() {
+func ValidResponseAction(action interface{}) error {
+	return nil
 }
 
 // @MappedFrom validDeviceType(DeviceType deviceType)
-func ValidDeviceType() {
+func ValidDeviceType(deviceType interface{}) error {
+	return nil
 }
 
 // @MappedFrom validProfileAccess(ProfileAccessStrategy value)
-func ValidProfileAccess() {
+func ValidProfileAccess(value interface{}) error {
+	return nil
 }
 
 // @MappedFrom validRelationshipKey(UserRelationship.Key key)
-func ValidRelationshipKey() {
+func ValidRelationshipKey(key interface{}) error {
+	if key == nil {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "UserRelationship key must not be null")
+	}
+	return nil
 }
 
 // @MappedFrom validRelationshipGroupKey(UserRelationshipGroup.Key key)
-func ValidRelationshipGroupKey(key interface{}) error { // use interface{} or proper type
-	// Actually, wait, let's not introduce a dependency on po here if we can avoid it.
+func ValidRelationshipGroupKey(key interface{}) error {
+	if key == nil {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "UserRelationshipGroup key must not be null")
+	}
 	return nil
 }
 
 // @MappedFrom validGroupMemberKey(GroupMember.Key key)
-func ValidGroupMemberKey() {
+func ValidGroupMemberKey(key interface{}) error {
+	if key == nil {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupMember key must not be null")
+	}
+	return nil
 }
 
 // @MappedFrom validGroupMemberRole(GroupMemberRole role)
-func ValidGroupMemberRole() {
+func ValidGroupMemberRole(role interface{}) error {
+	return nil
 }
 
 // @MappedFrom validGroupBlockedUserKey(GroupBlockedUser.Key key)
-func ValidGroupBlockedUserKey() {
+func ValidGroupBlockedUserKey(key interface{}) error {
+	if key == nil {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupBlockedUser key must not be null")
+	}
+	return nil
 }
 
 // @MappedFrom validNewGroupQuestion(NewGroupQuestion question)
-func ValidNewGroupQuestion() {
+func ValidNewGroupQuestion(question interface{}) error {
+	if question == nil {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "NewGroupQuestion must not be null")
+	}
+	return nil
 }
 
 // @MappedFrom validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)
-func ValidGroupQuestionIdAndAnswer() {
+func ValidGroupQuestionIdAndAnswer(questionIdAndAnswer interface{}) error {
+	if questionIdAndAnswer == nil {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "Map entry must not be null")
+	}
+	return nil
 }

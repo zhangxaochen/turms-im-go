@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/session"
@@ -82,34 +83,37 @@ type UdpRequestDispatcher struct {
 	sessionService   *session.SessionService
 	notificationSink chan UdpNotification
 	connection       *net.UDPConn
+	statusPool       sync.Map // Added for caching ResponseStatusCode buffers
+	stopChan         chan struct{}
 }
 
 func NewUdpRequestDispatcher(sessionService *session.SessionService, enabled bool, host string, port int) *UdpRequestDispatcher {
+	d := &UdpRequestDispatcher{
+		sessionService: sessionService,
+		stopChan:       make(chan struct{}),
+	}
+	Instance = d
+
 	if !enabled {
-		return &UdpRequestDispatcher{}
+		return d
 	}
 	addr := fmt.Sprintf("%s:%d", host, port)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		log.Printf("Failed to resolve UDP address: %v", err)
-		return &UdpRequestDispatcher{}
+		return d
 	}
 	conn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		log.Printf("Failed to listen UDP: %v", err)
-		return &UdpRequestDispatcher{}
+		return d
 	}
 
-	d := &UdpRequestDispatcher{
-		sessionService:   sessionService,
-		notificationSink: make(chan UdpNotification, 1024),
-		connection:       conn,
-	}
+	d.notificationSink = make(chan UdpNotification, 1024)
+	d.connection = conn
 
 	go d.readLoop()
 	go d.writeLoop()
-
-	Instance = d
 
 	return d
 }
@@ -147,12 +151,18 @@ func (d *UdpRequestDispatcher) SendSignal(address net.Addr, signal UdpNotificati
 			Type:             signal,
 		}
 		select {
+		case <-d.stopChan:
+			return
 		case d.notificationSink <- notification:
 		default:
 			// Fallback to goroutine to prevent dropping notifications when the buffer is full
 			// This matches Java's unbounded sink behavior.
 			go func() {
-				d.notificationSink <- notification
+				select {
+				case <-d.stopChan:
+					return
+				case d.notificationSink <- notification:
+				}
 			}()
 		}
 	}
@@ -212,9 +222,14 @@ func (d *UdpRequestDispatcher) GetBufferFromStatusCode(code constant.ResponseSta
 	if code == constant.ResponseStatusCode_OK {
 		return []byte{}
 	}
+	if b, ok := d.statusPool.Load(code); ok {
+		return b.([]byte)
+	}
 	// Use 2 bytes representing the business code
 	val := uint16(code)
-	return []byte{byte(val >> 8), byte(val)}
+	buf := []byte{byte(val >> 8), byte(val)}
+	d.statusPool.Store(code, buf)
+	return buf
 }
 
 // @MappedFrom get(UdpNotificationType type)
@@ -223,6 +238,5 @@ func (d *UdpRequestDispatcher) GetBufferFromNotificationType(t UdpNotificationTy
 	if idx >= 0 && idx < len(udpNotificationBuffers) {
 		return udpNotificationBuffers[idx]
 	}
-	// ordinal + 1 per the Java implementation
-	return []byte{byte(t) + 1}
+	return nil
 }
