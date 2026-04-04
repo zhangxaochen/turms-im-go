@@ -58,7 +58,7 @@ func (c *TcpConnection) CloseWithReason(reason common.CloseReason) error {
 					log.Printf("Failed to marshal close notification: %v", err)
 					break
 				}
-				
+
 				err = c.Send(context.Background(), payload)
 				if err == nil {
 					break

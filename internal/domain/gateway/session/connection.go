@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
-	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/internal/domain/common/constant"
+	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
 )
- 
+
 // MessageHandler defines the function signature for handling incoming client messages.
 type MessageHandler func(ctx context.Context, userSession *UserSession, message []byte)
 

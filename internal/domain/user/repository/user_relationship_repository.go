@@ -281,11 +281,11 @@ func (r *userRelationshipRepository) UpdateUserOneSidedRelationships(
 	if name != nil {
 		setOps["n"] = name
 	}
-	
+
 	if len(setOps) == 0 && len(unsetOps) == 0 {
 		return 0, nil
 	}
-	
+
 	update := bson.M{}
 	if len(setOps) > 0 {
 		update["$set"] = setOps

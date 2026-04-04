@@ -85,7 +85,7 @@ func (r *ConversationSettingsRepository) UnsetSettingsWithKeys(ctx context.Conte
 }
 
 // @MappedFrom findByIdAndSettingNames(Long ownerId, Long targetId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)
-func (r *ConversationSettingsRepository) FindByIdAndSettingNames(ctx context.Context, ownerId int64, targetId int64, settingNames []string, lastUpdatedDateStart *time.Time) (*po.ConversationSettings, error) {
+func (r *ConversationSettingsRepository) FindByKey(ctx context.Context, ownerId int64, targetId int64, settingNames []string, lastUpdatedDateStart *time.Time) (*po.ConversationSettings, error) {
 	filter := bson.M{"_id": po.ConversationSettingsKey{OwnerId: ownerId, TargetId: targetId}}
 	if lastUpdatedDateStart != nil {
 		filter[po.ConversationSettingsFieldLastUpdatedDate] = bson.M{"$gte": *lastUpdatedDateStart}
@@ -112,6 +112,41 @@ func (r *ConversationSettingsRepository) FindByIdAndSettingNames(ctx context.Con
 		return nil, nil
 	}
 	return &settings, err
+}
+
+// @MappedFrom findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)
+func (r *ConversationSettingsRepository) FindByOwnerIdAndSettingNames(ctx context.Context, ownerId int64, settingNames []string, lastUpdatedDateStart *time.Time) ([]po.ConversationSettings, error) {
+	filter := bson.M{po.ConversationSettingsFieldIdOwnerId: ownerId}
+	if lastUpdatedDateStart != nil {
+		filter[po.ConversationSettingsFieldLastUpdatedDate] = bson.M{"$gte": *lastUpdatedDateStart}
+	}
+
+	var projection bson.M
+	if len(settingNames) > 0 {
+		projection = bson.M{
+			po.ConversationSettingsFieldLastUpdatedDate: 1,
+		}
+		for _, name := range settingNames {
+			projection[po.ConversationSettingsFieldSettings+"."+name] = 1
+		}
+	}
+
+	opts := options.Find()
+	if projection != nil {
+		opts.SetProjection(projection)
+	}
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var settingsList []po.ConversationSettings
+	if err := cursor.All(ctx, &settingsList); err != nil {
+		return nil, err
+	}
+	return settingsList, nil
 }
 
 // @MappedFrom findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)

@@ -37,6 +37,7 @@ type UserRelationshipService interface {
 	QueryRelatedUserIdsWithVersion(ctx context.Context, ownerID int64, groupIndexes []int32, isBlocked *bool, lastUpdatedDate *time.Time) ([]int64, *time.Time, error)
 	CountRelationships(ctx context.Context, ownerIDs []int64, relatedUserIDs []int64, groupIndexes []int32, isBlocked *bool) (int64, error)
 	HasRelationshipAndNotBlocked(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
+	HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error)
 }
 
 type userRelationshipService struct {
@@ -440,4 +441,8 @@ func (s *userRelationshipService) HasRelationshipAndNotBlocked(ctx context.Conte
 
 	s.relCache.Set(cacheKey, exists)
 	return exists, nil
+}
+
+func (s *userRelationshipService) HasOneSidedRelationship(ctx context.Context, ownerID, relatedUserID int64) (bool, error) {
+	return s.repo.HasOneSidedRelationship(ctx, ownerID, relatedUserID, nil)
 }

@@ -9,9 +9,9 @@ type NotificationLoggingManager struct{}
 // SimpleNotificationFields holds the extracted fields from SimpleTurmsNotification
 // used for logging, avoiding a circular dependency on the proto package.
 type SimpleNotificationFields struct {
-	RequesterID          int64
-	CloseStatus          *int32
-	RelayedRequestType   int32 // KindCase as int32; 0 = KIND_NOT_SET
+	RequesterID        int64
+	CloseStatus        *int32
+	RelayedRequestType int32 // KindCase as int32; 0 = KIND_NOT_SET
 }
 
 // @MappedFrom log(SimpleTurmsNotification notification, int notificationBytes, int recipientCount, int onlineRecipientCount)

@@ -15,8 +15,8 @@ import (
 // ConversationSettingsService maps to ConversationSettingsService.java
 // @MappedFrom ConversationSettingsService
 type ConversationSettingsService struct {
-	groupMemberService            *group_service.GroupMemberService
-	userRelationshipService       user_service.UserRelationshipService
+	groupMemberService             *group_service.GroupMemberService
+	userRelationshipService        user_service.UserRelationshipService
 	conversationSettingsRepository *repository.ConversationSettingsRepository
 }
 
@@ -26,8 +26,8 @@ func NewConversationSettingsService(
 	conversationSettingsRepository *repository.ConversationSettingsRepository,
 ) *ConversationSettingsService {
 	return &ConversationSettingsService{
-		groupMemberService:            groupMemberService,
-		userRelationshipService:       userRelationshipService,
+		groupMemberService:             groupMemberService,
+		userRelationshipService:        userRelationshipService,
 		conversationSettingsRepository: conversationSettingsRepository,
 	}
 }
@@ -90,7 +90,7 @@ func (s *ConversationSettingsService) QuerySettings(ctx context.Context, ownerId
 		return s.conversationSettingsRepository.FindByIdAndSettingNamesWithKeys(ctx, keys, settingNames, lastUpdatedDateStart)
 	}
 
-	settings, err := s.conversationSettingsRepository.FindByIdAndSettingNames(ctx, ownerId, 0, settingNames, lastUpdatedDateStart)
+	settings, err := s.conversationSettingsRepository.FindByKey(ctx, ownerId, 0, settingNames, lastUpdatedDateStart)
 	if err != nil {
 		return nil, err
 	}

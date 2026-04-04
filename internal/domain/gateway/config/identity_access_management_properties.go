@@ -5,8 +5,8 @@ import (
 )
 
 type IdentityAccessManagementProperties struct {
-	Enabled bool                         `json:"enabled" yaml:"enabled"`
-	Type    IdentityAccessManagementType `json:"type" yaml:"type"`
+	Enabled bool                                   `json:"enabled" yaml:"enabled"`
+	Type    IdentityAccessManagementType           `json:"type" yaml:"type"`
 	Http    HttpIdentityAccessManagementProperties `json:"http" yaml:"http"`
 	Jwt     JwtIdentityAccessManagementProperties  `json:"jwt" yaml:"jwt"`
 	Ldap    LdapIdentityAccessManagementProperties `json:"ldap" yaml:"ldap"`
@@ -28,9 +28,9 @@ type HttpIdentityAccessManagementProperties struct {
 }
 
 type HttpIdentityAccessManagementRequestProperties struct {
-	URL           string            `json:"url" yaml:"url"`
-	Headers       map[string]string `json:"headers" yaml:"headers"`
-	TimeoutMillis int               `json:"timeoutMillis" yaml:"timeoutMillis"`
+	URL           string              `json:"url" yaml:"url"`
+	Headers       map[string]string   `json:"headers" yaml:"headers"`
+	TimeoutMillis int                 `json:"timeoutMillis" yaml:"timeoutMillis"`
 	HttpMethod    property.HttpMethod `json:"httpMethod" yaml:"httpMethod"`
 }
 

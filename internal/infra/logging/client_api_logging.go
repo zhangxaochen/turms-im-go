@@ -98,8 +98,8 @@ func LogRequestWithCode(
 		requestSize,
 		requestTime.UnixMilli(),
 		responseCode,
-		nil,  // responseDataType
-		"0",  // responseSerializedSize
+		nil, // responseDataType
+		"0", // responseSerializedSize
 		processingTime.Milliseconds(),
 	)
 	clientAPILogger.Info(msg)

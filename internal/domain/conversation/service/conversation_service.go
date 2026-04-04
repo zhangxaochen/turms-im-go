@@ -31,13 +31,13 @@ type MessageService interface {
 }
 
 type ConversationService struct {
-	privateConvRepo       *repository.PrivateConversationRepository
-	groupConvRepo         *repository.GroupConversationRepository
-	userRelationshipSvc   UserRelationshipService
-	groupSvc              GroupService
-	groupMemberSvc        GroupMemberService
-	messageSvc            MessageService
-	propertiesManager     *property.TurmsPropertiesManager
+	privateConvRepo     *repository.PrivateConversationRepository
+	groupConvRepo       *repository.GroupConversationRepository
+	userRelationshipSvc UserRelationshipService
+	groupSvc            GroupService
+	groupMemberSvc      GroupMemberService
+	messageSvc          MessageService
+	propertiesManager   *property.TurmsPropertiesManager
 }
 
 func NewConversationService(

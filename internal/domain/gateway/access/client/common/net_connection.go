@@ -32,7 +32,7 @@ func CloseReasonFromError(err error) CloseReason {
 	if ok {
 		code := fromErr.Code()
 		status := constant.SessionCloseStatus_UNKNOWN_ERROR
-		
+
 		// Map some status codes to close status, simple for now
 		if code >= constant.ResponseStatusCode_SERVER_INTERNAL_ERROR && code < 1300 {
 			if code == constant.ResponseStatusCode_SERVER_UNAVAILABLE {
@@ -112,8 +112,6 @@ func (b *BaseNetConnection) Close() error {
 	b.isSwitchingToUdp = false
 	return nil
 }
-
-
 
 // @MappedFrom tryNotifyClientToRecover()
 func (b *BaseNetConnection) TryNotifyClientToRecover() {

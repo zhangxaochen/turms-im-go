@@ -97,7 +97,6 @@ func (c *BaseController) QueryBetweenDateFunc(
 	return results, nil
 }
 
-
 // @MappedFrom checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages)
 func (c *BaseController) CheckAndQueryBetweenDate(
 	dateRange timeutil.DateRange,
