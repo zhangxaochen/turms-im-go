@@ -111,7 +111,7 @@ func (b *BaseNetConnection) SetUdpSignalDispatcher(dispatcher func(*net.UDPAddr)
 func (b *BaseNetConnection) CloseWithReason(reason CloseReason) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.isConnected {
+	if b.isDisposed || !b.isConnected {
 		return false
 	}
 	b.isConnected = false
@@ -124,6 +124,7 @@ func (b *BaseNetConnection) CloseWithReason(reason CloseReason) bool {
 func (b *BaseNetConnection) Close() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.isDisposed = true
 	b.isConnected = false
 	b.isConnectionRecovering = false
 	b.isSwitchingToUdp = false

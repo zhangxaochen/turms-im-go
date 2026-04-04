@@ -452,9 +452,8 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 					sess := key.(*UserSession)
 					// Avoid redundant close if user was already fully closed via checkIDs
 					if _, ok := userIdSet[sess.UserID]; !ok {
-						if closed := s.CloseLocalSessionByDeviceType(ctx, sess.UserID, sess.DeviceType, closeReason); closed {
-							totalCount++
-						}
+						n, _ := s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
+						totalCount += n
 					}
 					return true
 				})
