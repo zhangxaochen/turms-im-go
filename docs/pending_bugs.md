@@ -573,43 +573,43 @@ Now I have a thorough understanding of both implementations. Let me do the detai
 ## HandleServiceRequest
 
 - [ ] **Missing buffer retain/release lifecycle**: The Java code calls `serviceRequest.getTurmsRequestBuffer().retain()` before the async operation and `release()` in a `finally` block. The Go code has these as TODO comments and does not implement any buffer reference counting.
-- [x] **Missing RPC call to forward the request**: The Java code creates a `HandleServiceRequest` wrapper and calls `node.getRpcService().requestResponse(request)` to forward the request to the cluster. The Go code has this as a TODO and returns an empty stub notification instead.
+- [x] **Missing RPC call to forward the request**: [Fixed] The Java code creates a `HandleServiceRequest` wrapper and calls `node.getRpcService().requestResponse(request)` to forward the request to the cluster. The Go code has this as a TODO and returns an empty stub notification instead.
 - [ ] **Missing `defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` fallback**: The Java code calls `.defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` so that if the RPC returns an empty response, a `NO_CONTENT` response is used. The Go code does not implement this fallback.
-- [x] **Missing `getNotificationFromResponse` mapping**: The Java code maps the `ServiceResponse` into a `TurmsNotification` via `getNotificationFromResponse`, which sets `timestamp` (current millis), `code` (business code), `requestId`, `reason`, and `data`. The Go code's `getNotificationFromResponse` is a TODO stub returning `nil`.
+- [x] **Missing `getNotificationFromResponse` mapping**: [Fixed] The Java code maps the `ServiceResponse` into a `TurmsNotification` via `getNotificationFromResponse`, which sets `timestamp` (current millis), `code` (business code), `requestId`, `reason`, and `data`. The Go code's `getNotificationFromResponse` is a TODO stub returning `nil`.
 - [ ] **Missing error handling via try/catch/finally equivalent**: The Java code wraps the logic in try/catch/finally, returning `Mono.error(e)` on exception while always releasing the buffer in `finally`. The Go code does not recover from panics or handle errors from the RPC call.
-- [x] **Returns a zero-value `TurmsNotification` instead of a properly constructed response**:
+- [x] **Returns a zero-value `TurmsNotification` instead of a properly constructed response**: [Fixed]
 
 ## getNotificationFromResponse
 
-- [x] **Entire method is a stub returning `nil`**: The Java version validates that `response.code()` is non-null (throwing `IllegalArgumentException` otherwise), builds a `TurmsNotification` with `reason`, `data`, `timestamp`, `code` (business code), and `requestId`. The Go version does nothing and returns `nil`.
+- [x] **Entire method is a stub returning `nil`**: [Fixed] The Java version validates that `response.code()` is non-null (throwing `IllegalArgumentException` otherwise), builds a `TurmsNotification` with `reason`, `data`, `timestamp`, `code` (business code), and `requestId`. The Go version does nothing and returns `nil`.
 
 # SessionController.java
 *Checked methods: deleteSessions(@QueryParam(required = false)*
 
 ## deleteSessions
 
-- [x] **Missing logic: When both `ids` and `ips` are empty, the Java code calls `sessionService.closeAllLocalSessions(closeReason)` to close ALL local sessions.**
-- [x] **Incorrect return value: The Go code returns `len(ids)` and `len(ips)` as the count of closed sessions, but the Java code returns the actual count from `sessionService.closeLocalSessions()`**
-- [x] **Incorrect IP conversion: The Go code converts IP strings to `[]byte` by simply casting the string to bytes (`[]byte(ip)`), which produces the UTF-8 byte representation of the string.**
-- [x] **Missing CloseReason: The Go code passes `nil` as the close reason instead of constructing a `CloseReason` equivalent to `CloseReason.get(SessionCloseStatus.DISCONNECTED_BY_ADMIN)**
-- [x] **Incorrect branch logic when both `ids` and `ips` are non-empty: In Java, when both are provided, it uses `Mono.zip(..., Integer::sum)` to run both close operations concurrently and sum their **actual** return values.**
+- [x] **Missing logic: When both `ids` and `ips` are empty, the Java code calls `sessionService.closeAllLocalSessions(closeReason)` to close ALL local sessions.** [Fixed]
+- [x] **Incorrect return value: The Go code returns `len(ids)` and `len(ips)` as the count of closed sessions, but the Java code returns the actual count from `sessionService.closeLocalSessions()`** [Fixed]
+- [x] **Incorrect IP conversion: The Go code converts IP strings to `[]byte` by simply casting the string to bytes (`[]byte(ip)`), which produces the UTF-8 byte representation of the string.** [Fixed]
+- [x] **Missing CloseReason: The Go code passes `nil` as the close reason instead of constructing a `CloseReason` equivalent to `CloseReason.get(SessionCloseStatus.DISCONNECTED_BY_ADMIN)** [Fixed]
+- [x] **Incorrect branch logic when both `ids` and `ips` are non-empty: In Java, when both are provided, it uses `Mono.zip(..., Integer::sum)` to run both close operations concurrently and sum their **actual** return values.** [Fixed]
 
 # SessionClientController.java
 *Checked methods: handleDeleteSessionRequest(UserSessionWrapper sessionWrapper), handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)*
 
 ## HandleDeleteSessionRequest
 
-- [x] **Missing error handling/logging for session close failure**
+- [x] **Missing error handling/logging for session close failure** [Fixed]
 
 ## HandleCreateSessionRequest
 
-- [x] **Location data passed incorrectly — type mismatch causes silent failure**
-- [x] **Location timestamp and details fields lost in processing**
-- [x] **DeviceType UNRECOGNIZED check is a hardcoded magic number**
-- [x] **Connection alive check is hardcoded to `true` (dead code)**
-- [x] **Error handling for `InvokeGoOnlineHandlers` is missing**
-- [x] **Error from `OnSessionEstablished` is silently ignored**
-- [x] **`GetUserSessionsManager` may return nil without check**
+- [x] **Location data passed incorrectly — type mismatch causes silent failure** [Fixed]
+- [x] **Location timestamp and details fields lost in processing** [Fixed]
+- [x] **DeviceType UNRECOGNIZED check is a hardcoded magic number** [Fixed]
+- [x] **Connection alive check is hardcoded to `true` (dead code)** [Fixed]
+- [x] **Error handling for `InvokeGoOnlineHandlers` is missing** [Fixed]
+- [x] **Error from `OnSessionEstablished` is silently ignored** [Fixed]
+- [x] **`GetUserSessionsManager` may return nil without check** [Fixed]
 
 # UserPermissionInfo.java
 *Checked methods: UserPermissionInfo(...)*

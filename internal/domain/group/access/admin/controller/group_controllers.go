@@ -300,6 +300,56 @@ func (c *GroupMemberController) QueryGroupMembersWithQuery(ctx context.Context, 
 	return &common_dto.RequestHandlerResult{}, nil
 }
 
+func (c *GroupMemberController) UpdateGroupMembers(ctx context.Context, keys []po.GroupMemberKey, updateGroupMemberDTO dto.UpdateGroupMemberDTO) (*common_dto.RequestHandlerResult, error) {
+	var role *constant.GroupMemberRole
+	if updateGroupMemberDTO.Role != nil {
+		r := updateGroupMemberDTO.Role.(constant.GroupMemberRole)
+		role = &r
+	}
+	for _, key := range keys {
+		err := c.groupMemberService.UpdateGroupMember(ctx,
+			key.GroupID,
+			key.UserID,
+			updateGroupMemberDTO.Name,
+			role,
+			updateGroupMemberDTO.JoinDate,
+			updateGroupMemberDTO.MuteEndDate,
+			nil,
+			false,
+		)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+func (c *GroupMemberController) AddGroupMember(ctx context.Context, addGroupMemberDTO dto.AddGroupMemberDTO) (*common_dto.RequestHandlerResult, error) {
+	var role constant.GroupMemberRole
+	if addGroupMemberDTO.Role != nil {
+		role = addGroupMemberDTO.Role.(constant.GroupMemberRole)
+	} else {
+		role = constant.GROUP_MEMBER_ROLE_MEMBER
+	}
+	jd := time.Now()
+	if addGroupMemberDTO.JoinDate != nil {
+		jd = *addGroupMemberDTO.JoinDate
+	}
+	_, err := c.groupMemberService.AddGroupMember(ctx,
+		*addGroupMemberDTO.GroupId,
+		*addGroupMemberDTO.UserId,
+		role,
+		addGroupMemberDTO.Name,
+		jd,
+		addGroupMemberDTO.MuteEndDate,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
 func (c *GroupMemberController) DeleteGroupMembers(ctx context.Context, keys []po.GroupMemberKey, successorId *int64, quitAfterTransfer *bool) (*common_dto.RequestHandlerResult, error) {
 	for _, key := range keys {
 		err := c.groupMemberService.DeleteGroupMember(ctx, key.GroupID, key.UserID, nil, false)

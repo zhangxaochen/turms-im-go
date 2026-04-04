@@ -293,25 +293,24 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 	}
 
 	// 4. Create and local register session
-	session := &UserSession{
-		ID:            s.nextSessionID(),
-		Version:       version,
-		UserID:        userId,
-		DeviceType:    deviceType,
-		DeviceDetails: deviceDetails,
-		Permissions:   permissions.(map[any]bool),
-		IP:            net.IP(ip),
-		LoginDate:     now,
-		CloseChan:     make(chan struct{}),
-		isSessionOpen: 1,
-	}
+	var loc *sessionbo.UserLocation
 	if location != nil {
-		session.Location = &sessionbo.UserLocation{
+		loc = &sessionbo.UserLocation{
 			Longitude: location.Longitude,
 			Latitude:  location.Latitude,
 		}
 	}
-	session.SetLastHeartbeatRequestTimestampToNow()
+
+	session := NewUserSession(
+		version,
+		permissions.(map[any]bool),
+		userId,
+		deviceType,
+		deviceDetails,
+		loc,
+	)
+	session.ID = s.nextSessionID()
+	session.SetConnection(nil, net.IP(ip))
 
 	err = s.RegisterSession(ctx, session)
 	if err != nil {
