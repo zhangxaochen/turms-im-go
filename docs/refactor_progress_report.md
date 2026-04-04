@@ -2273,7 +2273,7 @@
 
   - [x] type Meeting struct -> [Meeting](../internal/domain/conference/po/meeting.go#L7)
 
-- **ConversationSettings.java** ([java/im/turms/service/domain/conversation/po/ConversationSettings.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/po/ConversationSettings.java))
+- **ConversationSettings.java** ([java/im/turms/service/domain/conversation/po/ConversationSettings.java](../turms-orig/turms-service/src/main/java/im/turms/service/domain/conversation/po/ConversationSettings.java)) ➡️ [`internal/domain/conversation/po/conversation_settings.go`](../internal/domain/conversation/po/conversation_settings.go)
 > [简述功能]
 
   - [ ] `TODO`

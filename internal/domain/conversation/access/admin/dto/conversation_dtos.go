@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	"im.turms/server/internal/domain/conversation/po"
+)
 
 // @MappedFrom UpdateConversationDTO(Date readDate)
 type UpdateConversationDTO struct {
@@ -9,6 +13,6 @@ type UpdateConversationDTO struct {
 
 // @MappedFrom ConversationsDTO(List<PrivateConversation> privateConversations, List<GroupConversation> groupConversations)
 type ConversationsDTO struct {
-	PrivateConversations []interface{} `json:"privateConversations"`
-	GroupConversations   []interface{} `json:"groupConversations"`
+	PrivateConversations []*po.PrivateConversation `json:"privateConversations"`
+	GroupConversations   []*po.GroupConversation   `json:"groupConversations"`
 }
