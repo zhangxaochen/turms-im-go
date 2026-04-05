@@ -1,0 +1,21 @@
+Starting Claude Sub-agent...
+[Sun Apr  5 16:45:03 CST 2026] Attempt 1 / 5
+API Error: 429 {"error":{"code":"1302","message":"您的账户已达到速率限制，请您控制请求频率"},"request_id":"202604051713321cf48fee9bb842c0"}
+[Sun Apr  5 17:13:38 CST 2026] Agent failed with exit code 1. Retrying in 15 seconds...
+[Sun Apr  5 17:13:53 CST 2026] Attempt 2 / 5
+All 50 bugs have been resolved and committed as `a78bd2e`. Here's a summary of the changes across 6 files:
+
+**Files modified:**
+
+1. **`client_request.go`** — Fixed `String()` clientIp formatting (comma-separated), `Equals()` to use `proto.Equal` for deep equality, `bytesEq()` nil vs empty distinction, `HashCode()` to include `turmsRequest`.
+
+2. **`admin_controllers.go`** — Fixed `AddAdminRole` to pass `rank` as `*int` (preserving nil for validation) instead of converting nil to 0.
+
+3. **`admin_dtos.go`** — Added `MarshalJSON` on `AddAdminDTO` to prevent password serialization; fixed `UpdateAdminDTO` JSON tag from `"name"` to `"displayName"`.
+
+4. **`admin_permission.go`** — Fixed `Group()` method: `SHUTDOWN` → `"LIFECYCLE"`, `STATISTICS_*` → `"STATISTICS"`.
+
+5. **`admin.go` (PO)** — Changed `DisplayName` from `string` to `*string` with `bson:"n,omitempty"` to preserve nil/null in MongoDB.
+
+6. **`admin_services.go`** — Added rank null validation, name whitespace/length validation, permissions non-empty check, requester existence checks, requester permissions containment, root role validation in delete/update, root role inclusion in queries, no-op early return in update, proper authorization logic, and cache invalidation on success.
+[Sun Apr  5 17:34:56 CST 2026] Agent finished successfully.

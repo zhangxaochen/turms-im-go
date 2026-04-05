@@ -145,7 +145,7 @@ func (s *UserSession) GetIPStr() string {
 
 func (s *UserSession) HasPermission(requestType int32) bool {
 	if s.Permissions == nil {
-		return true // Nil means all permissions
+		return true // nil means all permissions granted
 	}
 	return s.Permissions[requestType]
 }

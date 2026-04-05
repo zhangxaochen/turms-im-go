@@ -375,6 +375,11 @@ func (s *DiscoveryService) GetMember(nodeID string) *Member {
 	return nil
 }
 
+func (s *DiscoveryService) IsKnownMember(nodeID string) bool {
+	_, ok := s.allKnownMembers.Load(nodeID)
+	return ok
+}
+
 func (s *DiscoveryService) ElectNewLeaderByPriority() error {
 	s.leaderMu.Lock()
 	defer s.leaderMu.Unlock()

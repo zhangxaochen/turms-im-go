@@ -349,8 +349,8 @@ func (d *ClientRequestDispatcher) getNotificationFromHandlerResult(result *Reque
 		Code:      proto.Int32(int32(result.Code)),
 		Data:      result.Data,
 	}
-	if result.Reason != "" {
-		notif.Reason = proto.String(result.Reason)
+	if result.Reason != nil {
+		notif.Reason = result.Reason
 	}
 	return notif
 }

@@ -60,6 +60,16 @@ func (m *UserSessionsManager) RemoveSession(deviceType protocol.DeviceType) {
 	delete(m.Sessions, deviceType)
 }
 
+func (m *UserSessionsManager) GetLoggedInDeviceTypes() []protocol.DeviceType {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	types := make([]protocol.DeviceType, 0, len(m.Sessions))
+	for t := range m.Sessions {
+		types = append(types, t)
+	}
+	return types
+}
+
 // Push sends a notification to all sessions, optionally excluding one device type.
 // @MappedFrom Java: UserSessionsManager.push (internal helper)
 func (m *UserSessionsManager) Push(ctx context.Context, notification *protocol.TurmsNotification, excludedDeviceType *protocol.DeviceType) {

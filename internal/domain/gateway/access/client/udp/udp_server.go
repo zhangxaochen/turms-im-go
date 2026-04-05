@@ -48,11 +48,11 @@ type UdpSignalRequest struct {
 	Type       UdpRequestType
 	UserID     int64
 	DeviceType protocol.DeviceType
-	SessionID  int64
+	SessionID  int32
 }
 
 // @MappedFrom UdpSignalRequest(UdpRequestType type, long userId, DeviceType deviceType, int sessionId)
-func NewUdpSignalRequest(reqType UdpRequestType, userID int64, deviceType protocol.DeviceType, sessionID int64) *UdpSignalRequest {
+func NewUdpSignalRequest(reqType UdpRequestType, userID int64, deviceType protocol.DeviceType, sessionID int32) *UdpSignalRequest {
 	return &UdpSignalRequest{
 		Type:       reqType,
 		UserID:     userID,
@@ -178,7 +178,7 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 	}
 
 	s := d.sessionService.GetLocalUserSession(ctx, req.UserID, req.DeviceType)
-	if s == nil || s.ID != req.SessionID {
+	if s == nil || int32(s.ID) != req.SessionID {
 		d.sendErrorCode(senderAddress, constant.ResponseStatusCode_UPDATE_HEARTBEAT_OF_NONEXISTENT_SESSION)
 		return
 	}
@@ -221,7 +221,7 @@ func (d *UdpRequestDispatcher) ParseRequest(buffer []byte) *UdpSignalRequest {
 	}
 	userID := int64(binary.BigEndian.Uint64(buffer[1:9]))
 	deviceType := protocol.DeviceType(buffer[9])
-	sessionID := int64(binary.BigEndian.Uint32(buffer[10:14]))
+	sessionID := int32(binary.BigEndian.Uint32(buffer[10:14]))
 
 	return NewUdpSignalRequest(reqType, userID, deviceType, sessionID)
 }

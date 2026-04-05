@@ -1,0 +1,28 @@
+Starting Claude Sub-agent...
+[Sun Apr  5 16:44:55 CST 2026] Attempt 1 / 5
+API Error: 400 {"type":"error","error":{"message":"操作失败","code":"500"},"request_id":"202604051740161c50e46c9b67439e"}
+[Sun Apr  5 17:41:55 CST 2026] Agent failed with exit code 1. Retrying in 15 seconds...
+[Sun Apr  5 17:42:10 CST 2026] Attempt 2 / 5
+All done. Here's a summary of the bugs fixed:
+
+**Bugs fixed (commit `9785f2b`):**
+
+1. **Notification logging `relayedRequestType` logged as integer instead of enum name** (`notification_logging_manager.go`): Added `KindCaseName()` function with complete mapping of all 55+ proto field numbers to Java-style enum names (e.g., `8` → `"CREATE_MESSAGE_REQUEST"`). Changed `SimpleNotificationFields.RelayedRequestType` from `int32` to `proto.KindCase` for type safety.
+
+2. **Notification logging default value `"null"` instead of `"KIND_NOT_SET"`** (`notification_logging_manager.go`): When `RelayedRequestType` is 0 (unset), it now logs `"KIND_NOT_SET"` matching Java's `KindCase.KIND_NOT_SET.name()`, instead of the incorrect `"null"` or the typo `"KINDCase"`.
+
+3. **`SimpleTurmsRequest.ToString` outputs `<nil>` instead of `null`** (`proto_parser.go:140`): Changed `"<nil>"` to `"null"` to match Java's `ProtoFormatter.toLogString(null)` output.
+
+4. **`ParseSimpleNotification` error message omits type value** (`proto_parser.go:341`): Error now includes the KindCase value: `"Unknown request type: 0"` instead of just `"Unknown request type"`.
+
+5. **`ParseSimpleNotification` missing bounds checks for wire type skips** (`proto_parser.go:316-329`): Added bounds validation for length-delimited, 64-bit, and 32-bit field skips to prevent out-of-bounds panics on corrupted/malformed data.
+
+6. **`ParseSimpleRequest` error message omits type value** (`proto_parser.go:398`): Same fix as #4 for consistency.
+
+7. **LDAP filter.go cleanup** (`filter.go`): Removed dead code (unused `wrapped` byte slice allocation), comments describing old approach, and fixed `writeSubstringFilter` to properly track `isFirst` for distinguishing `substringInitial` vs `substringAny` components.
+
+**Bugs already fixed (in prior commits):**
+- All 11 Filter.Write bugs (full RFC 4515 filter parsing was already implemented)
+- SearchResult.decode referrals parsing (already handled by `DecodeLdapResult`)
+- Router.Dispatch bugs (the `ClientRequestDispatcher` already implements the full Java dispatch logic)
+[Sun Apr  5 17:52:35 CST 2026] Agent finished successfully.

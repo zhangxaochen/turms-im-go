@@ -1,49 +1,51 @@
---- internal/domain/user/access/admin/controller/user_controllers.go
-+++ internal/domain/user/access/admin/controller/user_controllers.go
-@@ -1,9 +1,18 @@
- package controller
+--- internal/infra/address/service_address_manager.go
++++ internal/infra/address/service_address_manager.go
+@@ -4,6 +4,8 @@
+ 	"fmt"
+- "net"
+++"context"
+ )
  
-+import (
-+"context"
+ // ServiceAddressManager maps to ServiceAddressManager in Java.
+ // @MappedFrom ServiceAddressManager
+ type ServiceAddressManager struct {
+ 	wsAddress  string
+ 	tcpAddress string
+ 	udpAddress string
+ 
+ 	// Cached properties to simulate gatewayApiDiscoveryProperties in Java to avoid unnecessary updates
+ 	lastAdvertiseStrategy string
+ 	lastAdvertiseHost     string
+ 	lastAttachPortToHost  *bool
 +
-+common_dto "im.turms/server/internal/domain/common/dto"
-+user_dto "im.turms/server/internal/domain/user/access/admin/dto"
-+"im.turms/server/internal/domain/user/po"
-+"im.turms/server/internal/domain/user/service"
-+)
-+
- // UserController maps to UserController.java
- // @MappedFrom UserController
- type UserController struct {
- }
-@@ -149,10 +158,15 @@
- // UserRelationshipGroupController maps to UserRelationshipGroupController.java
- // @MappedFrom UserRelationshipGroupController
- type UserRelationshipGroupController struct {
-++userRelationshipGroupService *service.UserRelationshipGroupService
-+}
-+
-+func NewUserRelationshipGroupController(userRelationshipGroupService *service.UserRelationshipGroupService) *UserRelationshipGroupController {
-++return &UserRelationshipGroupController{userRelationshipGroupService: userRelationshipGroupService}
+++ipDetector *IpDetector
  }
  
- // @MappedFrom addRelationshipGroup(@RequestBody AddRelationshipGroupDTO addRelationshipGroupDTO)
- func (c *UserRelationshipGroupController) AddRelationshipGroup() {
-@@ -162,8 +176,14 @@
- }
- 
--// @MappedFrom updateRelationshipGroups(List<UserRelationshipGroup.Key> keys, @RequestBody UpdateRelationshipGroupDTO updateRelationshipGroupDTO)
--func (c *UserRelationshipGroupController) UpdateRelationshipGroups() {
-- // TODO: implement
-+// @MappedFrom updateRelationshipGroups(List<UserRelationshipGroup.Key> keys, @RequestBody UpdateRelationshipGroupDTO updateRelationshipGroupDTO)
-+func (c *UserRelationshipGroupController) UpdateRelationshipGroups(ctx context.Context, keys []po.UserRelationshipGroupKey, updateRelationshipGroupDTO user_dto.UpdateRelationshipGroupDTO) (*common_dto.UpdateResultDTO, error) {
-++err := c.userRelationshipGroupService.UpdateRelationshipGroups(ctx, keys, updateRelationshipGroupDTO.Name, updateRelationshipGroupDTO.CreationDate)
-++if err != nil {
-++return nil, err
+ func NewServiceAddressManager() *ServiceAddressManager {
+- return &ServiceAddressManager{}
+++return &ServiceAddressManager{
+++ipDetector: NewIpDetector(),
 ++}
-++// The admin API usually returns the count of updated records or similar, here we just return a success representation.
-++// Actually UpdateRelationshipGroups in service returns error, not count.
-++return &common_dto.UpdateResultDTO{}, nil
  }
  
- // @MappedFrom queryRelationshipGroups(@QueryParam(required = false)
+ // @MappedFrom getWsAddress()
+@@ -107,11 +109,14 @@
+ 		panic("The bind host is not specified")
+ 	case "PRIVATE_ADDRESS":
+- conn, err := net.Dial("udp", "8.8.8.8:10002")
+++ip, err := m.ipDetector.QueryPrivateIp(0)
+ 		if err == nil {
+- api/defer conn.Close()
+- api/return conn.LocalAddr().(*net.UDPAddr).IP.String()
+c++ return ip
+ 		}
+ 		panic("Failed to detect the local IP")
+ 	case "PUBLIC_ADDRESS":
+- panic("PUBLIC_ADDRESS is not implemented in Go async queryHost yet")
+++ip, err := m.ipDetector.QueryPublicIp(context.Background(), []string{"https://checkip.amazonaws.com"}, 0)
+++if err == nil && ip != "" {
+c++ return ip
+++}
+++panic("Failed to detect the public IP")
+ 	default:
+ 		return "127.0.0.1" // Fallback local address

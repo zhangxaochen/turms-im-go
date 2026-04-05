@@ -855,51 +855,51 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 - [x] The Go method does not validate input parameters (ip not null, deviceType not null, valid device type, userStatus not UNRECOGNIZED, userStatus not OFFLINE, location range). Java performs all these validations upfront.
 - [x] The Go method uses `sessionsStatus.OnlineDeviceTypeToSessionInfo` but the Java uses `sessionsStatus.getDeviceTypeToSessionInfo()` — the field naming suggests they map the same data but the Go code checks `info.IsActive` and `info.NodeID != s.nodeID` directly. In the Java version, it checks `sessionInfo.isActive()` and `!node.getLocalMemberId().equals(sessionInfo.getNodeId())`. The logic is the same.
 - [x] In the `isClosedSessionOnLocal` branch, the Go code calls `s.userStatusService.UpdateStatus` instead of `userStatusService.updateOnlineUserStatusIfPresent`. The Java method is `updateOnlineUserStatusIfPresent` which has "if present" semantics. The Go code calls `UpdateStatus` which may have different semantics.
-- [ ] In the `isClosedSessionOnLocal` branch, when updating user status, the Go code checks `userStatus != 0` while Java checks `userStatus == null || existingUserStatus == userStatus` and skips the update if the userStatus is null or already matches. The Go code uses the zero-value of the UserStatus enum as the "null" check which may not be equivalent.
-- [ ] In the `isClosedSessionOnLocal` branch, the Go code does not handle errors from status update or location upsert. Java wraps these in `onErrorComplete` handlers that log but don't propagate errors.
+- [x] In the `isClosedSessionOnLocal` branch, when updating user status, the Go code checks `userStatus != 0` while Java checks `userStatus == null || existingUserStatus == userStatus` and skips the update if the userStatus is null or already matches. The Go code uses the zero-value of the UserStatus enum as the "null" check which may not be equivalent.
+- [x] In the `isClosedSessionOnLocal` branch, the Go code does not handle errors from status update or location upsert. Java wraps these in `onErrorComplete` handlers that log but don't propagate errors.
 - [x] The `closeSessionsWithConflictedDeviceTypes` method in Go iterates `sessionsStatus.OnlineDeviceTypeToSessionInfo` and checks `s.userSimultaneousLoginService.IsConflicted(deviceType, existingDeviceType)`. The Java version calls `userSimultaneousLoginService.getConflictedDeviceTypes(deviceType)` to get ALL conflicted types, then groups them by nodeId, then sends ONE RPC request per node with all conflicting device types. The Go version sends one RPC per conflicting device type per node, which is less efficient but also means the RPC `SetUserOfflineRequest` only contains a single device type rather than a set.
 - [x] The `closeSessionsWithConflictedDeviceTypes` in Go does not handle `ConnectionNotFound` errors with the isKnownMember fallback logic that Java has. In Java, if a `ConnectionNotFound` error occurs, it checks `node.getDiscoveryService().isKnownMember(nodeId)` — if the member is known, it returns the error; if unknown (dead node), it returns `true` to allow login. The Go code silently ignores errors.
 - [x] The `closeSessionsWithConflictedDeviceTypes` in Go returns `(true, nil)` on success but does not aggregate multiple RPC results. Java uses `PublisherUtil.areAllTrue(requests)` to ensure all RPCs succeed. The Go version returns `true` even if some RPCs fail silently.
 - [x] The `addOnlineDeviceIfAbsent` in Go does not pass `deviceDetails` (filtered by `deviceDetailsItemPropertiesList`) to `userStatusService.AddOnlineDevice`. Java filters `deviceDetails` based on `deviceDetailsItemPropertiesList` and passes the filtered `details` map to `addOnlineDeviceIfAbsent`. The Go code does not filter device details at all.
 - [x] The `addOnlineDeviceIfAbsent` in Go does not pass `closeIdleSessionAfterSeconds`, `expectedNodeId`, or `expectedDeviceTimestamp` to `userStatusService.AddOnlineDevice`. The Java code passes all of these to `userStatusService.addOnlineDeviceIfAbsent(userId, deviceType, details, userStatus, closeIdleSessionAfterSeconds, expectedNodeId, expectedDeviceTimestamp)`. The Go `AddOnlineDevice` only takes `(ctx, userId, deviceType, userStatus, nodeID, &now)`.
-- [ ] The `addOnlineDeviceIfAbsent` in Go does not handle the case where `session == nil` from session creation (Java has a retry path: if `addSessionIfAbsent` returns null, it closes the existing session, cleans ipToSessions, and retries). The Go code does not have this retry/fallback logic.
+- [x] The `addOnlineDeviceIfAbsent` in Go does not handle the case where `session == nil` from session creation (Java has a retry path: if `addSessionIfAbsent` returns null, it closes the existing session, cleans ipToSessions, and retries). The Go code does not have this retry/fallback logic.
 - [x] The `addOnlineDeviceIfAbsent` in Go does not set `Version` or `Permissions` on the created `UserSession`. Java calls `manager.addSessionIfAbsent(version, permissions, deviceType, deviceDetails, location)` which sets these fields on the session.
 - [x] The `addOnlineDeviceIfAbsent` in Go does not set `DeviceDetails` on the session. Java passes `deviceDetails` to `addSessionIfAbsent`.
 - [x] The `addOnlineDeviceIfAbsent` in Go always creates a new `UserSessionsManager` via `GetOrAdd`, but Java computes `finalUserStatus` (defaulting to `AVAILABLE` if null) and passes it to the constructor. The Go `NewUserSessionsManager` does not accept or set user status.
 
 ## getUserSessionsManager
 
-- [ ] The Go method returns `any` instead of `*UserSessionsManager`. While this is a type signature issue rather than a logic bug, it loses type safety.
-- [ ] The Go method does not validate that `userId` is non-null. Java calls `Validator.notNull(userId, "userId")`.
+- [x] The Go method returns `any` instead of `*UserSessionsManager`. While this is a type signature issue rather than a logic bug, it loses type safety. (N/A, returns `*UserSessionsManager`)
+- [x] The Go method does not validate that `userId` is non-null. Java calls `Validator.notNull(userId, "userId")`. (N/A, Go uses value types)
 
 ## getLocalUserSession(Long userId, DeviceType deviceType)
 
-- [ ] The Go method does not validate that `userId` and `deviceType` are non-null. Java validates both.
+- [x] The Go method does not validate that `userId` and `deviceType` are non-null. Java validates both. (N/A, Go uses value types)
 
 ## getLocalUserSession(ByteArrayWrapper ip)
 
-- [ ] The Go `GetLocalUserSessionsByIp` returns `[]*UserSession` (a slice), while Java returns `Queue<UserSession>` from `ipToSessions.get(ip)`. The Java version returns the actual queue reference (which can be mutated), while Go returns a new slice. This is a behavioral difference — the Java version returns a live reference to the queue.
+- [x] The Go `GetLocalUserSessionsByIp` returns `[]*UserSession` (a slice), while Java returns `Queue<UserSession>` from `ipToSessions.get(ip)`. The Java version returns the actual queue reference (which can be mutated), while Go returns a new slice. This is a behavioral difference — the Java version returns a live reference to the queue. (Resolved)
 
 ## countLocalOnlineUsers
 
-- [ ] No bugs found. The Go implementation `CountOnlineUsers()` correctly returns the size of the sharded map.
+- [x] No bugs found. The Go implementation `CountOnlineUsers()` correctly returns the size of the sharded map.
 
 ## onSessionEstablished
 
-- [ ] The Go method is completely stubbed out with TODOs. It does not increment the `loggedInUsersCounter` metric (Java: `loggedInUsersCounter.increment()`).
-- [ ] The Go method does not push session notifications to clients when `notifyClientsOfSessionInfoAfterConnected` is true. Java calls `userSessionsManager.pushSessionNotification(deviceType, serverId)`.
+- [x] The Go method is completely stubbed out with TODOs. It does not increment the `loggedInUsersCounter` metric (Java: `loggedInUsersCounter.increment()`).
+- [x] The Go method does not push session notifications to clients when `notifyClientsOfSessionInfoAfterConnected` is true. Java calls `userSessionsManager.pushSessionNotification(deviceType, serverId)`. (Resolved)
 
 ## addOnSessionClosedListeners
 
-- [ ] The Go method acquires a mutex lock (`s.mu.Lock()`) before appending, while Java simply calls `onSessionClosedListeners.add(onSessionClosed)` without synchronization. This is actually safer in Go but differs from the Java pattern. However, the Java `LinkedList` is not thread-safe either, so the Go version is arguably more correct. Not a bug per se.
+- [x] The Go method acquires a mutex lock (`s.mu.Lock()`) before appending, while Java simply calls `onSessionClosedListeners.add(onSessionClosed)` without synchronization. This is actually safer in Go but differs from the Java pattern. However, the Java `LinkedList` is not thread-safe either, so the Go version is arguably more correct. Not a bug per se.
 
 ## invokeGoOnlineHandlers
 
-- [ ] The Go method is completely stubbed out with a TODO comment. It does not invoke the plugin manager's extension points. Java calls `pluginManager.invokeExtensionPointsSimultaneously(UserOnlineStatusChangeHandler.class, GO_ONLINE_METHOD, handler -> handler.goOnline(userSessionsManager, userSession))`.
+- [x] The Go method is completely stubbed out with a TODO comment. It does not invoke the plugin manager's extension points. Java calls `pluginManager.invokeExtensionPointsSimultaneously(UserOnlineStatusChangeHandler.class, GO_ONLINE_METHOD, handler -> handler.goOnline(userSessionsManager, userSession))`.
 
 ## Additional cross-cutting issues
 
-- [ ] The Go `addOnSessionClosedListeners` acquires a write lock on `s.mu` while `notifyOnSessionClosedListeners` in Java iterates without synchronization (using a `LinkedList`). In Go, the `CloseLocalSession` method reads `s.onSessionClosedListeners` under `s.mu.RLock()`, which is correct for concurrent safety. However, the Go code does NOT wrap listener invocations in try-catch like Java does (`try { onSessionClosedListener.accept(session) } catch (Exception e) { LOGGER.error(...) }`). A panicking listener in Go would crash the entire close operation.
+- [x] The Go `addOnSessionClosedListeners` acquires a write lock on `s.mu` while `notifyOnSessionClosedListeners` in Java iterates without synchronization (using a `LinkedList`). In Go, the `CloseLocalSession` method reads `s.onSessionClosedListeners` under `s.mu.RLock()`, which is correct for concurrent safety. However, the Go code does NOT wrap listener invocations in try-catch like Java does (`try { onSessionClosedListener.accept(session) } catch (Exception e) { LOGGER.error(...) }`). A panicking listener in Go would crash the entire close operation. (Resolved)
 
 # UserService.java
 *Checked methods: authenticate(@NotNull Long userId, @Nullable String rawPassword), isActiveAndNotDeleted(@NotNull Long userId)*
@@ -7586,23 +7586,23 @@ Here is the full bug report:
 
 ## create(ResponseStatusCode code, @Nullable String reason, long requestId) → CreateWithReason
 
-- [ ] **Empty string treated as nil**: Line 47 checks `reason == nil || *reason == ""`. The Java version only checks `reason == null` (line 68). In Java, an explicitly passed empty string `""` is a non-null reason and is passed to `trySetReason`. In Go, an empty string falls back to `code.Reason()`. This changes behavior when a caller explicitly passes `""` as a reason.
+- [x] **Empty string treated as nil**: Line 47 checks `reason == nil || *reason == ""`. The Java version only checks `reason == null` (line 68). In Java, an explicitly passed empty string `""` is a non-null reason and is passed to `trySetReason`. In Go, an empty string falls back to `code.Reason()`. This changes behavior when a caller explicitly passes `""` as a reason.
 
 ## create(ThrowableInfo info, long requestId) → CreateFromError
 
-- [ ] **Incorrect fallback code for non-TurmsError errors**: When a non-TurmsError error is passed, the Go code uses `SERVER_INTERNAL_ERROR` with the raw `err.Error()` string as reason. In Java, `ThrowableInfo` always has an explicit `code()` — there is no branch for "unrecognized" throwables. The Go code introduces a code path that leaks raw internal error messages to clients (via `err.Error()`) without going through the `trySetReason` server-error gating for non-server-error messages that happen to be classified as `SERVER_INTERNAL_ERROR`.
+- [x] **Incorrect fallback code for non-TurmsError errors**: When a non-TurmsError error is passed, the Go code uses `SERVER_INTERNAL_ERROR` with the raw `err.Error()` string as reason. In Java, `ThrowableInfo` always has an explicit `code()` — there is no branch for "unrecognized" throwables. The Go code introduces a code path that leaks raw internal error messages to clients (via `err.Error()`) without going through the `trySetReason` server-error gating for non-server-error messages that happen to be classified as `SERVER_INTERNAL_ERROR`.
 
 ## createBuffer(CloseReason closeReason) → CreateCloseReasonBuffer
 
-- [ ] **Spurious fallback logic for code**: Lines 96-101 add `code == -1` → use `reason.Status` and `code == 0` → use `ResponseStatusCode_OK` fallbacks. The Java version simply uses `closeReason.businessStatusCode()` directly with no such fallbacks. This introduces behavioral differences.
+- [x] **Spurious fallback logic for code**: Lines 96-101 add `code == -1` → use `reason.Status` and `code == 0` → use `ResponseStatusCode_OK` fallbacks. The Java version simply uses `closeReason.businessStatusCode()` directly with no such fallbacks. This introduces behavioral differences.
 
 ## sessionClosed(long requestId) → SessionClosed
 
-- [ ] **Wrong status code**: Line 132 uses `constant.ResponseStatusCode_OK` (value 1000). The Java version (line 96) uses `ResponseStatusCode.SERVER_INTERNAL_ERROR.getBusinessCode()` (value 1200). This is a critical behavioral bug — clients receive an OK status instead of an internal error status.
+- [x] **Wrong status code**: Line 132 uses `constant.ResponseStatusCode_OK` (value 1000). The Java version (line 96) uses `ResponseStatusCode.SERVER_INTERNAL_ERROR.getBusinessCode()` (value 1200). This is a critical behavioral bug — clients receive an OK status instead of an internal error status.
 
 ## trySetReason (private helper)
 
-- [ ] **Empty string silently dropped**: Lines 138-139 return early if `*reason == ""`. The Java version (line 104) only returns early on `reason == null`. In Java, an empty non-null string is set on the builder (it passes the null check and reaches `builder.setReason(reason)`). In Go, it is silently discarded.
+- [x] **Empty string silently dropped**: Lines 138-139 return early if `*reason == ""`. The Java version (line 104) only returns early on `reason == null`. In Java, an empty non-null string is set on the builder (it passes the null check and reaches `builder.setReason(reason)`). In Go, it is silently discarded.
 
 # RequestHandlerResult.java
 *Checked methods: RequestHandlerResult(ResponseStatusCode code, String reason)*
@@ -7641,7 +7641,7 @@ Comparing the Go gateway file to the Java gateway record for the constructor `Re
 
 ## NewRequestHandlerResult
 
-- [ ] `reason` field is `string` (value type) instead of `*string` (pointer). In Java, `reason` is a nullable `String` that can be `null`. The Go value-type `string` defaults to `""` when unset, so the Go code cannot represent `null` reason, causing a behavioral difference for callers that rely on null-checking the reason.
+- [x] `reason` field is `string` (value type) instead of `*string` (pointer). In Java, `reason` is a nullable `String` that can be `null`. The Go value-type `string` defaults to `""` when unset, so the Go code cannot represent `null` reason, causing a behavioral difference for callers that rely on null-checking the reason.
 - [x] Missing the single-argument convenience constructor `RequestHandlerResult(ResponseStatusCode code)` (present in Java as `this(code, null)`) that sets `reason` to null.
 
 # UserSession.java
@@ -7740,76 +7740,76 @@ Here's the report:
 
 ## isOpen
 
-- [ ] **`isSessionOpen` defaults to 0 (closed) in Go, but defaults to `true` (open) in Java.** Go zero-initializes `uint32` to 0, and `IsOpen()` checks `== 1`. The Java field is `private volatile boolean isSessionOpen = true;`. The session constructor at `service.go:289-297` never sets `isSessionOpen = 1`, so all newly created sessions report `IsOpen() == false`, the opposite of Java behavior.
+- [x] **`isSessionOpen` defaults to 0 (closed) in Go, but defaults to `true` (open) in Java.** Go zero-initializes `uint32` to 0, and `IsOpen()` checks `== 1`. The Java field is `private volatile boolean isSessionOpen = true;`. The session constructor at `service.go:289-297` never sets `isSessionOpen = 1`, so all newly created sessions report `IsOpen() == false`, the opposite of Java behavior.
 
 ## close(CloseReason)
 
-- [ ] **Missing warning log when `connection` is nil but session is open.** Java logs `LOGGER.warn("The connection is missing for the user session: {}", this)` in this case. Go silently does nothing.
-- [ ] **Missing `bool` return value.** Java returns `true` if the session was online (and closed it), `false` if it was already closed. Go returns nothing (`void`), so callers cannot determine whether the close actually took effect.
+- [x] **Missing warning log when `connection` is nil but session is open.** Java logs `LOGGER.warn("The connection is missing for the user session: {}", this)` in this case. Go silently does nothing.
+- [x] **Missing `bool` return value.** Java returns `true` if the session was online (and closed it), `false` if it was already closed. Go returns nothing (`void`), so callers cannot determine whether the close actually took effect.
 
 ## isConnected
 
-- [ ] **Method is entirely missing from `UserSession`.** Java has `isConnected()` which returns `connection != null && connection.isConnected()`. The Go `UserSession` has no equivalent method. While the `Connection` interface has `IsActive()`, there is no `IsConnected()` method on `UserSession` itself to compose the null-check and active-check as Java does.
+- [x] **Method is entirely missing from `UserSession`.** Java has `isConnected()` which returns `connection != null && connection.isConnected()`. The Go `UserSession` has no equivalent method. While the `Connection` interface has `IsActive()`, there is no `IsConnected()` method on `UserSession` itself to compose the null-check and active-check as Java does.
 
 ## supportsSwitchingToUdp
 
-- [ ] **Method is entirely missing from `UserSession`.** Java has `supportsSwitchingToUdp()` which returns `deviceType != DeviceType.BROWSER`. The Go `UserSession` has no equivalent method.
+- [x] **Method is entirely missing from `UserSession`.** Java has `supportsSwitchingToUdp()` which returns `deviceType != DeviceType.BROWSER`. The Go `UserSession` has no equivalent method.
 
 ## sendNotification (SendMessage)
 
-- [ ] **Nil pointer panic when `s.Conn` is nil.** Java calls `notificationConsumer.apply(...)` without null-checking the consumer (by design). Go calls `s.Conn.Send(data)` without checking if `s.Conn` is nil. If the connection hasn't been set or has been cleared, this will panic.
-- [ ] **Session-open check added that doesn't exist in Java.** Go returns an error if `!s.IsOpen()`, but Java does NOT check session open state in `sendNotification`. Combined with the `isSessionOpen` initialization bug (defaults to 0/closed), this means `SendMessage` will always fail for new sessions.
-- [ ] **Missing tracing context support.** Java has two overloads — `sendNotification(ByteBuf)` (passes `TracingContext.NOOP`) and `sendNotification(ByteBuf, TracingContext)`. Go has a single `SendMessage` with no tracing context parameter at all.
+- [x] **Nil pointer panic when `s.Conn` is nil.** Java calls `notificationConsumer.apply(...)` without null-checking the consumer (by design). Go calls `s.Conn.Send(data)` without checking if `s.Conn` is nil. If the connection hasn't been set or has been cleared, this will panic.
+- [x] **Session-open check added that doesn't exist in Java.** Go returns an error if `!s.IsOpen()`, but Java does NOT check session open state in `sendNotification`. Combined with the `isSessionOpen` initialization bug (defaults to 0/closed), this means `SendMessage` will always fail for new sessions.
+- [x] **Missing tracing context support.** Java has two overloads — `sendNotification(ByteBuf)` (passes `TracingContext.NOOP`) and `sendNotification(ByteBuf, TracingContext)`. Go has a single `SendMessage` with no tracing context parameter at all.
 
 ## toString (String)
 
-- [ ] **Missing fields in output.** Java includes: `id`, `version`, `userId`, `deviceType`, `loginDate`, `loginLocation`, `isSessionOpen`, `connection`. Go only includes: `ID`, `UserID`, `DeviceType`, `IP`. Missing from Go: `Version`, `LoginDate`, `Location`, `isSessionOpen` state, and connection info.
+- [x] **Missing fields in output.** Java includes: `id`, `version`, `userId`, `deviceType`, `loginDate`, `loginLocation`, `isSessionOpen`, `connection`. Go only includes: `ID`, `UserID`, `DeviceType`, `IP`. Missing from Go: `Version`, `LoginDate`, `Location`, `isSessionOpen` state, and connection info.
 
 ## setConnection
 
-- [ ] No bugs. The Go `SetConnection` correctly assigns both the `Conn` and `IP` fields, matching the Java `setConnection` logic.
+- [x] No bugs. The Go `SetConnection` correctly assigns both the `Conn` and `IP` fields, matching the Java `setConnection` logic.
 
 ## setLastHeartbeatRequestTimestampToNow / setLastRequestTimestampToNow
 
-- [ ] No bugs. Both methods correctly update the millisecond and nanosecond timestamps using atomic stores, matching the Java volatile write semantics.
+- [x] No bugs. Both methods correctly update the millisecond and nanosecond timestamps using atomic stores, matching the Java volatile write semantics.
 
 ## acquireDeleteSessionRequestLoggingLock
 
-- [ ] No bugs. The Go `AcquireDeleteSessionRequestLoggingLock` correctly uses `CompareAndSwapUint32(0, 1)`, matching the Java `AtomicIntegerFieldUpdater.compareAndSet(this, 0, 1)`.
+- [x] No bugs. The Go `AcquireDeleteSessionRequestLoggingLock` correctly uses `CompareAndSwapUint32(0, 1)`, matching the Java `AtomicIntegerFieldUpdater.compareAndSet(this, 0, 1)`.
 
 ## hasPermission
 
-- [ ] **Nil permissions map returns `true` (all permissions), diverging from Java behavior.** Java's `permissions` is a `Set` that is always non-null (initialized to `Collections.emptyMap()` equivalent or passed in constructor). Java's `contains()` on an empty set returns `false`. Go returns `true` when `Permissions` is nil, which means "no permissions configured = full access" — the opposite semantics of Java's empty set.
+- [x] **Nil permissions map returns `true` (all permissions), diverging from Java behavior.** Java's `permissions` is a `Set` that is always non-null (initialized to `Collections.emptyMap()` equivalent or passed in constructor). Java's `contains()` on an empty set returns `false`. Go returns `true` when `Permissions` is nil, which means "no permissions configured = full access" — the opposite semantics of Java's empty set.
 
 # UserSessionWrapper.java
 *Checked methods: getIp(), getIpStr(), setUserSession(UserSession userSession), hasUserSession()*
 
 ## GetIP / getIp()
-- [ ] **Missing lazy initialization**: The Java version lazily initializes `ip` from `address.getAddress().getAddress()` wrapped in a `ByteArrayWrapper` on first access (caching the result). The Go version simply returns the struct field `w.IP` without any lazy computation from an address. The `IP` field is expected to be pre-populated externally, which changes the initialization contract and could result in an empty/zero value if the caller forgets to set it.
+- [x] **Missing lazy initialization**: The Java version lazily initializes `ip` from `address.getAddress().getAddress()` wrapped in a `ByteArrayWrapper` on first access (caching the result). The Go version simply returns the struct field `w.IP` without any lazy computation from an address. The `IP` field is expected to be pre-populated externally, which changes the initialization contract and could result in an empty/zero value if the caller forgets to set it.
 
 ## GetIPStr / getIpStr()
-- [ ] **Missing lazy initialization**: The Java version lazily initializes `ipStr` from `address.getAddress().getHostAddress()` on first access (caching the result). The Go version simply returns the struct field `w.IPStr` without any lazy computation from an address. The `IPStr` field is expected to be pre-populated externally, which changes the initialization contract and could result in an empty string if the caller forgets to set it.
+- [x] **Missing lazy initialization**: The Java version lazily initializes `ipStr` from `address.getAddress().getHostAddress()` on first access (caching the result). The Go version simply returns the struct field `w.IPStr` without any lazy computation from an address. The `IPStr` field is expected to be pre-populated externally, which changes the initialization contract and could result in an empty string if the caller forgets to set it.
 
 ## SetUserSession / setUserSession(UserSession userSession)
-- [ ] **Missing call to `userSession.setConnection(connection, getIp())`**: The Java version calls `userSession.setConnection(connection, getIp())` after assigning the user session, which passes the network connection and IP byte array to the user session. The Go version only assigns `w.UserSession = userSession` without calling any equivalent method on the user session.
-- [ ] **Missing call to `onSessionEstablished.accept(userSession)`**: The Java version invokes the `onSessionEstablished` callback (a `Consumer<UserSession>`) after setting up the session and connection. The Go version does not invoke any callback, completely omitting this notification mechanism.
+- [x] **Missing call to `userSession.setConnection(connection, getIp())`**: The Java version calls `userSession.setConnection(connection, getIp())` after assigning the user session, which passes the network connection and IP byte array to the user session. The Go version only assigns `w.UserSession = userSession` without calling any equivalent method on the user session.
+- [x] **Missing call to `onSessionEstablished.accept(userSession)`**: The Java version invokes the `onSessionEstablished` callback (a `Consumer<UserSession>`) after setting up the session and connection. The Go version does not invoke any callback, completely omitting this notification mechanism.
 
 # ExtendedHAProxyMessageReader.java
 *Checked methods: channelRead(ChannelHandlerContext ctx, Object msg)*
 
 ## channelRead
 
-- [ ] **Missing source address/port extraction from PROXY protocol header**: The Java code explicitly extracts `sourceAddress` and `sourcePort` from the `HAProxyMessage` via `proxyMessage.sourceAddress()` and `proxyMessage.sourcePort()`, then creates an unresolved `InetSocketAddress` from them. The Go version calls `conn.RemoteAddr()` which, even on a `*proxyproto.Conn`, returns the proxied address transparently — so this aspect is functionally equivalent. However, the Java code creates an **unresolved** address (`AddressUtils.createUnresolved`), meaning no DNS resolution is performed. The Go `proxyproto.Conn.RemoteAddr()` returns a resolved `*net.TCPAddr`. This is a behavioral difference: the Go version may trigger DNS resolution that the Java version deliberately avoids.
+- [x] **Missing source address/port extraction from PROXY protocol header**: The Java code explicitly extracts `sourceAddress` and `sourcePort` from the `HAProxyMessage` via `proxyMessage.sourceAddress()` and `proxyMessage.sourcePort()`, then creates an unresolved `InetSocketAddress` from them. The Go version calls `conn.RemoteAddr()` which, even on a `*proxyproto.Conn`, returns the proxied address transparently — so this aspect is functionally equivalent. However, the Java code creates an **unresolved** address (`AddressUtils.createUnresolved`), meaning no DNS resolution is performed. The Go `proxyproto.Conn.RemoteAddr()` returns a resolved `*net.TCPAddr`. This is a behavioral difference: the Go version may trigger DNS resolution that the Java version deliberately avoids.
 
-- [ ] **Missing null/validity check on source address before using it**: The Java code checks `if (sourceAddress != null && sourcePort > 0)` before using the proxy-provided address. If the source address is null or the port is invalid (≤ 0), it falls back to `ctx.channel().remoteAddress()`. The Go version unconditionally uses `conn.RemoteAddr()` with no validity guard and no fallback path.
+- [x] **Missing null/validity check on source address before using it**: The Java code checks `if (sourceAddress != null && sourcePort > 0)` before using the proxy-provided address. If the source address is null or the port is invalid (≤ 0), it falls back to `ctx.channel().remoteAddress()`. The Go version unconditionally uses `conn.RemoteAddr()` with no validity guard and no fallback path.
 
-- [ ] **Missing handler self-removal after processing**: The Java code calls `ctx.channel().pipeline().remove(this)` after processing the HAProxy message, ensuring this handler runs only once and is removed from the pipeline. The Go `Read` method has no equivalent — it can be called multiple times, invoking the callback repeatedly each time.
+- [x] **Missing handler self-removal after processing**: The Java code calls `ctx.channel().pipeline().remove(this)` after processing the HAProxy message, ensuring this handler runs only once and is removed from the pipeline. The Go `Read` method has no equivalent — it can be called multiple times, invoking the callback repeatedly each time.
 
-- [ ] **Missing `ctx.read()` continuation call**: After processing the proxy message and invoking the callback, the Java code calls `ctx.read()` to resume reading on the channel. This is necessary because auto-read may be disabled. The Go version has no equivalent mechanism to signal that reading should continue after the proxy header is processed.
+- [x] **Missing `ctx.read()` continuation call**: After processing the proxy message and invoking the callback, the Java code calls `ctx.read()` to resume reading on the channel. This is necessary because auto-read may be disabled. The Go version has no equivalent mechanism to signal that reading should continue after the proxy header is processed.
 
-- [ ] **Missing pass-through for non-PROXY messages**: The Java code has an `else` branch that calls `super.channelRead(ctx, msg)` for messages that are not `HAProxyMessage` instances, ensuring they flow through the pipeline normally. The Go `Read` method always invokes the callback regardless of message type, with no discrimination between proxy and non-proxy messages.
+- [x] **Missing pass-through for non-PROXY messages**: The Java code has an `else` branch that calls `super.channelRead(ctx, msg)` for messages that are not `HAProxyMessage` instances, ensuring they flow through the pipeline normally. The Go `Read` method always invokes the callback regardless of message type, with no discrimination between proxy and non-proxy messages.
 
-- [ ] **`Read` method is dead code — never called**: The `ExtendedHAProxyMessageReader.Read()` method and the constructor `NewExtendedHAProxyMessageReader()` are never invoked anywhere in the codebase. The `onRemoteAddressConfirmed` callback is never wired up, meaning the remote address confirmation logic that Java implements is entirely absent in the Go version.
+- [x] **`Read` method is dead code — never called**: The `ExtendedHAProxyMessageReader.Read()` method and the constructor `NewExtendedHAProxyMessageReader()` are never invoked anywhere in the codebase. The `onRemoteAddressConfirmed` callback is never wired up, meaning the remote address confirmation logic that Java implements is entirely absent in the Go version.
 
 # HAProxyUtil.java
 *Checked methods: addProxyProtocolHandlers(ChannelPipeline pipeline, Consumer<InetSocketAddress> onRemoteAddressConfirmed), addProxyProtocolDetectorHandler(ChannelPipeline pipeline, Consumer<InetSocketAddress> onRemoteAddressConfirmed)*
@@ -7818,15 +7818,15 @@ Now I have the full picture. Here is the analysis:
 
 ## AddProxyProtocolHandlers
 
-- [ ] **Method body is completely empty — no proxy protocol decoding or remote address callback is performed**: In Java, `addProxyProtocolHandlers` adds an `HAProxyMessageDecoder` followed by an `ExtendedHAProxyMessageReader` to the pipeline. The reader extracts the source address from the HAProxy message and invokes the `onRemoteAddressConfirmed` callback with it. In Go, `AddProxyProtocolHandlers` is a no-op function with an empty body and a comment saying "Replaced by WrapWithProxyProtocol interceptor above." However, `WrapWithProxyProtocol` only wraps the listener — it never invokes the `onRemoteAddressConfirmed` callback, meaning the critical blocklist check against the **proxied source IP** is never performed through the proxy protocol path.
-- [ ] **No REQUIRED-mode equivalent: proxy protocol is mandatory parsing, but the Go version silently accepts invalid/no-header connections**: In Java, `addProxyProtocolHandlers` is used when `proxyProtocolMode == REQUIRED`, meaning every connection **must** have a valid HAProxy protocol header. The `HAProxyMessageDecoder` will throw an exception and close the connection if no valid header is found. In Go, `proxyproto.Listener` by default treats missing proxy headers as non-fatal (it just passes the connection through), which differs from the REQUIRED behavior where absent/invalid headers should cause connection rejection.
-- [ ] **`ExtendedHAProxyMessageReader.Read` is dead code — never called anywhere**: The `Read` method on `ExtendedHAProxyMessageReader` and its constructor `NewExtendedHAProxyMessageReader` are never invoked in the codebase. The struct exists but serves no purpose, and the `OnRemoteAddressConfirmed` callback is never wired up to actual connection handling.
+- [x] **Method body is completely empty — no proxy protocol decoding or remote address callback is performed**: In Java, `addProxyProtocolHandlers` adds an `HAProxyMessageDecoder` followed by an `ExtendedHAProxyMessageReader` to the pipeline. The reader extracts the source address from the HAProxy message and invokes the `onRemoteAddressConfirmed` callback with it. In Go, `AddProxyProtocolHandlers` is a no-op function with an empty body and a comment saying "Replaced by WrapWithProxyProtocol interceptor above." However, `WrapWithProxyProtocol` only wraps the listener — it never invokes the `onRemoteAddressConfirmed` callback, meaning the critical blocklist check against the **proxied source IP** is never performed through the proxy protocol path.
+- [x] **No REQUIRED-mode equivalent: proxy protocol is mandatory parsing, but the Go version silently accepts invalid/no-header connections**: In Java, `addProxyProtocolHandlers` is used when `proxyProtocolMode == REQUIRED`, meaning every connection **must** have a valid HAProxy protocol header. The `HAProxyMessageDecoder` will throw an exception and close the connection if no valid header is found. In Go, `proxyproto.Listener` by default treats missing proxy headers as non-fatal (it just passes the connection through), which differs from the REQUIRED behavior where absent/invalid headers should cause connection rejection.
+- [x] **`ExtendedHAProxyMessageReader.Read` is dead code — never called anywhere**: The `Read` method on `ExtendedHAProxyMessageReader` and its constructor `NewExtendedHAProxyMessageReader` are never invoked in the codebase. The struct exists but serves no purpose, and the `OnRemoteAddressConfirmed` callback is never wired up to actual connection handling.
 
 ## AddProxyProtocolDetectorHandler
 
-- [ ] **Method body is completely empty — no protocol detection or conditional handler installation is performed**: In Java, `addProxyProtocolDetectorHandler` adds an `ExtendedHAProxyMessageDetector` (a `ByteToMessageDecoder`) that inspects the first bytes to detect whether HAProxy protocol is present. If detected, it dynamically replaces itself with `HAProxyMessageDecoder` + `ExtendedHAProxyMessageReader`. If not detected (invalid result), it removes itself and calls `onRemoteAddressConfirmed` with the direct `channel.remoteAddress()`. In Go, `AddProxyProtocolDetectorHandler` is a no-op with an empty body, so this entire conditional detection logic is absent.
-- [ ] **No OPTIONAL-mode equivalent: Go cannot distinguish between proxy-present and proxy-absent connections**: In Java, `addProxyProtocolDetectorHandler` is used when `proxyProtocolMode == OPTIONAL`, meaning the server should detect and parse HAProxy headers if present, but fall back to the direct remote address if absent. The Go `WrapWithProxyProtocol` wraps the listener unconditionally and always attempts proxy parsing, without the fallback path that calls `onRemoteAddressConfirmed` with the direct channel address when no proxy header is detected.
-- [ ] **Blocklist check against proxied IP is never triggered through the proxy path**: In the Java `TcpServerFactory`, both methods wire the `onRemoteAddressConfirmed` callback to check `blocklistService.isIpBlocked(address.getAddress().getAddress())` using the address resolved from the proxy header. In Go, `HandleConnection` in `channel_handler.go:68` calls `conn.RemoteAddr()`, which after `proxyproto.Listener` wrapping will return the **proxied address** for the IP check — this partially works, but the explicit callback mechanism that Java uses (with `remoteAddressSink.tryEmitEmpty()` for blocked IPs and `tryEmitValue(address)` for passing) is not replicated, meaning any downstream logic that depends on the sink signal is missing.
+- [x] **Method body is completely empty — no protocol detection or conditional handler installation is performed**: In Java, `addProxyProtocolDetectorHandler` adds an `ExtendedHAProxyMessageDetector` (a `ByteToMessageDecoder`) that inspects the first bytes to detect whether HAProxy protocol is present. If detected, it dynamically replaces itself with `HAProxyMessageDecoder` + `ExtendedHAProxyMessageReader`. If not detected (invalid result), it removes itself and calls `onRemoteAddressConfirmed` with the direct `channel.remoteAddress()`. In Go, `AddProxyProtocolDetectorHandler` is a no-op with an empty body, so this entire conditional detection logic is absent.
+- [x] **No OPTIONAL-mode equivalent: Go cannot distinguish between proxy-present and proxy-absent connections**: In Java, `addProxyProtocolDetectorHandler` is used when `proxyProtocolMode == OPTIONAL`, meaning the server should detect and parse HAProxy headers if present, but fall back to the direct remote address if absent. The Go `WrapWithProxyProtocol` wraps the listener unconditionally and always attempts proxy parsing, without the fallback path that calls `onRemoteAddressConfirmed` with the direct channel address when no proxy header is detected.
+- [x] **Blocklist check against proxied IP is never triggered through the proxy path**: In the Java `TcpServerFactory`, both methods wire the `onRemoteAddressConfirmed` callback to check `blocklistService.isIpBlocked(address.getAddress().getAddress())` using the address resolved from the proxy header. In Go, `HandleConnection` in `channel_handler.go:68` calls `conn.RemoteAddr()`, which after `proxyproto.Listener` wrapping will return the **proxied address** for the IP check — this partially works, but the explicit callback mechanism that Java uses (with `remoteAddressSink.tryEmitEmpty()` for blocked IPs and `tryEmitValue(address)` for passing) is not replicated, meaning any downstream logic that depends on the sink signal is missing.
 
 # TcpConnection.java
 *Checked methods: getAddress(), send(ByteBuf buffer), close(CloseReason closeReason), close()*
@@ -7835,29 +7835,29 @@ Now I have all the context needed. Let me analyze the differences.
 
 ## getAddress()
 
-- [ ] **Return type mismatch**: Java's `getAddress()` returns `InetSocketAddress` (cast from `connection.address()`), which includes both IP and port. Go's `GetAddress()` returns `net.Addr` (from `c.conn.RemoteAddr()`). While `net.Addr` is the broader interface, the Java code specifically returns `InetSocketAddress`. This is acceptable since `net.Conn.RemoteAddr()` returns a `*net.TCPAddr` which satisfies `net.Addr` and contains the same address+port info. **No functional bug** for the method's core purpose.
+- [x] **Return type mismatch**: Java's `getAddress()` returns `InetSocketAddress` (cast from `connection.address()`), which includes both IP and port. Go's `GetAddress()` returns `net.Addr` (from `c.conn.RemoteAddr()`). While `net.Addr` is the broader interface, the Java code specifically returns `InetSocketAddress`. This is acceptable since `net.Conn.RemoteAddr()` returns a `*net.TCPAddr` which satisfies `net.Addr` and contains the same address+port info. **No functional bug** for the method's core purpose.
 
 ## send(ByteBuf buffer)
 
-- [ ] **Extra varint length prefix not present in Java**: The Java `send()` method simply sends the raw `ByteBuf` buffer via `connection.sendObject(buffer).then()`. The Go version prepends a varint-encoded length prefix before sending. However, this is likely a protocol framing concern specific to the Go TCP implementation (Go's `net.Conn` doesn't have Netty's built-in length-field framing). This is a protocol-level design choice rather than a bug in porting the method's core logic. **Acceptable difference** given the different network stacks.
+- [x] **Extra varint length prefix not present in Java**: The Java `send()` method simply sends the raw `ByteBuf` buffer via `connection.sendObject(buffer).then()`. The Go version prepends a varint-encoded length prefix before sending. However, this is likely a protocol framing concern specific to the Go TCP implementation (Go's `net.Conn` doesn't have Netty's built-in length-field framing). This is a protocol-level design choice rather than a bug in porting the method's core logic. **Acceptable difference** given the different network stacks.
 
 ## close(CloseReason closeReason)
 
-- [ ] **Missing `connection.isDisposed()` check**: Java checks `if (!isConnected() || connection.isDisposed())` before proceeding. The Go code delegates to `BaseNetConnection.CloseWithReason()` which only checks `!b.isConnected`. There is no check for whether the underlying `net.Conn` is already closed/disposed. This can lead to attempting to send a close notification on an already-closed connection.
+- [x] **Missing `connection.isDisposed()` check**: Java checks `if (!isConnected() || connection.isDisposed())` before proceeding. The Go code delegates to `BaseNetConnection.CloseWithReason()` which only checks `!b.isConnected`. There is no check for whether the underlying `net.Conn` is already closed/disposed. This can lead to attempting to send a close notification on an already-closed connection.
 
-- [ ] **Missing error logging on final failure**: Java has a dedicated error handler in `mono.subscribe(null, t -> {...})` that logs when the close notification fails after all retry attempts: `"Failed to send the close notification after (" + RETRY_SEND_CLOSE_NOTIFICATION.maxAttempts + ") attempts"`. The Go code does log this on the last retry iteration (line 124), but the Java error handler in `subscribe` catches ALL errors from the entire mono chain (including timeout errors), while Go only logs send-retry failures. If the mono chain fails due to a non-send error (e.g., timeout waiting for `connection.onTerminate()`), the Java code logs it but the Go code may silently swallow it.
+- [x] **Missing error logging on final failure**: Java has a dedicated error handler in `mono.subscribe(null, t -> {...})` that logs when the close notification fails after all retry attempts: `"Failed to send the close notification after (" + RETRY_SEND_CLOSE_NOTIFICATION.maxAttempts + ") attempts"`. The Go code does log this on the last retry iteration (line 124), but the Java error handler in `subscribe` catches ALL errors from the entire mono chain (including timeout errors), while Go only logs send-retry failures. If the mono chain fails due to a non-send error (e.g., timeout waiting for `connection.onTerminate()`), the Java code logs it but the Go code may silently swallow it.
 
-- [ ] **Missing `onTerminate()` wait logic**: When `closeTimeout` is positive and non-zero, Java does `mono.then(connection.onTerminate()).timeout(closeTimeout, ...)` — it first sends the notification, then waits for the connection to terminate gracefully (peer closes), with a timeout fallback. The Go code instead uses `time.After(c.closeTimeout)` as a standalone timer and also listens on `c.onClose` channel. However, the Go code starts the timeout timer **after** the notification send loop completes, whereas Java's `mono.then(connection.onTerminate())` chains the wait immediately after the send and applies the timeout to the combined operation. This means in Go, the total time before forceful close could be `notification_send_time + closeTimeout`, whereas in Java it's capped at `notification_send_time + closeTimeout` but the timeout is applied to the `onTerminate` wait only after send succeeds.
+- [x] **Missing `onTerminate()` wait logic**: When `closeTimeout` is positive and non-zero, Java does `mono.then(connection.onTerminate()).timeout(closeTimeout, ...)` — it first sends the notification, then waits for the connection to terminate gracefully (peer closes), with a timeout fallback. The Go code instead uses `time.After(c.closeTimeout)` as a standalone timer and also listens on `c.onClose` channel. However, the Go code starts the timeout timer **after** the notification send loop completes, whereas Java's `mono.then(connection.onTerminate())` chains the wait immediately after the send and applies the timeout to the combined operation. This means in Go, the total time before forceful close could be `notification_send_time + closeTimeout`, whereas in Java it's capped at `notification_send_time + closeTimeout` but the timeout is applied to the `onTerminate` wait only after send succeeds.
 
-- [ ] **`c.onClose` channel may cause resource leak**: In the positive `closeTimeout` branch, Go uses `select { case <-c.onClose: return }`. If the peer never closes and the timeout fires, `c.Close()` is called. But if the `c.onClose` channel is never signaled and `c.closeTimeout` is very large, the goroutine blocks indefinitely. In Java, `connection.onTerminate()` is bounded by the timeout. The Go code's `c.onClose` channel relies on external signaling which may not be guaranteed.
+- [x] **`c.onClose` channel may cause resource leak**: In the positive `closeTimeout` branch, Go uses `select { case <-c.onClose: return }`. If the peer never closes and the timeout fires, `c.Close()` is called. But if the `c.onClose` channel is never signaled and `c.closeTimeout` is very large, the goroutine blocks indefinitely. In Java, `connection.onTerminate()` is bounded by the timeout. The Go code's `c.onClose` channel relies on external signaling which may not be guaranteed.
 
-- [ ] **Negative closeTimeout skips closing the connection entirely**: Java has no explicit handling for negative `closeTimeout` — if it's negative, `closeTimeout.isZero()` is false and `!closeTimeout.isNegative()` is false, so the mono is subscribed but **no `doFinally` is attached**, meaning `close()` is never called. The Go code comments `// If c.closeTimeout < 0, we do not close the underlying connection forcefully` and also skips calling `c.Close()`. This actually matches the Java behavior. **No bug here**.
+- [x] **Negative closeTimeout skips closing the connection entirely**: Java has no explicit handling for negative `closeTimeout` — if it's negative, `closeTimeout.isZero()` is false and `!closeTimeout.isNegative()` is false, so the mono is subscribed but **no `doFinally` is attached**, meaning `close()` is never called. The Go code comments `// If c.closeTimeout < 0, we do not close the underlying connection forcefully` and also skips calling `c.Close()`. This actually matches the Java behavior. **No bug here**.
 
-- [ ] **Retry strategy differs**: Java uses `Retry.backoff(2, Duration.ofSeconds(3))` which is exponential backoff with 2 retries starting at 3 seconds. Go uses a simple loop with `time.Sleep(3 * time.Second)` — a fixed 3-second delay. The Java retry has exponential backoff (3s, ~6s for second attempt), while Go uses a fixed 3s delay. This is a minor behavioral difference.
+- [x] **Retry strategy differs**: Java uses `Retry.backoff(2, Duration.ofSeconds(3))` which is exponential backoff with 2 retries starting at 3 seconds. Go uses a simple loop with `time.Sleep(3 * time.Second)` — a fixed 3-second delay. The Java retry has exponential backoff (3s, ~6s for second attempt), while Go uses a fixed 3s delay. This is a minor behavioral difference.
 
 ## close()
 
-- [ ] **Missing `super.close()` call**: The Go comment says "Note: We don't call super.close() here because Java doesn't either." However, examining the Java code: `TcpConnection.close()` calls `connection.dispose()` — it does NOT call `super.close()`. The Java base class `NetConnection.close()` sets `isConnected = false`, `isConnectionRecovering = false`, `isSwitchingToUdp = false`. In Go, `TcpConnection.Close()` calls `c.conn.Close()` but never calls `b.mu.Lock(); b.isConnected = false; ...` on the base. This means after `Close()`, `IsConnected()` still returns whatever state it was in (likely `false` if `CloseWithReason` was called first, but `true` if `Close()` is called directly without `CloseWithReason`). In Java, this is the same — `close()` doesn't call `super.close()` either. So this matches. **No bug**.
+- [x] **Missing `super.close()` call**: The Go comment says "Note: We don't call super.close() here because Java doesn't either." However, examining the Java code: `TcpConnection.close()` calls `connection.dispose()` — it does NOT call `super.close()`. The Java base class `NetConnection.close()` sets `isConnected = false`, `isConnectionRecovering = false`, `isSwitchingToUdp = false`. In Go, `TcpConnection.Close()` calls `c.conn.Close()` but never calls `b.mu.Lock(); b.isConnected = false; ...` on the base. This means after `Close()`, `IsConnected()` still returns whatever state it was in (likely `false` if `CloseWithReason` was called first, but `true` if `Close()` is called directly without `CloseWithReason`). In Java, this is the same — `close()` doesn't call `super.close()` either. So this matches. **No bug**.
 
 Wait, let me re-examine the `close(CloseReason)` flow more carefully. In Java:
 1. `TcpConnection.close(CloseReason)` calls `super.close(closeReason)` which sets `isConnected = false`
@@ -7869,7 +7869,7 @@ In Go:
 
 This matches. But there's one more issue:
 
-- [ ] **`IsNotifyClient` flag check vs Java's unconditional send**: In Go, `CloseWithReason` checks `if reason.IsNotifyClient` before sending. In Java, `TcpConnection.close(CloseReason)` always sends the notification (there's no `isNotifyClient` check in `TcpConnection.close`). The Java code always tries to send the close notification buffer regardless of the reason. The `isNotifyClient` logic in Go is derived from `SessionCloseStatus.isNotifyClient()` in Java, but that check is used elsewhere (not in `TcpConnection.close`). This means Go skips sending close notifications for reasons where `IsNotifyClient` is false, but Java would send them.
+- [x] **`IsNotifyClient` flag check vs Java's unconditional send**: In Go, `CloseWithReason` checks `if reason.IsNotifyClient` before sending. In Java, `TcpConnection.close(CloseReason)` always sends the notification (there's no `isNotifyClient` check in `TcpConnection.close`). The Java code always tries to send the close notification buffer regardless of the reason. The `isNotifyClient` logic in Go is derived from `SessionCloseStatus.isNotifyClient()` in Java, but that check is used elsewhere (not in `TcpConnection.close`). This means Go skips sending close notifications for reasons where `IsNotifyClient` is false, but Java would send them.
 
 Actually, let me re-read the Java code more carefully. The Java `TcpConnection.close(CloseReason closeReason)` unconditionally sends `NotificationFactory.createBuffer(closeReason)` — there is no check on whether the close reason should notify the client. The Go code gates this on `reason.IsNotifyClient`. This is a significant behavioral difference.
 
@@ -7877,23 +7877,23 @@ Actually, let me re-read the Java code more carefully. The Java `TcpConnection.c
 
 ## getAddress()
 
-- [ ] No significant bugs. The return type differs (`net.Addr` vs `InetSocketAddress`) but both provide the same address+port information.
+- [x] No significant bugs. The return type differs (`net.Addr` vs `InetSocketAddress`) but both provide the same address+port information.
 
 ## send(ByteBuf buffer)
 
-- [ ] **Hardcoded 5-second write deadline**: The Go code sets `c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))` with a hardcoded 5-second timeout. The Java version uses `connection.sendObject(buffer).then()` with no explicit per-write timeout. The timeout behavior in Java would be governed by Netty's channel configuration, not a hardcoded per-write deadline. This hardcoded timeout could cause premature write failures or leave the connection in a bad state if the deadline expires.
+- [x] **Hardcoded 5-second write deadline**: The Go code sets `c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))` with a hardcoded 5-second timeout. The Java version uses `connection.sendObject(buffer).then()` with no explicit per-write timeout. The timeout behavior in Java would be governed by Netty's channel configuration, not a hardcoded per-write deadline. This hardcoded timeout could cause premature write failures or leave the connection in a bad state if the deadline expires.
 
 ## close(CloseReason closeReason)
 
-- [ ] **Missing `connection.isDisposed()` guard**: Java checks `connection.isDisposed()` in addition to `isConnected()` before proceeding. Go only checks `isConnected`. This can lead to attempting operations on a disposed connection.
+- [x] **Missing `connection.isDisposed()` guard**: Java checks `connection.isDisposed()` in addition to `isConnected()` before proceeding. Go only checks `isConnected`. This can lead to attempting operations on a disposed connection.
 
-- [ ] **Unconditional send in Java vs conditional in Go**: Java always sends the close notification regardless of the close reason. Go only sends when `reason.IsNotifyClient` is `true`. This means for close reasons where `IsNotifyClient` is false, the client in the Go implementation never receives a close notification, but in Java it would.
+- [x] **Unconditional send in Java vs conditional in Go**: Java always sends the close notification regardless of the close reason. Go only sends when `reason.IsNotifyClient` is `true`. This means for close reasons where `IsNotifyClient` is false, the client in the Go implementation never receives a close notification, but in Java it would.
 
-- [ ] **Missing `onTerminate()` graceful wait**: Java waits for `connection.onTerminate()` before force-closing when timeout is positive. Go uses a `c.onClose` channel which is an external signal, not tied to the actual connection termination event of the `net.Conn`.
+- [x] **Missing `onTerminate()` graceful wait**: Java waits for `connection.onTerminate()` before force-closing when timeout is positive. Go uses a `c.onClose` channel which is an external signal, not tied to the actual connection termination event of the `net.Conn`.
 
 ## close()
 
-- [ ] No significant bugs. The behavior matches the Java version — both close/dispose the underlying connection without calling super/base close.
+- [x] No significant bugs. The behavior matches the Java version — both close/dispose the underlying connection without calling super/base close.
 
 # TcpServerFactory.java
 *Checked methods: create(TcpProperties tcpProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFrameLength)*
@@ -7978,7 +7978,7 @@ However, there is a type mismatch in the `sessionId` field:
 
 - [ ] **Missing SSL/TLS support**: The Java code conditionally enables SSL via `SslProperties` (`.secure(spec -> SslUtil.configureSslContextSpec(...), true)`). The Go code has no SSL/TLS configuration at all. The `WebSocketProperties` struct is also missing the `Ssl` field.
 
-- [ ] **Missing proxy protocol support**: The Java code configures proxy protocol based on `RemoteAddressSourceProxyProtocolMode` (REQUIRED→ON, OPTIONAL→AUTO, DISABLED→OFF) via `.proxyProtocol(proxyProtocolSupportType)`. The Go code ignores `props.ProxyProtocolMode` entirely even though the field exists in `WebSocketProperties`.
+- [x] **Missing proxy protocol support**: The Java code configures proxy protocol based on `RemoteAddressSourceProxyProtocolMode` (REQUIRED→ON, OPTIONAL→AUTO, DISABLED→OFF) via `.proxyProtocol(proxyProtocolSupportType)`. The Go code ignores `props.ProxyProtocolMode` entirely even though the field exists in `WebSocketProperties`.
 
 - [ ] **Missing metrics/recording**: The Java code enables metrics via `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(...))`. The Go code has no metrics instrumentation.
 
@@ -7998,17 +7998,17 @@ However, there is a type mismatch in the `sessionId` field:
 
 - [ ] **CORS preflight returns `204 NoContent` instead of `200 OK`**: Java returns `HttpResponseStatus.OK` (200). Go returns `http.StatusNoContent` (204). This is a behavior difference.
 
-- [ ] **Missing WebSocket handshake validation**: Java's `validateHandshakeRequest` checks four conditions: (1) method must be GET, (2) `Upgrade: websocket` header, (3) `Connection: upgrade` header, (4) `Sec-WebSocket-Key` header must be present. The Go code only checks the HTTP method but delegates the remaining WebSocket protocol validation to the `gorilla/websocket` upgrader. While `gorilla/websocket` does perform standard WebSocket handshake validation internally, it may not return the same specific error messages as the Java code (e.g., "Invalid 'Upgrade' header", "Missing \"Sec-WebSocket-Key\" header").
+- [x] **Missing WebSocket handshake validation**: Java's `validateHandshakeRequest` checks four conditions: (1) method must be GET, (2) `Upgrade: websocket` header, (3) `Connection: upgrade` header, (4) `Sec-WebSocket-Key` header must be present. The Go code only checks the HTTP method but delegates the remaining WebSocket protocol validation to the `gorilla/websocket` upgrader. While `gorilla/websocket` does perform standard WebSocket handshake validation internally, it may not return the same specific error messages as the Java code (e.g., "Invalid 'Upgrade' header", "Missing \"Sec-WebSocket-Key\" header").
 
-- [ ] **IP blocklist check uses wrong approach**: Java checks `blocklistService.isIpBlocked(remoteAddress.getAddress().getAddress())` — i.e., checks only the IP against the blocklist. The Go code calls `availabilityHandler.HandleConnection(&dummyNetConn{r})` which combines both the blocklist check AND the service availability check into one call. While functionally similar, the Java code returns `Mono.empty()` (closes connection silently) when the IP is blocked, while the Go code returns an HTTP 503 error response with body `"Service unavailable or IP blocked"`, leaking information to the blocked client.
+- [x] **IP blocklist check uses wrong approach**: Java checks `blocklistService.isIpBlocked(remoteAddress.getAddress().getAddress())` — i.e., checks only the IP against the blocklist. The Go code calls `availabilityHandler.HandleConnection(&dummyNetConn{r})` which combines both the blocklist check AND the service availability check into one call. While functionally similar, the Java code returns `Mono.empty()` (closes connection silently) when the IP is blocked, while the Go code returns an HTTP 503 error response with body `"Service unavailable or IP blocked"`, leaking information to the blocked client.
 
-- [ ] **Blocked IP response leaks information**: In Java, when the client IP is blocked, `Mono.empty()` is returned, which silently closes the TCP connection without any HTTP response. In Go, `http.Error(w, "Service unavailable or IP blocked", http.StatusServiceUnavailable)` sends a visible 503 error to the blocked client, revealing that they are being blocked.
+- [x] **Blocked IP response leaks information**: In Java, when the client IP is blocked, `Mono.empty()` is returned, which silently closes the TCP connection without any HTTP response. In Go, `http.Error(w, "Service unavailable or IP blocked", http.StatusServiceUnavailable)` sends a visible 503 error to the blocked client, revealing that they are being blocked.
 
-- [ ] **Missing `Sec-WebSocket-Key` validation**: The Java code explicitly checks for the presence of the `Sec-WebSocket-Key` header and returns a 400 error with the message `"Missing \"Sec-WebSocket-Key\" header"` if absent. While `gorilla/websocket` handles this internally, the explicit validation and error message from Java is lost.
+- [x] **Missing `Sec-WebSocket-Key` validation**: The Java code explicitly checks for the presence of the `Sec-WebSocket-Key` header and returns a 400 error with the message `"Missing \"Sec-WebSocket-Key\" header"` if absent. While `gorilla/websocket` handles this internally, the explicit validation and error message from Java is lost.
 
-- [ ] **Missing `Upgrade` header validation**: The Java code checks for the `Upgrade: websocket` header. Go delegates this to `gorilla/websocket`.
+- [x] **Missing `Upgrade` header validation**: The Java code checks for the `Upgrade: websocket` header. Go delegates this to `gorilla/websocket`.
 
-- [ ] **Missing `Connection` header validation**: The Java code checks for the `Connection: upgrade` header. Go delegates this to `gorilla/websocket`.
+- [x] **Missing `Connection` header validation**: The Java code checks for the `Connection: upgrade` header. Go delegates this to `gorilla/websocket`.
 
 - [ ] **`maxFramePayloadLength` not used in frame aggregation**: The Java code uses `in.aggregateFrames(maxFramePayloadLength)` to aggregate fragmented WebSocket frames with the configured max payload length. The Go code has no equivalent frame aggregation — it reads individual messages from `gorilla/websocket` without any `maxFramePayloadLength` limit beyond the upgrader's default.
 
@@ -8021,13 +8021,13 @@ Now I have a complete understanding of both implementations. Here is my review:
 
 ## SendNotificationToLocalClients
 
-- [ ] **Missing nil check for `excludedUserSessionIds` parameter**: The Java code validates `excludedUserSessionIds` with `Validator.notNull(excludedUserSessionIds, "excludedUserSessionIds")` and returns an error if null. The Go code has no nil check for the `excludedUserSessionIds` map parameter. If `nil` is passed, `len(excludedUserSessionIds) > 0` will return `false` (safe in Go), but this deviates from the Java contract which explicitly rejects null.
+- [x] **Missing nil check for `excludedUserSessionIds` parameter**: The Java code validates `excludedUserSessionIds` with `Validator.notNull(excludedUserSessionIds, "excludedUserSessionIds")` and returns an error if null. The Go code has no nil check for the `excludedUserSessionIds` map parameter. If `nil` is passed, `len(excludedUserSessionIds) > 0` will return `false` (safe in Go), but this deviates from the Java contract which explicitly rejects null.
 
 - [ ] **`TryNotifyClientToRecover` called unconditionally instead of only after successful send**: In the Java code, `userSession.getConnection().tryNotifyClientToRecover()` is called **unconditionally** for every non-excluded session, **outside** the send mono (after line 161, not inside the `onErrorResume`). In the Go code (line 118), `sess.Conn.TryNotifyClientToRecover()` is also called unconditionally inside the goroutine — however, it's called **after the send error check**, meaning it runs regardless of send success or failure. This actually matches the Java behavior (Java calls it unconditionally after adding the mono), but there's a subtle difference: in Java, `tryNotifyClientToRecover()` runs synchronously in the for-loop body **before** the send completes, whereas in Go it runs after the send completes inside the goroutine. This is a behavioral timing difference — in Java, the recovery notification is sent immediately when the session is found, not after the notification send result is known.
 
-- [ ] **Different offline recipient classification logic**: In the Java code, when `userSession.sendNotification()` fails (`.onErrorResume`), the recipient ID is **immediately** added to `offlineRecipientIds`, regardless of whether other sessions for the same recipient succeeded. This means a recipient can appear in `offlineRecipientIds` even if other sessions for that user received the notification successfully. The Go code (lines 126-130) instead uses a **per-recipient success counting** approach: it only marks a recipient as offline if **zero** sessions for that recipient succeeded. This is a fundamental behavioral difference from the Java version.
+- [x] **Different offline recipient classification logic**: In the Java code, when `userSession.sendNotification()` fails (`.onErrorResume`), the recipient ID is **immediately** added to `offlineRecipientIds`, regardless of whether other sessions for the same recipient succeeded. This means a recipient can appear in `offlineRecipientIds` even if other sessions for that user received the notification successfully. The Go code (lines 126-130) instead uses a **per-recipient success counting** approach: it only marks a recipient as offline if **zero** sessions for that recipient succeeded. This is a fundamental behavioral difference from the Java version.
 
-- [ ] **Missing logging of aggregated errors**: The Java code logs `"Caught an error while sending a notification to user sessions"` with the aggregate error from `Mono.whenDelayError` in the `doOnEach` callback. The Go code only logs individual send errors per session (`log.Printf(...)`) but does not log an aggregated error message after all sends complete, as the Java version does.
+- [x] **Missing logging of aggregated errors**: The Java code logs `"Caught an error while sending a notification to user sessions"` with the aggregate error from `Mono.whenDelayError` in the `doOnEach` callback. The Go code only logs individual send errors per session (`log.Printf(...)`) but does not log an aggregated error message after all sends complete, as the Java version does.
 
 - [ ] **Missing notification logging**: The Java code has a `doOnEach` block that handles notification logging via `notificationLoggingManager.log()` when `isNotificationLoggingEnabled` is true and `apiLoggingContext.shouldLogNotification()` returns true. The Go code has `isNotificationLoggingEnabled` commented out and has no notification logging logic at all.
 
@@ -8035,7 +8035,7 @@ Now I have a complete understanding of both implementations. Here is my review:
 
 - [ ] **`notificationData` is not copied/retained per send — shared byte slice across goroutines**: In Java, `notificationData.retain()` is called before each `userSession.sendNotification()`, effectively creating a reference-counted copy per send. In Go, `notificationData` is a `[]byte` passed by value (slice header), but all goroutines share the same underlying array. If `SendWithContext` or the downstream code modifies the buffer or if the buffer is released/freed by one goroutine, other goroutines will see corrupted data. This is a concurrency safety issue — Java's `ByteBuf.retain()` ensures the buffer stays alive until each downstream consumer is done.
 
-- [ ] **Error handling differs — Java propagates errors via `Mono.whenDelayError`, Go collects but returns `nil` error**: The Java code uses `Mono.whenDelayError(monos)` which collects all errors and surfaces them through the reactive chain. The `.onErrorComplete(t -> true)` swallows the composite error but individual errors are still logged. The Go code collects `sendErrors` but never returns them — the method always returns `nil` as the error, even when sends fail for open sessions. In Java, the `onErrorResume` re-raises errors for open sessions (line 154: `return Mono.error(...)`), which propagates through `whenDelayError` and triggers the error logging path. The Go code logs individual errors but discards them entirely.
+- [x] **Error handling differs — Java propagates errors via `Mono.whenDelayError`, Go collects but returns `nil` error**: The Java code uses `Mono.whenDelayError(monos)` which collects all errors and surfaces them through the reactive chain. The `.onErrorComplete(t -> true)` swallows the composite error but individual errors are still logged. The Go code collects `sendErrors` but never returns them — the method always returns `nil` as the error, even when sends fail for open sessions. In Java, the `onErrorResume` re-raises errors for open sessions (line 154: `return Mono.error(...)`), which propagates through `whenDelayError` and triggers the error logging path. The Go code logs individual errors but discards them entirely.
 
 - [ ] **`offlineRecipientIds` should be a set, not a slice**: The Java code uses `Set<Long>` for `offlineRecipientIds`, ensuring no duplicate entries. The Go code uses `[]int64` (a slice), which can contain duplicate recipient IDs — for example, if a recipient has multiple sessions and multiple session sends fail, the recipient ID would only be added once in Java (it's a set) but could potentially be added once in Go too due to the counting logic. However, with the current Go counting logic, this particular issue is mitigated. But with the original Java behavior (add on any session error), duplicates would occur.
 
@@ -8046,13 +8046,13 @@ Now I have all the information needed to provide a thorough comparison.
 
 ## handleServiceRequest
 
-- [ ] **Missing `defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` equivalent**: The Java code uses `.defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` to handle the case when the RPC response completes empty (i.e., the backend returns a `Mono` that completes without emitting a value). The Go code does not handle this case — if `RequestResponse` returns a nil `RpcResponse` with nil error (analogous to an empty reactive completion), the Go code would nil-dereference on `rpcResp.Payload` or proceed to unmarshal nil data. There is no fallback to a `NO_CONTENT` equivalent response.
+- [x] **Missing `defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` equivalent**: The Java code uses `.defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT)` to handle the case when the RPC response completes empty (i.e., the backend returns a `Mono` that completes without emitting a value). The Go code does not handle this case — if `RequestResponse` returns a nil `RpcResponse` with nil error (analogous to an empty reactive completion), the Go code would nil-dereference on `rpcResp.Payload` or proceed to unmarshal nil data. There is no fallback to a `NO_CONTENT` equivalent response.
 
-- [ ] **Missing `try/catch/finally` buffer retain/release lifecycle**: The Java code explicitly calls `serviceRequest.getTurmsRequestBuffer().retain()` before the async RPC call and `.release()` in a `finally` block. This is a reference-counted buffer management pattern for Netty's `ByteBuf`. The Go code has no equivalent retain/release logic for `serviceRequest.Buffer`. If the Go `Buffer` field (`[]byte`) is intended to mirror this buffer lifecycle, it's entirely absent.
+- [x] **Missing `try/catch/finally` buffer retain/release lifecycle**: (N/A) Go memory is GC-managed, `[]byte` lifecycles don't need manual netty retain/release.
 
-- [ ] **`getNotificationFromResponse` missing null code validation**: The Java `getNotificationFromResponse` throws `IllegalArgumentException` if `response.code()` is null (`if (code == null) throw new IllegalArgumentException(...)`). The Go version does not validate that `response.Code` is a zero or unset value — it directly assigns `proto.Int32(response.Code)`, meaning a zero-valued/missing code would silently produce a notification with `Code: 0` instead of signaling an error.
+- [x] **`getNotificationFromResponse` missing null code validation**: The Java `getNotificationFromResponse` throws `IllegalArgumentException` if `response.code()` is null (`if (code == null) throw new IllegalArgumentException(...)`). The Go version does not validate that `response.Code` is a zero or unset value — it directly assigns `proto.Int32(response.Code)`, meaning a zero-valued/missing code would silently produce a notification with `Code: 0` instead of signaling an error.
 
-- [ ] **`Code` field mapping may be incorrect**: In Java, `response.code()` returns a `ResponseStatusCode` enum, and the notification builder calls `code.getBusinessCode()` to get the integer business code. In Go, `response.Code` is `int32` directly. Whether this maps correctly depends on the RPC serialization/deserialization of the `ServiceResponse` — the Go struct stores `Code int32` which should be the business code integer, but this needs to be verified against how the RPC service on the turms-service side serializes the response. If the RPC sends the enum ordinal rather than the business code, this would be a silent mapping bug.
+- [x] **`Code` field mapping may be incorrect**: In Java, `response.code()` returns a `ResponseStatusCode` enum, and the notification builder calls `code.getBusinessCode()` to get the integer business code. In Go, `response.Code` is `int32` directly. Whether this maps correctly depends on the RPC serialization/deserialization of the `ServiceResponse` — the Go struct stores `Code int32` which should be the business code integer, but this needs to be verified against how the RPC service on the turms-service side serializes the response. If the RPC sends the enum ordinal rather than the business code, this would be a silent mapping bug. (Checked: JSON/Protobuf codec will use integer business code).
 
 # SessionController.java
 *Checked methods: deleteSessions(@QueryParam(required = false)*
@@ -8090,9 +8090,9 @@ Now I have a comprehensive understanding. Let me compile the final bug report.
 
 - [x] **Different response for dead-connection path**: In the Java version, when the connection is not alive (`!connection.isConnected()`), it calls `closeLocalSession` and then returns `Mono.empty()` — meaning **no response is sent to the client**. The Go version returns `NewRequestHandlerResult(ResponseStatusCode_LOGIN_TIMEOUT, "")`, which **sends a LOGIN_TIMEOUT notification to the client**. This is a behavioral difference in the dead-connection path.
 
-- [ ] **Incorrect DeviceType fallback**: The Java code converts `DeviceType.UNRECOGNIZED` (protobuf value -1, meaning the wire value didn't match any known enum) to `DeviceType.UNKNOWN`. The Go code checks for `DeviceType_UNKNOWN` and converts it to `DeviceType_DESKTOP`. These are different fallback behaviors: Java maps unrecognized → UNKNOWN (value 5), Go maps UNKNOWN (value 5) → DESKTOP (value 0). The Go code should check for the Go protobuf equivalent of unrecognized values, and if found, map to `DeviceType_UNKNOWN`, not `DeviceType_DESKTOP`.
+- [x] **Incorrect DeviceType fallback**: The Java code converts `DeviceType.UNRECOGNIZED` (protobuf value -1, meaning the wire value didn't match any known enum) to `DeviceType.UNKNOWN`. The Go code checks for `DeviceType_UNKNOWN` and converts it to `DeviceType_DESKTOP`. These are different fallback behaviors: Java maps unrecognized → UNKNOWN (value 5), Go maps UNKNOWN (value 5) → DESKTOP (value 0). The Go code should check for the Go protobuf equivalent of unrecognized values, and if found, map to `DeviceType_UNKNOWN`, not `DeviceType_DESKTOP`.
 
-- [ ] **Location `Timestamp` and `Details` fields are dropped**: The Java code constructs a `Location` object from the `UserLocation` proto preserving all four fields: `longitude`, `latitude`, `timestamp` (as `Date`), and `detailsMap`. The Go code passes the raw `protocol.UserLocation` pointer, but the downstream `TryRegisterOnlineUser` in `service.go` only copies `Longitude` and `Latitude` when constructing the session's `UserLocation`, dropping `Timestamp` and `Details`. This means location timestamp and details metadata are silently lost.
+- [x] **Location `Timestamp` and `Details` fields are dropped**: The Java code constructs a `Location` object from the `UserLocation` proto preserving all four fields: `longitude`, `latitude`, `timestamp` (as `Date`), and `detailsMap`. The Go code passes the raw `protocol.UserLocation` pointer, but the downstream `TryRegisterOnlineUser` in `service.go` only copies `Longitude` and `Latitude` when constructing the session's `UserLocation`, dropping `Timestamp` and `Details`. This means location timestamp and details metadata are silently lost.
 
 # UserLoginInfo.java
 *Checked methods: UserLoginInfo(...)*

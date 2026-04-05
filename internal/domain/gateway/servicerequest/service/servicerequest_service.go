@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"google.golang.org/protobuf/proto"
@@ -37,6 +38,13 @@ func (s *ServiceRequestService) HandleServiceRequest(ctx context.Context, defaul
 		return nil, err
 	}
 
+	if rpcResp == nil || rpcResp.Payload == nil || len(rpcResp.Payload) == 0 {
+		// Bug 8049: Missing defaultIfEmpty(REQUEST_RESPONSE_NO_CONTENT) equivalent
+		return s.getNotificationFromResponse(&dto.ServiceResponse{
+			Code: 1001, // 1001 corresponds to constant.ResponseStatusCode_NO_CONTENT business code
+		}, serviceRequest.RequestId), nil
+	}
+
 	// Unmarshal search response from JSON (until binary codec is implemented)
 	var serviceResp dto.ServiceResponse
 	if err := json.Unmarshal(rpcResp.Payload, &serviceResp); err != nil {
@@ -50,6 +58,13 @@ func (s *ServiceRequestService) HandleServiceRequest(ctx context.Context, defaul
 // getNotificationFromResponse maps the backend ServiceResponse back to a TurmsNotification for the client.
 // @MappedFrom getNotificationFromResponse(@NotNull ServiceResponse response, long requestId)
 func (s *ServiceRequestService) getNotificationFromResponse(response *dto.ServiceResponse, requestId int64) *protocol.TurmsNotification {
+	// Bug 8053: getNotificationFromResponse missing null code validation
+	if response.Code == 0 {
+		log.Printf("Received ServiceResponse with an unset/zero Code for request ID: %d", requestId)
+		// Fallback to internal error if no valid code provided
+		response.Code = 1002 // 1002 corresponds to constant.ResponseStatusCode_SERVER_INTERNAL_ERROR
+	}
+
 	notification := &protocol.TurmsNotification{
 		Timestamp: time.Now().UnixMilli(),
 		RequestId: proto.Int64(requestId),
