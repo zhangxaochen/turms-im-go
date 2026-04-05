@@ -278,6 +278,9 @@ func (b *BerBuffer) ReadIntWithTag(tag int) int {
 		panic(fmt.Sprintf("Expecting tag: %d, but got: %d", tag, actualTag))
 	}
 	length := b.ReadLength()
+	if length == 0 {
+		return 0
+	}
 	if length > 4 {
 		panic("The integer is too long")
 	}
