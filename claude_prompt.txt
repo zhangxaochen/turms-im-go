@@ -1,0 +1,362 @@
+You are a specialized coding sub-agent. Your task is to resolve exactly 50 pending bugs in the turms-go codebase.
+CRITICAL RULES:
+1. Be extremely concise in your output and thoughts. Minimize conversational filler.
+2. Fix the issues below, test them, and YOU MUST automatically commit your changes with a descriptive commit message.
+
+BUGS TO FIX:
+====================
+
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing empty roleIds check** — Java returns `Flux.empty()` if `roleIds.isEmpty()`. Go relies on the repository's empty check.
+
+---
+
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing cache update (`doOnNext` to update `idToRole`)** — Java caches each fetched role via `.doOnNext(role -> idToRole.put(role.getId(), role))`. Go does not update `idToRole` cache in this method.
+
+---
+
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing roleIds immutability protection** — Java creates a copy (`new UnifiedSet<>(roleIds)`) before removing `ADMIN_ROLE_ROOT_ID` to avoid mutating the caller's collection. Go passes the original slice (though Go slices are reference types, the repository doesn't mutate them, so this is minor).
+
+---
+
+[Context: ## CountAdminRoles]
+- [ ] **Bug: Missing +1 for the root role** — Java adds 1 to the count: `.map(number -> number + 1)` because the root role is built-in and not in the database. Go returns the raw count from the repository without adding 1.
+
+---
+
+[Context: ## QueryHighestRankByAdminId]
+- [ ] **Bug: Missing validation for `adminId` not-null** — Java validates `Validator.notNull(adminId, "adminId")`. Go takes `adminId int64` (primitive, can't be nil in Go, so this is acceptable but noted).
+
+---
+
+[Context: ## QueryHighestRankByAdminId]
+- [ ] **Bug: When admin has no roles, `QueryRoleIdsByAdminIds` returns nil/empty** — Java's `adminService.queryRoleIdsByAdminId` returns role IDs and then `queryHighestRankByRoleIds` handles empty. In Go, `QueryRoleIdsByAdminIds` returns a nil/empty slice, then `QueryHighestRankByRoleIds` returns nil. This is functionally equivalent.
+
+---
+
+[Context: ## QueryHighestRankByRoleIds]
+- [ ] **Bug: Missing root role handling** — Java checks `roleIds.contains(ADMIN_ROLE_ROOT_ID)` and if true, returns `Mono.just(getRootRole().getRank())` (which is `Integer.MAX_VALUE`). Go's `FindHighestRankByRoleIds` only queries the database, so it will never return the root role's rank (`Integer.MAX_VALUE`), potentially returning a lower rank or nil.
+
+---
+
+[Context: ## IsAdminRankHigherThanRank]
+- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (primitive).
+
+---
+
+[Context: ## IsAdminRankHigherThanRank]
+- [ ] **Bug: Returns `(false, nil)` when admin has no roles** — Java returns an empty Mono, which in the reactive chain triggers `switchIfEmpty(adminService.errorRequesterNotExist())`. Go returns `(false, nil)`, meaning a non-existent admin silently returns "not higher" instead of an error.
+
+---
+
+[Context: ## QueryPermissions]
+- [ ] **Bug: Uses database query instead of in-memory cache** — Java's `BaseAdminRoleService.queryPermissions(Set<Long> roleIds)` uses the in-memory `idToRole` cache to look up permissions for cached roles, only querying the DB for uncached roles. Go always queries the database via `FindAdminRoles`, bypassing the `idToRole` cache entirely.
+
+---
+
+[Context: ## QueryPermissions]
+- [ ] **Bug: Missing root role permissions** — Java's `queryAndCacheRolesByRoleIds` includes the root role when its ID is in the roleIds set, so `queryPermissions` includes root permissions (ALL permissions). Go's `FindAdminRoles` queries the database and won't find the root role (it's not stored in DB), so root role permissions are never included.
+*Checked methods: queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds), authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size), authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds), authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds), errorRequesterNotExist()*
+Now let me carefully compare each method.
+**Java**: First tries to look up from the in-memory cache (`idToAdmin`). If any admin ID is not found in cache, falls back to querying the repository. Uses `CollectionUtil.newSetWithExpectedSize` and returns a `Set<Long>` (deduplicated).
+**Go**: Always queries the repository directly (no cache lookup). Returns a `[]int64` slice (no deduplication). Missing the cache-first optimization, and missing deduplication of role IDs.
+**Java**: Validates role IDs don't contain `ADMIN_ROLE_ROOT_ID`. Calls `checkIfAllowedToAddRolesToAdmins` which: (1) verifies requester exists via `queryHighestRankByAdminId` + `switchIfEmpty(errorRequesterNotExist())`, (2) fetches target roles and validates ALL role IDs exist (not just checks rank), (3) checks that no target role has rank >= requester rank, (4) then calls `addAdmin` with `requesterRank` passed to it.
+**Go**: Only checks if requester rank is higher than the highest target role rank. Does NOT verify that the requested role IDs actually exist. Does NOT check for `ADMIN_ROLE_ROOT_ID` in roleIds. Does NOT handle the requester-not-exist case explicitly (returns nil from `QueryHighestRankByRoleIds` which is silently ignored).
+**Java**: Handles null `loginName` (generates random 16-char alphabetic), null `rawPassword` (generates random 10-char password), null `displayName` (defaults to `loginName`), null `registrationDate` (defaults to `new Date()`). Has an `upsert` parameter for insert vs upsert. Also stores in `idToAdmin` cache.
+**Go**: Does NOT handle empty/null loginName (no random generation). Does NOT handle empty/null rawPassword. Does NOT handle empty/null displayName (no default to loginName). Does NOT handle null registrationDate (always uses `time.Now()` which is correct for the null case but wrong when one is explicitly provided). Does NOT implement `upsert` logic. Does NOT maintain the in-memory cache (`idToAdmin`).
+Both are straightforward delegation to repository. This looks correct.
+**Java**: Validates `requesterId` not null, `adminIds` not empty, `adminIds` doesn't contain `ROOT_ADMIN_ID`. Then calls `checkIfAllowedToManageAdmins` which queries the target admins' roles, queries for roles with rank >= requester rank, and only allows if none found.
+**Go**: Checks for `RootAdminID` in adminIds. Then queries target role IDs and checks rank. Missing: requester-not-exist handling (Java uses `switchIfEmpty(errorRequesterNotExist())`). The Go code doesn't validate that adminIds is non-empty. The Go code doesn't validate requesterId. Also, when `targetHighest` is nil (no target roles found), the Go code proceeds to delete without checking if the requester exists, which is a different behavior from Java.
+**Java**: Validates requesterId, targetAdminIds, rawPassword (no whitespace, length), displayName (length). Returns `ACKNOWLEDGED_UPDATE_RESULT` early if all params are null and no roleIds. If no roleIds, uses `checkIfAllowedToManageAdmins` only. If `targetAdminIds.contains(requesterId)`, returns error about updating own role. If roleIds present, calls `checkIfAllowedToAddRolesToAdmins` then `checkIfAllowedToManageAdmins`, passing `requesterRank` through. Critically, when roleIds are present, `updateAdmins` is called with `null` for roleIds (roleIds are handled separately through the auth check but the actual update uses null for roleIds in the nested call, and roleIds are passed via `checkIfAllowedToAddRolesToAdmins`'s own validation).
+Wait, let me re-read Java line 377-381 more carefully:
+```java
+return checkIfAllowedToAddRolesToAdmins(requesterId,
+        roleIds,
+        requesterRank -> checkIfAllowedToManageAdmins(Mono.just(requesterRank),
+                targetAdminIds,
+                () -> updateAdmins(targetAdminIds, rawPassword, displayName, null)));
+```
+So when roleIds are present, Java calls `updateAdmins` with `null` roleIds. But that seems wrong... wait, actually looking at `updateAdmins` - it takes `roleIds` as a parameter and passes them to the repository. But in `authAndUpdateAdmins`, when there are roleIds, it calls `updateAdmins(targetAdminIds, rawPassword, displayName, null)` - passing null roleIds. This means the Java version actually does NOT persist the roleIds change via `updateAdmins` when called from `authAndUpdateAdmins` with roleIds... 
+Wait, that's actually a bug in the original Java code. But I should focus on Go parity. Let me re-read.
+Actually wait - looking again at Java lines 377-381, the `checkIfAllowedToAddRolesToAdmins` validates the new roleIds but then `updateAdmins` is called with `null` for roleIds. But actually, the `updateAdmins` call on line 381 passes `null` for roleIds. So the roleIds are NOT persisted. This looks like it might be intentional (maybe roleIds changes go through a different path). 
+But wait, looking at the no-roleIds case (lines 368-372):
+```java
+return checkIfAllowedToManageAdmins(
+    adminRoleService.queryHighestRankByAdminId(requesterId).switchIfEmpty(errorRequesterNotExist()),
+    targetAdminIds,
+    () -> updateAdmins(targetAdminIds, rawPassword, displayName, null));
+```
+Also passes `null` for roleIds.
+So both branches pass `null` roleIds to `updateAdmins`. This means `authAndUpdateAdmins` never actually persists roleIds changes through `updateAdmins`. This seems like a design choice in the Java version (maybe role changes happen separately).
+**Go**: Does not check `targetAdminIds.contains(requesterId)` (no "update own role" error). Does NOT return early when all parameters are nil/empty (no `ACKNOWLEDGED_UPDATE_RESULT` optimization). Does pass roleIds to `UpdateAdmins` (unlike Java which passes null). Missing requester-not-exist handling. The permission check flow is also different: Go checks current target admin rank, then checks new role rank, but doesn't validate role IDs exist.
+**Java**: Validates params, returns `ACKNOWLEDGED_UPDATE_RESULT` if nothing to update. Only hashes password if rawPassword is non-null. Invalidates cache (`idToAdmin.remove`) on success.
+**Go**: Only hashes password if rawPassword is non-nil. Does NOT return early when all parameters are nil/empty. Does NOT invalidate any cache (no `idToAdmin` cache in Go). Passes `roleIds` to repo update (this is correct for Go's standalone `updateAdmins` usage).
+Both are straightforward delegation. Looks correct.
+**Java**: Returns a `Mono.error(ResponseException)` with `UNAUTHORIZED` status code and message "The requester does not exist".
+**Go**: Returns a plain `errors.New("requester does not exist")` error without any status code information. This is a behavioral difference since the Java version includes a specific `ResponseStatusCode.UNAUTHORIZED`.
+**Java**: Returns `Set<Long>` (deduplicated role IDs).
+**Go**: Returns `[]int64` - no deduplication. If two admins share a role, the role ID will appear twice.
+---
+
+---
+
+[Context: ## queryRoleIdsByAdminIds]
+- [ ] Missing in-memory cache (`idToAdmin`) lookup before falling back to repository query. Java first checks the local cache and only queries the DB if any admin ID is not cached.
+
+---
+
+[Context: ## queryRoleIdsByAdminIds]
+- [ ] Missing deduplication of role IDs. Java uses a `Set` which auto-deduplicates; Go appends all role IDs to a slice, producing duplicates when multiple admins share roles.
+
+---
+
+[Context: ## authAndAddAdmin]
+- [ ] Missing validation that `roleIds` does not contain `ADMIN_ROLE_ROOT_ID` (Java checks `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, ...)`).
+
+---
+
+[Context: ## authAndAddAdmin]
+- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester has no rank; Go silently proceeds when `QueryHighestRankByRoleIds` returns nil.
+
+---
+
+[Context: ## authAndAddAdmin]
+- [ ] Missing validation that all requested role IDs actually exist. Java's `checkIfAllowedToAddRolesToAdmins` fetches roles by ID and errors if any are missing; Go only checks rank.
+
+---
+
+[Context: ## authAndAddAdmin]
+- [ ] Missing `upsert` parameter and logic. Java's `authAndAddAdmin` takes a `boolean upsert` and passes it through to `addAdmin`, which chooses between `upsert` and `insert`.
+
+---
+
+[Context: ## addAdmin]
+- [ ] Missing default generation for empty/null `loginName`. Java generates `RandomStringUtils.randomAlphabetic(16)` when loginName is null; Go does not.
+
+---
+
+[Context: ## addAdmin]
+- [ ] Missing default generation for empty/null `rawPassword`. Java generates `RandomStringUtils.randomAlphabetic(10)` and encodes it when rawPassword is null/empty; Go does not handle this case.
+
+---
+
+[Context: ## addAdmin]
+- [ ] Missing default for null `displayName`. Java defaults to `loginName` when displayName is null/empty; Go does not.
+
+---
+
+[Context: ## addAdmin]
+- [ ] Missing `upsert` parameter. Java's `addAdmin` supports both insert and upsert modes via the `upsert` boolean; Go always inserts.
+
+---
+
+[Context: ## addAdmin]
+- [ ] Missing in-memory cache update (`idToAdmin`). Java stores the new admin in `idToAdmin` after successful DB write; Go does not maintain this cache.
+
+---
+
+[Context: ## addAdmin]
+- [ ] Missing `registrationDate` parameter. Java accepts an explicit registration date and only defaults to `new Date()` when null; Go always uses `time.Now()`, ignoring any caller-provided value.
+
+---
+
+[Context: ## authAndDeleteAdmins]
+- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester doesn't exist; Go silently proceeds when `targetHighest` is nil, potentially allowing deletion by a non-existent requester or when target admins have no roles.
+
+---
+
+[Context: ## authAndDeleteAdmins]
+- [ ] Missing validation that `adminIds` is non-empty. Java validates `Validator.notEmpty(adminIds, "adminIds")`.
+
+---
+
+[Context: ## authAndDeleteAdmins]
+- [ ] Missing validation that `requesterId` is provided. Java validates `Validator.notNull(requesterId, "requesterId")`.
+
+---
+
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing check for requester updating their own role IDs. Java returns an explicit error `MONO_ERROR_UPDATE_ONE_OWN_ROLE_ID` when `targetAdminIds.contains(requesterId)` and roleIds are present; Go has no such check.
+
+---
+
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing early return when all update parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately when `rawPassword`, `displayName`, and `roleIds` are all null; Go still performs authorization checks and a no-op update.
+
+---
+
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing requester-not-exist handling. Same issue as other auth methods.
+
+---
+
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing validation that requested `roleIds` actually exist. Java's `checkIfAllowedToAddRolesToAdmins` validates all role IDs exist; Go only checks rank.
+
+---
+
+[Context: ## authAndUpdateAdmins]
+- [ ] When roleIds are present, Java passes `null` roleIds to `updateAdmins` (effectively not persisting role changes through that path), while Go passes `roleIds` directly to `UpdateAdmins`. This is a behavioral difference — the Go version will persist role changes that the Java version intentionally skips.
+
+---
+
+[Context: ## updateAdmins]
+- [ ] Missing early return when all parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` when `rawPassword`, `displayName`, and `roleIds` are all null; Go still calls the repository with nil values.
+
+---
+
+[Context: ## updateAdmins]
+- [ ] Missing in-memory cache invalidation. Java removes all target admin IDs from `idToAdmin` on successful update; Go has no cache invalidation.
+No bugs found.
+
+---
+
+[Context: ## errorRequesterNotExist]
+- [ ] Missing `UNAUTHORIZED` status code. Java returns `ResponseException` with `ResponseStatusCode.UNAUTHORIZED` and a descriptive message; Go returns a plain `errors.New("requester does not exist")` without any status code, losing error classification information.
+*Checked methods: addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO), queryBlockedIps(Set<String> ids), queryBlockedIps(int page, @QueryParam(required = false), deleteBlockedIps(@QueryParam(required = false)*
+Now I have all the context needed. Let me analyze the differences.
+
+---
+
+[Context: ## queryBlockedIps (page)]
+- [ ] **Missing `countBlockIps()` call**: The Java version calls `blocklistService.countBlockIps()` to get the total count and returns it via `HttpHandlerResult.page(blockedIpCount, clients2ips(blockedIps))`. The Go version's `QueryBlockedIpsByPage` only returns `[]dto.BlockedIpDTO` and does not call a count method at all. The method signature returns just the DTO slice, with no pagination metadata (total count), making it impossible for the caller to return proper paginated responses as the Java version does.
+
+---
+
+[Context: ## deleteBlockedIps]
+- [ ] **Missing empty-ids guard**: The Java version checks `!CollectionUtils.isEmpty(ids)` before calling `unblockIpStrings(ids)`, meaning if `deleteAll` is false and `ids` is null/empty, it does nothing (returns `Mono.empty()`). The Go version unconditionally calls `c.blocklistService.UnblockIpStrings(ids)` when `deleteAll` is false, even when `ids` is nil or empty, which differs from the Java behavior.
+*Checked methods: addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO), queryBlockedUsers(Set<Long> ids), queryBlockedUsers(int page, @QueryParam(required = false), deleteBlockedUserIds(@QueryParam(required = false)*
+Now I have all the information needed for a thorough comparison. Let me analyze each method.
+**Java:** `blocklistService.blockUserIds(addBlockedUserIdsDTO.ids(), addBlockedUserIdsDTO.blockDurationMillis())`
+**Go:** `c.blocklistService.BlockUserIds(addBlockedUserIdsDTO.IDs, addBlockedUserIdsDTO.BlockDurationMillis)`
+This maps correctly. The DTO fields match (IDs/ids, BlockDurationMillis/blockDurationMillis). The method signatures align.
+**Java:** Calls `blocklistService.getBlockedUsers(ids)` then converts to `BlockedUserDTO` with `id` and `new Date(blockedClient.blockEndTimeMillis())`.
+**Go:** Calls `c.blocklistService.GetBlockedUsers(ids)` then converts to `BlockedUserDTO` with `ID` and `time.UnixMilli(client.BlockEndTimeMillis)`.
+This maps correctly.
+**Java:**
+1. `size = getPageSize(size);`
+2. `int blockUserCount = blocklistService.countBlockUsers();` — gets the total count
+3. `List<BlockedClient<Long>> blockedUsers = blocklistService.getBlockedUsers(page, size);`
+4. Returns `HttpHandlerResult.page(blockUserCount, clients2users(blockedUsers));` — returns pagination with count
+**Go:**
+1. `actualSize := c.GetPageSize(size)` — correct
+2. `blockedClients := c.blocklistService.GetBlockedUsersByPage(page, actualSize)` — correct
+3. Returns only `[]dto.BlockedUserDTO` — **missing the total count** (`countBlockUsers()`)
+The Go version does **not** call a count method and does **not** return pagination info (total count). The Java version calls `countBlockUsers()` and wraps the result in `HttpHandlerResult.page(blockUserCount, ...)`. The Go method only returns the DTOs without the count.
+**Java:**
+```java
+Mono<Void> result = Mono.empty();
+if (deleteAll) {
+    result = blocklistService.unblockAllUserIds();
+} else if (!CollectionUtils.isEmpty(ids)) {
+    result = result.then(blocklistService.unblockUserIds(ids));
+}
+return HttpHandlerResult.okIfTruthy(result);
+```
+**Go:**
+```go
+if deleteAll {
+    return c.blocklistService.UnblockAllUserIds()
+}
+return c.blocklistService.UnblockUserIds(ids)
+```
+The Go version has a behavioral difference: when `deleteAll` is false **and** `ids` is empty/nil, the Java version returns a no-op success (it doesn't call unblock), while the Go version still calls `UnblockUserIds(ids)` with an empty slice. The Java code checks `!CollectionUtils.isEmpty(ids)` before calling `unblockUserIds`, but the Go code always calls `UnblockUserIds` when `deleteAll` is false, even with an empty `ids` slice.
+---
+
+---
+
+[Context: ## queryBlockedUsers(int page, @QueryParam(required = false) Integer size)]
+- [ ] **Missing total count**: The Go `QueryBlockedUserIdsByPage` method does not call a `CountBlockUsers()` equivalent. The Java version calls `blocklistService.countBlockUsers()` and passes `blockUserCount` to `HttpHandlerResult.page()`. The Go version only returns `[]dto.BlockedUserDTO` without any pagination metadata (total count), making it impossible for clients to know the total number of blocked users. Furthermore, `BlocklistService` in Go has no `CountBlockUsers` method at all.
+
+---
+
+[Context: ## deleteBlockedUserIds(@QueryParam(required = false) Set<Long> ids, boolean deleteAll)]
+- [ ] **Missing empty-ids guard**: When `deleteAll` is `false` and `ids` is empty/nil, the Java code skips the `unblockUserIds` call entirely (due to `!CollectionUtils.isEmpty(ids)` check), resulting in a no-op. The Go version unconditionally calls `UnblockUserIds(ids)` when `deleteAll` is false, even with an empty slice, which could cause unintended behavior or errors depending on the service implementation.
+*Checked methods: serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)*
+The Go file (`elasticsearch_model.go`) does not contain any ported version of the `BlockedClientSerializer.serialize` method. There is no `BlockedClient` struct, no custom serialization logic, and no equivalent of the ID type-dispatch (Long userId vs. IP address byte array) or the `blockEndTime` formatting.
+Since the task asks me to compare the ported methods, and the Go code simply does not have the ported method at all, this is a missing implementation rather than a bug in an existing implementation.
+However, the instructions say to focus on "ported methods" — the Java `serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)` method has **not been ported** to the Go file at all. There is nothing comparable to review.
+Given the strict instruction format, here is the assessment:
+
+---
+
+[Context: ## serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)]
+- [ ] The entire method is **missing** from the Go code. The Go file `elasticsearch_model.go` contains no `BlockedClient` type, no custom JSON marshaling for it, and no equivalent of: (1) writing an `id` field that is either a `Long` userId (written as a number) or an IP byte array (converted to string via `InetAddressUtil.ipBytesToString`), and (2) writing a `blockEndTime` field formatted via `DateTimeUtil.toStr(value.blockEndTimeMillis())`.
+*Checked methods: queryMembers(), removeMembers(List<String> ids), addMember(@RequestBody AddMemberDTO addMemberDTO), updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO), queryLeader(), electNewLeader(@QueryParam(required = false)*
+Now I have a complete picture of both implementations. Let me compile the findings.
+
+---
+
+[Context: ## addMember]
+- [ ] **Missing fields in Member construction**: The Java code constructs a `Member` with 18 fields including `version` (via `NodeVersion.parse`), `registrationDate`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, and `isActive`/`isHealthy` from the DTO. The Go code only sets: `ClusterID`, `NodeID`, `Zone`, `Name`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`, and conditionally `NodeType`. The following fields from `AddMemberDTO` are **not assigned** in the Go code:
+  - `Version` (Java: `NodeVersion.parse(addMemberDTO.version())`)
+  - `RegistrationDate`
+  - `MemberPort`
+  - `AdminAPIAddress`
+  - `WsAddress`
+  - `TcpAddress`
+  - `UdpAddress`
+
+---
+
+[Context: ## addMember]
+- [ ] **`IsActive` and `IsHealthy` hardcoded to `false`**: The Java code passes `addMemberDTO.isActive()` and `addMemberDTO.isHealthy()` from the request DTO. The Go code hardcodes both to `false` on lines 78-79, ignoring whatever the client sent.
+
+---
+
+[Context: ## addMember]
+- [ ] **`ClusterID` sourced incorrectly**: Java gets the cluster ID via `discoveryService.getLocalMember().getClusterId()`. Go uses `c.discoveryService.GetLocalNodeID()` which returns the **node** ID, not the cluster ID. These are different values.
+
+---
+
+[Context: ## addMember]
+- [ ] **Go `AddMemberDTO` is missing fields compared to Java**: The Java `AddMemberDTO` has 17 fields (`nodeId`, `zone`, `name`, `nodeType`, `version`, `isSeed`, `isLeaderEligible`, `registrationDate`, `priority`, `memberHost`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, `isActive`, `isHealthy`). The Go `AddMemberDTO` only has 9 fields (`NodeID`, `Zone`, `Name`, `NodeType`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`). Missing DTO fields: `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, `IsHealthy`, `Version`, `RegistrationDate`.
+
+---
+
+[Context: ## queryMembers]
+- [ ] **Returns different data structure**: Java returns `Collection<Member>` (the raw Member objects with all fields including `ClusterID`, `LastHeartbeat`, etc.). Go returns `[]MemberDTO` which is a transformed DTO with an additional computed `IsLeader` field. While this could be intentional for the Go API design, the Java version returns the raw `Member` entity directly, not a DTO.
+
+---
+
+[Context: ## queryLeader]
+- [ ] **Error handling differs**: Java throws `ResponseException.get(ResponseStatusCode.NO_CONTENT)` when leader is null (HTTP 204). Go returns `fmt.Errorf("NO_CONTENT")` which is a generic error, not a proper HTTP 204 response — it would likely result in an HTTP 500 internal error instead of the intended 204 No Content.
+
+---
+
+[Context: ## queryLeader]
+- [ ] **Same error handling issue for null member lookup**: When `discoveryService.getAllKnownMembers().get(nodeId)` returns null in Java, it passes null to `HttpHandlerResult.okIfTruthy()` which handles it. In Go, `GetMember(leaderID)` returning nil is handled with the same generic `fmt.Errorf("NO_CONTENT")` rather than the proper HTTP response code.
+
+---
+
+[Context: ## electNewLeader]
+- [ ] **Missing return value**: Java returns `Mono<HttpHandlerResult<ResponseDTO<Member>>>` — it returns the newly elected leader `Member` object in the response. Go returns only `error` with no member data, so the caller gets no information about who was elected leader.
+
+---
+
+[Context: ## removeMembers]
+- [ ] **Missing deleted count in response**: Java returns `HttpHandlerResult<DeleteResultDTO>` which includes the count of deleted members (`unregisterMembers` count). Go returns only `error` with no count information.
+*Checked methods: queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable), updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false), queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)*
+Now I have a comprehensive understanding of both implementations. Let me compare the three methods systematically.
+- **Java**: Calls `convertPropertiesToValueMap(properties, onlyMutable)` to convert properties to a map, respecting the `onlyMutable` flag. Returns schema version from `TurmsProperties.SCHEMA_VERSION`.
+- **Go**: Gets the properties correctly, but then discards them with `_ = props` and returns an empty `settings` map. The `onlyMutable` parameter is completely ignored. Schema version is hardcoded as `"1.0"` instead of using `TurmsProperties.SCHEMA_VERSION`.
+- **Java**: When `updateLocalSettings` is true, calls `updateLocalProperties(reset, turmsProperties)` synchronously and returns `Mono.just(RESPONSE_OK)`. When false, calls `updateGlobalProperties(reset, turmsProperties)` which returns a `Mono`, then `.thenReturn(RESPONSE_OK)`.
+- **Go**: The branching logic is correct. However, `UpdateGlobalProperties` in Go returns an `error` while Java returns a reactive `Mono` (asynchronous). The Go version treats both paths identically (synchronous), which loses the reactive/async distinction. But functionally the branching is correct. The return type is `error` rather than a response object wrapper, which is a design difference, not a bug per se.
+- **Java**: Uses `TurmsPropertiesInspector.ONLY_MUTABLE_METADATA` or `TurmsPropertiesInspector.METADATA` based on `onlyMutable`. If `withValue` is true, calls `mergeMetadataWithPropertyValue(metadata, properties)` to merge metadata with property values. Otherwise returns just the metadata. Returns schema version from `TurmsProperties.SCHEMA_VERSION`.
+- **Go**: Creates an empty `metadata` map, ignores all three parameters (`queryLocalSettings`, `onlyMutable`, `withValue`), and returns an empty settings map with a hardcoded `"1.0"` schema version. The entire metadata lookup and merge logic is missing.
+---
+
+---
+
+[Context: ## queryClusterSettings]
+- [ ] **Missing `convertPropertiesToValueMap` logic**: The retrieved `props` is discarded with `_ = props`. The `onlyMutable` parameter is completely ignored. The Java version calls `convertPropertiesToValueMap(properties, onlyMutable)` which filters/converts properties to a map respecting the mutable-only flag. The Go version returns an empty `settings` map instead.
+
+---
+
+[Context: ## queryClusterSettings]
+- [ ] **Hardcoded schema version**: `"1.0"` is hardcoded instead of using the `TurmsProperties.SCHEMA_VERSION` constant that the Java version references.
+
+====================
+Remember: ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.
