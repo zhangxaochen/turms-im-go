@@ -260,19 +260,12 @@ func (f *TcpServerFactory) Create(
 	}
 
 	if props.Wiretap {
-		// Wiretap support (Bug 387): wrapping listener to tap connections
-		// l = &WiretapListener{Listener: l}
+		l = common.NewWiretapListener(l)
 	}
 
 	if props.MetricsEnabled {
-		// Metrics support (Bug 389)
-		// l = &MetricsListener{Listener: l}
+		l = common.NewMetricsListener(l, "turms.gateway.server.tcp")
 	}
-
-	// Metrics setup placeholder (Java: .metrics(true, ...)) (Bug 428)
-	// if props.MetricsEnabled {
-	//    l = &MetricsListener{l, ...}
-	// }
 
 	availabilityHandler := common.NewServiceAvailabilityChannelHandler(blocklistService, serverStatusManager, sessionService)
 

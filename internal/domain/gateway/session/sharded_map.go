@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -59,6 +60,8 @@ func (m *UserSessionsManager) RemoveSession(deviceType protocol.DeviceType) {
 	delete(m.Sessions, deviceType)
 }
 
+// Push sends a notification to all sessions, optionally excluding one device type.
+// @MappedFrom Java: UserSessionsManager.push (internal helper)
 func (m *UserSessionsManager) Push(ctx context.Context, notification *protocol.TurmsNotification, excludedDeviceType *protocol.DeviceType) {
 	m.mu.RLock()
 	sessions := make([]*UserSession, 0, len(m.Sessions))
@@ -70,27 +73,37 @@ func (m *UserSessionsManager) Push(ctx context.Context, notification *protocol.T
 	}
 	m.mu.RUnlock()
 
-	if len(sessions) == 0 {
-		return
-	}
-
 	for _, sess := range sessions {
 		_ = sess.SendMessageWithContext(ctx, notification)
 	}
 }
 
-func (m *UserSessionsManager) PushSessionNotification(ctx context.Context, serverID string, excludedDeviceType *protocol.DeviceType) {
+// PushSessionNotification sends the session info notification to the specific device that just logged in.
+// @MappedFrom Java: UserSessionsManager.pushSessionNotification(DeviceType deviceType, String serverId)
+// Java sends to the newly-connected device (deviceType), including the session's numeric ID as a string and the serverId.
+func (m *UserSessionsManager) PushSessionNotification(ctx context.Context, deviceType protocol.DeviceType, serverID string) bool {
+	m.mu.RLock()
+	sess := m.Sessions[deviceType]
+	m.mu.RUnlock()
+
+	if sess == nil {
+		return false
+	}
+
 	notification := &protocol.TurmsNotification{
 		Timestamp: time.Now().UnixMilli(),
 		Data: &protocol.TurmsNotification_Data{
 			Kind: &protocol.TurmsNotification_Data_UserSession{
 				UserSession: &protocol.UserSession{
-					ServerId: serverID,
+					// Java encodes sess.getId() as string alongside serverId
+					SessionId: fmt.Sprintf("%d", sess.ID),
+					ServerId:  serverID,
 				},
 			},
 		},
 	}
-	m.Push(ctx, notification, excludedDeviceType)
+	err := sess.SendMessageWithContext(ctx, notification)
+	return err == nil
 }
 
 // @MappedFrom isEmpty()

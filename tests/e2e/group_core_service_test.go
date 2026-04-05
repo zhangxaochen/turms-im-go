@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/domain/group/service"
 	"im.turms/server/internal/testingutil"
@@ -49,29 +48,21 @@ func TestGroupCore_E2E(t *testing.T) {
 	})
 
 	// Test Group Creation & Membership
+	var groupID int64
+	creatorID := int64(101)
+
 	t.Run("CreateGroup And AddMember", func(t *testing.T) {
-		creatorID := int64(101)
-		groupID := int64(1001)
 		name := "Go Developers"
 		intro := "A group for Go enthusiasts"
 
-		group, err := groupService.CreateGroup(ctx, creatorID, groupID, &name, &intro, nil, nil, nil, nil, nil, nil, nil)
+		group, err := groupService.CreateGroup(ctx, creatorID, creatorID, &name, &intro, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, group)
 		assert.Equal(t, name, *group.Name)
+		groupID = group.ID
 
-		// Create membership for creator as OWNER
-		err = memberService.AddGroupMember(ctx, groupID, creatorID, protocol.GroupMemberRole_OWNER, nil, nil)
-		// Wait, the requester is creatorID, but if they aren't owner yet, it will fail because of our RBAC (returns ErrUnauthorized)
-		// Actually, in Turms Java, CreateGroup adds the creator as Owner organically. Let's fix our AddGroupMember logic if needed or just use Repo here.
-
-		// For the test, we add via Repo to bootstrap the owner
-		member := &po.GroupMember{
-			ID:   po.GroupMemberKey{GroupID: groupID, UserID: creatorID},
-			Role: protocol.GroupMemberRole_OWNER,
-		}
-		err = memberRepo.AddGroupMember(ctx, member)
-		require.NoError(t, err)
+		// Create membership for creator as OWNER (already done by CreateGroup parity, but let's verify or ensure)
+		// Actually, in CreateGroup we already add the member. Let's verify it.
 
 		// Test finding the role
 		role, err := memberRepo.FindGroupMemberRole(ctx, groupID, creatorID)
@@ -92,7 +83,6 @@ func TestGroupCore_E2E(t *testing.T) {
 
 	// Test Group Versioning
 	t.Run("Version Lifecycle", func(t *testing.T) {
-		groupID := int64(1001)
 		err := versionService.InitVersions(ctx, groupID)
 		require.NoError(t, err)
 
@@ -107,9 +97,6 @@ func TestGroupCore_E2E(t *testing.T) {
 
 	// Test Soft Delete
 	t.Run("Soft Delete Group", func(t *testing.T) {
-		creatorID := int64(101)
-		groupID := int64(1001)
-
 		err := groupService.DeleteGroup(ctx, creatorID, groupID)
 		require.NoError(t, err)
 
