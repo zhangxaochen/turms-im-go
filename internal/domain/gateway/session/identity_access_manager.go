@@ -22,6 +22,7 @@ import (
 	userservice "im.turms/server/internal/domain/user/service"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/internal/infra/ldap"
+	"im.turms/server/internal/infra/ldap/element"
 	"im.turms/server/internal/infra/plugin"
 )
 
@@ -390,13 +391,20 @@ func NewLdapSessionIdentityAccessManager(
 	props *config.LdapIdentityAccessManagementProperties,
 	policyManager *authorization.PolicyManager,
 ) *LdapSessionIdentityAccessManager {
-	client, _ := ldap.NewLdapClient(props.URL, false, nil, 5*time.Second) // Defaulting to no TLS for now
+	// Use admin host/port if present, otherwise user host/port
+	host := props.Admin.Host
+	port := props.Admin.Port
+	if host == "" {
+		host = props.User.Host
+		port = props.User.Port
+	}
+	client, _ := ldap.NewLdapClient(host, port, props.Admin.UseTLS, nil, 5*time.Second)
 	return &LdapSessionIdentityAccessManager{
 		client:        client,
 		baseDN:        props.BaseDN,
-		userFilter:    props.UserFilter,
-		adminDN:       props.AdminDN,
-		adminPassword: props.AdminPassword,
+		userFilter:    props.User.SearchFilter,
+		adminDN:       props.Admin.Username,
+		adminPassword: props.Admin.Password,
 		policyManager: policyManager,
 	}
 }
@@ -412,15 +420,25 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 
 	// 0. Bind as admin before searching if admin credentials are provided
 	if m.adminDN != "" {
-		res, err := m.client.Bind(m.adminDN, m.adminPassword)
-		if err != nil || !res.IsSuccess() {
+		// useFastBind=false: standard bind
+		ok, err := m.client.Bind(false, m.adminDN, m.adminPassword)
+		if err != nil || !ok {
 			return bo.LoginAuthenticationFailed, fmt.Errorf("failed to bind admin: %v", err)
 		}
 	}
 
 	// 1. Search for the user DN using userId and userFilter
 	filter := strings.ReplaceAll(m.userFilter, "{0}", fmt.Sprintf("%d", loginInfo.UserID))
-	searchResult, err := m.client.Search(m.baseDN, 2, filter, []string{"1.1"})
+	searchResult, err := m.client.Search(
+		m.baseDN,
+		element.ScopeWholeSubtree,
+		element.DerefNever,
+		0,    // sizeLimit: 0 = no limit
+		0,    // timeLimit: 0 = no limit
+		false, // typesOnly
+		[]string{"1.1"},
+		filter,
+	)
 	if err != nil {
 		return bo.LoginAuthenticationFailed, nil
 	}
@@ -433,12 +451,12 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	} else if len(searchResult.Entries) == 0 {
 		return bo.LoginAuthenticationFailed, nil
 	}
-	
+
 	userDN := searchResult.Entries[0].ObjectName
 
 	// 2. Bind with the user DN and password
-	res, err := m.client.Bind(userDN, *loginInfo.Password)
-	if err != nil || !res.IsSuccess() {
+	ok, err := m.client.Bind(false, userDN, *loginInfo.Password)
+	if err != nil || !ok {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -451,14 +469,19 @@ func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 		return false
 	}
 	m.baseDN = props.Ldap.BaseDN
-	m.userFilter = props.Ldap.UserFilter
-	m.adminDN = props.Ldap.AdminDN
-	m.adminPassword = props.Ldap.AdminPassword
-	if m.client == nil || m.client.Addr() != props.Ldap.URL {
-		if m.client != nil {
-			m.client.Close()
-		}
-		m.client, _ = ldap.NewLdapClient(props.Ldap.URL, false, nil, 5*time.Second)
+	m.userFilter = props.Ldap.User.SearchFilter
+	m.adminDN = props.Ldap.Admin.Username
+	m.adminPassword = props.Ldap.Admin.Password
+
+	newHost := props.Ldap.Admin.Host
+	newPort := props.Ldap.Admin.Port
+	if newHost == "" {
+		newHost = props.Ldap.User.Host
+		newPort = props.Ldap.User.Port
+	}
+
+	if m.client == nil {
+		m.client, _ = ldap.NewLdapClient(newHost, newPort, props.Ldap.Admin.UseTLS, nil, 5*time.Second)
 	}
 
 	return props.Enabled

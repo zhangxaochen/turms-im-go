@@ -60,6 +60,10 @@ type SessionService struct {
 
 	heartbeatManager *HeartbeatManager
 	sessionIDCounter atomic.Int64
+
+	// @MappedFrom Java: SessionService.notifyClientsOfSessionInfoAfterConnected
+	// Default true: send session notification (sessionId + serverId) to the new device upon login.
+	notifyClientsOfSessionInfoAfterConnected bool
 }
 
 func NewSessionService(
@@ -79,6 +83,8 @@ func NewSessionService(
 		sessionAuthenticationManager: sessionAuthenticationManager,
 		nodeID:                       nodeID,
 		rpcService:                   rpcService,
+		// Java default: notifyClientsOfSessionInfoAfterConnected = true
+		notifyClientsOfSessionInfoAfterConnected: true,
 	}
 
 	// Initialize session ID counter with a random positive value
@@ -435,7 +441,15 @@ func (s *SessionService) notifySessionClosedListeners(session *UserSession) {
 	listeners := s.onSessionClosedListeners
 	s.mu.RUnlock()
 	for _, listener := range listeners {
-		listener(session)
+		// @MappedFrom Java: wraps each invocation in try-catch to prevent one bad listener from aborting others
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Printf("WARN: panic in session closed listener: %v\n", r)
+				}
+			}()
+			listener(session)
+		}()
 	}
 }
 
@@ -661,11 +675,14 @@ func (s *SessionService) GetLocalUserSessionsByIp(ip []byte) []*UserSession {
 }
 
 func (s *SessionService) OnSessionEstablished(ctx context.Context, manager *UserSessionsManager, deviceType protocol.DeviceType) {
-	// TODO: Increment metrics (e.g. LoggedInUsersCounter, OnlineUsersGauge) (Bug 851)
-	// TODO: Notify clients of session info if properties.Gateway.Session.NotifyClientsOfSessionInfoAfterConnected is true (Bug 852)
+	// TODO: Increment metrics (e.g. LoggedInUsersCounter) (Bug 851)
 
-	// Java parity: Sync session state to user's other devices
-	manager.PushSessionNotification(ctx, s.nodeID, &deviceType)
+	// @MappedFrom Java: if (notifyClientsOfSessionInfoAfterConnected) userSessionsManager.pushSessionNotification(deviceType, serverId)
+	// Java sends to the device that just logged in (deviceType), NOT to other devices.
+	// The notification includes the session's numeric ID and the server ID.
+	if s.notifyClientsOfSessionInfoAfterConnected && manager != nil {
+		manager.PushSessionNotification(ctx, deviceType, s.nodeID)
+	}
 }
 
 func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSessionClosed func(*UserSession)) {

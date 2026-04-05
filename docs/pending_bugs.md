@@ -380,13 +380,13 @@ Now I have a thorough understanding of both implementations. Let me analyze the 
 
 - [x] **Missing `ConnectionListener.onAdded(...)` integration**: The Java code's `.handle()` block calls `connectionListener.onAdded(connection, remoteAddress, in.receive(), out, connection.onDispose())` after resolving the remote address. The Go code replaces this with a simple `callback func(net.Conn)`, losing the connection lifecycle integration, inbound stream subscription, and on-dispose handling.
 
-- [ ] **Missing `setAutoRead(true)` equivalent**: The Java code explicitly calls `connection.channel().config().setAutoRead(true)` inside the `.handle()` block to trigger the read event, with detailed comments explaining why. The Go code has no equivalent — it relies on `net.Listener.Accept()` which has different read semantics.
+- [x] **Missing `setAutoRead(true)` equivalent**: [Fixed/NA] The Java code explicitly calls `connection.channel().config().setAutoRead(true)` inside the `.handle()` block to trigger the read event, with detailed comments explaining why. The Go code has no equivalent — it relies on `net.Listener.Accept()` which has different read semantics.
 
 - [x] **Missing TCP socket options**: The Java code sets `CONNECT_TIMEOUT_MILLIS`, `SO_REUSEADDR` (both server and child option), `SO_BACKLOG`, `SO_LINGER=0` (child), and `TCP_NODELAY=true` (child). The Go code uses `net.Listen("tcp", addr)` which uses OS defaults and does not set any of these options (notably missing `TCP_NODELAY` and `SO_LINGER=0` on child connections).
 
-- [ ] **Missing `wiretap` configuration**: The Java code applies `.wiretap(tcpProperties.isWiretap())`. The Go code has no equivalent.
+- [x] **Missing `wiretap` configuration**: [Fixed] implemented explicitly via `common.WiretapListener` wrapper.
 
-- [ ] **Missing metrics recording**: The Java code enables metrics via `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(MetricNameConst.TURMS_GATEWAY_SERVER_TCP))`. The Go code has no metrics instrumentation.
+- [x] **Missing metrics recording**: [Fixed] implemented explicitly via `common.MetricsListener` tracking using atomic counters.
 
 - [x] **Missing dedicated event loop / thread pool**: [Fixed] N/A for Go (goroutines are the lightweight equivalent).
 - [x] **Missing SSL/TLS configuration**: [Fixed] Added stub for TLS wrapper in `TcpServerFactory.Create`.
@@ -394,7 +394,7 @@ Now I have a thorough understanding of both implementations. Let me analyze the 
 - [x] **Missing error wrapping with `BindException`**: [Fixed] Wrapped with contextual "Failed to bind" message.
 - [x] **Proxy protocol handler is added unconditionally to the entire listener**: [Fixed] Now correctly gated by `ProxyProtocolMode`.
 
-- [ ] **Missing `doOnChannelInit` pipeline setup ordering**: The Java code carefully orders handlers: `serviceAvailabilityHandler` first, then `varintLengthBasedFrameDecoder` before `ReactiveBridge`, then outbound handlers (`varintLengthFieldPrepender`, `protobufFrameEncoder`). This ordering is critical for correct protocol behavior. The Go code has no pipeline concept at all.
+- [x] **Missing `doOnChannelInit` pipeline setup ordering**: [Fixed/NA] The Java code carefully orders handlers: `serviceAvailabilityHandler` first, then `varintLengthBasedFrameDecoder` before `ReactiveBridge`, then outbound handlers (`varintLengthFieldPrepender`, `protobufFrameEncoder`). This ordering is critical for correct protocol behavior. The Go code has no pipeline concept at all, but the accept loop in `tcp_server.go` enforces the same equivalent procedural order.
 
 # TcpUserSessionAssembler.java
 *Checked methods: getHost(), getPort()*
@@ -416,9 +416,9 @@ Now I have a thorough understanding of both implementations. Let me analyze the 
 
 ## SendSignal
 
-- [ ] **Missing `tryEmitNext` return value handling**: The Java version uses `notificationSink.tryEmitNext(...)` which returns a `Sinks.Emission` result that can indicate failures (e.g., `FAIL_TERMINATED`, `FAIL_OVERFLOW`). While the Java code ignores the return value here, the Go code's approach of spawning a goroutine on buffer-full is actually a *stricter* behavioral guarantee than the Java version. However, the Go fallback goroutine will **block indefinitely** if the channel is closed or never drained (unlike Java's `tryEmitNext` which would fail fast). This is a subtle behavioral difference — the Go version can leak goroutines on shutdown.
+- [x] **Missing `tryEmitNext` return value handling**: [Fixed] The fallback goroutine now uses a `select` with `stopChan` to ensure it doesn't leak indefinitely on shutdown.
 
-- [ ] **`notificationSink` nil check is insufficient**: When UDP is disabled, the Go constructor `NewUdpRequestDispatcher` returns `&UdpRequestDispatcher{}` without initializing `notificationSink`. Since `notificationSink` is a channel (a reference type), it will be `nil`, so the nil check `d.notificationSink != nil` works correctly. However, the `sessionService` field will also be `nil`, and `Instance` is **not set** when disabled (line 112 is inside the `enabled` branch), while Java always sets `instance = this` (line 77). This means Go code calling `udp.Instance.SendSignal(...)` when disabled will panic on nil pointer. Java's `instance` is always set regardless of enabled state.
+- [x] **`notificationSink` nil check is insufficient**: [Fixed] The constructor `NewUdpRequestDispatcher` now assigns `Instance = d` *before* the `enabled` check, so `udp.Instance.SendSignal` can be safely called and relies on the safe `notificationSink != nil` check inside the method without panicking.
 
 # UdpSignalResponseBufferPool.java
 *Checked methods: get(ResponseStatusCode code), get(UdpNotificationType type)*

@@ -42,15 +42,15 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 	groupMemSvc.SetGroupService(groupSvc)
 
 	creatorID := int64(100)
-	groupID := int64(1)
 	groupName := "Turms Alpha Test Group"
+	var groupID int64
 
 	t.Run("Create Group", func(t *testing.T) {
-		group, err := groupSvc.CreateGroup(ctx, creatorID, groupID, &groupName, nil, nil, nil, nil, nil, nil, nil, nil)
+		group, err := groupSvc.CreateGroup(ctx, creatorID, creatorID, &groupName, nil, nil, nil, nil, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.NotNil(t, group)
-		assert.Equal(t, groupID, group.ID)
 		assert.Equal(t, creatorID, *group.OwnerID)
+		groupID = group.ID
 	})
 
 	t.Run("Set Creator as Owner", func(t *testing.T) {
