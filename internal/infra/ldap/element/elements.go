@@ -79,7 +79,7 @@ func (a *Attribute) IsEmpty() bool {
 func (a *Attribute) WriteTo(buffer *asn1.BerBuffer) {
 	buffer.BeginSequence()
 	buffer.WriteOctetString(a.Type)
-	buffer.BeginSequenceWithTag(asn1.TagSet | FormConstructed)
+	buffer.BeginSequenceWithTag(asn1.TagSequence)
 	buffer.WriteOctetStrings(a.Values)
 	buffer.EndSequence()
 	buffer.EndSequence()
@@ -113,7 +113,10 @@ type LdapMessage struct {
 func (m *LdapMessage) WriteTo(buffer *asn1.BerBuffer) {
 	buffer.BeginSequence()
 	buffer.WriteInteger(m.MessageId)
-	
+
+	if m.ProtocolOperation == nil {
+		panic("ProtocolOperation must not be nil")
+	}
 	m.ProtocolOperation.WriteTo(buffer)
 
 	if len(m.Controls) > 0 {
@@ -149,20 +152,24 @@ func DecodeControls(buffer *asn1.BerBuffer) []Control {
 	if !buffer.IsReadable() || !buffer.PeekAndCheckTag(LdapTagControls) {
 		return nil
 	}
-	buffer.SkipTagAndLength()
+	buffer.ReadTag()
+	length := buffer.ReadLength()
+	end := buffer.ReaderIndex() + length
 	var controls []Control
-	for buffer.IsReadable() {
+	for buffer.IsReadableWithEnd(end) {
 		buffer.SkipTagAndLength()
 		oid := buffer.ReadOctetString()
 		var criticality bool
-		if buffer.IsReadable() && buffer.PeekAndCheckTag(asn1.TagBoolean) {
+		if buffer.IsReadableWithEnd(end) && buffer.PeekAndCheckTag(asn1.TagBoolean) {
 			criticality = buffer.ReadBoolean()
 		}
 		var value []byte
-		if buffer.IsReadable() && buffer.PeekAndCheckTag(asn1.TagOctetString) {
+		if buffer.IsReadableWithEnd(end) && buffer.PeekAndCheckTag(asn1.TagOctetString) {
 			value = []byte(buffer.ReadOctetString())
 		}
-		controls = append(controls, Control{OID: oid, Criticality: criticality, Value: value})
+		if oid != "" {
+			controls = append(controls, Control{OID: oid, Criticality: criticality, Value: value})
+		}
 	}
 	return controls
 }
@@ -182,8 +189,10 @@ func DecodeLdapResult(buffer *asn1.BerBuffer) LdapResult {
 		DiagnosticMessage: buffer.ReadOctetString(),
 	}
 	if buffer.IsReadable() && buffer.PeekAndCheckTag(TagClassContext|FormConstructed|3) {
-		buffer.SkipTagAndLength()
-		for buffer.IsReadable() {
+		buffer.ReadTag()
+		length := buffer.ReadLength()
+		end := buffer.ReaderIndex() + length
+		for buffer.IsReadableWithEnd(end) {
 			res.Referrals = append(res.Referrals, buffer.ReadOctetString())
 		}
 	}
@@ -337,7 +346,9 @@ type ModifyRequest struct {
 	Changes []Change
 }
 
-func (r *ModifyRequest) EstimateSize() int { return 256 }
+func (r *ModifyRequest) EstimateSize() int {
+	return len(r.DN) + len(r.Changes)*32
+}
 
 func (r *ModifyRequest) WriteTo(buffer *asn1.BerBuffer) {
 	buffer.BeginSequenceWithTag(LdapTagModifyRequest)
