@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"errors"
-	"strings"
+	"math/rand"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -23,10 +23,26 @@ var (
 const RootRoleID int64 = 0
 const RootAdminID int64 = 0
 
-const (
-	MinRoleNameLimit = 1
-	MaxRoleNameLimit = 32
-)
+// rootRoleRank is the rank of the root role (Integer.MAX_VALUE in Java).
+const rootRoleRank = int(^uint(0) >> 1)
+
+// rootRole is the in-memory root admin role (not stored in DB).
+var rootRole = &po.AdminRole{
+	ID:          RootRoleID,
+	Name:        "ROOT",
+	Permissions: permission.AllAdminPermissions,
+	Rank:        rootRoleRank,
+}
+
+// randomAlphabetic generates a random alphabetic string of the given length.
+func randomAlphabetic(length int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
 
 // AdminRoleService maps to AdminRoleService in Java.
 // @MappedFrom AdminRoleService
@@ -410,34 +426,61 @@ func isRootRoleQualified(ids []int64, names []string, includedPermissions []perm
 	return true
 }
 
+// @MappedFrom queryAndCacheRolesByRoleIdsAndRankGreaterThan
 func (s *adminRoleService) QueryAndCacheRolesByRoleIdsAndRankGreaterThan(ctx context.Context, roleIds []int64, rankGreaterThan int) ([]*po.AdminRole, error) {
-	var result []*po.AdminRole
-	containsRoot := false
-	nonRootIds := make([]int64, 0, len(roleIds))
-	for _, id := range roleIds {
+	// Bug fix: Missing empty roleIds check — Java returns empty if roleIds is empty
+	if len(roleIds) == 0 {
+		return nil, nil
+	}
+	// Bug fix: Missing roleIds immutability protection — create a copy before potentially modifying
+	idsCopy := make([]int64, len(roleIds))
+	copy(idsCopy, roleIds)
+
+	// Bug fix: Missing root role handling — filter out RootRoleID from DB query (it's not in DB)
+	filteredIds := make([]int64, 0, len(idsCopy))
+	hasRoot := false
+	for _, id := range idsCopy {
 		if id == RootRoleID {
-			containsRoot = true
+			hasRoot = true
 		} else {
-			nonRootIds = append(nonRootIds, id)
+			filteredIds = append(filteredIds, id)
 		}
 	}
-	// Query DB for non-root IDs
-	if len(nonRootIds) > 0 {
-		roles, err := s.repo.FindAdminRolesByIdsAndRankGreaterThan(ctx, nonRootIds, &rankGreaterThan)
+
+	var roles []*po.AdminRole
+	if len(filteredIds) > 0 {
+		var err error
+		roles, err = s.repo.FindAdminRolesByIdsAndRankGreaterThan(ctx, filteredIds, &rankGreaterThan)
 		if err != nil {
 			return nil, err
 		}
-		result = roles
 	}
-	// Include root role if its rank qualifies
-	if containsRoot && rootRole().Rank > rankGreaterThan {
-		result = append([]*po.AdminRole{rootRole()}, result...)
+
+	// Bug fix: Missing cache update — update idToRole cache for each fetched role
+	if len(roles) > 0 {
+		s.mutex.Lock()
+		for _, role := range roles {
+			s.idToRole[role.ID] = role
+		}
+		s.mutex.Unlock()
 	}
-	return result, nil
+
+	// Include root role if it was in the original roleIds and its rank qualifies
+	if hasRoot && rootRoleRank > rankGreaterThan {
+		roles = append(roles, rootRole)
+	}
+
+	return roles, nil
 }
 
+// @MappedFrom countAdminRoles
 func (s *adminRoleService) CountAdminRoles(ctx context.Context, ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int) (int64, error) {
-	return s.repo.CountAdminRoles(ctx, ids, names, includedPermissions, ranks)
+	// Bug fix: Missing +1 for the root role — Java adds 1 because root role is not in DB
+	count, err := s.repo.CountAdminRoles(ctx, ids, names, includedPermissions, ranks)
+	if err != nil {
+		return 0, err
+	}
+	return count + 1, nil
 }
 
 func (s *adminRoleService) QueryHighestRankByAdminId(ctx context.Context, adminId int64) (*int, error) {
@@ -448,39 +491,84 @@ func (s *adminRoleService) QueryHighestRankByAdminId(ctx context.Context, adminI
 	return s.QueryHighestRankByRoleIds(ctx, roleIds)
 }
 
+// @MappedFrom queryHighestRankByRoleIds
 func (s *adminRoleService) QueryHighestRankByRoleIds(ctx context.Context, roleIds []int64) (*int, error) {
+	// Bug fix: Missing root role handling — if RootRoleID is in roleIds, return MAX_VALUE rank
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			return &rootRoleRank, nil
+		}
+	}
 	return s.repo.FindHighestRankByRoleIds(ctx, roleIds)
 }
 
+// @MappedFrom isAdminRankHigherThanRank
 func (s *adminRoleService) IsAdminRankHigherThanRank(ctx context.Context, adminId int64, rank int) (bool, error) {
 	highest, err := s.QueryHighestRankByAdminId(ctx, adminId)
 	if err != nil {
 		return false, err
 	}
+	// Bug fix: When admin has no roles, return error (requester does not exist)
+	// instead of silently returning false
 	if highest == nil {
-		return false, nil
+		return false, s.adminService.ErrorRequesterNotExist()
 	}
 	return *highest > rank, nil
 }
 
+// @MappedFrom queryPermissions
 func (s *adminRoleService) QueryPermissions(ctx context.Context, adminId int64) ([]permission.AdminPermission, error) {
 	roleIds, err := s.adminService.QueryRoleIdsByAdminIds(ctx, []int64{adminId})
 	if err != nil {
 		return nil, err
 	}
-	roles, err := s.repo.FindAdminRoles(ctx, roleIds, nil, nil, nil, nil, nil)
-	if err != nil {
-		return nil, err
+
+	// Bug fix: Use in-memory cache first, only query DB for uncached roles
+	var uncachedRoleIds []int64
+	s.mutex.RLock()
+	for _, id := range roleIds {
+		if _, ok := s.idToRole[id]; !ok {
+			uncachedRoleIds = append(uncachedRoleIds, id)
+		}
 	}
-	var permissions []permission.AdminPermission
-	permMap := make(map[permission.AdminPermission]struct{})
-	for _, role := range roles {
-		for _, p := range role.Permissions {
-			if _, ok := permMap[p]; !ok {
-				permMap[p] = struct{}{}
-				permissions = append(permissions, p)
+	s.mutex.RUnlock()
+
+	// Fetch uncached roles from DB
+	if len(uncachedRoleIds) > 0 {
+		freshRoles, err := s.repo.FindAdminRoles(ctx, uncachedRoleIds, nil, nil, nil, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		s.mutex.Lock()
+		for _, role := range freshRoles {
+			s.idToRole[role.ID] = role
+		}
+		s.mutex.Unlock()
+	}
+
+	// Bug fix: Include root role permissions — root role has all permissions
+	permSet := make(map[permission.AdminPermission]struct{})
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			// Root role has all permissions
+			for _, p := range permission.AllAdminPermissions {
+				permSet[p] = struct{}{}
+			}
+			continue
+		}
+		s.mutex.RLock()
+		role, ok := s.idToRole[id]
+		s.mutex.RUnlock()
+		if ok && role != nil {
+			for _, p := range role.Permissions {
+				permSet[p] = struct{}{}
 			}
 		}
+	}
+
+	var permissions []permission.AdminPermission
+	for p := range permSet {
+		permissions = append(permissions, p)
 	}
 	return permissions, nil
 }
@@ -503,6 +591,10 @@ type adminService struct {
 	idGen            *idgen.SnowflakeIdGenerator
 	repo             repository.AdminRepository
 	adminRoleService AdminRoleService
+
+	// idToAdmin is an in-memory cache for admin objects, keyed by admin ID.
+	idToAdmin map[int64]*po.Admin
+	adminMu   sync.RWMutex
 }
 
 func NewAdminService(idGen *idgen.SnowflakeIdGenerator, repo repository.AdminRepository, adminRoleService AdminRoleService) AdminService {
@@ -510,33 +602,96 @@ func NewAdminService(idGen *idgen.SnowflakeIdGenerator, repo repository.AdminRep
 		idGen:            idGen,
 		repo:             repo,
 		adminRoleService: adminRoleService,
+		idToAdmin:        make(map[int64]*po.Admin),
 	}
 }
 
+// @MappedFrom queryRoleIdsByAdminIds
 func (s *adminService) QueryRoleIdsByAdminIds(ctx context.Context, adminIds []int64) ([]int64, error) {
-	admins, err := s.repo.FindAdmins(ctx, adminIds, nil, nil, nil, nil)
-	if err != nil {
-		return nil, err
+	// Bug fix: Check in-memory cache first before querying DB
+	var uncachedIds []int64
+	s.adminMu.RLock()
+	for _, id := range adminIds {
+		if _, ok := s.idToAdmin[id]; !ok {
+			uncachedIds = append(uncachedIds, id)
+		}
 	}
+	s.adminMu.RUnlock()
+
+	// Fetch uncached admins from DB
+	if len(uncachedIds) > 0 {
+		admins, err := s.repo.FindAdmins(ctx, uncachedIds, nil, nil, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		s.adminMu.Lock()
+		for _, admin := range admins {
+			s.idToAdmin[admin.ID] = admin
+		}
+		s.adminMu.Unlock()
+	}
+
+	// Collect role IDs from cache, with deduplication
+	roleSet := make(map[int64]struct{})
+	for _, id := range adminIds {
+		s.adminMu.RLock()
+		admin, ok := s.idToAdmin[id]
+		s.adminMu.RUnlock()
+		if ok && admin != nil {
+			for _, rid := range admin.RoleIDs {
+				roleSet[rid] = struct{}{}
+			}
+		}
+	}
+
+	// Bug fix: Deduplicate role IDs
 	var roles []int64
-	for _, admin := range admins {
-		roles = append(roles, admin.RoleIDs...)
+	for rid := range roleSet {
+		roles = append(roles, rid)
 	}
 	return roles, nil
 }
 
-func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
+// @MappedFrom authAndAddAdmin
+func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
+	// Bug fix: Validate that roleIds does not contain RootRoleID
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			return nil, errors.New("the root role ID is not allowed")
+		}
+	}
+
+	// Bug fix: Requester-not-exist handling — check that requester actually exists
+	requesterRank, err := s.adminRoleService.QueryHighestRankByAdminId(ctx, requesterId)
+	if err != nil {
+		return nil, err
+	}
+	if requesterRank == nil {
+		return nil, s.ErrorRequesterNotExist()
+	}
+
 	if len(roleIds) > 0 {
+		// Bug fix: Validate that all requested role IDs actually exist
+		roles, err := s.adminRoleService.QueryAndCacheRolesByRoleIdsAndRankGreaterThan(ctx, roleIds, -1)
+		if err != nil {
+			return nil, err
+		}
+		foundIds := make(map[int64]struct{})
+		for _, role := range roles {
+			foundIds[role.ID] = struct{}{}
+		}
+		for _, id := range roleIds {
+			if _, ok := foundIds[id]; !ok {
+				return nil, errors.New("one or more role IDs do not exist")
+			}
+		}
+
 		targetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, roleIds)
 		if err != nil {
 			return nil, err
 		}
 		if targetHighest != nil {
-			higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
-			if err != nil {
-				return nil, err
-			}
-			if !higher {
+			if *requesterRank <= *targetHighest {
 				return nil, ErrPermissionDenied
 			}
 		}
@@ -544,10 +699,26 @@ func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, l
 	return s.AddAdmin(ctx, nil, loginName, rawPassword, displayName, roleIds)
 }
 
-func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
+// @MappedFrom addAdmin
+func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
 	adminID := s.idGen.NextIncreasingId()
 	if id != nil {
 		adminID = *id
+	}
+
+	// Bug fix: Generate default loginName if empty
+	if loginName == "" {
+		loginName = randomAlphabetic(16)
+	}
+
+	// Bug fix: Generate default password if empty
+	if rawPassword == "" {
+		rawPassword = randomAlphabetic(10)
+	}
+
+	// Bug fix: Default displayName to loginName if empty
+	if displayName == "" {
+		displayName = loginName
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.DefaultCost)
@@ -567,6 +738,12 @@ func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string
 	if err := s.repo.Insert(ctx, admin); err != nil {
 		return nil, err
 	}
+
+	// Bug fix: Update in-memory cache after successful DB write
+	s.adminMu.Lock()
+	s.idToAdmin[adminID] = admin
+	s.adminMu.Unlock()
+
 	return admin, nil
 }
 
@@ -574,12 +751,26 @@ func (s *adminService) QueryAdmins(ctx context.Context, ids []int64, loginNames 
 	return s.repo.FindAdmins(ctx, ids, loginNames, roleIds, page, size)
 }
 
+// @MappedFrom authAndDeleteAdmins
 func (s *adminService) AuthAndDeleteAdmins(ctx context.Context, requesterId int64, adminIds []int64) (int64, error) {
+	// Bug fix: Validate adminIds is non-empty
+	if len(adminIds) == 0 {
+		return 0, errors.New("adminIds must not be empty")
+	}
 	for _, id := range adminIds {
 		if id == RootAdminID {
 			return 0, errors.New("the root admin cannot be deleted")
 		}
 	}
+	// Bug fix: Requester-not-exist handling
+	requesterRank, err := s.adminRoleService.QueryHighestRankByAdminId(ctx, requesterId)
+	if err != nil {
+		return 0, err
+	}
+	if requesterRank == nil {
+		return 0, s.ErrorRequesterNotExist()
+	}
+
 	targetRoleIds, err := s.QueryRoleIdsByAdminIds(ctx, adminIds)
 	if err != nil {
 		return 0, err
@@ -589,18 +780,38 @@ func (s *adminService) AuthAndDeleteAdmins(ctx context.Context, requesterId int6
 		return 0, err
 	}
 	if targetHighest != nil {
-		higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
-		if err != nil {
-			return 0, err
-		}
-		if !higher {
+		if *requesterRank <= *targetHighest {
 			return 0, ErrPermissionDenied
 		}
 	}
 	return s.repo.DeleteAdmins(ctx, adminIds)
 }
 
+// @MappedFrom authAndUpdateAdmins
 func (s *adminService) AuthAndUpdateAdmins(ctx context.Context, requesterId int64, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error) {
+	// Bug fix: Early return when all update parameters are nil/empty
+	if rawPassword == nil && displayName == nil && len(roleIds) == 0 {
+		return 0, nil
+	}
+
+	// Bug fix: Check if requester is trying to update their own role IDs
+	if len(roleIds) > 0 {
+		for _, id := range targetAdminIds {
+			if id == requesterId {
+				return 0, errors.New("cannot update own role IDs")
+			}
+		}
+	}
+
+	// Bug fix: Requester-not-exist handling
+	requesterRank, err := s.adminRoleService.QueryHighestRankByAdminId(ctx, requesterId)
+	if err != nil {
+		return 0, err
+	}
+	if requesterRank == nil {
+		return 0, s.ErrorRequesterNotExist()
+	}
+
 	targetCurrentRoleIds, err := s.QueryRoleIdsByAdminIds(ctx, targetAdminIds)
 	if err != nil {
 		return 0, err
@@ -610,33 +821,49 @@ func (s *adminService) AuthAndUpdateAdmins(ctx context.Context, requesterId int6
 		return 0, err
 	}
 	if targetHighest != nil {
-		higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *targetHighest)
-		if err != nil {
-			return 0, err
-		}
-		if !higher {
+		if *requesterRank <= *targetHighest {
 			return 0, ErrPermissionDenied
 		}
 	}
 	if len(roleIds) > 0 {
+		// Bug fix: Validate that requested role IDs actually exist
+		roles, err := s.adminRoleService.QueryAndCacheRolesByRoleIdsAndRankGreaterThan(ctx, roleIds, -1)
+		if err != nil {
+			return 0, err
+		}
+		foundIds := make(map[int64]struct{})
+		for _, role := range roles {
+			foundIds[role.ID] = struct{}{}
+		}
+		for _, id := range roleIds {
+			if _, ok := foundIds[id]; !ok {
+				return 0, errors.New("one or more role IDs do not exist")
+			}
+		}
+
 		newTargetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, roleIds)
 		if err != nil {
 			return 0, err
 		}
 		if newTargetHighest != nil {
-			higher, err := s.adminRoleService.IsAdminRankHigherThanRank(ctx, requesterId, *newTargetHighest)
-			if err != nil {
-				return 0, err
-			}
-			if !higher {
+			if *requesterRank <= *newTargetHighest {
 				return 0, ErrPermissionDenied
 			}
 		}
+		// Bug fix: Match Java behavior — pass nil roleIds to UpdateAdmins when roleIds
+		// are present (Java passes null roleIds to updateAdmins in this case)
+		return s.UpdateAdmins(ctx, targetAdminIds, rawPassword, displayName, nil)
 	}
-	return s.UpdateAdmins(ctx, targetAdminIds, rawPassword, displayName, roleIds)
+	return s.UpdateAdmins(ctx, targetAdminIds, rawPassword, displayName, nil)
 }
 
+// @MappedFrom updateAdmins
 func (s *adminService) UpdateAdmins(ctx context.Context, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error) {
+	// Bug fix: Early return when all parameters are nil/empty
+	if rawPassword == nil && displayName == nil && (roleIds == nil || len(roleIds) == 0) {
+		return 0, nil
+	}
+
 	var hashed []byte
 	if rawPassword != nil {
 		var err error
@@ -645,13 +872,27 @@ func (s *adminService) UpdateAdmins(ctx context.Context, targetAdminIds []int64,
 			return 0, err
 		}
 	}
-	return s.repo.UpdateAdmins(ctx, targetAdminIds, hashed, displayName, roleIds)
+	modified, err := s.repo.UpdateAdmins(ctx, targetAdminIds, hashed, displayName, roleIds)
+	if err != nil {
+		return modified, err
+	}
+
+	// Bug fix: Invalidate cache on successful update
+	if modified > 0 {
+		s.adminMu.Lock()
+		for _, id := range targetAdminIds {
+			delete(s.idToAdmin, id)
+		}
+		s.adminMu.Unlock()
+	}
+	return modified, nil
 }
 
 func (s *adminService) CountAdmins(ctx context.Context, ids []int64, roleIds []int64) (int64, error) {
 	return s.repo.CountAdmins(ctx, ids, roleIds)
 }
 
+// @MappedFrom errorRequesterNotExist
 func (s *adminService) ErrorRequesterNotExist() error {
 	return ErrRequesterNotExist
 }

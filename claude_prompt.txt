@@ -6,292 +6,357 @@ CRITICAL RULES:
 BUGS TO FIX:
 ====================
 
-[Context: ## closeLocalSession(userId, deviceType, closeStatus) / closeLocalSession(userId, deviceType, closeReason)]
-- [ ] Java 有两个单独的单设备类型重载，它们将单个设备类型包装成一个集合。Go 有 `CloseLocalSessionByDeviceType`，它包装了基于切片的版本，但没有与 Java 中相同的参数变体（一个接收 `SessionCloseStatus`，另一个接收 `CloseReason`）。
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing empty roleIds check** — Java returns `Flux.empty()` if `roleIds.isEmpty()`. Go relies on the repository's empty check.
 
 ---
 
-[Context: ## addOnSessionClosedListeners]
-- [ ] Java 使用 `LinkedList` 来存储监听器，并且 `add` 方法不是同步的。Go 正确使用了互斥锁，这实际上更安全，但与 Java 的非同步 `add` 有所不同。这是一个小的风格差异，不是错误。
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing cache update (`doOnNext` to update `idToRole`)** — Java caches each fetched role via `.doOnNext(role -> idToRole.put(role.getId(), role))`. Go does not update `idToRole` cache in this method.
 
 ---
 
-[Context: ## notifyOnSessionClosedListeners / notifySessionClosedListeners]
-- [ ] Java 将每个监听器调用包装在 try-catch 中，以记录异常而不传播它们。Go 没有从监听器调用中恢复 panic，因此一个有问题的监听器可能会崩溃整个关闭过程。
-- [x] Java 返回 `userIdToSessionsManager.size()`。Go 调用 `s.shardedMap.CountOnlineUsers()`，该方法遍历所有分片并求和。这是等效的行为。**此处无错误。**
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing roleIds immutability protection** — Java creates a copy (`new UnifiedSet<>(roleIds)`) before removing `ADMIN_ROLE_ROOT_ID` to avoid mutating the caller's collection. Go passes the original slice (though Go slices are reference types, the repository doesn't mutate them, so this is minor).
 
 ---
 
-[Context: ## authAndUpdateHeartbeatTimestamp]
-- [ ] Java 检查 `session.getConnection().isConnectionRecovering()` 而没有首先检查 `session.getConnection() != null`（隐式地，因为 `getConnection()` 可能在断开连接的会话上返回 null）。Go 额外检查 `session.Conn != nil && session.Conn.IsActive()`，这比 Java 更保守，但并非错误。
+[Context: ## CountAdminRoles]
+- [ ] **Bug: Missing +1 for the root role** — Java adds 1 to the count: `.map(number -> number + 1)` because the root role is built-in and not in the database. Go returns the raw count from the repository without adding 1.
 
 ---
 
-[Context: ## authAndUpdateHeartbeatTimestamp]
-- [ ] Java 使用 `Validator.notNull(deviceType, "deviceType")` 和 `DeviceTypeUtil.validDeviceType(deviceType)`。Go 没有验证 `deviceType` 参数。
-- [x] Java 使用 `Mono.defer()` 进行延迟评估，这样会话只在 `heartbeatManager.destroy()` 完成后才关闭。Go 顺序调用 `heartbeatManager.Stop()` 然后 `CloseAllLocalSessions`，这在同步上下文中是等效的。**此处无重大错误。**
-现在我将输出最终编译的 bug 列表：
+[Context: ## QueryHighestRankByAdminId]
+- [ ] **Bug: Missing validation for `adminId` not-null** — Java validates `Validator.notNull(adminId, "adminId")`. Go takes `adminId int64` (primitive, can't be nil in Go, so this is acceptable but noted).
 
 ---
 
-[Context: ## handleLoginRequest]
-- [ ] Java validates `version != 1` (only version 1 is accepted), returning `UNSUPPORTED_CLIENT_VERSION` with a descriptive message. Go validates `version < 1` (accepts any positive version), returning `ILLEGAL_ARGUMENT` without a message. This is a different validation condition and error code.
+[Context: ## QueryHighestRankByAdminId]
+- [ ] **Bug: When admin has no roles, `QueryRoleIdsByAdminIds` returns nil/empty** — Java's `adminService.queryRoleIdsByAdminId` returns role IDs and then `queryHighestRankByRoleIds` handles empty. In Go, `QueryRoleIdsByAdminIds` returns a nil/empty slice, then `QueryHighestRankByRoleIds` returns nil. This is functionally equivalent.
 
 ---
 
-[Context: ## handleLoginRequest]
-- [ ] Go checks `userStatus == protocol.UserStatus_OFFLINE` and returns an error *before* calling the authentication manager. Java does not perform this check in `handleLoginRequest` — it is only done inside `tryRegisterOnlineUser` via `Validator.notEquals(userStatus, UserStatus.OFFLINE, ...)`. This changes the validation flow order.
+[Context: ## QueryHighestRankByRoleIds]
+- [ ] **Bug: Missing root role handling** — Java checks `roleIds.contains(ADMIN_ROLE_ROOT_ID)` and if true, returns `Mono.just(getRootRole().getRank())` (which is `Integer.MAX_VALUE`). Go's `FindHighestRankByRoleIds` only queries the database, so it will never return the root role's rank (`Integer.MAX_VALUE`), potentially returning a lower rank or nil.
 
 ---
 
-[Context: ## handleLoginRequest]
-- [ ] Java passes all parameters (including `userStatus`, `location`, `ipStr`) directly to `verifyAndGrant`. Go wraps parameters into a `UserLoginInfo` struct and passes `&userStatus` (a pointer to a non-nil UserStatus). In Java, `userStatus` can be `null`, and the authentication manager handles `null`. In Go, `userStatus` is never nil (it's a protocol buffer enum with a zero value), but `handleLoginRequest` takes `userStatus protocol.UserStatus` as a non-pointer, so there's no way to distinguish "not provided" from `UserStatus(0)`. This could cause behavioral differences if the authentication manager treats null/zero differently.
+[Context: ## IsAdminRankHigherThanRank]
+- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (primitive).
 
 ---
 
-[Context: ## closeLocalSessions(List<byte[]> ips, CloseReason closeReason)]
-- [ ] Go merges this method with the userIds-based overload into a single `CloseLocalSessions(ctx, userIds, ips, closeReason)`. The Go version has a logic bug when both `userIds` and `ips` are provided: the IP-based lookup only closes sessions for users NOT already in `userIdSet` (line 462: `if _, ok := userIdSet[sess.UserID]; !ok`), which means sessions for users in `userIdSet` that were found via IP but have sessions on different device types may be skipped. Java has completely separate methods and always closes all sessions for each IP.
+[Context: ## IsAdminRankHigherThanRank]
+- [ ] **Bug: Returns `(false, nil)` when admin has no roles** — Java returns an empty Mono, which in the reactive chain triggers `switchIfEmpty(adminService.errorRequesterNotExist())`. Go returns `(false, nil)`, meaning a non-existent admin silently returns "not higher" instead of an error.
 
 ---
 
-[Context: ## closeLocalSession(Long userId, SessionCloseStatus closeStatus)]
-- [ ] Go's `SetUserOffline` receives `constant.SessionCloseStatus` but passes it directly to `CloseLocalSession` which expects `bo.CloseReason`. These are different types. Java correctly wraps the status via `CloseReason.get(closeStatus)` before delegating.
+[Context: ## QueryPermissions]
+- [ ] **Bug: Uses database query instead of in-memory cache** — Java's `BaseAdminRoleService.queryPermissions(Set<Long> roleIds)` uses the in-memory `idToRole` cache to look up permissions for cached roles, only querying the DB for uncached roles. Go always queries the database via `FindAdminRoles`, bypassing the `idToRole` cache entirely.
 
 ---
 
-[Context: ## closeLocalSession(Long userId, CloseReason closeReason)]
-- [ ] Same type mismatch issue as above. Java wraps via `CloseReason.get()` or passes the `CloseReason` directly. Go's `SetUserOffline` passes `constant.SessionCloseStatus` where `bo.CloseReason` is expected.
+[Context: ## QueryPermissions]
+- [ ] **Bug: Missing root role permissions** — Java's `queryAndCacheRolesByRoleIds` includes the root role when its ID is in the roleIds set, so `queryPermissions` includes root permissions (ALL permissions). Go's `FindAdminRoles` queries the database and won't find the root role (it's not stored in DB), so root role permissions are never included.
+*Checked methods: queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds), authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size), authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds), authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds), errorRequesterNotExist()*
+Now let me carefully compare each method.
+**Java**: First tries to look up from the in-memory cache (`idToAdmin`). If any admin ID is not found in cache, falls back to querying the repository. Uses `CollectionUtil.newSetWithExpectedSize` and returns a `Set<Long>` (deduplicated).
+**Go**: Always queries the repository directly (no cache lookup). Returns a `[]int64` slice (no deduplication). Missing the cache-first optimization, and missing deduplication of role IDs.
+**Java**: Validates role IDs don't contain `ADMIN_ROLE_ROOT_ID`. Calls `checkIfAllowedToAddRolesToAdmins` which: (1) verifies requester exists via `queryHighestRankByAdminId` + `switchIfEmpty(errorRequesterNotExist())`, (2) fetches target roles and validates ALL role IDs exist (not just checks rank), (3) checks that no target role has rank >= requester rank, (4) then calls `addAdmin` with `requesterRank` passed to it.
+**Go**: Only checks if requester rank is higher than the highest target role rank. Does NOT verify that the requested role IDs actually exist. Does NOT check for `ADMIN_ROLE_ROOT_ID` in roleIds. Does NOT handle the requester-not-exist case explicitly (returns nil from `QueryHighestRankByRoleIds` which is silently ignored).
+**Java**: Handles null `loginName` (generates random 16-char alphabetic), null `rawPassword` (generates random 10-char password), null `displayName` (defaults to `loginName`), null `registrationDate` (defaults to `new Date()`). Has an `upsert` parameter for insert vs upsert. Also stores in `idToAdmin` cache.
+**Go**: Does NOT handle empty/null loginName (no random generation). Does NOT handle empty/null rawPassword. Does NOT handle empty/null displayName (no default to loginName). Does NOT handle null registrationDate (always uses `time.Now()` which is correct for the null case but wrong when one is explicitly provided). Does NOT implement `upsert` logic. Does NOT maintain the in-memory cache (`idToAdmin`).
+Both are straightforward delegation to repository. This looks correct.
+**Java**: Validates `requesterId` not null, `adminIds` not empty, `adminIds` doesn't contain `ROOT_ADMIN_ID`. Then calls `checkIfAllowedToManageAdmins` which queries the target admins' roles, queries for roles with rank >= requester rank, and only allows if none found.
+**Go**: Checks for `RootAdminID` in adminIds. Then queries target role IDs and checks rank. Missing: requester-not-exist handling (Java uses `switchIfEmpty(errorRequesterNotExist())`). The Go code doesn't validate that adminIds is non-empty. The Go code doesn't validate requesterId. Also, when `targetHighest` is nil (no target roles found), the Go code proceeds to delete without checking if the requester exists, which is a different behavior from Java.
+**Java**: Validates requesterId, targetAdminIds, rawPassword (no whitespace, length), displayName (length). Returns `ACKNOWLEDGED_UPDATE_RESULT` early if all params are null and no roleIds. If no roleIds, uses `checkIfAllowedToManageAdmins` only. If `targetAdminIds.contains(requesterId)`, returns error about updating own role. If roleIds present, calls `checkIfAllowedToAddRolesToAdmins` then `checkIfAllowedToManageAdmins`, passing `requesterRank` through. Critically, when roleIds are present, `updateAdmins` is called with `null` for roleIds (roleIds are handled separately through the auth check but the actual update uses null for roleIds in the nested call, and roleIds are passed via `checkIfAllowedToAddRolesToAdmins`'s own validation).
+Wait, let me re-read Java line 377-381 more carefully:
+```java
+return checkIfAllowedToAddRolesToAdmins(requesterId,
+        roleIds,
+        requesterRank -> checkIfAllowedToManageAdmins(Mono.just(requesterRank),
+                targetAdminIds,
+                () -> updateAdmins(targetAdminIds, rawPassword, displayName, null)));
+```
+So when roleIds are present, Java calls `updateAdmins` with `null` roleIds. But that seems wrong... wait, actually looking at `updateAdmins` - it takes `roleIds` as a parameter and passes them to the repository. But in `authAndUpdateAdmins`, when there are roleIds, it calls `updateAdmins(targetAdminIds, rawPassword, displayName, null)` - passing null roleIds. This means the Java version actually does NOT persist the roleIds change via `updateAdmins` when called from `authAndUpdateAdmins` with roleIds... 
+Wait, that's actually a bug in the original Java code. But I should focus on Go parity. Let me re-read.
+Actually wait - looking again at Java lines 377-381, the `checkIfAllowedToAddRolesToAdmins` validates the new roleIds but then `updateAdmins` is called with `null` for roleIds. But actually, the `updateAdmins` call on line 381 passes `null` for roleIds. So the roleIds are NOT persisted. This looks like it might be intentional (maybe roleIds changes go through a different path). 
+But wait, looking at the no-roleIds case (lines 368-372):
+```java
+return checkIfAllowedToManageAdmins(
+    adminRoleService.queryHighestRankByAdminId(requesterId).switchIfEmpty(errorRequesterNotExist()),
+    targetAdminIds,
+    () -> updateAdmins(targetAdminIds, rawPassword, displayName, null));
+```
+Also passes `null` for roleIds.
+So both branches pass `null` roleIds to `updateAdmins`. This means `authAndUpdateAdmins` never actually persists roleIds changes through `updateAdmins`. This seems like a design choice in the Java version (maybe role changes happen separately).
+**Go**: Does not check `targetAdminIds.contains(requesterId)` (no "update own role" error). Does NOT return early when all parameters are nil/empty (no `ACKNOWLEDGED_UPDATE_RESULT` optimization). Does pass roleIds to `UpdateAdmins` (unlike Java which passes null). Missing requester-not-exist handling. The permission check flow is also different: Go checks current target admin rank, then checks new role rank, but doesn't validate role IDs exist.
+**Java**: Validates params, returns `ACKNOWLEDGED_UPDATE_RESULT` if nothing to update. Only hashes password if rawPassword is non-null. Invalidates cache (`idToAdmin.remove`) on success.
+**Go**: Only hashes password if rawPassword is non-nil. Does NOT return early when all parameters are nil/empty. Does NOT invalidate any cache (no `idToAdmin` cache in Go). Passes `roleIds` to repo update (this is correct for Go's standalone `updateAdmins` usage).
+Both are straightforward delegation. Looks correct.
+**Java**: Returns a `Mono.error(ResponseException)` with `UNAUTHORIZED` status code and message "The requester does not exist".
+**Go**: Returns a plain `errors.New("requester does not exist")` error without any status code information. This is a behavioral difference since the Java version includes a specific `ResponseStatusCode.UNAUTHORIZED`.
+**Java**: Returns `Set<Long>` (deduplicated role IDs).
+**Go**: Returns `[]int64` - no deduplication. If two admins share a role, the role ID will appear twice.
+---
 
 ---
 
-[Context: ## closeLocalSessions(Set<Long> userIds, CloseReason closeReason)]
-- [ ] Go's `SetUsersOffline` delegates to `SetUserOffline` for each user, which has the same type mismatch (`constant.SessionCloseStatus` passed where `bo.CloseReason` is expected).
+[Context: ## queryRoleIdsByAdminIds]
+- [ ] Missing in-memory cache (`idToAdmin`) lookup before falling back to repository query. Java first checks the local cache and only queries the DB if any admin ID is not cached.
 
 ---
 
-[Context: ## authAndCloseLocalSession]
-- [ ] Java first looks up the manager and session, checks if `session.getId() == sessionId`, and only proceeds to close if the session ID matches. Go performs authentication first via `VerifyAndGrant`, then closes without ever checking `sessionId` against the existing session. If the session doesn't exist or has a different ID, Java returns 0 without authenticating; Go authenticates and attempts to close regardless.
+[Context: ## queryRoleIdsByAdminIds]
+- [ ] Missing deduplication of role IDs. Java uses a `Set` which auto-deduplicates; Go appends all role IDs to a slice, producing duplicates when multiple admins share roles.
 
 ---
 
-[Context: ## authAndCloseLocalSession]
-- [ ] Go hardcodes `SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY` as the close reason. Java uses the `closeReason` parameter passed to the method, which is an arbitrary `CloseReason`.
+[Context: ## authAndAddAdmin]
+- [ ] Missing validation that `roleIds` does not contain `ADMIN_ROLE_ROOT_ID` (Java checks `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, ...)`).
 
 ---
 
-[Context: ## closeAllLocalSessions]
-- [ ] Java iterates over the `userIdToSessionsManager` entries snapshot and calls `closeLocalSession` with `loggedInDeviceTypes` (the specific device types that are logged in). Go calls `CloseLocalSession(ctx, userId, nil, closeReason)` which closes all device types. Functionally equivalent when all sessions are accounted for, but Java is more precise by targeting only logged-in device types.
+[Context: ## authAndAddAdmin]
+- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester has no rank; Go silently proceeds when `QueryHighestRankByRoleIds` returns nil.
 
 ---
 
-[Context: ## closeLocalSessions (private, userId + deviceTypes + closeReason + manager)]
-- [ ] Java's `removeSessionsManagerIfEmpty` **always** invokes the `goOffline` plugin handler regardless of whether the manager is empty. Go only calls `InvokeGoOfflineHandlers` when `RemoveIfEmpty` returns non-nil (i.e., when the manager is empty). This means the goOffline plugin hook is never fired when a user still has remaining sessions.
+[Context: ## authAndAddAdmin]
+- [ ] Missing validation that all requested role IDs actually exist. Java's `checkIfAllowedToAddRolesToAdmins` fetches roles by ID and errors if any are missing; Go only checks rank.
 
 ---
 
-[Context: ## closeLocalSessions (private, userId + deviceTypes + closeReason + manager)]
-- [ ] Java checks `sessionLocationService.isLocationEnabled()` before removing user locations. Go unconditionally calls `s.sessionLocationService.RemoveUserLocations` without checking if the location service is enabled.
+[Context: ## authAndAddAdmin]
+- [ ] Missing `upsert` parameter and logic. Java's `authAndAddAdmin` takes a `boolean upsert` and passes it through to `addAdmin`, which chooses between `upsert` and `insert`.
 
 ---
 
-[Context: ## closeLocalSessions (private, userId + deviceTypes + closeReason + manager)]
-- [ ] Java uses `computeIfPresent` on `ipToSessions` to atomically remove the session and clean up the entry when the queue becomes empty. Go's `unregisterSessionIp` uses `sync.Map.Delete` on the inner map but never removes empty inner maps from `ipToSessions`, causing a memory leak over time as IP entries are never cleaned up.
+[Context: ## addAdmin]
+- [ ] Missing default generation for empty/null `loginName`. Java generates `RandomStringUtils.randomAlphabetic(16)` when loginName is null; Go does not.
 
 ---
 
-[Context: ## resolveConflicts / closeSessionsWithConflictedDeviceTypes]
-- [ ] Java uses `SessionCloseStatus.DISCONNECTED_BY_CLIENT` to close conflicted sessions. Go uses `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`, which is a different close status code.
+[Context: ## addAdmin]
+- [ ] Missing default generation for empty/null `rawPassword`. Java generates `RandomStringUtils.randomAlphabetic(10)` and encodes it when rawPassword is null/empty; Go does not handle this case.
 
 ---
 
-[Context: ## resolveConflicts / closeSessionsWithConflictedDeviceTypes]
-- [ ] Java builds `nodeIdToDeviceTypes` by adding `deviceType` (the logging-in device type) to each node's set (line 817: `.add(deviceType)`). Go adds `conflictedDT` (the conflicted device type) to the node mapping. This means Java tells remote nodes to disconnect the logging-in device type, while Go tells them to disconnect the conflicted device types — fundamentally different conflict resolution behavior.
+[Context: ## addAdmin]
+- [ ] Missing default for null `displayName`. Java defaults to `loginName` when displayName is null/empty; Go does not.
 
 ---
 
-[Context: ## tryRegisterOnlineUser]
-- [ ] Java has a step (lines 656-676) that closes local sessions for device types that are already registered on Redis by other nodes. This handles edge cases like Redis crashes/restarts or lost connections to Redis. Go's `resolveConflicts` does not include this step — it only handles conflicted device types, not stale local sessions registered by other nodes.
+[Context: ## addAdmin]
+- [ ] Missing `upsert` parameter. Java's `addAdmin` supports both insert and upsert modes via the `upsert` boolean; Go always inserts.
 
 ---
 
-[Context: ## tryRegisterOnlineUser]
-- [ ] Java has a session recovery path (lines 695-734) where if the session exists locally and its connection is closed, it returns the existing session for connection replacement (UDP-to-TCP/WebSocket recovery). This entire recovery branch is missing from Go.
-- [x] Java calls `addOnlineDeviceIfAbsent` with `closeIdleSessionAfterSeconds`, `expectedNodeId`, and `expectedDeviceTimestamp` parameters for optimistic concurrency control. Go calls `AddOnlineDevice` without these parameters, losing the CAS-style protection against race conditions.
+[Context: ## addAdmin]
+- [ ] Missing in-memory cache update (`idToAdmin`). Java stores the new admin in `idToAdmin` after successful DB write; Go does not maintain this cache.
 
 ---
 
-[Context: ## tryRegisterOnlineUser]
-- [ ] Java filters `deviceDetails` through `deviceDetailsItemPropertiesList` configuration before storing. Go passes `deviceDetails` directly without filtering.
+[Context: ## addAdmin]
+- [ ] Missing `registrationDate` parameter. Java accepts an explicit registration date and only defaults to `new Date()` when null; Go always uses `time.Now()`, ignoring any caller-provided value.
 
 ---
 
-[Context: ## tryRegisterOnlineUser]
-- [ ] Go calls `s.InvokeGoOnlineHandlers(ctx, nil, session)` passing `nil` as the `userSessionsManager`. Java calls `invokeGoOnlineHandlers(userSessionsManager, userSession)` with the actual non-null manager retrieved from `userIdToSessionsManager.computeIfAbsent`.
+[Context: ## authAndDeleteAdmins]
+- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester doesn't exist; Go silently proceeds when `targetHighest` is nil, potentially allowing deletion by a non-existent requester or when target admins have no roles.
 
 ---
 
-[Context: ## onSessionEstablished]
-- [ ] Java increments the `loggedInUsersCounter` metric. Go has an empty stub with a TODO comment.
+[Context: ## authAndDeleteAdmins]
+- [ ] Missing validation that `adminIds` is non-empty. Java validates `Validator.notEmpty(adminIds, "adminIds")`.
 
 ---
 
-[Context: ## onSessionEstablished]
-- [ ] Java conditionally pushes a session notification to the client via `userSessionsManager.pushSessionNotification(deviceType, serverId)` when `notifyClientsOfSessionInfoAfterConnected` is enabled. Go has an empty stub with no notification logic.
+[Context: ## authAndDeleteAdmins]
+- [ ] Missing validation that `requesterId` is provided. Java validates `Validator.notNull(requesterId, "requesterId")`.
 
 ---
 
-[Context: ## invokeGoOnlineHandlers]
-- [ ] Java invokes the `UserOnlineStatusChangeHandler.goOnline` plugin extension point via `pluginManager.invokeExtensionPointsSimultaneously`. Go has an empty stub with a TODO and does not invoke any plugin.
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing check for requester updating their own role IDs. Java returns an explicit error `MONO_ERROR_UPDATE_ONE_OWN_ROLE_ID` when `targetAdminIds.contains(requesterId)` and roleIds are present; Go has no such check.
 
 ---
 
-[Context: ## authAndUpdateHeartbeatTimestamp]
-- [ ] Java validates `deviceType` with `Validator.notNull` and `DeviceTypeUtil.validDeviceType`. Go does not validate the `deviceType` parameter at all.
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing early return when all update parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately when `rawPassword`, `displayName`, and `roleIds` are all null; Go still performs authorization checks and a no-op update.
 
 ---
 
-[Context: ## notifySessionClosedListeners]
-- [ ] Java wraps each listener invocation in a try-catch block to prevent one failing listener from affecting others. Go calls listeners without any panic recovery, so a panic in one listener will propagate and abort the remaining listeners.
-*Checked methods: getWsAddress(), getTcpAddress(), getUdpAddress()*
-Now I have the full picture. Let me compare the three getter methods and the `updateCustomAddresses` logic.
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing requester-not-exist handling. Same issue as other auth methods.
 
 ---
 
-[Context: ## getWsAddress()]
-- [ ] **Missing null/empty check when WS is disabled**: In Java, `wsAddress` is only updated inside `if (webSocketProperties.isEnabled())`, so it retains its previous value (initially `null`) when WS is disabled. In Go, `UpdateCustomAddresses` always unconditionally sets `m.wsAddress` regardless of whether WS is enabled or not. There is no `wsEnabled` parameter or check. The Go code always resolves and assigns the WS address even when it shouldn't.
+[Context: ## authAndUpdateAdmins]
+- [ ] Missing validation that requested `roleIds` actually exist. Java's `checkIfAllowedToAddRolesToAdmins` validates all role IDs exist; Go only checks rank.
 
 ---
 
-[Context: ## getTcpAddress()]
-- [ ] **Missing enabled check when TCP is disabled**: Same issue as WS. Java only updates `tcpAddress` inside `if (tcpProperties.isEnabled())`. Go unconditionally sets `m.tcpAddress` every time `UpdateCustomAddresses` is called. There is no `tcpEnabled` parameter or conditional guard.
+[Context: ## authAndUpdateAdmins]
+- [ ] When roleIds are present, Java passes `null` roleIds to `updateAdmins` (effectively not persisting role changes through that path), while Go passes `roleIds` directly to `UpdateAdmins`. This is a behavioral difference — the Go version will persist role changes that the Java version intentionally skips.
 
 ---
 
-[Context: ## getUdpAddress()]
-- [ ] **Missing enabled check when UDP is disabled**: Same issue as WS/TCP. Java only updates `udpAddress` inside `if (udpProperties.isEnabled())`. Go unconditionally sets `m.udpAddress`. There is no `udpEnabled` parameter or conditional guard.
-- [x] **Missing `BIND_ADDRESS` strategy handling**: Java's `queryHost` has a `BIND_ADDRESS` case that returns `bindHost` or errors if blank. Go falls through to a fallback `"127.0.0.1"` when `advertiseStrategy` is not `"ADVERTISE_ADDRESS"` and `host` is empty, which is incorrect behavior for `BIND_ADDRESS`.
-- [x] **Missing `PRIVATE_ADDRESS` strategy handling**: Java queries the local private IP via `IpDetector.queryPrivateIp()`. Go has no equivalent — it falls through to the default `"127.0.0.1"` fallback.
-- [x] **Missing `PUBLIC_ADDRESS` strategy handling**: Java queries the public IP via `IpDetector.queryPublicIp()`. Go has no equivalent — it falls through to the default `"127.0.0.1"` fallback.
-- [x] **No error on blank advertiseHost for `ADVERTISE_ADDRESS`**: Java throws `IllegalArgumentException("The advertised host is not specified")` when `advertiseHost` is blank under `ADVERTISE_ADDRESS` strategy. Go silently falls through to check `host` and then `"127.0.0.1"`.
-- [x] **Parameter name mismatch**: Java's second parameter is `bindHost` (the bind address), but Go names it `host`. This is cosmetic but contributes to confusion about what the parameter represents.
-- [x] **Missing `areAddressPropertiesChange` optimization**: Java checks if discovery properties have actually changed before recomputing addresses, returning early with `FALSE` if they haven't. Go always recomputes unconditionally.
-- [x] **Missing storage of `gatewayApiDiscoveryProperties`**: Java stores the current `DiscoveryProperties` in a field for later comparison in `areAddressPropertiesChange`. Go has no equivalent field or comparison logic.
-- [x] **`queryHost` is synchronous in Go but asynchronous in Java**: Java's `queryHost` returns `Mono<String>` (reactive), and the address assignment happens in `.doOnNext()`. Go's `queryHost` is a synchronous function. This may cause issues if the Java version's async nature was relied upon (e.g., for `PUBLIC_ADDRESS` which does HTTP calls). The Go version cannot handle async IP detection.
-*Checked methods: isConnected(), connect(), bind(boolean useFastBind, String dn, String password), search(String baseDn, Scope scope, DerefAliases derefAliases, int sizeLimit, int timeLimit, boolean typeOnly, List<String> attributes, String filter), modify(String dn, List<ModifyOperationChange> changes)*
-Now I have all the files. Let me analyze each method carefully.
-- **Java**: `return connection != null && !connection.isDisposed();`
-- **Go**: `return c.Conn != nil && !c.Conn.IsClosing()`
-This maps correctly. `IsClosing()` is the go-ldap equivalent of `isDisposed()`.
-- **Java**: Uses an atomic CAS on `connectionMono` to ensure only one connection attempt at a time (singleton pattern). If `connectionMono` is already set, returns the existing Mono. The connection is stored in both `connectionMono` and `connection`.
-- **Go**: Uses a mutex lock. Checks if connection is already established. Handles closing stale connections. Supports TLS.
-The Go version changes semantics slightly: Java's `connect()` returns a `Mono` (lazy, reusable), while Go's returns `error` (eager). But functionally the connection-sharing logic is preserved. One notable difference: Java assigns to both `connectionMono` and `connection` fields, while Go only assigns to `c.Conn`. Since Go doesn't have the reactive stream separation, this is fine.
-- **Java**: Sends a bind request with fast bind controls if `useFastBind` is true. Maps the response: success → true, `INVALID_CREDENTIALS` → false, other error codes → throws `LdapException`.
-- **Go**: Ignores `useFastBind` entirely (comment says "We use Simple Bind regardless"). Maps `LDAPResultInvalidCredentials` → false, other errors → returns error.
-**Bug**: The `useFastBind` parameter is accepted but ignored. In Java, when `useFastBind` is true, the request includes a `FAST_BIND` control (`ControlOidConst.FAST_BIND`). The Go version sends a plain bind without this control. This means the fast bind optimization (which tells the LDAP server to skip additional auth steps) is never applied.
-- **Java**: Takes `baseDn, scope, derefAliases, sizeLimit, timeLimit, typeOnly, attributes, filter` and sends a `SearchRequest`, returning `Mono<SearchResult>`.
-- **Go**: Takes the same parameters with `int` types for scope and derefAliases. Constructs a `ldap.NewSearchRequest` and returns the result.
-This looks correct. The parameter mapping is faithful.
-- **Java**: Returns `Mono.empty()` if changes is empty. Iterates changes: if type is `ADD` and attribute is empty, throws `LdapException`. Then sends the modify request.
-- **Go**: Returns `nil` if changes is empty. Iterates changes: if type is `AddAttribute` and values is empty, returns an error. Then sends the modify request.
-**Bug**: The error handling in Go differs from Java. In Java, the `LdapException` for empty ADD attributes is thrown immediately (synchronously) as an exception, which is the same as Go returning an error. However, in Java the loop checks **all** changes before sending the request — if a later change is invalid, the exception is still thrown before any request is sent. In Go, the validation and request building happen in the same loop, but the function also returns early on the first invalid change. This is actually functionally equivalent behavior (fail-fast on first invalid ADD).
-Actually, let me re-read the Go code more carefully. The Go version checks `change.Type == ldap.AddAttribute && len(change.Values) == 0` and returns an error immediately (first invalid one). Java iterates all changes and throws on the first invalid one. The behavior is the same: fail on first invalid ADD attribute.
-One more subtle difference: in Java, `modify` returns `Mono<ModifyResponse>` and the caller would need to check the response. In Go, `conn.Modify(req)` returns an error directly (which includes any LDAP error codes). This is a valid adaptation of the reactive pattern to the synchronous Go pattern.
----
-Here are the bugs:
-- [x] The `useFastBind` parameter is accepted but completely ignored. In Java, when `useFastBind` is true, the bind request includes a `FAST_BIND` control (`ControlOidConst.FAST_BIND` = a specific OID control with `criticality=false`). This control instructs the LDAP server to skip additional authentication steps (e.g., password policy evaluation). The Go version always performs a plain simple bind without this control, meaning the fast bind optimization is never applied regardless of the `useFastBind` argument value. [FIXED]
-- [x] In Java, the validation for empty ADD attributes throws a specific `LdapException` with `ResultCode.INVALID_ATTRIBUTE_SYNTAX` and a descriptive message including the attribute type name. The Go version returns a generic `fmt.Errorf` with a string prefix "INVALID_ATTRIBUTE_SYNTAX:" but does not use a structured error type that callers can programmatically match against an LDAP result code. While this is arguably a stylistic difference for a Go codebase, it means callers cannot distinguish this error from other LDAP errors by result code as they could in Java. [FIXED]
-*Checked methods: skipTag(), skipTagAndLength(), skipTagAndLengthAndValue(), readTag(), peekAndCheckTag(int tag), skipLength(), skipLengthAndValue(), writeLength(int length), readLength(), tryReadLengthIfReadable(), beginSequence(), beginSequence(int tag), endSequence(), writeBoolean(boolean value), writeBoolean(int tag, boolean value), readBoolean(), writeInteger(int value), writeInteger(int tag, int value), readInteger(), readIntWithTag(int tag), writeOctetString(String value), writeOctetString(byte[] value), writeOctetString(int tag, byte[] value), writeOctetString(byte[] value, int start, int length), writeOctetString(int tag, byte[] value, int start, int length), writeOctetString(int tag, String value), writeOctetStrings(List<String> values), readOctetString(), readOctetStringWithTag(int tag), readOctetStringWithLength(int length), writeEnumeration(int value), readEnumeration(), getBytes(), skipBytes(int length), close(), refCnt(), retain(), retain(int increment), touch(), touch(Object hint), release(), release(int decrement), isReadable(int length), isReadable(), isReadableWithEnd(int end), readerIndex()*
-The `ttl_cache.go` file is not related to `BerBuffer` — it's a separate utility. I'll focus my review strictly on the `BerBuffer` port. Let me now do a detailed method-by-method comparison.
+[Context: ## updateAdmins]
+- [ ] Missing early return when all parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` when `rawPassword`, `displayName`, and `roleIds` are all null; Go still calls the repository with nil values.
 
 ---
 
-[Context: ## readLength()]
-- [ ] **Missing error handling for indefinite length (numBytes == 0)**: Java throws `DecodeException("Indefinite length is not supported")`, Go silently returns 0. This will cause the caller to misinterpret the structure.
+[Context: ## updateAdmins]
+- [ ] Missing in-memory cache invalidation. Java removes all target admin IDs from `idToAdmin` on successful update; Go has no cache invalidation.
+No bugs found.
 
 ---
 
-[Context: ## readLength()]
-- [ ] **Missing validation for numBytes > 4**: Java throws `DecodeException("The length (...) is too long")`, Go silently proceeds with any numBytes value, potentially reading far beyond valid data.
+[Context: ## errorRequesterNotExist]
+- [ ] Missing `UNAUTHORIZED` status code. Java returns `ResponseException` with `ResponseStatusCode.UNAUTHORIZED` and a descriptive message; Go returns a plain `errors.New("requester does not exist")` without any status code, losing error classification information.
+*Checked methods: addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO), queryBlockedIps(Set<String> ids), queryBlockedIps(int page, @QueryParam(required = false), deleteBlockedIps(@QueryParam(required = false)*
+Now I have all the context needed. Let me analyze the differences.
 
 ---
 
-[Context: ## readLength()]
-- [ ] **Missing insufficient data check**: Java checks `buffer.isReadable(lengthBytes)` before reading the length bytes and throws `DecodeException("Insufficient data")`. Go silently breaks out of the loop with a partial/truncated length value instead of throwing an error.
+[Context: ## queryBlockedIps (page)]
+- [ ] **Missing `countBlockIps()` call**: The Java version calls `blocklistService.countBlockIps()` to get the total count and returns it via `HttpHandlerResult.page(blockedIpCount, clients2ips(blockedIps))`. The Go version's `QueryBlockedIpsByPage` only returns `[]dto.BlockedIpDTO` and does not call a count method at all. The method signature returns just the DTO slice, with no pagination metadata (total count), making it impossible for the caller to return proper paginated responses as the Java version does.
 
 ---
 
-[Context: ## readLength()]
-- [ ] **Missing negative length check**: Java checks `if (length < 0)` after computation and throws `DecodeException("Invalid length bytes")`. Go returns the potentially corrupted length without validation.
+[Context: ## deleteBlockedIps]
+- [ ] **Missing empty-ids guard**: The Java version checks `!CollectionUtils.isEmpty(ids)` before calling `unblockIpStrings(ids)`, meaning if `deleteAll` is false and `ids` is null/empty, it does nothing (returns `Mono.empty()`). The Go version unconditionally calls `c.blocklistService.UnblockIpStrings(ids)` when `deleteAll` is false, even when `ids` is nil or empty, which differs from the Java behavior.
+*Checked methods: addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO), queryBlockedUsers(Set<Long> ids), queryBlockedUsers(int page, @QueryParam(required = false), deleteBlockedUserIds(@QueryParam(required = false)*
+Now I have all the information needed for a thorough comparison. Let me analyze each method.
+**Java:** `blocklistService.blockUserIds(addBlockedUserIdsDTO.ids(), addBlockedUserIdsDTO.blockDurationMillis())`
+**Go:** `c.blocklistService.BlockUserIds(addBlockedUserIdsDTO.IDs, addBlockedUserIdsDTO.BlockDurationMillis)`
+This maps correctly. The DTO fields match (IDs/ids, BlockDurationMillis/blockDurationMillis). The method signatures align.
+**Java:** Calls `blocklistService.getBlockedUsers(ids)` then converts to `BlockedUserDTO` with `id` and `new Date(blockedClient.blockEndTimeMillis())`.
+**Go:** Calls `c.blocklistService.GetBlockedUsers(ids)` then converts to `BlockedUserDTO` with `ID` and `time.UnixMilli(client.BlockEndTimeMillis)`.
+This maps correctly.
+**Java:**
+1. `size = getPageSize(size);`
+2. `int blockUserCount = blocklistService.countBlockUsers();` — gets the total count
+3. `List<BlockedClient<Long>> blockedUsers = blocklistService.getBlockedUsers(page, size);`
+4. Returns `HttpHandlerResult.page(blockUserCount, clients2users(blockedUsers));` — returns pagination with count
+**Go:**
+1. `actualSize := c.GetPageSize(size)` — correct
+2. `blockedClients := c.blocklistService.GetBlockedUsersByPage(page, actualSize)` — correct
+3. Returns only `[]dto.BlockedUserDTO` — **missing the total count** (`countBlockUsers()`)
+The Go version does **not** call a count method and does **not** return pagination info (total count). The Java version calls `countBlockUsers()` and wraps the result in `HttpHandlerResult.page(blockUserCount, ...)`. The Go method only returns the DTOs without the count.
+**Java:**
+```java
+Mono<Void> result = Mono.empty();
+if (deleteAll) {
+    result = blocklistService.unblockAllUserIds();
+} else if (!CollectionUtils.isEmpty(ids)) {
+    result = result.then(blocklistService.unblockUserIds(ids));
+}
+return HttpHandlerResult.okIfTruthy(result);
+```
+**Go:**
+```go
+if deleteAll {
+    return c.blocklistService.UnblockAllUserIds()
+}
+return c.blocklistService.UnblockUserIds(ids)
+```
+The Go version has a behavioral difference: when `deleteAll` is false **and** `ids` is empty/nil, the Java version returns a no-op success (it doesn't call unblock), while the Go version still calls `UnblockUserIds(ids)` with an empty slice. The Java code checks `!CollectionUtils.isEmpty(ids)` before calling `unblockUserIds`, but the Go code always calls `UnblockUserIds` when `deleteAll` is false, even with an empty `ids` slice.
+---
 
 ---
 
-[Context: ## tryReadLengthIfReadable()]
-- [ ] **Delegates to ReadLength() which has different error behavior**: Java's `tryReadLengthIfReadable` has its own full logic that returns -1 when there isn't enough data for the multi-byte length (line 155-157 in Java). The Go version simply delegates to `ReadLength()` which can silently return a truncated/incorrect value instead of -1 when multi-byte length data is partially available.
+[Context: ## queryBlockedUsers(int page, @QueryParam(required = false) Integer size)]
+- [ ] **Missing total count**: The Go `QueryBlockedUserIdsByPage` method does not call a `CountBlockUsers()` equivalent. The Java version calls `blocklistService.countBlockUsers()` and passes `blockUserCount` to `HttpHandlerResult.page()`. The Go version only returns `[]dto.BlockedUserDTO` without any pagination metadata (total count), making it impossible for clients to know the total number of blocked users. Furthermore, `BlocklistService` in Go has no `CountBlockUsers` method at all.
 
 ---
 
-[Context: ## tryReadLengthIfReadable()]
-- [ ] **Missing indefinite length error**: Java throws `DecodeException("Indefinite length is not supported")` when numBytes == 0, but Go's `ReadLength()` returns 0 silently.
+[Context: ## deleteBlockedUserIds(@QueryParam(required = false) Set<Long> ids, boolean deleteAll)]
+- [ ] **Missing empty-ids guard**: When `deleteAll` is `false` and `ids` is empty/nil, the Java code skips the `unblockUserIds` call entirely (due to `!CollectionUtils.isEmpty(ids)` check), resulting in a no-op. The Go version unconditionally calls `UnblockUserIds(ids)` when `deleteAll` is false, even with an empty slice, which could cause unintended behavior or errors depending on the service implementation.
+*Checked methods: serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)*
+The Go file (`elasticsearch_model.go`) does not contain any ported version of the `BlockedClientSerializer.serialize` method. There is no `BlockedClient` struct, no custom serialization logic, and no equivalent of the ID type-dispatch (Long userId vs. IP address byte array) or the `blockEndTime` formatting.
+Since the task asks me to compare the ported methods, and the Go code simply does not have the ported method at all, this is a missing implementation rather than a bug in an existing implementation.
+However, the instructions say to focus on "ported methods" — the Java `serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)` method has **not been ported** to the Go file at all. There is nothing comparable to review.
+Given the strict instruction format, here is the assessment:
 
 ---
 
-[Context: ## tryReadLengthIfReadable()]
-- [ ] **Missing numBytes > 4 error**: Java throws an exception, Go proceeds silently.
+[Context: ## serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)]
+- [ ] The entire method is **missing** from the Go code. The Go file `elasticsearch_model.go` contains no `BlockedClient` type, no custom JSON marshaling for it, and no equivalent of: (1) writing an `id` field that is either a `Long` userId (written as a number) or an IP byte array (converted to string via `InetAddressUtil.ipBytesToString`), and (2) writing a `blockEndTime` field formatted via `DateTimeUtil.toStr(value.blockEndTimeMillis())`.
+*Checked methods: queryMembers(), removeMembers(List<String> ids), addMember(@RequestBody AddMemberDTO addMemberDTO), updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO), queryLeader(), electNewLeader(@QueryParam(required = false)*
+Now I have a complete picture of both implementations. Let me compile the findings.
 
 ---
 
-[Context: ## tryReadLengthIfReadable()]
-- [ ] **Missing negative length check**: Java validates `length < 0`, Go does not.
+[Context: ## addMember]
+- [ ] **Missing fields in Member construction**: The Java code constructs a `Member` with 18 fields including `version` (via `NodeVersion.parse`), `registrationDate`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, and `isActive`/`isHealthy` from the DTO. The Go code only sets: `ClusterID`, `NodeID`, `Zone`, `Name`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`, and conditionally `NodeType`. The following fields from `AddMemberDTO` are **not assigned** in the Go code:
+  - `Version` (Java: `NodeVersion.parse(addMemberDTO.version())`)
+  - `RegistrationDate`
+  - `MemberPort`
+  - `AdminAPIAddress`
+  - `WsAddress`
+  - `TcpAddress`
+  - `UdpAddress`
 
 ---
 
-[Context: ## readBoolean()]
-- [ ] **Missing tag validation**: Java reads the tag and verifies it equals `TAG_BOOLEAN`, throwing `DecodeException` on mismatch. Go calls `SkipTagAndLength()` which blindly skips the tag without validating it.
+[Context: ## addMember]
+- [ ] **`IsActive` and `IsHealthy` hardcoded to `false`**: The Java code passes `addMemberDTO.isActive()` and `addMemberDTO.isHealthy()` from the request DTO. The Go code hardcodes both to `false` on lines 78-79, ignoring whatever the client sent.
 
 ---
 
-[Context: ## readBoolean()]
-- [ ] **Missing length validation**: Java checks `length > 1` and throws `DecodeException("The boolean is too large")`, and checks `isReadable(length)`. Go skips the length without any validation.
+[Context: ## addMember]
+- [ ] **`ClusterID` sourced incorrectly**: Java gets the cluster ID via `discoveryService.getLocalMember().getClusterId()`. Go uses `c.discoveryService.GetLocalNodeID()` which returns the **node** ID, not the cluster ID. These are different values.
 
 ---
 
-[Context: ## readBoolean()]
-- [ ] **Returns false on insufficient data instead of throwing**: Java throws `DecodeException("Insufficient data")`. Go returns `false`, which is incorrect behavior — the caller cannot distinguish between "read a false boolean" and "failed to read".
+[Context: ## addMember]
+- [ ] **Go `AddMemberDTO` is missing fields compared to Java**: The Java `AddMemberDTO` has 17 fields (`nodeId`, `zone`, `name`, `nodeType`, `version`, `isSeed`, `isLeaderEligible`, `registrationDate`, `priority`, `memberHost`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, `isActive`, `isHealthy`). The Go `AddMemberDTO` only has 9 fields (`NodeID`, `Zone`, `Name`, `NodeType`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`). Missing DTO fields: `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, `IsHealthy`, `Version`, `RegistrationDate`.
 
 ---
 
-[Context: ## readIntWithTag(int tag)]
-- [ ] **Returns 0 instead of throwing on tag mismatch**: Java throws `DecodeException` with tag mismatch details. Go silently returns 0, hiding protocol errors.
+[Context: ## queryMembers]
+- [ ] **Returns different data structure**: Java returns `Collection<Member>` (the raw Member objects with all fields including `ClusterID`, `LastHeartbeat`, etc.). Go returns `[]MemberDTO` which is a transformed DTO with an additional computed `IsLeader` field. While this could be intentional for the Go API design, the Java version returns the raw `Member` entity directly, not a DTO.
 
 ---
 
-[Context: ## readIntWithTag(int tag)]
-- [ ] **Returns 0 instead of throwing when length > 4**: Java throws `DecodeException("The integer is too long")`. Go silently returns 0.
+[Context: ## queryLeader]
+- [ ] **Error handling differs**: Java throws `ResponseException.get(ResponseStatusCode.NO_CONTENT)` when leader is null (HTTP 204). Go returns `fmt.Errorf("NO_CONTENT")` which is a generic error, not a proper HTTP 204 response — it would likely result in an HTTP 500 internal error instead of the intended 204 No Content.
 
 ---
 
-[Context: ## readIntWithTag(int tag)]
-- [ ] **Returns 0 instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")`. Go returns 0.
+[Context: ## queryLeader]
+- [ ] **Same error handling issue for null member lookup**: When `discoveryService.getAllKnownMembers().get(nodeId)` returns null in Java, it passes null to `HttpHandlerResult.okIfTruthy()` which handles it. In Go, `GetMember(leaderID)` returning nil is handled with the same generic `fmt.Errorf("NO_CONTENT")` rather than the proper HTTP response code.
 
 ---
 
-[Context: ## readIntWithTag(int tag)]
-- [ ] **Incorrect negative value decoding logic**: Java extracts bits 0-6 of the first byte (`firstByte & 0x7F`) and then negates (`-value`). Go reads all bytes including the sign bit, then applies a sign-extension mask (`val |= ^((1 << (length * 8)) - 1)`). These produce different results for negative integers. For example, a 2-byte encoding of -129 (0xFF, 0x7F): Java computes `value = 0x7F = 127`, then `value = -127`. Go computes `val = 0xFF7F = 65407`, then `val |= ^0xFFFF = val | 0xFFFF0000 = 0xFFFFFF7F = -129`. The results differ (-127 vs -129).
+[Context: ## electNewLeader]
+- [ ] **Missing return value**: Java returns `Mono<HttpHandlerResult<ResponseDTO<Member>>>` — it returns the newly elected leader `Member` object in the response. Go returns only `error` with no member data, so the caller gets no information about who was elected leader.
 
 ---
 
-[Context: ## readIntWithTag(int tag)]
-- [ ] **Returns 0 when length == 0**: Java would proceed to read a byte with `buffer.readByte()` and potentially throw. Go returns 0 silently.
+[Context: ## removeMembers]
+- [ ] **Missing deleted count in response**: Java returns `HttpHandlerResult<DeleteResultDTO>` which includes the count of deleted members (`unregisterMembers` count). Go returns only `error` with no count information.
+*Checked methods: queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable), updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false), queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)*
+Now I have a comprehensive understanding of both implementations. Let me compare the three methods systematically.
+- **Java**: Calls `convertPropertiesToValueMap(properties, onlyMutable)` to convert properties to a map, respecting the `onlyMutable` flag. Returns schema version from `TurmsProperties.SCHEMA_VERSION`.
+- **Go**: Gets the properties correctly, but then discards them with `_ = props` and returns an empty `settings` map. The `onlyMutable` parameter is completely ignored. Schema version is hardcoded as `"1.0"` instead of using `TurmsProperties.SCHEMA_VERSION`.
+- **Java**: When `updateLocalSettings` is true, calls `updateLocalProperties(reset, turmsProperties)` synchronously and returns `Mono.just(RESPONSE_OK)`. When false, calls `updateGlobalProperties(reset, turmsProperties)` which returns a `Mono`, then `.thenReturn(RESPONSE_OK)`.
+- **Go**: The branching logic is correct. However, `UpdateGlobalProperties` in Go returns an `error` while Java returns a reactive `Mono` (asynchronous). The Go version treats both paths identically (synchronous), which loses the reactive/async distinction. But functionally the branching is correct. The return type is `error` rather than a response object wrapper, which is a design difference, not a bug per se.
+- **Java**: Uses `TurmsPropertiesInspector.ONLY_MUTABLE_METADATA` or `TurmsPropertiesInspector.METADATA` based on `onlyMutable`. If `withValue` is true, calls `mergeMetadataWithPropertyValue(metadata, properties)` to merge metadata with property values. Otherwise returns just the metadata. Returns schema version from `TurmsProperties.SCHEMA_VERSION`.
+- **Go**: Creates an empty `metadata` map, ignores all three parameters (`queryLocalSettings`, `onlyMutable`, `withValue`), and returns an empty settings map with a hardcoded `"1.0"` schema version. The entire metadata lookup and merge logic is missing.
+---
 
 ---
 
-[Context: ## writeInteger(int tag, int value)]
-- [ ] **Incorrect encoding for negative values**: Java's encoding uses bitmasks to determine the minimal encoding size for negative numbers (e.g., `(value & 0xFFFF_FF80) == 0xFFFF_FF80` checks if the value fits in 1 byte with sign extension). Go uses range checks (`value >= -128 && value <= 127`). While the range checks happen to produce the same byte count for negative values, the Go version writes different byte values. For example, for `value = -1`: Java writes `byte(value & 0xFF) = 0xFF`. Go writes `byte(-1) = 0xFF` — same in this case. But for `value = -129`: Java's 2-byte path writes `byte((value >> 8) & 0xFF) = 0xFF` and `byte(value & 0xFF) = 0x7F`. Go writes `byte(-129 >> 8) = 0xFF` and `byte(-129) = 0x7F`. These match. However, **the positive-value encoding differs**: Java masks the high byte with `& 0x7F` (e.g., `buffer.writeByte((value >> 8) & 0x7F)` for 2-byte positive values), while Go does not mask with `0x7F`. For positive values in the range 128-255, Java's 1-byte branch writes `value & 0x7F` (stripping bit 7), but Go's range check puts values > 127 into the 2-byte branch, so the behavior diverges. For value=200: Java's `(value & 0x0000_007F) == value` is `200 & 0x7F = 72 != 200`, so it falls to 2-byte: writes `byte((200 >> 8) & 0x7F) = 0` and `byte(200 & 0xFF) = 0xC8`. Go's `value >= -128 && value <= 127` is false for 200, so 2-byte: writes `byte(200 >> 8) = 0` and `byte(200) = 0xC8`. Same in this case. But for value=128: Java 2-byte path writes `byte((128>>8) & 0x7F) = 0` and `byte(128 & 0xFF) = 0x80`. Go writes same. So the positive paths are actually equivalent since Go's range boundaries align with Java's bitmask-based boundaries. This is correct.
+[Context: ## queryClusterSettings]
+- [ ] **Missing `convertPropertiesToValueMap` logic**: The retrieved `props` is discarded with `_ = props`. The `onlyMutable` parameter is completely ignored. The Java version calls `convertPropertiesToValueMap(properties, onlyMutable)` which filters/converts properties to a map respecting the mutable-only flag. The Go version returns an empty `settings` map instead.
 
 ---
 
-[Context: ## writeOctetString(int tag, String value)]
-- [ ] **Missing length pre-reservation / backpatching logic**: Java reserves 3 bytes for the length (0x82 + 2 bytes), writes the UTF-8 string, then backpatches the actual length. Go writes the length immediately with `WriteLength(len(value))`, which uses `len(value)` (byte count of the Go string, which is already UTF-8). However, the critical difference is that Java always writes a 3-byte length (0x82 + 2 bytes) regardless of actual string length, while Go's `WriteLength` uses a variable-length encoding (1 byte for lengths <= 127, etc.). This means the wire format differs for short strings: Java produces 3 bytes of length overhead for all strings, Go produces 1 byte for strings <= 127 bytes. This is actually a more compact encoding, but it is not byte-compatible with the Java version. Whether this is a "bug" depends on whether wire-compatibility is required; for an LDAP client it may work fine since servers should handle both forms.
+[Context: ## queryClusterSettings]
+- [ ] **Hardcoded schema version**: `"1.0"` is hardcoded instead of using the `TurmsProperties.SCHEMA_VERSION` constant that the Java version references.
 
 ====================
 Remember: ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.

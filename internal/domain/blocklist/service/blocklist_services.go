@@ -27,6 +27,13 @@ func (s *BlocklistService) GetBlockedIps(page, size int) []bo.BlockedClient[stri
 	return nil
 }
 
+// CountBlockedIps returns the total number of blocked IPs.
+// @MappedFrom countBlockIps
+func (s *BlocklistService) CountBlockedIps() (int64, error) {
+	// TODO: implement with actual storage backend
+	return 0, nil
+}
+
 func (s *BlocklistService) BlockUserIds(userIds []int64, blockDuration int64) error {
 	return nil
 }
@@ -45,4 +52,11 @@ func (s *BlocklistService) GetBlockedUsers(userIds []int64) []bo.BlockedClient[i
 
 func (s *BlocklistService) GetBlockedUsersByPage(page, size int) []bo.BlockedClient[int64] {
 	return nil
+}
+
+// CountBlockedUsers returns the total number of blocked users.
+// @MappedFrom countBlockUsers
+func (s *BlocklistService) CountBlockedUsers() (int64, error) {
+	// TODO: implement with actual storage backend
+	return 0, nil
 }

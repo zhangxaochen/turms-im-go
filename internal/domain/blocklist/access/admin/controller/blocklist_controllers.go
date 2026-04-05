@@ -8,6 +8,18 @@ import (
 	commoncontroller "im.turms/server/internal/domain/common/access/admin/controller"
 )
 
+// PaginatedBlockedIpsDTO wraps blocked IPs with a total count for pagination.
+type PaginatedBlockedIpsDTO struct {
+	Total      int64               `json:"total"`
+	BlockedIps []dto.BlockedIpDTO `json:"blockedIps"`
+}
+
+// PaginatedBlockedUsersDTO wraps blocked users with a total count for pagination.
+type PaginatedBlockedUsersDTO struct {
+	Total         int64                 `json:"total"`
+	BlockedUsers []dto.BlockedUserDTO `json:"blockedUsers"`
+}
+
 // IpBlocklistController maps to IpBlocklistController.java
 // @MappedFrom IpBlocklistController
 type IpBlocklistController struct {
@@ -34,8 +46,10 @@ func (c *IpBlocklistController) QueryBlockedIpsByIds(ids []string) []dto.Blocked
 }
 
 // @MappedFrom queryBlockedIps(int page, @QueryParam(required = false) Integer size)
-func (c *IpBlocklistController) QueryBlockedIpsByPage(page int, size *int) []dto.BlockedIpDTO {
+// Bug fix: Added total count via CountBlockedIps() to match Java's paginated response
+func (c *IpBlocklistController) QueryBlockedIpsByPage(page int, size *int) PaginatedBlockedIpsDTO {
 	actualSize := c.GetPageSize(size)
+	total, _ := c.blocklistService.CountBlockedIps()
 	blockedClients := c.blocklistService.GetBlockedIps(page, actualSize)
 	dtos := make([]dto.BlockedIpDTO, len(blockedClients))
 	for i, client := range blockedClients {
@@ -44,13 +58,20 @@ func (c *IpBlocklistController) QueryBlockedIpsByPage(page int, size *int) []dto
 			BlockEndTime: time.UnixMilli(client.BlockEndTimeMillis),
 		}
 	}
-	return dtos
+	return PaginatedBlockedIpsDTO{
+		Total:      total,
+		BlockedIps: dtos,
+	}
 }
 
 // @MappedFrom deleteBlockedIps(@QueryParam(required = false) Set<String> ids, @QueryParam(required = false) Boolean deleteAll)
+// Bug fix: Added empty-ids guard — skip unblock when ids is empty and deleteAll is false
 func (c *IpBlocklistController) DeleteBlockedIps(ids []string, deleteAll bool) error {
 	if deleteAll {
 		return c.blocklistService.UnblockAllIps()
+	}
+	if len(ids) == 0 {
+		return nil
 	}
 	return c.blocklistService.UnblockIpStrings(ids)
 }
@@ -81,8 +102,10 @@ func (c *UserBlocklistController) QueryBlockedUserIdsByIds(ids []int64) []dto.Bl
 }
 
 // @MappedFrom queryBlockedUserIds(int page, @QueryParam(required = false) Integer size)
-func (c *UserBlocklistController) QueryBlockedUserIdsByPage(page int, size *int) []dto.BlockedUserDTO {
+// Bug fix: Added total count via CountBlockedUsers() to match Java's paginated response
+func (c *UserBlocklistController) QueryBlockedUserIdsByPage(page int, size *int) PaginatedBlockedUsersDTO {
 	actualSize := c.GetPageSize(size)
+	total, _ := c.blocklistService.CountBlockedUsers()
 	blockedClients := c.blocklistService.GetBlockedUsersByPage(page, actualSize)
 	dtos := make([]dto.BlockedUserDTO, len(blockedClients))
 	for i, client := range blockedClients {
@@ -91,13 +114,20 @@ func (c *UserBlocklistController) QueryBlockedUserIdsByPage(page int, size *int)
 			BlockEndTime: time.UnixMilli(client.BlockEndTimeMillis),
 		}
 	}
-	return dtos
+	return PaginatedBlockedUsersDTO{
+		Total:         total,
+		BlockedUsers: dtos,
+	}
 }
 
 // @MappedFrom deleteBlockedUserIds(@QueryParam(required = false) Set<Long> ids, @QueryParam(required = false) Boolean deleteAll)
+// Bug fix: Added empty-ids guard — skip unblock when ids is empty and deleteAll is false
 func (c *UserBlocklistController) DeleteBlockedUserIds(ids []int64, deleteAll bool) error {
 	if deleteAll {
 		return c.blocklistService.UnblockAllUserIds()
+	}
+	if len(ids) == 0 {
+		return nil
 	}
 	return c.blocklistService.UnblockUserIds(ids)
 }
