@@ -48,7 +48,7 @@ type UdpSignalRequest struct {
 	Type       UdpRequestType
 	UserID     int64
 	DeviceType protocol.DeviceType
-	SessionID  int32
+	SessionID  int32 // Java uses int (32-bit), not int64
 }
 
 // @MappedFrom UdpSignalRequest(UdpRequestType type, long userId, DeviceType deviceType, int sessionId)
@@ -178,7 +178,7 @@ func (d *UdpRequestDispatcher) HandleDatagramPackage(ctx context.Context, packet
 	}
 
 	s := d.sessionService.GetLocalUserSession(ctx, req.UserID, req.DeviceType)
-	if s == nil || int32(s.ID) != req.SessionID {
+	if s == nil || s.ID != int64(req.SessionID) {
 		d.sendErrorCode(senderAddress, constant.ResponseStatusCode_UPDATE_HEARTBEAT_OF_NONEXISTENT_SESSION)
 		return
 	}

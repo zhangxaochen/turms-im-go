@@ -44,6 +44,7 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 	if len(recipientIds) == 0 {
 		return nil, errors.New("recipientIds cannot be empty")
 	}
+	// Java: Validator.notNull(excludedUserSessionIds, "excludedUserSessionIds")
 	if excludedUserSessionIds == nil {
 		return nil, errors.New("excludedUserSessionIds cannot be nil")
 	}
@@ -109,11 +110,18 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 			go func(rid int64, sess *session.UserSession) {
 				defer wg.Done()
 
-				// Bug 8036: Clone notificationData to prevent concurrent modification issues
-				dataClone := make([]byte, len(notificationData))
-				copy(dataClone, notificationData)
+				if sess.Conn == nil {
+					mu.Lock()
+					offlineRecipientIds = append(offlineRecipientIds, rid)
+					mu.Unlock()
+					return
+				}
 
-				err := sess.Conn.SendWithContext(ctx, dataClone)
+				// Java calls tryNotifyClientToRecover() unconditionally BEFORE the send,
+				// in the for-loop body, not inside the send mono's error handler.
+				sess.Conn.TryNotifyClientToRecover()
+
+				err := sess.Conn.SendWithContext(ctx, notificationData)
 				if err != nil {
 					// Bug 8028: In Java, any error directly means the recipient is marked offline.
 					mu.Lock()
