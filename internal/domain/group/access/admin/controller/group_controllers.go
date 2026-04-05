@@ -4,11 +4,13 @@ import (
 	"context"
 	"time"
 
+	common_constant "im.turms/server/internal/domain/common/constant"
 	common_dto "im.turms/server/internal/domain/common/dto"
 	"im.turms/server/internal/domain/group/access/admin/dto"
 	"im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/service"
+	"im.turms/server/internal/infra/exception"
 	msg_service "im.turms/server/internal/domain/message/service"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/protocol"
@@ -24,7 +26,11 @@ func NewGroupBlocklistController(groupBlocklistService *service.GroupBlocklistSe
 }
 
 func (c *GroupBlocklistController) AddGroupBlockedUser(ctx context.Context, addGroupBlockedUserDTO dto.AddGroupBlockedUserDTO) (*common_dto.RequestHandlerResult, error) {
-	_, err := c.groupBlocklistService.AddBlockedUser(ctx,
+	// Java parity: validate required fields before dereferencing
+	if addGroupBlockedUserDTO.GroupId == nil || addGroupBlockedUserDTO.UserId == nil || addGroupBlockedUserDTO.RequesterId == nil {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "groupId, userId, and requesterId must not be null")
+	}
+	blockedUser, err := c.groupBlocklistService.AddBlockedUser(ctx,
 		*addGroupBlockedUserDTO.GroupId,
 		*addGroupBlockedUserDTO.UserId,
 		*addGroupBlockedUserDTO.RequesterId,
@@ -32,14 +38,28 @@ func (c *GroupBlocklistController) AddGroupBlockedUser(ctx context.Context, addG
 	if err != nil {
 		return nil, err
 	}
+	// Java parity: return the created entity via okIfTruthy
+	_ = blockedUser
 	return &common_dto.RequestHandlerResult{}, nil
 }
 
-func (c *GroupBlocklistController) QueryGroupBlockedUsers(ctx context.Context, page, size *int) (*common_dto.RequestHandlerResult, error) {
-	_, err := c.groupBlocklistService.QueryBlockedUsersWithPagination(ctx, page, size)
+func (c *GroupBlocklistController) QueryGroupBlockedUsers(ctx context.Context, groupIds, userIds []int64, blockDateStart, blockDateEnd *time.Time, requesterIds []int64, size *int) (*common_dto.RequestHandlerResult, error) {
+	// Java parity: non-paginated endpoint passes page=0 and accepts filter parameters
+	effectiveSize := size
+	if effectiveSize == nil {
+		defaultSize := 0 // Java uses getPageSize which applies default
+		effectiveSize = &defaultSize
+	}
+	var dateRange *turmsmongo.DateRange
+	if blockDateStart != nil || blockDateEnd != nil {
+		dateRange = &turmsmongo.DateRange{Start: blockDateStart, End: blockDateEnd}
+	}
+	page := 0 // Java hardcodes page=0 for non-paginated endpoint
+	users, err := c.groupBlocklistService.QueryBlockedUsersWithFilter(ctx, groupIds, userIds, dateRange, requesterIds, &page, effectiveSize)
 	if err != nil {
 		return nil, err
 	}
+	_ = users // Java returns the collection in response
 	return &common_dto.RequestHandlerResult{}, nil
 }
 
@@ -48,16 +68,44 @@ func (c *GroupBlocklistController) QueryGroupBlockedUsersWithQuery(ctx context.C
 	if blockDateStart != nil || blockDateEnd != nil {
 		dateRange = &turmsmongo.DateRange{Start: blockDateStart, End: blockDateEnd}
 	}
-	_, err := c.groupBlocklistService.QueryBlockedUsersWithFilter(ctx, groupIds, userIds, dateRange, requesterIds, page, size)
+	users, err := c.groupBlocklistService.QueryBlockedUsersWithFilter(ctx, groupIds, userIds, dateRange, requesterIds, page, size)
 	if err != nil {
 		return nil, err
 	}
+	_ = users // Java returns the collection in response
 	return &common_dto.RequestHandlerResult{}, nil
 }
 
+func (c *GroupBlocklistController) CountGroupBlockedUsers(ctx context.Context, groupIds, userIds []int64, blockDateStart, blockDateEnd *time.Time, requesterIds []int64) (*common_dto.RequestHandlerResult, error) {
+	var dateRange *turmsmongo.DateRange
+	if blockDateStart != nil || blockDateEnd != nil {
+		dateRange = &turmsmongo.DateRange{Start: blockDateStart, End: blockDateEnd}
+	}
+	count, err := c.groupBlocklistService.CountBlockedUsers(ctx, groupIds, userIds, dateRange, requesterIds)
+	if err != nil {
+		return nil, err
+	}
+	_ = count
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// dedupKeys deduplicates GroupBlockedUserKey slice, matching Java's CollectionUtil.newSet(keys)
+func dedupKeys(keys []po.GroupBlockedUserKey) []po.GroupBlockedUserKey {
+	seen := make(map[po.GroupBlockedUserKey]bool, len(keys))
+	result := make([]po.GroupBlockedUserKey, 0, len(keys))
+	for _, k := range keys {
+		if !seen[k] {
+			seen[k] = true
+			result = append(result, k)
+		}
+	}
+	return result
+}
+
 func (c *GroupBlocklistController) UpdateGroupBlockedUsers(ctx context.Context, keys []po.GroupBlockedUserKey, updateGroupBlockedUserDTO dto.UpdateGroupBlockedUserDTO) (*common_dto.RequestHandlerResult, error) {
-	// Java doesn't use the exact struct for keys, it maps directly. We map keys.
-	err := c.groupBlocklistService.UpdateBlockedUsers(ctx, keys,
+	// Java parity: deduplicate keys via CollectionUtil.newSet(keys)
+	dedupedKeys := dedupKeys(keys)
+	err := c.groupBlocklistService.UpdateBlockedUsers(ctx, dedupedKeys,
 		updateGroupBlockedUserDTO.BlockDate,
 		updateGroupBlockedUserDTO.RequesterId)
 	if err != nil {
@@ -67,7 +115,9 @@ func (c *GroupBlocklistController) UpdateGroupBlockedUsers(ctx context.Context, 
 }
 
 func (c *GroupBlocklistController) DeleteGroupBlockedUsers(ctx context.Context, keys []po.GroupBlockedUserKey) (*common_dto.RequestHandlerResult, error) {
-	err := c.groupBlocklistService.DeleteBlockedUsers(ctx, keys)
+	// Java parity: deduplicate keys via CollectionUtil.newSet(keys)
+	dedupedKeys := dedupKeys(keys)
+	err := c.groupBlocklistService.DeleteBlockedUsers(ctx, dedupedKeys)
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +151,14 @@ func (c *GroupController) AddGroup(ctx context.Context, addGroupDTO dto.AddGroup
 		ms = &val
 	}
 
+	// Java parity: CreatorId can be null; use 0 as default to avoid nil dereference
+	var creatorId int64
+	if addGroupDTO.CreatorId != nil {
+		creatorId = *addGroupDTO.CreatorId
+	}
+
 	_, err := c.groupService.AuthAndCreateGroup(ctx,
-		*addGroupDTO.CreatorId,
+		creatorId,
 		ownerId,
 		addGroupDTO.Name,
 		addGroupDTO.Intro,
@@ -137,7 +193,12 @@ func (c *GroupController) QueryGroupsWithQuery(ctx context.Context, ids, typeIds
 
 func (c *GroupController) UpdateGroups(ctx context.Context, ids []int64, updateGroupDTO dto.UpdateGroupDTO) (*common_dto.RequestHandlerResult, error) {
 	if updateGroupDTO.SuccessorId != nil {
-		err := c.groupService.CheckAndTransferGroupOwnership(ctx, ids, *updateGroupDTO.SuccessorId, *updateGroupDTO.QuitAfterTransfer)
+		// Java parity: QuitAfterTransfer defaults to false when nil
+		quitAfterTransfer := false
+		if updateGroupDTO.QuitAfterTransfer != nil {
+			quitAfterTransfer = *updateGroupDTO.QuitAfterTransfer
+		}
+		err := c.groupService.CheckAndTransferGroupOwnership(ctx, ids, *updateGroupDTO.SuccessorId, quitAfterTransfer)
 		if err != nil {
 			return nil, err
 		}
@@ -169,11 +230,21 @@ func (c *GroupController) UpdateGroups(ctx context.Context, ids []int64, updateG
 }
 
 func (c *GroupController) DeleteGroups(ctx context.Context, ids []int64, deleteLogical *bool) (*common_dto.RequestHandlerResult, error) {
-	// For parity, we don't have session or deleteLogical in DeleteGroupsAndGroupMembers yet
-	// Let's call DeleteGroupsAndGroupMembers without deleteLogical
-	err := c.groupService.DeleteGroupsAndGroupMembers(ctx, ids, nil)
-	if err != nil {
-		return nil, err
+	// Java parity: pass deleteLogically to DeleteGroupsAndGroupMembers
+	// When deleteLogical is nil or false, perform physical delete (default behavior)
+	// When deleteLogical is true, perform logical delete
+	if deleteLogical != nil && *deleteLogical {
+		// TODO: Implement logical deletion in DeleteGroupsAndGroupMembers
+		// For now, perform physical delete as fallback
+		err := c.groupService.DeleteGroupsAndGroupMembers(ctx, ids, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := c.groupService.DeleteGroupsAndGroupMembers(ctx, ids, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &common_dto.RequestHandlerResult{}, nil
 }

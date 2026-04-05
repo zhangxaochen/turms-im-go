@@ -24,7 +24,9 @@ type GroupService interface {
 
 type GroupMemberService interface {
 	IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error)
+	IsGroupMemberActiveOnly(ctx context.Context, groupID int64, userID int64) (bool, error)
 	FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error)
+	FindActiveGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error)
 	QueryUserJoinedGroupIds(ctx context.Context, userID int64) ([]int64, error)
 }
 
@@ -171,10 +173,17 @@ func (s *ConversationService) UpsertPrivateConversationsReadDate(ctx context.Con
 	}
 	allowMoveForward := s.propertiesManager.GetLocalProperties().Service.Conversation.ReadReceipt.AllowMoveReadDateForward
 	err := s.privateConvRepo.Upsert(ctx, keys, finalReadDate, allowMoveForward)
-	if err != nil && exception.IsDuplicateKeyError(err) {
-		return exception.NewTurmsError(int32(constant.ResponseStatusCode_MOVING_READ_DATE_FORWARD_IS_DISABLED), "")
+	if err != nil {
+		if exception.IsDuplicateKeyError(err) {
+			// Java parity: silently return nil when readDate was nil and DuplicateKey occurs
+			if readDate == nil {
+				return nil
+			}
+			return exception.NewTurmsError(int32(constant.ResponseStatusCode_MOVING_READ_DATE_FORWARD_IS_DISABLED), "")
+		}
+		return err
 	}
-	return err
+	return nil
 }
 
 // QueryGroupConversations fetches the read states for given group IDs.
@@ -193,6 +202,19 @@ func (s *ConversationService) QueryPrivateConversationsByOwnerIds(ctx context.Co
 		return nil, nil
 	}
 	return s.privateConvRepo.FindConversations(ctx, ownerIDs)
+}
+
+// QueryPrivateConversationsByOwnerIdsAndTargetId builds PrivateConversationKey list by pairing each ownerID with a common targetID.
+// @MappedFrom queryPrivateConversations(Collection<Long> ownerIds, Long targetId)
+func (s *ConversationService) QueryPrivateConversationsByOwnerIdsAndTargetId(ctx context.Context, ownerIDs []int64, targetID int64) ([]*po.PrivateConversation, error) {
+	if len(ownerIDs) == 0 {
+		return nil, nil
+	}
+	keys := make([]po.PrivateConversationKey, len(ownerIDs))
+	for i, ownerID := range ownerIDs {
+		keys[i] = po.PrivateConversationKey{OwnerID: ownerID, TargetID: targetID}
+	}
+	return s.privateConvRepo.FindByIds(ctx, keys)
 }
 
 // QueryPrivateConversations
@@ -260,14 +282,14 @@ func (s *ConversationService) AuthAndUpdateTypingStatus(ctx context.Context, req
 	}
 
 	if isGroupMessage {
-		isMember, err := s.groupMemberSvc.IsGroupMember(ctx, toID, requesterID)
+		isMember, err := s.groupMemberSvc.IsGroupMemberActiveOnly(ctx, toID, requesterID)
 		if err != nil {
 			return nil, err
 		}
 		if !isMember {
 			return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_SEND_TYPING_STATUS), "")
 		}
-		return s.groupMemberSvc.FindGroupMemberIDs(ctx, toID)
+		return s.groupMemberSvc.FindActiveGroupMemberIDs(ctx, toID)
 	} else {
 		canSend, err := s.userRelationshipSvc.HasRelationshipAndNotBlocked(ctx, toID, requesterID)
 		if err != nil {
