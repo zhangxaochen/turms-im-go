@@ -31,7 +31,13 @@ type mockGroupMemberService struct{}
 func (m *mockGroupMemberService) IsGroupMember(ctx context.Context, groupID int64, userID int64, activeOnly ...bool) (bool, error) {
 	return true, nil
 }
-func (m *mockGroupMemberService) FindGroupMemberIDs(ctx context.Context, groupID int64, activeOnly ...bool) ([]int64, error) {
+func (m *mockGroupMemberService) IsGroupMemberActiveOnly(ctx context.Context, groupID int64, userID int64) (bool, error) {
+	return true, nil
+}
+func (m *mockGroupMemberService) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+	return []int64{101, 102}, nil
+}
+func (m *mockGroupMemberService) FindActiveGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
 	return []int64{101, 102}, nil
 }
 func (m *mockGroupMemberService) QueryUserJoinedGroupIds(ctx context.Context, userID int64) ([]int64, error) {

@@ -256,7 +256,7 @@ func (c *ConversationSettingsServiceController) HandleDeleteConversationSettings
 	groupIds := deleteRequest.GetGroupIds()
 	names := deleteRequest.GetNames()
 
-	deleted, err := c.service.UnsetSettings(ctx, request.UserId, userIds, groupIds, names)
+	deleted, err := c.service.UnsetSettings(ctx, request.UserId, userIds, groupIds, names, nil)
 	if err != nil {
 		return nil, err
 	}
