@@ -49,12 +49,36 @@ type JwtIdentityAccessManagementProperties struct {
 	SecretKey string `json:"secretKey" yaml:"secretKey"`
 }
 
+// SearchFilterPlaceholderUserID is the placeholder in the user search filter
+// that will be replaced with the actual user ID.
+// @MappedFrom LdapIdentityAccessManagementUserProperties.SEARCH_FILTER_PLACEHOLDER_USER_ID
+const SearchFilterPlaceholderUserID = "${userId}"
+
+// LdapIdentityAccessManagementProperties mirrors Java's LdapIdentityAccessManagementProperties.
+// @MappedFrom LdapIdentityAccessManagementProperties
 type LdapIdentityAccessManagementProperties struct {
-	URL           string `json:"url" yaml:"url"`
-	BaseDN        string `json:"baseDN" yaml:"baseDN"`
-	UserFilter    string `json:"userFilter" yaml:"userFilter"`
-	AdminDN       string `json:"adminDN" yaml:"adminDN"`
-	AdminPassword string `json:"adminPassword" yaml:"adminPassword"`
+	BaseDN string                                      `json:"baseDn" yaml:"baseDn"`
+	Admin  LdapIdentityAccessManagementAdminProperties `json:"admin" yaml:"admin"`
+	User   LdapIdentityAccessManagementUserProperties  `json:"user" yaml:"user"`
+}
+
+// LdapIdentityAccessManagementAdminProperties mirrors Java's LdapIdentityAccessManagementAdminProperties.
+// @MappedFrom LdapIdentityAccessManagementAdminProperties
+type LdapIdentityAccessManagementAdminProperties struct {
+	Host     string `json:"host" yaml:"host"`
+	Port     int    `json:"port" yaml:"port"`
+	Username string `json:"username" yaml:"username"`
+	Password string `json:"password" yaml:"password"`
+	UseTLS   bool   `json:"useTls" yaml:"useTls"`
+}
+
+// LdapIdentityAccessManagementUserProperties mirrors Java's LdapIdentityAccessManagementUserProperties.
+// @MappedFrom LdapIdentityAccessManagementUserProperties
+type LdapIdentityAccessManagementUserProperties struct {
+	Host         string `json:"host" yaml:"host"`
+	Port         int    `json:"port" yaml:"port"`
+	SearchFilter string `json:"searchFilter" yaml:"searchFilter"`
+	UseTLS       bool   `json:"useTls" yaml:"useTls"`
 }
 
 func NewIdentityAccessManagementProperties() *IdentityAccessManagementProperties {

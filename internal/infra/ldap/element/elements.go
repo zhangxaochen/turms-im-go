@@ -38,9 +38,27 @@ const (
 )
 
 const (
-	ResultCodeSuccess = 0
-	LdapVersion3      = 3
+	ResultCodeSuccess            = 0
+	ResultCodeInvalidCredentials  = 49
+	LdapVersion3                 = 3
 )
+
+// Control OID constants
+// @MappedFrom ControlOidConst.java
+const (
+	ControlOidFastBind = "1.2.840.113556.1.4.1781"
+)
+
+// FastBindControl is the pre-built control for LDAP fast bind.
+// @MappedFrom LdapClient.REQUEST_CONTROLS_FAST_BIND
+var FastBindControl = Control{OID: ControlOidFastBind, Criticality: false}
+
+// SearchRequestNoAttributes is the "1.1" OID meaning no attributes should be returned.
+// @MappedFrom SearchRequest.NO_ATTRIBUTES
+var SearchRequestNoAttributes = []string{"1.1"}
+
+// DerefAliases is an alias for LdapDerefAliases to match Java naming.
+type DerefAliases = LdapDerefAliases
 
 // ProtocolOperation interface for all LDAP operations
 type ProtocolOperation interface {
