@@ -420,7 +420,12 @@ func (s *SessionService) closeSessionsWithConflictedDeviceTypes(ctx context.Cont
 	nodeToConflictedTypes := make(map[string][]protocol.DeviceType)
 	for _, conflictedDT := range conflictedDeviceTypes {
 		if info, exists := status.OnlineDeviceTypeToSessionInfo[conflictedDT]; exists && info.IsActive {
-			nodeToConflictedTypes[info.NodeID] = append(nodeToConflictedTypes[info.NodeID], conflictedDT)
+			if s.userSimultaneousLoginService.ShouldDisconnectLoggingInDeviceIfConflicts() {
+				return true, nil
+			}
+			// Bug fix: Java adds deviceType (the logging-in device) to the node mapping,
+			// not conflictedDT. Java tells remote nodes to disconnect the logging-in device type.
+			nodeToConflictedTypes[info.NodeID] = append(nodeToConflictedTypes[info.NodeID], deviceType)
 		}
 	}
 
@@ -469,7 +474,6 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 	}
 
 	manager.mu.Lock()
-	defer manager.mu.Unlock()
 
 	var toClose []protocol.DeviceType
 	// Java: manager.getLoggedInDeviceTypes()
@@ -484,6 +488,7 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 	}
 
 	if len(toClose) == 0 {
+		manager.mu.Unlock()
 		return 0, nil
 	}
 
@@ -507,7 +512,9 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 		}
 	}
 
+	manager.mu.Unlock()
 	s.shardedMap.RemoveIfEmpty(userId)
+	// Call InvokeGoOfflineHandlers outside the lock (matches Java behavior)
 	s.InvokeGoOfflineHandlers(ctx, manager, closeReason.Status)
 	return count, nil
 }
@@ -565,16 +572,16 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
+		// Fix: Close ALL sessions matching the IP regardless of userIdSet.
+		// Java has completely separate methods for userIds and IPs, always closing
+		// all sessions for each IP. The userIdSet filtering was a logic bug.
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
-					if _, ok := userIdSet[sess.UserID]; !ok {
-						userIdSet[sess.UserID] = struct{}{} // Deduplicate so we don't close again
-						n, _ := s.CloseLocalSession(ctx, sess.UserID, nil, closeReason)
-						totalCount += n
-					}
+					s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
+					totalCount++
 					return true
 				})
 			}
@@ -767,6 +774,10 @@ func (s *SessionService) GetLocalUserSessionsInfo(ctx context.Context, userIds [
 }
 
 func (s *SessionService) AuthAndUpdateHeartbeatTimestamp(ctx context.Context, userId int64, deviceType protocol.DeviceType, sessionId int64) *UserSession {
+	// Validate deviceType (matches Java: Validator.notNull + DeviceTypeUtil.validDeviceType)
+	if deviceType == protocol.DeviceType_UNKNOWN {
+		return nil
+	}
 	if session, ok := s.GetUserSession(userId, deviceType); ok {
 		// Bug 882 & 849: Check if connection is active and NOT recovering (matches Java)
 		if session.ID == sessionId && session.Conn != nil && session.Conn.IsActive() && !session.Conn.IsConnectionRecovering() {
@@ -838,4 +849,10 @@ func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessio
 func (s *SessionService) CloseLocalSessionByDeviceType(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason sessionbo.CloseReason) bool {
 	count, _ := s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, closeReason)
 	return count > 0
+}
+
+// CloseLocalSessionByDeviceTypeWithStatus wraps a SessionCloseStatus into a CloseReason,
+// matching Java's closeLocalSession(userId, deviceType, closeStatus) overload.
+func (s *SessionService) CloseLocalSessionByDeviceTypeWithStatus(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeStatus constant.SessionCloseStatus) bool {
+	return s.CloseLocalSessionByDeviceType(ctx, userId, deviceType, sessionbo.NewCloseReason(closeStatus))
 }
