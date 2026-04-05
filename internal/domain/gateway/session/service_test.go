@@ -62,12 +62,9 @@ func TestSessionService_RegisterAndUnregister(t *testing.T) {
 	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 
 	conn := &MockConnection{}
-	session := &UserSession{
-		UserID:     123,
-		DeviceType: protocol.DeviceType_ANDROID,
-		Conn:       conn,
-		CloseChan:  make(chan struct{}),
-	}
+	session := NewUserSession(1, nil, 123, protocol.DeviceType_ANDROID, nil, nil)
+	session.IP = net.ParseIP("127.0.0.1")
+	session.Conn = conn
 
 	err := svc.RegisterSession(context.Background(), session)
 	assert.NoError(t, err)
@@ -89,6 +86,7 @@ func TestSessionService_ConflictKick(t *testing.T) {
 
 	conn1 := &MockConnection{}
 	session1 := NewUserSession(1, nil, 456, protocol.DeviceType_IOS, nil, nil)
+	session1.IP = net.ParseIP("127.0.0.1")
 	session1.Conn = conn1
 
 	err := svc.RegisterSession(context.Background(), session1)
@@ -97,6 +95,7 @@ func TestSessionService_ConflictKick(t *testing.T) {
 	// Second device, same type, difference connection (e.g. reconnection)
 	conn2 := &MockConnection{}
 	session2 := NewUserSession(1, nil, 456, protocol.DeviceType_IOS, nil, nil)
+	session2.IP = net.ParseIP("127.0.0.1")
 	session2.Conn = conn2
 
 	err = svc.RegisterSession(context.Background(), session2)

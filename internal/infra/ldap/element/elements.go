@@ -1,52 +1,76 @@
 package element
 
 import (
-	"fmt"
-
 	"im.turms/server/internal/infra/ldap/asn1"
 )
 
 // LDAP tag constants (mapped from LdapTagConst.java and Asn1IdConst.java)
 const (
-	// ASN.1 class/form bits
-	formConstructed     = 0x20
-	tagClassApplication = 0x40
-	tagClassContext     = 0x80
+	// Tag Class/Form
+	FormConstructed     = 0x20
+	TagClassApplication = 0x40
+	TagClassContext     = 0x80
 
-	// LdapTag values
-	ldapTagControls          = tagClassContext | formConstructed         // 0xA0
-	ldapTagBindRequest       = tagClassApplication | formConstructed     // 0x60
-	ldapTagSearchRequest     = 3 | tagClassApplication | formConstructed // 0x63
-	ldapTagSearchResultEntry = 4 | tagClassApplication | formConstructed // 0x64
-	ldapTagSearchResultDone  = 5 | tagClassApplication | formConstructed // 0x65
-	ldapTagModifyRequest     = 6 | tagClassApplication | formConstructed // 0x66
+	// Operation Tags
+	LdapTagBindRequest           = TagClassApplication | FormConstructed | 0
+	LdapTagBindResponse          = TagClassApplication | FormConstructed | 1
+	LdapTagUnbindRequest         = TagClassApplication | 2
+	LdapTagSearchRequest         = TagClassApplication | FormConstructed | 3
+	LdapTagSearchResultEntry     = TagClassApplication | FormConstructed | 4
+	LdapTagSearchResultDone      = TagClassApplication | FormConstructed | 5
+	LdapTagModifyRequest         = TagClassApplication | FormConstructed | 6
+	LdapTagModifyResponse        = TagClassApplication | FormConstructed | 7
+	LdapTagAddRequest            = TagClassApplication | FormConstructed | 8
+	LdapTagAddResponse           = TagClassApplication | FormConstructed | 9
+	LdapTagDelRequest            = TagClassApplication | 10
+	LdapTagDelResponse           = TagClassApplication | FormConstructed | 11
+	LdapTagModifyDNRequest       = TagClassApplication | FormConstructed | 12
+	LdapTagModifyDNResponse      = TagClassApplication | FormConstructed | 13
+	LdapTagCompareRequest        = TagClassApplication | FormConstructed | 14
+	LdapTagCompareResponse       = TagClassApplication | FormConstructed | 15
+	LdapTagAbandonRequest        = TagClassApplication | 16
+	LdapTagSearchResultReference = TagClassApplication | FormConstructed | 19
+	LdapTagExtendedRequest       = TagClassApplication | FormConstructed | 23
+	LdapTagExtendedResponse      = TagClassApplication | FormConstructed | 24
+	LdapTagIntermediateResponse  = TagClassApplication | FormConstructed | 25
 
-	// ResultCode constants (RFC 4511)
-	resultCodeSuccess = 0
-
-	// LDAP version
-	ldapVersion3 = 3
+	LdapTagControls = TagClassContext | FormConstructed | 0 // 0xA0
 )
 
+const (
+	ResultCodeSuccess = 0
+	LdapVersion3      = 3
+)
+
+// ProtocolOperation interface for all LDAP operations
+type ProtocolOperation interface {
+	WriteTo(buffer *asn1.BerBuffer)
+	EstimateSize() int
+}
+
 // Attribute maps to Attribute in Java.
-// @MappedFrom Attribute
 type Attribute struct {
 	Type   string
 	Values []string
 }
 
-// @MappedFrom isEmpty()
 func (a *Attribute) IsEmpty() bool {
 	return len(a.Values) == 0
 }
 
-// @MappedFrom decode(BerBuffer buffer)
-// DecodeAttribute is a static factory function (Java: public static Attribute decode(BerBuffer buffer))
+func (a *Attribute) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.BeginSequence()
+	buffer.WriteOctetString(a.Type)
+	buffer.BeginSequenceWithTag(asn1.TagSet | FormConstructed)
+	buffer.WriteOctetStrings(a.Values)
+	buffer.EndSequence()
+	buffer.EndSequence()
+}
+
 func DecodeAttribute(buffer *asn1.BerBuffer) *Attribute {
 	buffer.SkipTagAndLength()
 	attrType := buffer.ReadOctetString()
 	tag := buffer.ReadTag()
-	// TAG_SET | FORM_CONSTRUCTED = 0x31
 	const tagSetConstructed = 0x31
 	if int(tag) != tagSetConstructed {
 		buffer.SkipLengthAndValue()
@@ -62,65 +86,49 @@ func DecodeAttribute(buffer *asn1.BerBuffer) *Attribute {
 }
 
 // LdapMessage maps to LdapMessage in Java.
-// @MappedFrom LdapMessage
 type LdapMessage struct {
-	MessageId  int
-	ProtocolOp interface{} // BindRequest, SearchRequest, etc.
+	MessageId         int
+	ProtocolOperation ProtocolOperation
+	Controls          []Control
 }
 
-// @MappedFrom estimateSize()
-func (m *LdapMessage) EstimateSize() int {
-	size := 16
-	if op, ok := m.ProtocolOp.(interface{ EstimateSize() int }); ok {
-		size += op.EstimateSize()
-	}
-	return size
-}
-
-// @MappedFrom writeTo(BerBuffer buffer)
 func (m *LdapMessage) WriteTo(buffer *asn1.BerBuffer) {
 	buffer.BeginSequence()
 	buffer.WriteInteger(m.MessageId)
-	if op, ok := m.ProtocolOp.(interface{ WriteTo(*asn1.BerBuffer) }); ok {
-		op.WriteTo(buffer)
+	
+	m.ProtocolOperation.WriteTo(buffer)
+
+	if len(m.Controls) > 0 {
+		buffer.BeginSequenceWithTag(LdapTagControls)
+		for _, c := range m.Controls {
+			c.WriteTo(buffer)
+		}
+		buffer.EndSequence()
 	}
 	buffer.EndSequence()
 }
 
-// LdapResult maps to LdapResult in Java.
-// @MappedFrom LdapResult
-type LdapResult struct {
-	ResultCode        int
-	MatchedDN         string
-	DiagnosticMessage string
-	Referrals         []string
-}
-
-// @MappedFrom isSuccess()
-func (r *LdapResult) IsSuccess() bool {
-	return r.ResultCode == resultCodeSuccess
-}
-
-// @MappedFrom decode(BerBuffer buffer)
-func DecodeLdapResult(buffer *asn1.BerBuffer) LdapResult {
-	return LdapResult{
-		ResultCode:        buffer.ReadEnumeration(),
-		MatchedDN:         buffer.ReadOctetString(),
-		DiagnosticMessage: buffer.ReadOctetString(),
-	}
-}
-
 // Control maps to Control in Java.
-// @MappedFrom Control
 type Control struct {
 	OID         string
 	Criticality bool
+	Value       []byte // Optional value octet string
 }
 
-// @MappedFrom decode(BerBuffer buffer)
-// DecodeControls is a static factory (Java: public static List<Control> decode(BerBuffer buffer))
+func (c *Control) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.BeginSequence()
+	buffer.WriteOctetString(c.OID)
+	if c.Criticality {
+		buffer.WriteBoolean(true)
+	}
+	if len(c.Value) > 0 {
+		buffer.WriteOctetStringBytes(c.Value)
+	}
+	buffer.EndSequence()
+}
+
 func DecodeControls(buffer *asn1.BerBuffer) []Control {
-	if !buffer.IsReadable() || !buffer.PeekAndCheckTag(ldapTagControls) {
+	if !buffer.IsReadable() || !buffer.PeekAndCheckTag(LdapTagControls) {
 		return nil
 	}
 	buffer.SkipTagAndLength()
@@ -129,115 +137,93 @@ func DecodeControls(buffer *asn1.BerBuffer) []Control {
 		buffer.SkipTagAndLength()
 		oid := buffer.ReadOctetString()
 		var criticality bool
-		if buffer.IsReadable() && buffer.PeekAndCheckTag(1) { // TAG_BOOLEAN = 1
+		if buffer.IsReadable() && buffer.PeekAndCheckTag(asn1.TagBoolean) {
 			criticality = buffer.ReadBoolean()
 		}
-		// skip optional value octet string
-		if buffer.IsReadable() && buffer.PeekAndCheckTag(4) { // TAG_OCTET_STRING = 4
-			buffer.SkipTagAndLengthAndValue()
+		var value []byte
+		if buffer.IsReadable() && buffer.PeekAndCheckTag(asn1.TagOctetString) {
+			value = []byte(buffer.ReadOctetString())
 		}
-		controls = append(controls, Control{OID: oid, Criticality: criticality})
+		controls = append(controls, Control{OID: oid, Criticality: criticality, Value: value})
 	}
 	return controls
 }
 
-// BindRequest maps to BindRequest in Java.
-// @MappedFrom BindRequest
+// LdapResult maps to the common LDAP result structure in responses.
+type LdapResult struct {
+	ResultCode        int
+	MatchedDN         string
+	DiagnosticMessage string
+	Referrals         []string
+}
+
+func DecodeLdapResult(buffer *asn1.BerBuffer) LdapResult {
+	res := LdapResult{
+		ResultCode:        buffer.ReadEnumeration(),
+		MatchedDN:         buffer.ReadOctetString(),
+		DiagnosticMessage: buffer.ReadOctetString(),
+	}
+	if buffer.IsReadable() && buffer.PeekAndCheckTag(TagClassContext|FormConstructed|3) {
+		buffer.SkipTagAndLength()
+		for buffer.IsReadable() {
+			res.Referrals = append(res.Referrals, buffer.ReadOctetString())
+		}
+	}
+	return res
+}
+
+func (r *LdapResult) IsSuccess() bool {
+	return r.ResultCode == ResultCodeSuccess
+}
+
+// BindRequest
 type BindRequest struct {
-	Version int
-	Name    string
-	Auth    []byte
+	Version  int
+	Name     string
+	Password string
 }
 
-// @MappedFrom estimateSize()
 func (r *BindRequest) EstimateSize() int {
-	return 16 + len(r.Name) + len(r.Auth)
+	return 32 + len(r.Name) + len(r.Password)
 }
 
-// @MappedFrom writeTo(BerBuffer buffer)
 func (r *BindRequest) WriteTo(buffer *asn1.BerBuffer) {
-	buffer.BeginSequenceWithTag(ldapTagBindRequest)
+	buffer.BeginSequenceWithTag(LdapTagBindRequest)
 	buffer.WriteInteger(r.Version)
 	buffer.WriteOctetString(r.Name)
-	buffer.WriteOctetStringWithTag(128, string(r.Auth)) // Context-specific tag 0 (simple auth)
+	// simple auth (context tag 0)
+	buffer.WriteOctetStringWithTag(TagClassContext|0, r.Password)
 	buffer.EndSequence()
 }
 
-// BindResponse maps to BindResponse in Java.
-// @MappedFrom BindResponse
+// BindResponse
 type BindResponse struct {
 	LdapResult
+	ServerSaslCreds []byte // Optional
 }
 
-// @MappedFrom decode(BerBuffer buffer)
-func (r *BindResponse) Decode(buffer *asn1.BerBuffer) {
+func DecodeBindResponse(buffer *asn1.BerBuffer) *BindResponse {
+	buffer.SkipTag()
 	buffer.SkipLength()
-	r.LdapResult = DecodeLdapResult(buffer)
-}
-
-type ModifyOperationChange struct {
-	Operation int
-	Attribute Attribute
-}
-
-// ModifyRequest maps to ModifyRequest in Java.
-// @MappedFrom ModifyRequest
-type ModifyRequest struct {
-	DN      string
-	Changes []ModifyOperationChange
-}
-
-// @MappedFrom estimateSize()
-func (r *ModifyRequest) EstimateSize() int {
-	return 128
-}
-
-// @MappedFrom writeTo(BerBuffer buffer)
-func (r *ModifyRequest) WriteTo(buffer *asn1.BerBuffer) {
-	buffer.BeginSequenceWithTag(ldapTagModifyRequest)
-	buffer.WriteOctetString(r.DN)
-	buffer.BeginSequence()
-	for _, c := range r.Changes {
-		buffer.BeginSequence()
-		buffer.WriteEnumeration(c.Operation)
-		buffer.BeginSequence()
-		buffer.WriteOctetString(c.Attribute.Type)
-		buffer.BeginSequenceWithTag(0x31) // SET
-		buffer.WriteOctetStrings(c.Attribute.Values)
-		buffer.EndSequence()
-		buffer.EndSequence()
-		buffer.EndSequence()
+	res := &BindResponse{
+		LdapResult: DecodeLdapResult(buffer),
 	}
-	buffer.EndSequence()
-	buffer.EndSequence()
+	if buffer.IsReadable() && buffer.PeekAndCheckTag(TagClassContext|7) {
+		res.ServerSaslCreds = []byte(buffer.ReadOctetStringWithTag(TagClassContext | 7))
+	}
+	return res
 }
 
-// ModifyResponse maps to ModifyResponse in Java.
-// @MappedFrom ModifyResponse
-type ModifyResponse struct {
-	LdapResult
+// UnbindRequest
+type UnbindRequest struct{}
+
+func (r *UnbindRequest) EstimateSize() int { return 2 }
+func (r *UnbindRequest) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.WriteTag(LdapTagUnbindRequest)
+	buffer.WriteLength(0)
 }
 
-// @MappedFrom decode(BerBuffer buffer)
-func (r *ModifyResponse) Decode(buffer *asn1.BerBuffer) {
-	buffer.SkipLength()
-	r.LdapResult = DecodeLdapResult(buffer)
-}
-
-// Filter maps to Filter in Java.
-// @MappedFrom Filter
-type Filter struct {
-}
-
-// @MappedFrom write(BerBuffer buffer, String filter)
-func (f *Filter) Write(buffer *asn1.BerBuffer, filter string) {
-	buffer.BeginSequenceWithTag(0xa3) // Equality match
-	buffer.WriteOctetString("objectClass")
-	buffer.WriteOctetString("*")
-	buffer.EndSequence()
-}
-
-// LdapScope maps to Scope enum in Java.
+// SearchRequest
 type LdapScope int
 
 const (
@@ -246,7 +232,6 @@ const (
 	ScopeWholeSubtree LdapScope = 2
 )
 
-// LdapDerefAliases maps to DerefAliases enum in Java.
 type LdapDerefAliases int
 
 const (
@@ -256,15 +241,6 @@ const (
 	DerefAlways         LdapDerefAliases = 3
 )
 
-// Standard attribute selector lists
-var (
-	AllUserAttributes        = []string{"*"}
-	AllOperationalAttributes = []string{"+"}
-	NoAttributes             = []string{"1.1"}
-)
-
-// SearchRequest maps to SearchRequest in Java.
-// @MappedFrom SearchRequest
 type SearchRequest struct {
 	BaseDN     string
 	Scope      LdapScope
@@ -276,14 +252,12 @@ type SearchRequest struct {
 	Filter     string
 }
 
-// @MappedFrom estimateSize()
 func (r *SearchRequest) EstimateSize() int {
-	return 128
+	return 128 + len(r.Filter)
 }
 
-// @MappedFrom writeTo(BerBuffer buffer)
 func (r *SearchRequest) WriteTo(buffer *asn1.BerBuffer) {
-	buffer.BeginSequenceWithTag(ldapTagSearchRequest)
+	buffer.BeginSequenceWithTag(LdapTagSearchRequest)
 	buffer.WriteOctetString(r.BaseDN)
 	buffer.WriteEnumeration(int(r.Scope))
 	buffer.WriteEnumeration(int(r.DerefAlias))
@@ -291,8 +265,7 @@ func (r *SearchRequest) WriteTo(buffer *asn1.BerBuffer) {
 	buffer.WriteInteger(r.TimeLimit)
 	buffer.WriteBoolean(r.TypesOnly)
 
-	f := &Filter{}
-	f.Write(buffer, r.Filter)
+	WriteFilter(buffer, r.Filter)
 
 	buffer.BeginSequence()
 	buffer.WriteOctetStrings(r.Attributes)
@@ -301,71 +274,79 @@ func (r *SearchRequest) WriteTo(buffer *asn1.BerBuffer) {
 	buffer.EndSequence()
 }
 
-// SearchResultEntry maps to SearchResultEntry in Java.
+// SearchResultEntry
 type SearchResultEntry struct {
 	ObjectName string
 	Attributes []Attribute
-	Controls   []Control
 }
 
-// SearchResult maps to SearchResult in Java.
-// @MappedFrom SearchResult
+func DecodeSearchResultEntry(buffer *asn1.BerBuffer) *SearchResultEntry {
+	buffer.SkipTag()
+	buffer.SkipLength()
+	objectName := buffer.ReadOctetString()
+	buffer.SkipTag() // SEQUENCE OF partial attributes
+	length := buffer.ReadLength()
+	end := buffer.ReaderIndex() + length
+	var attrs []Attribute
+	for buffer.IsReadableWithEnd(end) {
+		attrs = append(attrs, *DecodeAttribute(buffer))
+	}
+	return &SearchResultEntry{ObjectName: objectName, Attributes: attrs}
+}
+
+// SearchResult
 type SearchResult struct {
-	ResultCode        int
-	MatchedDN         string
-	DiagnosticMessage string
-	Referrals         []string
-	Entries           []SearchResultEntry
-	complete          bool
+	LdapResult
+	Entries []SearchResultEntry
 }
 
-// LdapProtocolError is returned when an unexpected LDAP tag is encountered.
+// ModifyOperation
+type ModifyOperation int
+
+const (
+	ModifyAdd     ModifyOperation = 0
+	ModifyDelete  ModifyOperation = 1
+	ModifyReplace ModifyOperation = 2
+)
+
+type Change struct {
+	Operation ModifyOperation
+	Attribute Attribute
+}
+
+type ModifyRequest struct {
+	DN      string
+	Changes []Change
+}
+
+func (r *ModifyRequest) EstimateSize() int { return 256 }
+
+func (r *ModifyRequest) WriteTo(buffer *asn1.BerBuffer) {
+	buffer.BeginSequenceWithTag(LdapTagModifyRequest)
+	buffer.WriteOctetString(r.DN)
+	buffer.BeginSequence()
+	for _, c := range r.Changes {
+		buffer.BeginSequence()
+		buffer.WriteEnumeration(int(c.Operation))
+		c.Attribute.WriteTo(buffer)
+		buffer.EndSequence()
+	}
+	buffer.EndSequence()
+	buffer.EndSequence()
+}
+
+type ModifyResponse struct {
+	LdapResult
+}
+
+func DecodeModifyResponse(buffer *asn1.BerBuffer) *ModifyResponse {
+	buffer.SkipTag()
+	buffer.SkipLength()
+	return &ModifyResponse{LdapResult: DecodeLdapResult(buffer)}
+}
+
 type LdapProtocolError struct {
 	Msg string
 }
 
 func (e *LdapProtocolError) Error() string { return e.Msg }
-
-// @MappedFrom decode(BerBuffer buffer)
-// Decode reads one LDAP search response message from the buffer and returns a new SearchResult.
-// The receiver is used as the accumulated state (entries so far).
-func (r *SearchResult) Decode(buffer *asn1.BerBuffer) (*SearchResult, error) {
-	tag := buffer.ReadTag()
-	buffer.SkipLength()
-	switch int(tag) {
-	case ldapTagSearchResultEntry:
-		objectName := buffer.ReadOctetString()
-		buffer.SkipTag()
-		length := buffer.ReadLength()
-		end := buffer.ReaderIndex() + length
-		var attrs []Attribute
-		for buffer.IsReadableWithEnd(end) {
-			attrs = append(attrs, *DecodeAttribute(buffer))
-		}
-		controls := DecodeControls(buffer)
-		entry := SearchResultEntry{ObjectName: objectName, Attributes: attrs, Controls: controls}
-		newEntries := append(r.Entries, entry)
-		return &SearchResult{Entries: newEntries, complete: false}, nil
-	case ldapTagSearchResultDone:
-		if r == nil {
-			return nil, &LdapProtocolError{Msg: "The search result is not complete yet"}
-		}
-		resultCode := buffer.ReadEnumeration()
-		matchedDN := buffer.ReadOctetString()
-		diagnosticMsg := buffer.ReadOctetString()
-		return &SearchResult{
-			ResultCode:        resultCode,
-			MatchedDN:         matchedDN,
-			DiagnosticMessage: diagnosticMsg,
-			Entries:           r.Entries,
-			complete:          true,
-		}, nil
-	default:
-		return nil, &LdapProtocolError{Msg: fmt.Sprintf("Unexpected tag for the search result: %d", tag)}
-	}
-}
-
-// @MappedFrom isComplete()
-func (r *SearchResult) IsComplete() bool {
-	return r.complete
-}

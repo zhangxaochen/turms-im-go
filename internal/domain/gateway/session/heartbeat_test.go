@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -13,12 +14,9 @@ func TestHeartbeatManager_KickTimeout(t *testing.T) {
 	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
 
 	conn := &MockConnection{}
-	session := &UserSession{
-		UserID:     123,
-		DeviceType: protocol.DeviceType_ANDROID,
-		Conn:       conn,
-		CloseChan:  make(chan struct{}),
-	}
+	session := NewUserSession(1, nil, 123, protocol.DeviceType_ANDROID, nil, nil)
+	session.IP = net.ParseIP("127.0.0.1")
+	session.Conn = conn
 
 	err := svc.RegisterSession(context.Background(), session)
 	assert.NoError(t, err)

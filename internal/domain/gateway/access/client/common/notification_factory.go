@@ -76,10 +76,14 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 			reason = &r
 		}
 	} else if err != nil {
-		// In a real port, we'd map ThrowableInfo to TurmsError mapping table.
-		// For now we map to SERVER_INTERNAL_ERROR but keep the original message
-		errStr := err.Error()
-		reason = &errStr
+		code = constant.ResponseStatusCode_SERVER_INTERNAL_ERROR
+		if f.returnReasonForServerError {
+			errStr := err.Error()
+			reason = &errStr
+		} else {
+			r := code.Reason()
+			reason = &r
+		}
 	} else {
 		r := code.Reason()
 		reason = &r

@@ -172,7 +172,7 @@ func (s *UserSession) SendMessageWithContext(ctx context.Context, notification *
 
 func (s *UserSession) String() string {
 	return fmt.Sprintf("UserSession{ID: %d, Version: %d, UserID: %d, DeviceType: %v, LoginDate: %v, Location: %v, IsSessionOpen: %v, IP: %v, Conn: %v}",
-		s.ID, s.Version, s.UserID, s.DeviceType, s.LoginDate, s.Location, s.IsOpen(), s.IP, s.Conn != nil)
+		s.ID, s.Version.Load(), s.UserID, s.DeviceType, s.LoginDate, s.Location, s.IsOpen(), s.IP, s.Conn != nil)
 }
 
 func (s *UserSession) IsConnected() bool {

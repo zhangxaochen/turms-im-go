@@ -26,7 +26,8 @@ var (
 // SessionAuthError is returned when authentication fails with a specific status code.
 // @MappedFrom Java: ResponseException.get(statusCode)
 type SessionAuthError struct {
-	Code constant.ResponseStatusCode
+	Code    constant.ResponseStatusCode
+	Message string
 }
 
 func (e *SessionAuthError) Error() string {
@@ -119,9 +120,6 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 			return ErrSessionAlreadyExists
 		} else if s.ConflictStrategy == KickExisting {
 			existingSession.Close(sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE))
-			if existingSession.CloseChan != nil {
-				close(existingSession.CloseChan)
-			}
 			delete(manager.Sessions, session.DeviceType)
 		}
 	}
@@ -183,9 +181,6 @@ func (s *SessionService) UnregisterSession(ctx context.Context, userID int64, de
 		delete(manager.Sessions, deviceType)
 
 		existing.Close(closeReason)
-		if existing.CloseChan != nil {
-			close(existing.CloseChan)
-		}
 		s.unregisterSessionIp(existing)
 		s.notifySessionClosedListeners(existing)
 	}
@@ -267,6 +262,22 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 }
 
 func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
+	if userStatus == protocol.UserStatus_OFFLINE {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "userStatus must not be OFFLINE"}
+	}
+	if deviceType == protocol.DeviceType_UNKNOWN {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "deviceType must not be UNKNOWN"}
+	}
+	if len(deviceDetails) > 0 {
+		newDetails := make(map[string]string)
+		for k, v := range deviceDetails {
+			if v != "" {
+				newDetails[k] = v
+			}
+		}
+		deviceDetails = newDetails
+	}
+
 	// 1. Fetch user status and handle conflicts
 	sessionsStatus, err := s.userStatusService.FetchUserSessionsStatus(ctx, userId)
 	if err != nil {
@@ -321,11 +332,13 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 	}
 
 	// 5. Update location and notify online
-	if location != nil {
+	if location != nil && deviceType != protocol.DeviceType_BROWSER {
 		_ = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, location.Longitude, location.Latitude)
 	}
 
-	s.InvokeGoOnlineHandlers(ctx, nil, session)
+	manager, _ := s.shardedMap.Get(userId)
+	s.OnSessionEstablished(ctx, manager, deviceType)
+	s.InvokeGoOnlineHandlers(ctx, manager, session)
 	return session, nil
 }
 
@@ -348,12 +361,12 @@ func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, dev
 
 	for nodeID, dts := range nodeToConflictedTypes {
 		if nodeID == s.nodeID {
-			_, _ = s.CloseLocalSession(ctx, userId, dts, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE))
+			_, _ = s.CloseLocalSession(ctx, userId, dts, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT))
 		} else if s.rpcService != nil {
 			req := &rpc.SetUserOfflineRequest{
 				UserID:             userId,
 				DeviceTypes:        dts,
-				SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE),
+				SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT),
 			}
 			_, err := s.rpcService.RequestResponse(ctx, nodeID, req)
 			// Bug 860: Handle ConnectionNotFound with node discovery fallback
@@ -647,9 +660,12 @@ func (s *SessionService) GetLocalUserSessionsByIp(ip []byte) []*UserSession {
 	return sessions
 }
 
-func (s *SessionService) OnSessionEstablished(ctx context.Context, userSessionsManager *UserSessionsManager, deviceType protocol.DeviceType) {
-	// TODO: Increment metrics (e.g. LoggedInUsersCounter, OnlineUsersGauge)
-	// TODO: Notify clients of session info if properties.Gateway.Session.NotifyClientsOfSessionInfoAfterConnected is true
+func (s *SessionService) OnSessionEstablished(ctx context.Context, manager *UserSessionsManager, deviceType protocol.DeviceType) {
+	// TODO: Increment metrics (e.g. LoggedInUsersCounter, OnlineUsersGauge) (Bug 851)
+	// TODO: Notify clients of session info if properties.Gateway.Session.NotifyClientsOfSessionInfoAfterConnected is true (Bug 852)
+
+	// Java parity: Sync session state to user's other devices
+	manager.PushSessionNotification(ctx, s.nodeID, &deviceType)
 }
 
 func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSessionClosed func(*UserSession)) {

@@ -2,163 +2,262 @@ package ldap
 
 import (
 	"crypto/tls"
+	"errors"
 	"fmt"
-	"strings"
+	"net"
 	"sync"
+	"sync/atomic"
+	"time"
 
-	"github.com/go-ldap/ldap/v3"
+	"im.turms/server/internal/infra/ldap/asn1"
+	"im.turms/server/internal/infra/ldap/element"
 )
 
-// ModifyOperationChange maps to ModifyOperationChange in Java
-type ModifyOperationChange struct {
-	Type      uint // ldap.ModifyRequestOpAdd, etc.
-	Attribute string
-	Values    []string
-}
-
-// LdapClient maps to LdapClient in Java but uses github.com/go-ldap/ldap/v3 under the hood.
-// @MappedFrom LdapClient
 type LdapClient struct {
-	Addr       string
-	Conn       *ldap.Conn
-	UseTLS     bool
-	SkipVerify bool
-	mu         sync.RWMutex
+	conn            net.Conn
+	pendingRequests sync.Map // map[int32]*pendingRequest
+	nextMessageID   int32
+	
+	readBuffer      *asn1.BerBuffer
+	
+	onClosed        func(error)
+	closed          atomic.Bool
 }
 
-func NewLdapClient(addr string, useTLS bool, skipVerify bool) *LdapClient {
-	return &LdapClient{
-		Addr:       addr,
-		UseTLS:     useTLS,
-		SkipVerify: skipVerify,
-	}
+type pendingRequest struct {
+	id       int32
+	response chan interface{}
+	decoder  func(buffer *asn1.BerBuffer) (interface{}, bool, error) // bool: isComplete
+	result   interface{}
 }
 
-// @MappedFrom isConnected()
-func (c *LdapClient) IsConnected() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.Conn != nil && !c.Conn.IsClosing()
-}
-
-// @MappedFrom connect()
-func (c *LdapClient) Connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	// Connection-sharing semantics (do not reconnect if already established)
-	if c.Conn != nil && !c.Conn.IsClosing() {
-		return nil
-	}
-
-	if c.Conn != nil {
-		c.Conn.Close()
-		c.Conn = nil
-	}
-
-	var l *ldap.Conn
+func NewLdapClient(addr string, useTLS bool, tlsConfig *tls.Config, timeout time.Duration) (*LdapClient, error) {
+	dialer := &net.Dialer{Timeout: timeout}
+	var conn net.Conn
 	var err error
-
-	addr := c.Addr
-	if !strings.HasPrefix(addr, "ldap://") && !strings.HasPrefix(addr, "ldaps://") {
-		addr = "ldap://" + addr
-	}
-
-	if strings.HasPrefix(addr, "ldaps://") || c.UseTLS {
-		l, err = ldap.DialURL(addr, ldap.DialWithTLSConfig(&tls.Config{InsecureSkipVerify: c.SkipVerify}))
+	
+	if useTLS {
+		conn, err = tls.DialWithDialer(dialer, "tcp", addr, tlsConfig)
 	} else {
-		l, err = ldap.DialURL(addr)
+		conn, err = dialer.Dial("tcp", addr)
 	}
-
+	
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.Conn = l
-	return nil
+	
+	client := &LdapClient{
+		conn:          conn,
+		nextMessageID: 1,
+		readBuffer:    asn1.NewBerBuffer(4096),
+	}
+	
+	go client.readLoop()
+	
+	return client, nil
 }
 
-// @MappedFrom bind(boolean useFastBind, String dn, String password)
-func (c *LdapClient) Bind(useFastBind bool, dn string, password string) (bool, error) {
-	c.mu.RLock()
-	conn := c.Conn
-	c.mu.RUnlock()
-
-	if conn == nil {
-		return false, fmt.Errorf("connection is not established")
-	}
-
-	// We use Simple Bind regardless of useFastBind since go-ldap abstracts this well,
-	// but we could send specific controls if fastBind optimization was critical.
-	err := conn.Bind(dn, password)
-	if err != nil {
-		if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
-			return false, nil
-		}
-		return false, err
-	}
-	return true, nil
-}
-
-// @MappedFrom search(String baseDn, Scope scope, DerefAliases derefAliases, int sizeLimit, int timeLimit, boolean typeOnly, List<String> attributes, String filter)
-func (c *LdapClient) Search(baseDn string, scope int, derefAliases int, sizeLimit int, timeLimit int, typeOnly bool, attributes []string, filter string) (*ldap.SearchResult, error) {
-	c.mu.RLock()
-	conn := c.Conn
-	c.mu.RUnlock()
-
-	if conn == nil {
-		return nil, fmt.Errorf("connection not established")
-	}
-
-	req := ldap.NewSearchRequest(
-		baseDn,
-		scope,
-		derefAliases,
-		sizeLimit,
-		timeLimit,
-		typeOnly,
-		filter,
-		attributes,
-		nil,
-	)
-	return conn.Search(req)
-}
-
-// @MappedFrom modify(String dn, List<ModifyOperationChange> changes)
-func (c *LdapClient) Modify(dn string, changes []ModifyOperationChange) error {
-	if len(changes) == 0 {
+func (c *LdapClient) Close() error {
+	if c.closed.Swap(true) {
 		return nil
 	}
-
-	req := ldap.NewModifyRequest(dn, nil)
-	for _, change := range changes {
-		if change.Type == ldap.AddAttribute && len(change.Values) == 0 {
-			return fmt.Errorf("INVALID_ATTRIBUTE_SYNTAX: ADD operation requires at least one value for attribute %s", change.Attribute)
-		}
-		switch change.Type {
-		case ldap.AddAttribute:
-			req.Add(change.Attribute, change.Values)
-		case ldap.DeleteAttribute:
-			req.Delete(change.Attribute, change.Values)
-		case ldap.ReplaceAttribute:
-			req.Replace(change.Attribute, change.Values)
-		}
-	}
-
-	c.mu.RLock()
-	conn := c.Conn
-	c.mu.RUnlock()
-
-	if conn == nil {
-		return fmt.Errorf("connection not established")
-	}
-	return conn.Modify(req)
+	return c.conn.Close()
 }
 
-func (c *LdapClient) Close() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.Conn != nil {
-		c.Conn.Close()
-		c.Conn = nil
+func (c *LdapClient) Addr() string {
+	if c.conn == nil {
+		return ""
 	}
+	return c.conn.RemoteAddr().String()
+}
+
+func (c *LdapClient) nextID() int32 {
+	return atomic.AddInt32(&c.nextMessageID, 1)
+}
+
+func (c *LdapClient) SendRequest(op element.ProtocolOperation, decoder func(*asn1.BerBuffer) (interface{}, bool, error)) (chan interface{}, int32) {
+	id := c.nextID()
+	respChan := make(chan interface{}, 1)
+	
+	c.pendingRequests.Store(id, &pendingRequest{
+		id:       id,
+		response: respChan,
+		decoder:  decoder,
+	})
+	
+	msg := element.LdapMessage{
+		MessageId:         int(id),
+		ProtocolOperation: op,
+	}
+	
+	buf := asn1.NewBerBuffer(op.EstimateSize() + 16)
+	msg.WriteTo(buf)
+	
+	_, err := c.conn.Write(buf.Bytes())
+	if err != nil {
+		c.pendingRequests.Delete(id)
+		close(respChan)
+		return nil, id
+	}
+	
+	return respChan, id
+}
+
+func (c *LdapClient) readLoop() {
+	tmpBuf := make([]byte, 4096)
+	for {
+		n, err := c.conn.Read(tmpBuf)
+		if err != nil {
+			c.handleClose(err)
+			return
+		}
+		
+		c.readBuffer.Append(tmpBuf[:n])
+		c.processReadBuffer()
+	}
+}
+
+func (c *LdapClient) processReadBuffer() {
+	for c.readBuffer.IsReadable() {
+		c.readBuffer.MarkReaderIndex()
+		
+		tag := c.readBuffer.ReadTag()
+		if tag != 0x30 { // LdapMessage must be a SEQUENCE
+			// Protocol error
+			c.handleClose(errors.New("LDAP protocol error: expected SEQUENCE tag"))
+			return
+		}
+		
+		length := c.readBuffer.TryReadLengthIfReadable()
+		if length == -1 {
+			c.readBuffer.ResetReaderIndex()
+			return
+		}
+		
+		if !c.readBuffer.IsReadableWithCount(length) {
+			c.readBuffer.ResetReaderIndex()
+			return
+		}
+		
+		// Framed message complete
+		msgEnd := c.readBuffer.ReaderIndex() + length
+		
+		messageID := c.readBuffer.ReadInteger()
+		
+		val, ok := c.pendingRequests.Load(int32(messageID))
+		if !ok {
+			// Unknown message ID? Skip it.
+			c.readBuffer.SkipBytes(msgEnd - c.readBuffer.ReaderIndex())
+			continue
+		}
+		
+		req := val.(*pendingRequest)
+		
+		// Decode protocol op
+		res, complete, err := req.decoder(c.readBuffer)
+		if err != nil {
+			req.response <- err
+			c.pendingRequests.Delete(req.id)
+			c.readBuffer.SkipBytes(msgEnd - c.readBuffer.ReaderIndex())
+			continue
+		}
+		
+		// Skip optional controls (we don't handle them for now or skip them)
+		if c.readBuffer.ReaderIndex() < msgEnd {
+			_ = element.DecodeControls(c.readBuffer)
+		}
+		
+		// Skip any trailing bytes in this message frame
+		if c.readBuffer.ReaderIndex() < msgEnd {
+			c.readBuffer.SkipBytes(msgEnd - c.readBuffer.ReaderIndex())
+		}
+		
+		if complete {
+			req.response <- res
+			c.pendingRequests.Store(req.id, req)
+			c.pendingRequests.Delete(req.id)
+		} else {
+			// For SearchResult, it might take multiple entries.
+			// Current logic stores the intermediate state in req.result (implicit in the decoder's closure if needed)
+			// But for simplicity, the decoder should update its state or return the full state.
+		}
+	}
+}
+
+func (c *LdapClient) handleClose(err error) {
+	c.closed.Store(true)
+	c.pendingRequests.Range(func(key, value interface{}) bool {
+		req := value.(*pendingRequest)
+		req.response <- fmt.Errorf("connection closed: %w", err)
+		return true
+	})
+	if c.onClosed != nil {
+		c.onClosed(err)
+	}
+}
+
+// Helper methods for common operations
+
+func (c *LdapClient) Bind(name, password string) (*element.BindResponse, error) {
+	req := &element.BindRequest{
+		Version:  element.LdapVersion3,
+		Name:     name,
+		Password: password,
+	}
+	
+	ch, _ := c.SendRequest(req, func(buf *asn1.BerBuffer) (interface{}, bool, error) {
+		return element.DecodeBindResponse(buf), true, nil
+	})
+	
+	if ch == nil {
+		return nil, errors.New("failed to send bind request")
+	}
+	
+	res := <-ch
+	if err, ok := res.(error); ok {
+		return nil, err
+	}
+	return res.(*element.BindResponse), nil
+}
+
+func (c *LdapClient) Search(baseDN string, scope element.LdapScope, filter string, attrs []string) (*element.SearchResult, error) {
+	req := &element.SearchRequest{
+		BaseDN:     baseDN,
+		Scope:      scope,
+		DerefAlias: element.DerefNever,
+		Filter:     filter,
+		Attributes: attrs,
+	}
+	
+	var accumulatedEntries []element.SearchResultEntry
+	
+	ch, _ := c.SendRequest(req, func(buf *asn1.BerBuffer) (interface{}, bool, error) {
+		tag := buf.PeekTag()
+		switch int(tag) {
+		case element.LdapTagSearchResultEntry:
+			entry := element.DecodeSearchResultEntry(buf)
+			accumulatedEntries = append(accumulatedEntries, *entry)
+			return nil, false, nil
+		case element.LdapTagSearchResultDone:
+			buf.SkipTag()
+			buf.SkipLength()
+			res := element.DecodeLdapResult(buf)
+			return &element.SearchResult{
+				LdapResult: res,
+				Entries:    accumulatedEntries,
+			}, true, nil
+		default:
+			return nil, false, fmt.Errorf("unexpected tag in search response: %d", tag)
+		}
+	})
+	
+	if ch == nil {
+		return nil, errors.New("failed to send search request")
+	}
+	
+	res := <-ch
+	if err, ok := res.(error); ok {
+		return nil, err
+	}
+	return res.(*element.SearchResult), nil
 }

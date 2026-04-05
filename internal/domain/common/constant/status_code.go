@@ -12,6 +12,7 @@ const (
 	ResponseStatusCode_ILLEGAL_ARGUMENT             ResponseStatusCode = 1102
 	ResponseStatusCode_UNAUTHORIZED_REQUEST         ResponseStatusCode = 1106
 	ResponseStatusCode_NO_CONTENT                   ResponseStatusCode = 1001
+	ResponseStatusCode_UNSUPPORTED_CLIENT_VERSION   ResponseStatusCode = 103
 
 	// Server Error
 	ResponseStatusCode_SERVER_INTERNAL_ERROR ResponseStatusCode = 1200

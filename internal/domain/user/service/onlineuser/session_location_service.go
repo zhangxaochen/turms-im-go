@@ -10,6 +10,7 @@ import (
 )
 
 type SessionLocationService interface {
+	IsLocationEnabled() bool
 	UpsertUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude float32, latitude float32) error
 	RemoveUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType) error
 	RemoveUserLocations(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType) error
@@ -24,6 +25,10 @@ func NewSessionLocationService(redisClient *redis.Client) SessionLocationService
 	return &sessionLocationService{
 		redisClient: redisClient,
 	}
+}
+
+func (s *sessionLocationService) IsLocationEnabled() bool {
+	return true
 }
 
 func (s *sessionLocationService) UpsertUserLocation(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude float32, latitude float32) error {

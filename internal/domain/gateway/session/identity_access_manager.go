@@ -390,8 +390,9 @@ func NewLdapSessionIdentityAccessManager(
 	props *config.LdapIdentityAccessManagementProperties,
 	policyManager *authorization.PolicyManager,
 ) *LdapSessionIdentityAccessManager {
+	client, _ := ldap.NewLdapClient(props.URL, false, nil, 5*time.Second) // Defaulting to no TLS for now
 	return &LdapSessionIdentityAccessManager{
-		client:        ldap.NewLdapClient(props.URL, false, true), // Defaulting to no TLS for now
+		client:        client,
 		baseDN:        props.BaseDN,
 		userFilter:    props.UserFilter,
 		adminDN:       props.AdminDN,
@@ -405,28 +406,21 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		return bo.LoginAuthenticationFailed, nil
 	}
 
-	// Serialize bind and search operations to prevent concurrent connections messing up the bound state
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if !m.client.IsConnected() {
-		if err := m.client.Connect(); err != nil {
-			return bo.LoginAuthenticationFailed, fmt.Errorf("failed to connect to LDAP: %w", err)
-		}
+	if m.client == nil {
+		return bo.LoginAuthenticationFailed, fmt.Errorf("LDAP client not initialized")
 	}
 
 	// 0. Bind as admin before searching if admin credentials are provided
 	if m.adminDN != "" {
-		ok, err := m.client.Bind(false, m.adminDN, m.adminPassword)
-		if err != nil || !ok {
-			return bo.LoginAuthenticationFailed, fmt.Errorf("failed to bind admin: %w", err)
+		res, err := m.client.Bind(m.adminDN, m.adminPassword)
+		if err != nil || !res.IsSuccess() {
+			return bo.LoginAuthenticationFailed, fmt.Errorf("failed to bind admin: %v", err)
 		}
 	}
 
 	// 1. Search for the user DN using userId and userFilter
 	filter := strings.ReplaceAll(m.userFilter, "{0}", fmt.Sprintf("%d", loginInfo.UserID))
-	// 1.1 acts as NO_ATTRIBUTES
-	searchResult, err := m.client.Search(m.baseDN, 2, 0, 1, 0, false, []string{"1.1"}, filter)
+	searchResult, err := m.client.Search(m.baseDN, 2, filter, []string{"1.1"})
 	if err != nil {
 		return bo.LoginAuthenticationFailed, nil
 	}
@@ -440,11 +434,11 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		return bo.LoginAuthenticationFailed, nil
 	}
 	
-	userDN := searchResult.Entries[0].DN
+	userDN := searchResult.Entries[0].ObjectName
 
 	// 2. Bind with the user DN and password
-	ok, err := m.client.Bind(false, userDN, *loginInfo.Password)
-	if err != nil || !ok {
+	res, err := m.client.Bind(userDN, *loginInfo.Password)
+	if err != nil || !res.IsSuccess() {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -460,9 +454,11 @@ func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 	m.userFilter = props.Ldap.UserFilter
 	m.adminDN = props.Ldap.AdminDN
 	m.adminPassword = props.Ldap.AdminPassword
-	if m.client.Addr != props.Ldap.URL {
-		m.client.Close()
-		m.client = ldap.NewLdapClient(props.Ldap.URL, false, true)
+	if m.client == nil || m.client.Addr() != props.Ldap.URL {
+		if m.client != nil {
+			m.client.Close()
+		}
+		m.client, _ = ldap.NewLdapClient(props.Ldap.URL, false, nil, 5*time.Second)
 	}
 
 	return props.Enabled
