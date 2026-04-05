@@ -378,6 +378,7 @@ func (m *JwtSessionIdentityAccessManager) UpdateGlobalProperties(properties inte
 
 // LdapSessionIdentityAccessManager maps to LdapSessionIdentityAccessManager in Java.
 type LdapSessionIdentityAccessManager struct {
+	mu          sync.RWMutex
 	adminClient *ldap.LdapClient
 	userClient  *ldap.LdapClient
 	baseDN      string
@@ -391,12 +392,41 @@ func NewLdapSessionIdentityAccessManager(
 	props *config.LdapIdentityAccessManagementProperties,
 	policyManager *authorization.PolicyManager,
 ) *LdapSessionIdentityAccessManager {
-	adminClient, _ := ldap.NewLdapClient(props.Admin.Host, props.Admin.Port, props.Admin.UseTLS, nil, 5*time.Second)
-	userClient, _ := ldap.NewLdapClient(props.User.Host, props.User.Port, props.User.UseTLS, nil, 5*time.Second)
+	if !strings.Contains(props.User.SearchFilter, "{0}") {
+		panic(fmt.Errorf("illegal argument: The User Search Filter must contain {0} to substitute the user ID: %s", props.User.SearchFilter))
+	}
+
+	adminClient, err := ldap.NewLdapClient(props.Admin.Host, props.Admin.Port, props.Admin.UseTLS, nil, 5*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("illegal state: failed to connect to admin LDAP server: %w", err))
+	}
+	
+	userClient, err := ldap.NewLdapClient(props.User.Host, props.User.Port, props.User.UseTLS, nil, 5*time.Second)
+	if err != nil {
+		panic(fmt.Errorf("illegal state: failed to connect to user LDAP server: %w", err))
+	}
 
 	// Java parity: bind the admin client once at startup
-	if adminClient != nil && props.Admin.Username != "" {
-		adminClient.Bind(false, props.Admin.Username, props.Admin.Password)
+	if props.Admin.Username != "" {
+		ok, err := adminClient.Bind(false, props.Admin.Username, props.Admin.Password)
+		if err != nil || !ok {
+			panic(fmt.Errorf("illegal state: admin bind failed (ok=%v): %v", ok, err))
+		}
+		
+		// Perform startup health check (search)
+		_, err = adminClient.Search(
+			props.BaseDN,
+			element.ScopeWholeSubtree,
+			element.DerefAlways,
+			1,
+			0, // timeout
+			false,
+			[]string{"dn"},
+			strings.ReplaceAll(props.User.SearchFilter, "{0}", "health_check"),
+		)
+		if err != nil {
+			fmt.Printf("WARN: startup admin search health check failed (this might be expected depending on LDAP config): %v\n", err)
+		}
 	}
 
 	return &LdapSessionIdentityAccessManager{
@@ -413,14 +443,21 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		return bo.LoginAuthenticationFailed, nil
 	}
 
-	if m.adminClient == nil || m.userClient == nil {
+	m.mu.RLock()
+	adminClient := m.adminClient
+	userClient := m.userClient
+	baseDN := m.baseDN
+	userFilter := m.userFilter
+	m.mu.RUnlock()
+
+	if adminClient == nil || userClient == nil {
 		return bo.LoginAuthenticationFailed, fmt.Errorf("LDAP clients not initialized")
 	}
 
 	// 1. Search for the user DN using adminClient
-	filter := strings.ReplaceAll(m.userFilter, "{0}", fmt.Sprintf("%d", loginInfo.UserID))
-	searchResult, err := m.adminClient.Search(
-		m.baseDN,
+	filter := strings.ReplaceAll(userFilter, "{0}", fmt.Sprintf("%d", loginInfo.UserID))
+	searchResult, err := adminClient.Search(
+		baseDN,
 		element.ScopeWholeSubtree,
 		element.DerefAlways,
 		2,     // sizeLimit: 2 so we can fail if multiple returned
@@ -439,7 +476,7 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	if len(searchResult.Entries) > 1 {
 		return nil, exception.NewTurmsError(
 			int32(constant.ResponseStatusCode_SERVER_INTERNAL_ERROR),
-			fmt.Sprintf("More than 1 entry found for the user (%d), which means that the filter \"%s\" is wrong", loginInfo.UserID, m.userFilter),
+			fmt.Sprintf("More than 1 entry found for the user (%d), which means that the filter \"%s\" is wrong", loginInfo.UserID, userFilter),
 		)
 	}
 
@@ -449,7 +486,7 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	// RFC 4511: 4.2.1. Processing of the Bind Request
 	// Serialize bind requests using userBindMu to mimic Java's TaskScheduler schedule behavior
 	m.userBindMu.Lock()
-	ok, err := m.userClient.Bind(true, userDN, *loginInfo.Password)
+	ok, err := userClient.Bind(true, userDN, *loginInfo.Password)
 	m.userBindMu.Unlock()
 
 	if err != nil || !ok {
@@ -465,8 +502,53 @@ func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 		return false
 	}
 	
-	// Dynamic reconfiguration for LDAP omitted for brevity.
-	// We'd need careful connection teardown + mutex locking to support hot-reloads of clients.
+	if !props.Enabled || props.Type != config.IdentityAccessManagementType_LDAP {
+		return false
+	}
+	
+	if !strings.Contains(props.Ldap.User.SearchFilter, "{0}") {
+		fmt.Printf("WARN: The User Search Filter must contain {0} to substitute the user ID: %s\n", props.Ldap.User.SearchFilter)
+		return false
+	}
+
+	adminClient, err := ldap.NewLdapClient(props.Ldap.Admin.Host, props.Ldap.Admin.Port, props.Ldap.Admin.UseTLS, nil, 5*time.Second)
+	if err != nil {
+		fmt.Printf("WARN: failed to connect to admin LDAP server: %v\n", err)
+		return false
+	}
+	
+	userClient, err := ldap.NewLdapClient(props.Ldap.User.Host, props.Ldap.User.Port, props.Ldap.User.UseTLS, nil, 5*time.Second)
+	if err != nil {
+		fmt.Printf("WARN: failed to connect to user LDAP server: %v\n", err)
+		adminClient.Close()
+		return false
+	}
+
+	if props.Ldap.Admin.Username != "" {
+		ok, err := adminClient.Bind(false, props.Ldap.Admin.Username, props.Ldap.Admin.Password)
+		if err != nil || !ok {
+			fmt.Printf("WARN: admin bind failed (ok=%v): %v\n", ok, err)
+			adminClient.Close()
+			userClient.Close()
+			return false
+		}
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.adminClient != nil {
+		m.adminClient.Close()
+	}
+	if m.userClient != nil {
+		m.userClient.Close()
+	}
+
+	m.adminClient = adminClient
+	m.userClient = userClient
+	m.baseDN = props.Ldap.BaseDN
+	m.userFilter = props.Ldap.User.SearchFilter
+
 	return props.Enabled
 }
 
