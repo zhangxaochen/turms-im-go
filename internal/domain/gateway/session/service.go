@@ -268,11 +268,22 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 }
 
 func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
-	if userStatus == protocol.UserStatus_OFFLINE {
-		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "userStatus must not be OFFLINE"}
+	if ip == nil {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "ip must not be null"}
 	}
 	if deviceType == protocol.DeviceType_UNKNOWN {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "deviceType must not be UNKNOWN"}
+	}
+	if userStatus == protocol.UserStatus_OFFLINE {
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "userStatus must not be OFFLINE"}
+	}
+	if location != nil {
+		if location.Longitude < -180 || location.Longitude > 180 { // MIN/MAX range approx
+			return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "longitude out of range"}
+		}
+		if location.Latitude < -90 || location.Latitude > 90 {
+			return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "latitude out of range"}
+		}
 	}
 	if len(deviceDetails) > 0 {
 		newDetails := make(map[string]string)
@@ -284,33 +295,84 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 		deviceDetails = newDetails
 	}
 
-	// 1. Fetch user status and handle conflicts
 	sessionsStatus, err := s.userStatusService.FetchUserSessionsStatus(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Resolve conflicts
-	conflictedByDenyNew, err := s.resolveConflicts(ctx, userId, deviceType, sessionsStatus)
+	manager, _ := s.shardedMap.Get(userId)
+	if manager != nil {
+		deviceTypeToSessionInfo := sessionsStatus.OnlineDeviceTypeToSessionInfo
+		for _, typ := range manager.GetLoggedInDeviceTypes() {
+			sessionInfo, exists := deviceTypeToSessionInfo[typ]
+			if exists && sessionInfo.IsActive && s.nodeID != sessionInfo.NodeID {
+				_, _ = s.CloseLocalSession(ctx, userId, []protocol.DeviceType{typ}, sessionbo.NewCloseReason(constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE))
+			}
+		}
+	}
+
+	existingUserStatus := sessionsStatus.UserStatus
+	// If the user is offline, register the current session.
+	if existingUserStatus == protocol.UserStatus_OFFLINE {
+		return s.addOnlineDeviceIfAbsent(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location, nil, nil)
+	}
+
+	// If the user is already online, check if there is any device conflict.
+	sessionInfo, ok := sessionsStatus.OnlineDeviceTypeToSessionInfo[deviceType]
+	if ok && sessionInfo.IsActive {
+		session, _ := s.GetUserSession(userId, deviceType)
+		isClosedSessionOnLocal := session != nil && session.Conn != nil && !session.Conn.IsConnected()
+		if isClosedSessionOnLocal {
+			// Replace disconnected connection
+			if existingUserStatus != userStatus || userStatus == 0 {
+				// Java checks userStatus == null || existingUserStatus == userStatus
+				// If userStatus == 0 (UNRECOGNIZED), don't update
+			} else {
+				_, err = s.userStatusService.UpdateStatus(ctx, userId, userStatus)
+				if err != nil {
+					fmt.Printf("failed to update online status for user %d: %v\n", userId, err)
+				}
+			}
+			if location != nil {
+				err = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, location.Longitude, location.Latitude)
+				if err != nil {
+					fmt.Printf("failed to upsert location for user %d: %v\n", userId, err)
+				}
+			}
+			return session, nil
+		} else if s.userSimultaneousLoginService.ShouldDisconnectLoggingInDeviceIfConflicts() {
+			return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
+		}
+	}
+
+	var expectedNodeId *string
+	var expectedDeviceTimestamp *int64
+	if ok {
+		expectedNodeId = &sessionInfo.NodeID
+		ts := sessionInfo.HeartbeatTimestampSeconds
+		expectedDeviceTimestamp = &ts
+	}
+
+	wasSuccessful, err := s.closeSessionsWithConflictedDeviceTypes(ctx, userId, deviceType, sessionsStatus)
 	if err != nil {
 		return nil, err
 	}
-	if conflictedByDenyNew {
-		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
+	if wasSuccessful {
+		return s.addOnlineDeviceIfAbsent(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location, expectedNodeId, expectedDeviceTimestamp)
 	}
+	return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
+}
 
-	// 3. Register in UserStatusService (Redis)
+func (s *SessionService) addOnlineDeviceIfAbsent(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation, expectedNodeId *string, expectedDeviceTimestamp *int64) (*UserSession, error) {
 	now := time.Now()
-	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, deviceDetails, userStatus, s.nodeID, &now)
+	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, deviceDetails, userStatus, s.nodeID, &now, expectedNodeId, expectedDeviceTimestamp)
 	if err != nil {
 		return nil, err
 	}
 	if !added {
-		// This handles the race condition if another node won
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
 	}
 
-	// 4. Create and local register session
 	var loc *sessionbo.UserLocation
 	if location != nil {
 		loc = &sessionbo.UserLocation{
@@ -334,10 +396,10 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 
 	err = s.RegisterSession(ctx, session)
 	if err != nil {
-		return nil, err
+		_, _ = s.CloseLocalSession(ctx, userId, []protocol.DeviceType{deviceType}, sessionbo.NewCloseReason(constant.SessionCloseStatus_SERVER_ERROR))
+		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SERVER_INTERNAL_ERROR, Message: "Caught an error while adding the user session: " + err.Error()}
 	}
 
-	// 5. Update location and notify online
 	if location != nil && deviceType != protocol.DeviceType_BROWSER {
 		_ = s.sessionLocationService.UpsertUserLocation(ctx, userId, deviceType, location.Longitude, location.Latitude)
 	}
@@ -348,21 +410,22 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 	return session, nil
 }
 
-func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, deviceType protocol.DeviceType, status *userbo.UserSessionsStatus) (bool, error) {
+func (s *SessionService) closeSessionsWithConflictedDeviceTypes(ctx context.Context, userId int64, deviceType protocol.DeviceType, status *userbo.UserSessionsStatus) (bool, error) {
 	conflictedDeviceTypes := s.userSimultaneousLoginService.GetConflictedDeviceTypes(deviceType)
 	if len(conflictedDeviceTypes) == 0 {
-		return false, nil
+		return true, nil
 	}
 
 	// Group by NodeID to minimize RPC calls (Bug 892)
 	nodeToConflictedTypes := make(map[string][]protocol.DeviceType)
 	for _, conflictedDT := range conflictedDeviceTypes {
 		if info, exists := status.OnlineDeviceTypeToSessionInfo[conflictedDT]; exists && info.IsActive {
-			if s.userSimultaneousLoginService.ShouldDisconnectLoggingInDeviceIfConflicts() {
-				return true, nil
-			}
 			nodeToConflictedTypes[info.NodeID] = append(nodeToConflictedTypes[info.NodeID], conflictedDT)
 		}
+	}
+
+	if len(nodeToConflictedTypes) == 0 {
+		return true, nil
 	}
 
 	for nodeID, dts := range nodeToConflictedTypes {
@@ -375,17 +438,31 @@ func (s *SessionService) resolveConflicts(ctx context.Context, userId int64, dev
 				SessionCloseStatus: int(constant.SessionCloseStatus_DISCONNECTED_BY_CLIENT),
 			}
 			_, err := s.rpcService.RequestResponse(ctx, nodeID, req)
-			// Bug 860: Handle ConnectionNotFound with node discovery fallback
-			if err != nil && errors.Is(err, rpc.ErrConnectionNotFound) {
-				// if !s.discoveryService.IsKnownMember(nodeID) { return false, nil }
-				// For now simplified, but we should check if node is alive
+			if err != nil {
+				// Bug 860: Handle ConnectionNotFound with node discovery fallback
+				if errors.Is(err, rpc.ErrConnectionNotFound) {
+					discovery := s.rpcService.DiscoveryService()
+					if discovery != nil && !discovery.IsKnownMember(nodeID) {
+						continue // Consider offline, move to next
+					}
+				}
+				return false, err
 			}
+		} else {
+			return false, errors.New("rpc service is missing, cannot resolve distributed conflicts")
 		}
 	}
-	return false, nil
+	return true, nil
 }
 
 func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, deviceTypes []protocol.DeviceType, closeReason sessionbo.CloseReason) (int, error) {
+	if userId == 0 {
+		return 0, errors.New("userId must not be 0")
+	}
+	if closeReason.Status == 0 { // Or whatever implies invalid or nil
+		// actually closeReason is a struct, not a pointer in Go. It's essentially not-nil implicitly.
+	}
+
 	manager, ok := s.shardedMap.Get(userId)
 	if !ok {
 		return 0, nil
@@ -395,10 +472,9 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 	defer manager.mu.Unlock()
 
 	var toClose []protocol.DeviceType
+	// Java: manager.getLoggedInDeviceTypes()
 	if len(deviceTypes) == 0 {
-		for dt := range manager.Sessions {
-			toClose = append(toClose, dt)
-		}
+		toClose = manager.GetLoggedInDeviceTypes() // Return a copy of logged-in device types
 	} else {
 		for _, dt := range deviceTypes {
 			if _, exists := manager.Sessions[dt]; exists {
@@ -436,6 +512,10 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 	return count, nil
 }
 
+// Java's removeSessionsManagerIfEmpty:
+//  if manager.countSessions() == 0 { userIdToSessionsManager.remove(...) }
+//  pluginManager.invokeGoOfflineHandlers(userId, closeReason)
+
 func (s *SessionService) notifySessionClosedListeners(session *UserSession) {
 	s.mu.RLock()
 	listeners := s.onSessionClosedListeners
@@ -454,6 +534,10 @@ func (s *SessionService) notifySessionClosedListeners(session *UserSession) {
 }
 
 func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64, ips [][]byte, closeReason sessionbo.CloseReason) (int, error) {
+	if len(userIds) == 0 && len(ips) == 0 {
+		return 0, nil
+	}
+
 	userIdSet := make(map[int64]struct{})
 	for _, id := range userIds {
 		userIdSet[id] = struct{}{}
@@ -481,15 +565,15 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
-		// Bug 534: Only close sessions matching the IP, not all device types
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
 					if _, ok := userIdSet[sess.UserID]; !ok {
-						s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
-						totalCount++
+						userIdSet[sess.UserID] = struct{}{} // Deduplicate so we don't close again
+						n, _ := s.CloseLocalSession(ctx, sess.UserID, nil, closeReason)
+						totalCount += n
 					}
 					return true
 				})
@@ -500,12 +584,64 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	return totalCount, nil
 }
 
-func (s *SessionService) QuerySessions(ctx context.Context, userID int64) []*UserSession {
+func (s *SessionService) QuerySessions(ctx context.Context, userIds []int64) []*sessionbo.UserSessionsInfo {
+	infos := make([]*sessionbo.UserSessionsInfo, 0, len(userIds))
+	for _, userId := range userIds {
+		infos = append(infos, s.getUserSessions(userId))
+	}
+	return infos
+}
+
+func (s *SessionService) getUserSessions(userID int64) *sessionbo.UserSessionsInfo {
 	manager, ok := s.shardedMap.Get(userID)
 	if !ok {
-		return nil
+		return &sessionbo.UserSessionsInfo{
+			UserID:   userID,
+			Status:   protocol.UserStatus_OFFLINE,
+			Sessions: nil,
+		}
 	}
-	return manager.GetAllSessions()
+	
+	sessionList := manager.GetAllSessions()
+	if len(sessionList) == 0 {
+		return &sessionbo.UserSessionsInfo{
+			UserID:   userID,
+			Status:   protocol.UserStatus_OFFLINE,
+			Sessions: nil,
+		}
+	}
+	
+	infos := make([]sessionbo.UserSessionInfo, 0, len(sessionList))
+	for _, sess := range sessionList {
+		var loc *sessionbo.UserLocation
+		if sess.Location != nil {
+			loc = &sessionbo.UserLocation{
+				Longitude: sess.Location.Longitude,
+				Latitude:  sess.Location.Latitude,
+				Timestamp: sess.Location.Timestamp,
+				Details:   sess.Location.Details,
+			}
+		}
+		
+		infos = append(infos, sessionbo.UserSessionInfo{
+			ID:                                  sess.ID,
+			Version:                             sess.Version.Load(),
+			DeviceType:                          sess.DeviceType,
+			DeviceDetails:                       sess.DeviceDetails,
+			LoginDate:                           sess.LoginDate.UnixMilli(),
+			LastHeartbeatRequestTimestampMillis: sess.GetLastHeartbeatRequestTimestamp(),
+			LastRequestTimestampMillis:          sess.GetLastRequestTimestamp(),
+			IsSessionOpen:                       sess.IsOpen(),
+			Location:                            loc,
+			IP:                                  sess.IP,
+		})
+	}
+
+	return &sessionbo.UserSessionsInfo{
+		UserID:   userID,
+		Status:   manager.UserStatus,
+		Sessions: infos,
+	}
 }
 
 func (s *SessionService) QuerySessionsCount() int {

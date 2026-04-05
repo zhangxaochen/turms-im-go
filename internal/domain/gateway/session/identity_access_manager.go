@@ -347,22 +347,30 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 		}
 	}
 
-	// Check policy if it exists in claims
-	if policyData, ok := claims["policy"].(map[string]interface{}); ok {
-		policyDeserializer := &authorization.PolicyDeserializer{}
-		policy, err := policyDeserializer.Parse(policyData)
-		if err == nil {
-			allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)
-			permissions := make(map[int32]bool, len(allowedRequestTypes))
-			for _, rt := range allowedRequestTypes {
-				permissions[rt] = true
-			}
-			return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
+	// Filter custom claims
+	customClaims := make(map[string]interface{})
+	standardClaims := map[string]struct{}{
+		"iss": {}, "sub": {}, "aud": {}, "exp": {}, "nbf": {}, "iat": {}, "jti": {},
+	}
+	for k, v := range claims {
+		if _, ok := standardClaims[k]; !ok {
+			customClaims[k] = v
 		}
 	}
 
-	// Granted with all permissions by default if valid
-	return bo.GrantedWithAllPermissions, nil
+	policyDeserializer := &authorization.PolicyDeserializer{}
+	policy, err := policyDeserializer.Parse(customClaims)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWT token: %w", err)
+	}
+
+	allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)  
+	permissions := make(map[int32]bool, len(allowedRequestTypes))
+	for _, rt := range allowedRequestTypes {
+		permissions[rt] = true
+	}
+	
+	return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
 }
 
 func (m *JwtSessionIdentityAccessManager) UpdateGlobalProperties(properties interface{}) bool {

@@ -54,6 +54,11 @@ func (s *RpcService) Router() *Router {
 	return s.router
 }
 
+// DiscoveryService returns the underlying discovery service.
+func (s *RpcService) DiscoveryService() *discovery.DiscoveryService {
+	return s.discoveryService
+}
+
 // RequestResponse routes the request to an appropriate member node and waits for a response.
 // If memberNodeId is provided, it specifically targets that node.
 func (s *RpcService) RequestResponse(ctx context.Context, memberNodeId string, request RpcRequest) (*RpcResponse, error) {

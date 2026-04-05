@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net"
 	"time"
 
@@ -130,40 +131,38 @@ func (c *TcpConnection) Start(onMessage func(common.NetConnection, []byte)) {
 
 // @MappedFrom close(CloseReason closeReason)
 func (c *TcpConnection) CloseWithReason(reason sessionbo.CloseReason) bool {
-	if !c.BaseNetConnection.CloseWithReason(reason) {
+	if c.IsDisposed() || !c.BaseNetConnection.CloseWithReason(reason) {
 		return false
 	}
 
 	// We don't use a separate goroutine if we want to ensure ordering, 
 	// but Java's close(CloseReason) sends a notification and wait for closeTimeout.
 	go func() {
-		if reason.IsNotifyClient {
-			// Try to send notification with backoff filter for disconnected-client errors
-			for i := 0; i < 3; i++ {
-				nf := common.NewNotificationFactory(nil)
-				payload, err := nf.CreateCloseReasonBuffer(reason)
-				if err != nil {
-					log.Printf("Failed to marshal close notification: %v", err)
-					break
-				}
+		// Try to send notification with backoff filter for disconnected-client errors
+		for i := 0; i < 3; i++ {
+			nf := common.NewNotificationFactory(nil)
+			payload, err := nf.CreateCloseReasonBuffer(reason)
+			if err != nil {
+				log.Printf("Failed to marshal close notification: %v", err)
+				break
+			}
 
-				err = c.SendWithContext(context.Background(), payload)
-				if err == nil {
-					break
+			err = c.SendWithContext(context.Background(), payload)
+			if err == nil {
+				break
+			}
+			// Java's RETRY_SEND_CLOSE_NOTIFICATION filters out disconnected client errors
+			if exception.IsDisconnectedClientError(err) {
+				break
+			}
+			if i < 2 {
+				if !exception.IsDisconnectedClientError(err) {
+					log.Printf("Failed to send the close notification attempt %d: %v", i+1, err)
 				}
-				// Java's RETRY_SEND_CLOSE_NOTIFICATION filters out disconnected client errors
-				if exception.IsDisconnectedClientError(err) {
-					break
-				}
-				if i < 2 {
-					if !exception.IsDisconnectedClientError(err) {
-						log.Printf("Failed to send the close notification attempt %d: %v", i+1, err)
-					}
-					time.Sleep(3 * time.Second)
-				} else {
-					if !exception.IsDisconnectedClientError(err) {
-						log.Printf("Failed to send the close notification after 3 attempts: %v", err)
-					}
+				time.Sleep(time.Duration(math.Pow(2, float64(i))) * 3 * time.Second) // exponential backoff
+			} else {
+				if !exception.IsDisconnectedClientError(err) {
+					log.Printf("Failed to send the close notification after 3 attempts: %v", err)
 				}
 			}
 		}
@@ -247,15 +246,18 @@ func (f *TcpServerFactory) Create(
 
 	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
 		pL := &proxyproto.Listener{Listener: l}
-		if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
-			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
+		policyFunc := func(upstream net.Addr) (proxyproto.Policy, error) {
+			if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
+				if blocklistService != nil && blocklistService.IsIpBlocked(tcpAddr.IP) {
+					return proxyproto.REJECT, fmt.Errorf("IP is blocked: %s", tcpAddr.IP.String())
+				}
+			}
+			if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
 				return proxyproto.REQUIRE, nil
 			}
-		} else {
-			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
-				return proxyproto.USE, nil
-			}
+			return proxyproto.USE, nil
 		}
+		pL.Policy = policyFunc
 		l = pL
 	}
 
@@ -286,13 +288,6 @@ func (f *TcpServerFactory) Create(
 					_ = tcpConn.SetKeepAlive(true)
 					_ = tcpConn.SetKeepAlivePeriod(1 * time.Minute) // Matching Java's default
 				}
-			}
-
-			if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
-				AddProxyProtocolHandlers(conn.RemoteAddr(), func(addr net.Addr) {
-					// Trigger any address confirmation logic if needed
-					// (Bug 325/327: Confirming address after proxy resolution)
-				})
 			}
 
 			if !availabilityHandler.HandleConnection(conn) {

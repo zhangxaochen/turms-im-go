@@ -10,13 +10,13 @@ import (
 // RequestHandlerResult carries the response code and optional reason of a handler execution.
 type RequestHandlerResult struct {
 	Code   constant.ResponseStatusCode
-	Reason string
+	Reason *string
 	Data   *protocol.TurmsNotification_Data
 }
 
 // NewRequestHandlerResult creates a new RequestHandlerResult.
 // @MappedFrom RequestHandlerResult(ResponseStatusCode code, String reason, TurmsNotification.Data data)
-func NewRequestHandlerResultWithData(code constant.ResponseStatusCode, reason string, data *protocol.TurmsNotification_Data) *RequestHandlerResult {
+func NewRequestHandlerResultWithData(code constant.ResponseStatusCode, reason *string, data *protocol.TurmsNotification_Data) *RequestHandlerResult {
 	return &RequestHandlerResult{
 		Code:   code,
 		Reason: reason,
@@ -24,7 +24,7 @@ func NewRequestHandlerResultWithData(code constant.ResponseStatusCode, reason st
 	}
 }
 
-func NewRequestHandlerResult(code constant.ResponseStatusCode, reason string) *RequestHandlerResult {
+func NewRequestHandlerResult(code constant.ResponseStatusCode, reason *string) *RequestHandlerResult {
 	return &RequestHandlerResult{
 		Code:   code,
 		Reason: reason,
@@ -41,5 +41,9 @@ func RequestHandlerResultOfCode(code constant.ResponseStatusCode) *RequestHandle
 
 // @MappedFrom toString()
 func (r *RequestHandlerResult) String() string {
-	return fmt.Sprintf("RequestHandlerResult[code=%v, reason='%s']", r.Code, r.Reason)
+	reasonStr := "null"
+	if r.Reason != nil {
+		reasonStr = *r.Reason
+	}
+	return fmt.Sprintf("RequestHandlerResult[code=%v, reason='%s']", r.Code, reasonStr)
 }

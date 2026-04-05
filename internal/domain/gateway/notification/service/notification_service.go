@@ -44,8 +44,11 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 	if len(recipientIds) == 0 {
 		return nil, errors.New("recipientIds cannot be empty")
 	}
+	if excludedUserSessionIds == nil {
+		return nil, errors.New("excludedUserSessionIds cannot be nil")
+	}
 
-	var offlineRecipientIds []int64
+	offlineRecipientIdsSet := make(map[int64]struct{})
 	var mu sync.Mutex
 
 	// Bug 570: Collect errors as Java does with Mono.whenDelayError
@@ -53,20 +56,15 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 	var errorsMu sync.Mutex
 
 	hasExcludedUserSessionIds := len(excludedUserSessionIds) > 0
-	
-	// Create a WaitGroup to handle concurrent sends for ALL sessions (Bug 576)
-	var wg sync.WaitGroup
 
-	// Track per-recipient success
-	recipientSuccessfulCount := make(map[int64]int32)
-	recipientSessionCount := make(map[int64]int32)
+	var wg sync.WaitGroup
 
 	for _, rid := range recipientIds {
 		recipientID := rid
 		manager := s.sessionService.GetUserSessionsManager(ctx, recipientID)
 		if manager == nil {
 			mu.Lock()
-			offlineRecipientIds = append(offlineRecipientIds, recipientID)
+			offlineRecipientIdsSet[recipientID] = struct{}{}
 			mu.Unlock()
 			continue
 		}
@@ -90,38 +88,44 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 
 		if len(targetSessions) == 0 {
 			mu.Lock()
-			offlineRecipientIds = append(offlineRecipientIds, recipientID)
+			offlineRecipientIdsSet[recipientID] = struct{}{}
 			mu.Unlock()
 			continue
 		}
 
-		recipientSessionCount[recipientID] = int32(len(targetSessions))
-
 		for _, userSession := range targetSessions {
+			// Bug 8026: TryNotifyClientToRecover is called immediately/unconditionally in Java,
+			// before the async send result is even evaluated.
+			if userSession.Conn != nil {
+				userSession.Conn.TryNotifyClientToRecover()
+			} else {
+				mu.Lock()
+				offlineRecipientIdsSet[recipientID] = struct{}{}
+				mu.Unlock()
+				continue
+			}
+
 			wg.Add(1)
 			go func(rid int64, sess *session.UserSession) {
 				defer wg.Done()
-				
-				if sess.Conn == nil {
-					mu.Lock()
-					offlineRecipientIds = append(offlineRecipientIds, rid)
-					mu.Unlock()
-					return
-				}
 
-				err := sess.Conn.SendWithContext(ctx, notificationData)
+				// Bug 8036: Clone notificationData to prevent concurrent modification issues
+				dataClone := make([]byte, len(notificationData))
+				copy(dataClone, notificationData)
+
+				err := sess.Conn.SendWithContext(ctx, dataClone)
 				if err != nil {
+					// Bug 8028: In Java, any error directly means the recipient is marked offline.
+					mu.Lock()
+					offlineRecipientIdsSet[rid] = struct{}{}
+					mu.Unlock()
+
 					if sess.IsOpen() {
 						errorsMu.Lock()
 						sendErrors = append(sendErrors, err)
 						errorsMu.Unlock()
 						log.Printf("Failed to send notification to session: user_id=%d, device_type=%s, error=%v", rid, sess.DeviceType, err)
-						sess.Conn.TryNotifyClientToRecover()
 					}
-				} else {
-					mu.Lock()
-					recipientSuccessfulCount[rid]++
-					mu.Unlock()
 				}
 			}(recipientID, userSession)
 		}
@@ -129,11 +133,16 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 
 	wg.Wait()
 
-	// Identify recipients where NO session was successful
-	for rid, total := range recipientSessionCount {
-		if recipientSuccessfulCount[rid] == 0 && total > 0 {
-			offlineRecipientIds = append(offlineRecipientIds, rid)
-		}
+	offlineRecipientIds := make([]int64, 0, len(offlineRecipientIdsSet))
+	for id := range offlineRecipientIdsSet {
+		offlineRecipientIds = append(offlineRecipientIds, id)
+	}
+
+	// Bug 8030: Missing logging of aggregated errors
+	var finalErr error
+	if len(sendErrors) > 0 {
+		finalErr = errors.Join(sendErrors...)
+		log.Printf("Caught an error while sending a notification to user sessions: %v", finalErr)
 	}
 
 	// Bug 558: Invoke NotificationHandler extension points
@@ -141,5 +150,5 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 		_, _ = s.pluginManager.InvokeExtensionPoints(ctx, "NotificationHandler", "HandleNotifications", notificationData, recipientIds, offlineRecipientIds)
 	}
 
-	return offlineRecipientIds, nil
+	return offlineRecipientIds, finalErr
 }

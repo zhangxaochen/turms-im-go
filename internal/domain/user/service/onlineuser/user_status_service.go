@@ -12,7 +12,7 @@ import (
 )
 
 type UserStatusService interface {
-	AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, deviceDetails map[string]string, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time) (bool, error)
+	AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, deviceDetails map[string]string, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time, expectedNodeId *string, expectedDeviceTimestamp *int64) (bool, error)
 	RemoveOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, nodeID string) (bool, error)
 	RemoveOnlineDevices(ctx context.Context, userID int64, deviceTypes []protocol.DeviceType, nodeID string) (bool, error)
 	UpdateStatus(ctx context.Context, userID int64, status protocol.UserStatus) (bool, error)
@@ -31,7 +31,7 @@ func NewUserStatusService(redisClient *redis.Client, scriptManager *redis.Script
 	}
 }
 
-func (s *userStatusService) AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, deviceDetails map[string]string, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time) (bool, error) {
+func (s *userStatusService) AddOnlineDevice(ctx context.Context, userID int64, deviceType protocol.DeviceType, deviceDetails map[string]string, status protocol.UserStatus, nodeID string, heartbeatTimestamp *time.Time, expectedNodeId *string, expectedDeviceTimestamp *int64) (bool, error) {
 	userIDStr := strconv.FormatInt(userID, 10)
 	deviceTypeStr := string(byte(deviceType))
 	
@@ -44,7 +44,17 @@ func (s *userStatusService) AddOnlineDevice(ctx context.Context, userID int64, d
 	
 	statusStr := string(byte(status))
 
-	keys := []string{userIDStr, deviceTypeStr, nodeID, ttlStr, statusStr, "", ""}
+	
+	expectedNodeIdStr := ""
+	if expectedNodeId != nil {
+		expectedNodeIdStr = *expectedNodeId
+	}
+	expectedDeviceTsStr := ""
+	if expectedDeviceTimestamp != nil {
+		expectedDeviceTsStr = strconv.FormatInt(*expectedDeviceTimestamp, 10)
+	}
+
+	keys := []string{userIDStr, deviceTypeStr, nodeID, ttlStr, statusStr, expectedNodeIdStr, expectedDeviceTsStr}
 	
 	var args []interface{}
 	// Bug 862: Add deviceDetails filtering (simplified for now as placeholder for real properties util)

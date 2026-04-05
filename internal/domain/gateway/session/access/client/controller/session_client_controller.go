@@ -31,7 +31,6 @@ func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context
 		if err != nil {
 			// Bug 602: Placeholder for error logging matches Java behavior of catching and logging
 		}
-		sessionWrapper.SetUserSession(nil)
 	}
 	// Return nil to trigger Mono.empty() equivalent, which sends no response
 	return nil, nil
@@ -41,7 +40,7 @@ func (c *SessionClientController) HandleDeleteSessionRequest(ctx context.Context
 // @MappedFrom handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)
 func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context, sessionWrapper *common.UserSessionWrapper, req *protocol.CreateSessionRequest) (*common.RequestHandlerResult, error) {
 	if sessionWrapper.HasUserSession() {
-		return common.NewRequestHandlerResult(constant.ResponseStatusCode_CREATE_EXISTING_SESSION, ""), nil
+		return common.RequestHandlerResultOfCode(constant.ResponseStatusCode_CREATE_EXISTING_SESSION), nil
 	}
 
 	userID := req.UserId
@@ -56,8 +55,8 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	}
 
 	deviceType := req.DeviceType
-	if deviceType == protocol.DeviceType_UNKNOWN {
-		deviceType = protocol.DeviceType_DESKTOP // Default or throw as per Java
+	if _, ok := protocol.DeviceType_name[int32(deviceType)]; !ok {
+		deviceType = protocol.DeviceType_UNKNOWN // Mapped from Java's DeviceType.UNRECOGNIZED -> UNKNOWN
 	}
 
 	deviceDetails := req.DeviceDetails
@@ -103,7 +102,7 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 			c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)
 		}
 
-		return common.NewRequestHandlerResult(constant.ResponseStatusCode_OK, ""), nil
+		return common.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK), nil
 	}
 
 	// If the connection dropped during the process, clean up
