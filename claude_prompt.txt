@@ -1,0 +1,362 @@
+You are a specialized coding sub-agent. Your task is to resolve exactly 50 pending bugs in the turms-go codebase.
+CRITICAL RULES:
+1. Be extremely concise in your output and thoughts. Minimize conversational filler.
+2. Fix the issues below, test them, and YOU MUST automatically commit your changes with a descriptive commit message.
+
+BUGS TO FIX:
+====================
+
+[Context: ## Dispatch]
+- [ ] **Missing request timing**: Java `dispatch0()` records `requestTime = System.currentTimeMillis()` and `startTime = System.nanoTime()` for latency measurement in logs. Go `Dispatch()` has no timing.
+
+---
+
+[Context: ## Dispatch]
+- [ ] **Missing plugin-based request handling override**: Java `dispatch0()` invokes `ClientRequestHandler` extension points that can override the default handler behavior via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no extension point for handler override.
+
+---
+
+[Context: ## Dispatch]
+- [ ] **Missing error logging for internal server errors**: Java `dispatch0()` logs internal server errors with full request context using `LOGGER.error()` and `context.updateThreadContext()`. Go `Dispatch()` has no error logging beyond the basic handler error return.
+
+---
+
+[Context: ## Dispatch]
+- [ ] **Missing graceful shutdown hook**: Java constructor registers a shutdown hook via `applicationContext.addShutdownHook()` that waits for `pendingRequestCount` to reach zero. Go `Dispatch()` has no shutdown coordination mechanism.
+*Checked methods: toString(), turmsRequest(), userId(), deviceType(), clientIp(), requestId(), equals(Object obj), hashCode()*
+Now let me analyze each method carefully.
+**Java `ClientRequest` fields:**
+- `userId` (Long)
+- `deviceType` (DeviceType)
+- `clientIp` (byte[])
+- `requestId` (Long)
+- `turmsRequestBuilder` (TurmsRequest.Builder)
+- `turmsRequest` (TurmsRequest)
+**Go `ClientRequest` fields:**
+- `userId` (*int64)
+- `deviceType` (*protocol.DeviceType)
+- `clientIp` ([]byte)
+- `requestId` (*int64)
+- `turmsRequest` (*protocol.TurmsRequest)
+The Go version omits `turmsRequestBuilder` entirely, which is a deliberate design choice since Go protobuf doesn't use the builder pattern. Now let me analyze each method:
+**`turmsRequest()`** — Java lazily builds from `turmsRequestBuilder` if `turmsRequest` is null. Go just returns `c.turmsRequest` directly. Since there's no builder in Go, this is fine — the Go version always has the built request.
+**`toString()` / `String()`** — Java formats `clientIp` as `Arrays.toString(clientIp)` which produces `[1, 2, 3, ...]`. Go uses `fmt.Sprintf("%v", c.clientIp)` which produces `[1 2 3 ...]` (space-separated, no commas). This is a formatting difference but not a logic bug per se. Java also uses `ProtoFormatter.toLogString()` for the turmsRequest, while Go uses `turmsRequest.String()`. Acceptable difference.
+**`equals()`** — Java compares all 6 fields including `turmsRequestBuilder` and `turmsRequest`. Go compares only 5 fields (no builder) and compares `turmsRequest` by pointer identity (`c.turmsRequest == other.turmsRequest`), whereas Java uses `Objects.equals` which calls `.equals()` on the protobuf message. The Go pointer comparison is incorrect — two semantically equal protobuf messages at different memory addresses would be considered unequal.
+**`hashCode()`** — Java uses `31 * Objects.hash(userId, deviceType, requestId, turmsRequestBuilder, turmsRequest) + Arrays.hashCode(clientIp)`. Go uses FNV-32a with a completely different hashing algorithm. Also, Go's `HashCode()` doesn't include `turmsRequest` in the hash at all, while Java does. The hash algorithm is fundamentally different, which means hash-based data structures would behave differently.
+Now let me also check the `bytesEq` helper — it doesn't handle both-nil correctly. If both `a` and `b` are nil (or both empty), `len(nil) == len(nil)` is true (both 0), the loop doesn't execute, and it returns true. That's correct. If one is nil and the other is empty slice, `len(nil) == len([]byte{})` is true (both 0), also returns true — which is different from Java where `Arrays.equals(null, new byte[0])` returns false. This is a subtle edge case.
+
+---
+
+[Context: ## toString]
+- [ ] `clientIp` formatting: Java uses `Arrays.toString(clientIp)` producing comma-separated output like `[10, 0, 0, 1]`, but Go uses `fmt.Sprintf("%v", c.clientIp)` producing space-separated output like `[10 0 0 1]`. The format differs from Java's output.
+
+---
+
+[Context: ## turmsRequest]
+- [ ] Java lazily builds `turmsRequest` from `turmsRequestBuilder` on first access. Go simply returns the stored pointer. This is an acceptable design difference since Go protobuf doesn't use builders, but if `turmsRequest` were ever nil, Go returns nil while Java would build it from the builder.
+
+---
+
+[Context: ## equals]
+- [ ] `turmsRequest` comparison uses Go pointer identity (`c.turmsRequest == other.turmsRequest`) instead of value equality. Java uses `Objects.equals()` which calls `.equals()` on the protobuf message for deep equality. Two protobuf messages with identical content at different addresses would incorrectly be reported as unequal in Go.
+
+---
+
+[Context: ## equals]
+- [ ] `bytesEq` helper treats `nil` and empty `[]byte{}` as equal (since `len(nil) == len([]byte{}) == 0`), whereas Java's `Arrays.equals(null, new byte[0])` returns `false`. This causes `Equals` to produce different results than Java when one side has a nil `clientIp` and the other has an empty byte slice.
+
+---
+
+[Context: ## hashCode]
+- [ ] Uses a completely different hashing algorithm (FNV-32a) than Java's `31 * Objects.hash(...) + Arrays.hashCode(...)`. While hash codes don't need to match across languages, the Go implementation doesn't include `turmsRequest` in the hash at all, violating the `hashCode`/`equals` contract: two objects that are `Equals()` could have different `HashCode()` values since `Equals` considers `turmsRequest` but `HashCode` does not.
+*Checked methods: checkLoginNameAndPassword(), addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO), queryAdmins(@QueryParam(required = false), queryAdmins(@QueryParam(required = false), updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO), deleteAdmins(RequestContext requestContext, Set<Long> ids)*
+The Java `UpdateAdminDTO` has field `displayName` (which as a Java record would serialize to JSON as `displayName`), but the Go `UpdateAdminDTO` uses `Name` with JSON tag `"name"`. This is a JSON deserialization mismatch — clients sending `"displayName"` won't have the field parsed in Go.
+Let me also verify the Java controller call for `updateAdmins` to check which getter is used:
+Java controller (line 137): `updateAdminDTO.displayName()`
+Go controller (line 91): `updateAdminDTO.Name`
+The Go code correctly reads `updateAdminDTO.Name`, but the JSON tag is `"name"` instead of `"displayName"`, which means incoming JSON with `"displayName"` won't be deserialized into this field.
+Let me also double-check whether the Go `checkLoginNameAndPassword` return type matches Java. Java returns `HttpHandlerResult.OK` (an HTTP 200 OK response), while Go returns `nil` error. These are semantically different but may be handled by the routing layer. Let me verify.
+Now I have all findings. Let me compile the results.
+The Go `AuthAndAddAdmin` call passes `displayName` and `roleIds` in a different order than the Java controller call passes them to `authAndAddAdmin`. However, since the Go service method signature also puts `displayName` before `roleIds`, the arguments are correctly matched to parameters. The Java controller call also correctly matches its own service signature. So the ordering is internally consistent — no bug there.
+The Go code passes an empty string `""` for `displayName` when `addAdminDTO.DisplayName` is nil, whereas Java passes `null`. This depends on whether the Go `AddAdmin` service treats empty string differently from nil. But in the Go service `AddAdmin` (line 341), it just assigns `displayName` directly to the `Admin` struct, so it would store an empty string vs nil. In Java, `null` would be stored. This is a minor behavioral difference but the Go service doesn't have a `*string` for displayName, so it defaults to empty string. This is acceptable since the Admin PO likely treats them equivalently.
+The Java `UpdateAdminDTO` has `displayName`, Go has `Name` with JSON tag `"name"`. This is a clear JSON field mismatch.
+Java returns `HttpHandlerResult.OK` (a typed HTTP 200 response). Go returns `nil` error. This depends on how the Go HTTP layer handles the return — if it treats `nil` error as 200 OK, it's fine.
+These look correct.
+Go controller passes to Go service:
+- `displayName` → Go service param 5 (`displayName string`) ✓
+- `addAdminDTO.RoleIDs` → Go service param 6 (`roleIds []int64`) ✓
+This is correct.
+Here's my final analysis:
+
+---
+
+[Context: ## AddAdmin]
+- [ ] **Missing parameters `registrationDate` and `upsert`**: The Java controller calls `authAndAddAdmin(requesterId, loginName, password, roleIds, displayName, new Date(), false)` with 7 parameters (plus the implicit `this`). The Go `AuthAndAddAdmin` only takes 6 parameters (`ctx, requesterId, loginName, rawPassword, displayName, roleIds`). However, examining the Go `AddAdmin` method at line 330, it internally uses `time.Now()` for `RegistrationDate` and always does insert (not upsert), which effectively matches `new Date()` and `false`. The Go service layer absorbs these two parameters, so this is actually **correct** — not a bug.
+Wait, let me reconsider. The task says to compare the **controller** methods. The Go controller calls `AuthAndAddAdmin` with 6 params. The Java controller calls `authAndAddAdmin` with 7 params (requesterId, loginName, password, roleIds, displayName, new Date(), false). But the Go service signature only has 6 params, so the Go controller can't pass those extra params. The Go service internally handles them. So from the controller's perspective, this is fine — the behavior is delegated correctly to the service.
+Let me reconsider the `displayName` nil vs empty string issue more carefully. In Java, `addAdminDTO.displayName()` can return `null`. In Go, when `DisplayName` is nil, it's converted to `""`. The Go `AddAdmin` method then stores `""` as the `DisplayName`. In Java, `null` would be stored. But the Go `Admin` PO has `DisplayName` as a `string` (not `*string`), so this is a type-level constraint, not a controller bug per se.
+The one definitive bug is the `UpdateAdminDTO` JSON tag mismatch.
+Let me also verify one more thing — the `AddAdmin` argument order. In the Go controller, `displayName` is passed before `roleIds`, but looking at the Go service signature `AuthAndAddAdmin(ctx, requesterId, loginName, rawPassword, displayName, roleIds)` — yes, displayName is param 5 and roleIds is param 6. In the Java service, the order is `authAndAddAdmin(requesterId, loginName, rawPassword, roleIds, displayName, registrationDate, upsert)` — roleIds is param 4 and displayName is param 5. The Go service reordered the parameters but the Go controller matches the Go service signature correctly. So no bug.
+Let me re-examine. The Go controller passes `updateAdminDTO.Name` to `AuthAndUpdateAdmins` as `displayName`. The Java DTO field is `displayName` with JSON name `displayName` (Java records use field names as JSON keys). The Go DTO field is `Name` with JSON tag `"name"`. This means:
+1. Clients sending JSON `{"displayName": "foo"}` will NOT populate `Name` in Go — **JSON deserialization bug**.
+2. The Go controller correctly passes whatever value is in `Name` to the service — the wiring is correct for the Go struct, but the JSON tag is wrong.
+Java returns `HttpHandlerResult.OK` — an HTTP 200 response. Go returns `nil` (no error). Whether this is equivalent depends on the Go HTTP routing layer. Since the Go method signature is `func (c *AdminController) CheckLoginNameAndPassword() error`, returning `nil` likely means "success, no body" which may not exactly match Java's `HttpHandlerResult.OK` behavior. But without seeing the Go HTTP handler dispatcher, I'll note it as a potential discrepancy.
+One more thing: the Java controller passes `addAdminDTO.roleIds()` as a `Set<Long>` to the service. The Go controller passes `addAdminDTO.RoleIDs` as `[]int64`. The Java controller passes `addAdminDTO.displayName()` (nullable String), while Go converts nil to empty string. Let me check if empty string vs nil matters in the Go service.
+Looking at Go `AddAdmin` line 341: `DisplayName: displayName` — it just stores it. In Java, the Admin PO's `displayName` field would be null if null was passed. In Go, it would be an empty string. This could cause issues if the storage layer treats them differently (e.g., MongoDB storing empty string vs null/absent).
+Actually, wait — the Go `AddAdminDTO.DisplayName` is `*string` (pointer to string). When nil, the controller converts it to `""`. But in Java, `addAdminDTO.displayName()` returns `null` which gets passed directly to the service. So the behavior diverges: Java stores null, Go stores "". This is a real behavioral difference but it's in the controller layer (the conversion from nil pointer to empty string).
+The Java controller passes `updateAdminDTO.displayName()` to the service. The Go controller passes `updateAdminDTO.Name` to the service. Both correctly read from their respective DTO fields. The bug is in the DTO definition (JSON tag), not in the controller's reading of it. But the controller does pass it correctly to the service given its own DTO struct.
+Actually, since the question asks about differences in the **controller methods**, and the DTO is shared infrastructure, the core issue is:
+1. **UpdateAdminDTO JSON field name mismatch**: Go uses `"name"` but Java uses `"displayName"`. This means the Go controller's `updateAdminDTO.Name` will always be nil when clients send the correct Java API request with `"displayName"`.
+2. **AddAdminDTO DisplayName nil handling**: Go converts nil DisplayName to `""`, Java passes null. Minor behavioral difference.
+Let me finalize:
+
+---
+
+[Context: ## UpdateAdmins]
+- [ ] **Wrong JSON field for display name in UpdateAdminDTO**: The Go `UpdateAdminDTO.Name` has JSON tag `"name"`, but the Java `UpdateAdminDTO.displayName` serializes as `"displayName"`. Clients using the original API sending `{"displayName": "foo"}` will not have the field parsed. The Go controller's `updateAdminDTO.Name` will always be nil when called through the standard API, so display name updates will silently be ignored.
+
+---
+
+[Context: ## AddAdmin]
+- [ ] **DisplayName nil converted to empty string instead of being preserved as nil/null**: When `addAdminDTO.DisplayName` is nil (not provided by client), the Go controller converts it to `""` (empty string) before passing to the service. In Java, `null` is passed directly, preserving the null semantics. This means Go will store an empty string in the database where Java would store null.
+These are the two bugs I've identified in the controller methods.
+Java returns `HttpHandlerResult.OK` which is an HTTP 200 with a specific response object. Go returns `nil` error. Whether these are equivalent depends entirely on the Go HTTP routing layer. I'll flag it as a potential difference but it may be intentional.
+Actually, looking more carefully at the Java `@HeadMapping` annotation — this handles HTTP HEAD requests. For HEAD requests, the response body is typically empty anyway, so returning `HttpHandlerResult.OK` vs `nil` error may well be equivalent. I'll skip this one.
+Looks correct. Go calls `AuthAndDeleteAdmins(ctx, requesterId, ids)` matching Java's `authAndDeleteAdmins(requestContext.getRequesterId(), ids)`.
+Looks correct. Both versions handle `withPassword` stripping, pagination via `getPageSize`.
+Looks correct.
+Here is the final result:
+
+---
+
+[Context: ## AddAdmin]
+- [ ] **Nil DisplayName converted to empty string**: When `addAdminDTO.DisplayName` is `nil` (client didn't provide it), the Go controller converts it to `""` (empty string) at line 35-38. The Java version passes `addAdminDTO.displayName()` directly which preserves `null`. This means Go stores empty string in the database where Java stores null, causing a behavioral difference in data persistence.
+
+---
+
+[Context: ## UpdateAdmins]
+- [ ] **UpdateAdminDTO uses wrong JSON field name for display name**: The Go `UpdateAdminDTO` struct uses field `Name` with JSON tag `"name"`, but the Java `UpdateAdminDTO` record field is `displayName` (which serializes as `"displayName"` in JSON). This means clients sending `{"displayName": "New Name"}` per the original API contract will not have the field deserialized in Go, causing display name updates to be silently ignored.
+*Checked methods: queryAdminPermissions()*
+Now I have a clear picture. Let me verify the `Group()` method in Go produces the correct group values by checking a few critical cases against the Java `Groups` class.
+The Java code uses explicit group mappings via the `Groups` inner class:
+- `SHUTDOWN` → `Groups.LIFECYCLE` (i.e., `"LIFECYCLE"`)
+- `STATISTICS_USER_QUERY`, `STATISTICS_GROUP_QUERY`, `STATISTICS_MESSAGE_QUERY` → `Groups.STATISTICS` (i.e., `"STATISTICS"`)
+- `LOG_QUERY` → `Groups.LOG` (i.e., `"LOG"`)
+The Go `Group()` method tries to derive the group by stripping the last verb suffix (`_CREATE`, `_DELETE`, `_UPDATE`, `_QUERY`). Let me check:
+- `SHUTDOWN` → no suffix matches → returns `"SHUTDOWN"` — **but Java returns `"LIFECYCLE"`**
+- `STATISTICS_USER_QUERY` → matches `_QUERY` → returns `"STATISTICS_USER"` — **but Java returns `"STATISTICS"`**
+- `STATISTICS_GROUP_QUERY` → matches `_QUERY` → returns `"STATISTICS_GROUP"` — **but Java returns `"STATISTICS"`**
+- `STATISTICS_MESSAGE_QUERY` → matches `_QUERY` → returns `"STATISTICS_MESSAGE"` — **but Java returns `"STATISTICS"`**
+- `LOG_QUERY` → matches `_QUERY` → returns `"LOG"` — Java returns `"LOG"` ✓
+- `SESSION_DELETE` → matches `_DELETE` → returns `"SESSION"` — Java returns `"SESSION"` ✓
+These are clear bugs in the `Group()` method logic.
+
+---
+
+[Context: ## QueryAdminPermissions]
+- [ ] **Bug: `Group()` method returns wrong group for `SHUTDOWN` permission** — The Go `Group()` method returns `"SHUTDOWN"` (the full string, since no verb suffix matches), but Java explicitly maps `SHUTDOWN` to group `"LIFECYCLE"` via `Groups.LIFECYCLE`.
+
+---
+
+[Context: ## QueryAdminPermissions]
+- [ ] **Bug: `Group()` method returns wrong group for `STATISTICS_*` permissions** — The Go `Group()` method strips only the trailing verb suffix, so `STATISTICS_USER_QUERY` → `"STATISTICS_USER"`, `STATISTICS_GROUP_QUERY` → `"STATISTICS_GROUP"`, `STATISTICS_MESSAGE_QUERY` → `"STATISTICS_MESSAGE"`. Java explicitly maps all three to group `"STATISTICS"` via `Groups.STATISTICS`.
+*Checked methods: addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO), queryAdminRoles(@QueryParam(required = false), queryAdminRoles(@QueryParam(required = false), updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO), deleteAdminRoles(RequestContext requestContext, Set<Long> ids)*
+Java's `authAndAddAdminRole` has `@NotNull Integer rank` - so rank is required and cannot be null. In the Java controller, `addAdminRoleDTO.rank()` returns an `Integer` which could be null if the DTO doesn't have it. The `@NotNull` annotation would fail validation. In Go, when rank is nil, it passes `0` - which silently passes but with a potentially incorrect value. However, this is an API input validation issue, not a logic bug per se.
+Now let me also check the `name` parameter. In Java, `addAdminRoleDTO.name()` returns `String` (nullable). The Java controller passes it directly. The Go controller dereferences `*addAdminRoleDTO.Name` to a `string` (empty string when nil), but the Java service has `@NotNull String name`, so null would fail validation. In Go, nil name becomes `""` which passes through but could bypass the not-null check.
+However, the question asks specifically about missing core logic, missing field assignments, or differences in behavior. Let me also check one more thing - the `includedPermissions` query parameter in `queryAdminRoles`:
+In Java `queryAdminRoles`, the query param `includedPermissions` is `Set<AdminPermission>` - it's already typed. In Go, it's `[]permission.AdminPermission` - also typed. So both work the same way for query.
+The core issue I see is:
+1. **`addAdminRole`**: The `matchPermissions` call is missing. In Java, `permissions` in the DTO is `Set<String>` (patterns like `"USER_*"`), and `matchPermissions` expands these to actual `AdminPermission` values. In Go, `permissions` is `[]AdminPermission` (already typed), so the user must pass exact permission values. This is a **behavioral difference** - wildcard permission matching is lost.
+2. **`updateAdminRole`**: Same `matchPermissions` issue as above.
+But wait - this is a design-level decision (string patterns vs typed enums in the DTO). The question asks about "missing core logic" and "differences in behavior compared to the Java version." The `matchPermissions` call IS core logic that is missing from the Go version. It means you can't pass `"ADMIN_*"` as a permission pattern in Go.
+Let me also verify if there's anything else about the `includedPermissions` query parameter in `queryAdminRoles` - in Java it's `Set<AdminPermission>` which means the framework does the conversion from string to enum. In Go, it's `[]permission.AdminPermission` which also requires exact values. Neither uses `matchPermissions`, so this is consistent.
+
+---
+
+[Context: ## addAdminRole]
+- [ ] Missing `matchPermissions` call: Java converts `Set<String>` permission patterns (e.g., `"USER_*"`) to `Set<AdminPermission>` using `AdminPermission.matchPermissions()` with wildcard pattern matching. The Go version accepts `[]AdminPermission` directly, losing wildcard/pattern matching support entirely.
+
+---
+
+[Context: ## addAdminRole]
+- [ ] When `Rank` is nil in the DTO, Go passes `0` as the rank value to the service. In Java, a null `rank` would trigger `@NotNull` validation and reject the request. The Go version silently uses `0`, which may create roles with an unintended rank.
+
+---
+
+[Context: ## addAdminRole]
+- [ ] When `Name` is nil in the DTO, Go passes `""` (empty string) to the service. In Java, a null `name` would trigger `@NotNull` validation and reject the request. The Go version passes an empty string, which may bypass validation.
+
+---
+
+[Context: ## updateAdminRole]
+- [ ] Missing `matchPermissions` call: Same as `addAdminRole` — Java converts `Set<String>` permission patterns to `Set<AdminPermission>` using `AdminPermission.matchPermissions()`. The Go version passes `[]AdminPermission` directly, losing wildcard/pattern matching support.
+No bugs found.
+No bugs found.
+*Checked methods: AddAdminDTO(String loginName, @SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
+Now I have the full picture. Let me analyze:
+**Java `AddAdminDTO`:**
+1. **Constructor/Fields**: `record AddAdminDTO(String loginName, @SensitiveProperty(ALLOW_DESERIALIZATION) String password, String displayName, Set<Long> roleIds)` — 4 fields.
+2. **`@SensitiveProperty(ALLOW_DESERIALIZATION)`**: The annotation on `password` means:
+   - **Serialization**: The password is **NOT serialized** (because `value != ALLOW_SERIALIZATION`, so `hasIgnoreMarker` returns `true` during serialization). Jackson will skip the `password` field when writing JSON.
+   - **Deserialization**: The password **IS deserialized** (because `value == ALLOW_DESERIALIZATION`, so `hasIgnoreMarker` returns `false` during deserialization). Jackson will read the `password` from incoming JSON.
+3. **`toString()`**: Masks the password with `SecurityValueConst.SENSITIVE_VALUE` which is `"***"`.
+**Go `AddAdminDTO`:**
+1. **Fields**: `LoginName`, `Password`, `DisplayName *string`, `RoleIDs []int64` — 4 fields. ✓
+2. **`@SensitiveProperty(ALLOW_DESERIALIZATION)` equivalent**: The Go struct has `Password string` with `json:"password"` — this means password is **both deserialized AND serialized**. There is **no** custom `MarshalJSON` on `AddAdminDTO` to strip the password during serialization. The `UpdateAdminDTO` correctly has a custom `MarshalJSON`, but `AddAdminDTO` does not.
+3. **`String()`**: Masks password with `"***"`. ✓
+This is a real bug — the `AddAdminDTO` in Go will serialize the password to JSON responses, while the Java version never serializes it.
+
+---
+
+[Context: ## AddAdminDTO (password serialization)]
+- [ ] **Missing `MarshalJSON` to prevent password serialization**: The Java `AddAdminDTO` uses `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` on the `password` field, which is handled by a global Jackson `AnnotationIntrospector` (`JsonCodecPool`) that prevents the field from being **serialized** (because `value != ALLOW_SERIALIZATION`) while still allowing **deserialization** (because `value == ALLOW_DESERIALIZATION`). The Go `AddAdminDTO` has no custom `MarshalJSON`, so the `Password` field will be serialized in JSON responses via the default `encoding/json` behavior. The `UpdateAdminDTO` correctly implements a custom `MarshalJSON` to strip the password, but `AddAdminDTO` is missing the same protection.
+*Checked methods: UpdateAdminDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
+
+---
+
+[Context: ## UpdateAdminDTO Constructor / @SensitiveProperty(ALLOW_DESERIALIZATION)]
+- [ ] **Wrong field name**: The Java `UpdateAdminDTO` has a field named `displayName`, but the Go version uses `Name` (with JSON tag `"name"`). The Java record field is `displayName`, and the JSON tag should be `"displayName"` to maintain API compatibility with the Java server. Using `"name"` means clients that send `"displayName"` (as they would with the Java server) will not have that field populated.
+
+---
+
+[Context: ## toString()]
+- [ ] **Mismatched field name in output**: The Java `toString()` outputs `displayName=<value>`, but the Go `String()` outputs `name=<value>`. This is a behavioral difference from the Java version — the string representation should use the same field name `displayName`.
+
+---
+
+[Context: ## toString()]
+- [ ] **Password masking differs for null**: The Java `toString()` always prints `password=<SENSITIVE_VALUE>` (a constant) regardless of whether password is null or not, because Java records hold the raw field value and the `toString` hardcodes `SecurityValueConst.SENSITIVE_VALUE`. In Go, when `Password` is nil, the string outputs `password=null`, but when non-nil it outputs `password=***`. The Java version does not distinguish between null and non-null — it always shows the same masked value. This is a behavioral difference.
+*Checked methods: authAndAddAdminRole(@NotNull Long requesterId, @NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), addAdminRole(@NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), authAndDeleteAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds), deleteAdminRoles(@NotEmpty Set<Long> roleIds), authAndUpdateAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), updateAdminRole(@NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), queryAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size), queryAndCacheRolesByRoleIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @NotNull Integer rankGreaterThan), countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks), queryHighestRankByAdminId(@NotNull Long adminId), queryHighestRankByRoleIds(@NotNull Set<Long> roleIds), isAdminRankHigherThanRank(@NotNull Long adminId, @NotNull Integer rank), queryPermissions(@NotNull Long adminId)*
+Now I have a complete picture. Let me carefully analyze each method.
+
+---
+
+[Context: ## AuthAndAddAdminRole]
+- [ ] **Bug: Missing "requester does not exist" handling when `isAdminRankHigherThanRank` returns empty** — In Java, `isAdminRankHigherThanRank(requesterId, rank).switchIfEmpty(adminService.errorRequesterNotExist())` returns an error if the admin doesn't exist (empty Mono). In Go, `IsAdminRankHigherThanRank` returns `(false, nil)` when `highest == nil`, so a non-existent requester silently returns "permission denied" instead of "requester does not exist".
+
+---
+
+[Context: ## AuthAndAddAdminRole]
+- [ ] **Bug: Missing "requester does not exist" handling when `queryPermissions` returns empty** — In Java, `queryPermissions(requesterId).switchIfEmpty(adminService.errorRequesterNotExist())`. In Go, if `QueryPermissions` returns an empty slice, the code proceeds and the permission check passes if the requested permissions list is also empty, instead of returning a "requester does not exist" error.
+
+---
+
+[Context: ## AuthAndAddAdminRole]
+- [ ] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")` in both `authAndAddAdminRole` and `addAdminRole`. Go does not check for empty permissions.
+
+---
+
+[Context: ## AuthAndAddAdminRole]
+- [ ] **Bug: Missing validation for name whitespace** — Java validates `Validator.noWhitespace(name, "name")`. Go only checks for empty string, not for whitespace-only strings.
+
+---
+
+[Context: ## AuthAndAddAdminRole]
+- [ ] **Bug: Missing validation for name length limit** — Java validates `Validator.length(name, "name", MIN_ROLE_NAME_LIMIT, MAX_ROLE_NAME_LIMIT)` (max 32). Go does not enforce a max name length.
+
+---
+
+[Context: ## AuthAndAddAdminRole]
+- [ ] **Bug: Missing validation for `roleId` not-null** — Java validates `Validator.notNull(roleId, "roleId")` with an explicit check. In Go, `roleId` is a pointer and nil is allowed (falls back to ID generation), which diverges from Java's contract where `roleId` is `@NotNull`.
+
+---
+
+[Context: ## AddAdminRole]
+- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (zero value if omitted), no validation.
+
+---
+
+[Context: ## AddAdminRole]
+- [ ] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")`. Go does not check.
+
+---
+
+[Context: ## AddAdminRole]
+- [ ] **Bug: Missing validation for name whitespace and max length** — Same as authAndAddAdminRole, Go doesn't check for whitespace or max length of 32.
+
+---
+
+[Context: ## AddAdminRole]
+- [ ] **Bug: Error message differs from Java** — Java says "The new role ID cannot be the root role ID"; Go says "the root role already exists". Different semantic meaning (Java prevents creating with root ID, Go implies root already exists).
+
+---
+
+[Context: ## AuthAndDeleteAdminRoles]
+- [ ] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which queries each target role individually and checks if the requester's rank is higher than **each** target role's rank. Go uses a simplified approach: queries the highest rank among target roles and checks if the requester is higher than that single rank. These behave differently when there are mixed target role ranks.
+
+---
+
+[Context: ## AuthAndDeleteAdminRoles]
+- [ ] **Bug: Root role ID check is done here in Go but belongs in `deleteAdminRoles`** — In Java, the root role check is in `deleteAdminRoles`. In Go, it's done in `authAndDeleteAdminRoles` but NOT in `DeleteAdminRoles`. So `DeleteAdminRoles` can be called directly with root role ID without protection.
+
+---
+
+[Context: ## AuthAndDeleteAdminRoles]
+- [ ] **Bug: Returns `(0, nil)` when no target roles found** — Java's `checkIfAllowedToManageRoles` returns `ACKNOWLEDGED_DELETE_RESULT` (a successful no-op with `deletedCount=0`), which is the same end result but the Go version returns `(0, nil)` from `QueryHighestRankByRoleIds` returning nil before calling `DeleteAdminRoles`. The Java version calls `deleteAdminRoles` even when no roles match (though it still returns a no-op result). This is functionally similar but the control flow is different.
+
+---
+
+[Context: ## DeleteAdminRoles]
+- [ ] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be deleted")`. Go does not check for root role ID in `DeleteAdminRoles`.
+
+---
+
+[Context: ## DeleteAdminRoles]
+- [ ] **Bug: Missing validation for roleIds not-empty** — Java validates `Validator.notEmpty(roleIds, "roleIds")`. Go does not validate empty roleIds at this level (relies on repository returning 0).
+
+---
+
+[Context: ## AuthAndUpdateAdminRoles]
+- [ ] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which does a unified rank check (requester rank vs each target role rank), and THEN separately checks permissions if `permissions` is non-null. Go splits this into: (1) check rank against the new `rank` param, (2) check rank against target roles' highest rank. The Java version checks target roles in a single `checkIfAllowedToManageRoles` call, while Go queries target roles differently.
+
+---
+
+[Context: ## AuthAndUpdateAdminRoles]
+- [ ] **Bug: Missing permissions authorization check** — Java checks that `requesterPermissions.containsAll(permissions)` before allowing the update with new permissions. Go's `AuthAndUpdateAdminRoles` does not verify the requester has the permissions being assigned.
+
+---
+
+[Context: ## AuthAndUpdateAdminRoles]
+- [ ] **Bug: Missing "requester does not exist" error** — Java uses `adminService.errorRequesterNotExist()` when queries return empty. Go returns `(0, nil)` or generic permission denied.
+
+---
+
+[Context: ## AuthAndUpdateAdminRoles]
+- [ ] **Bug: Root role check location** — Go checks root role in `AuthAndUpdateAdminRoles` but not in `UpdateAdminRole`. Java checks it in `UpdateAdminRole`. Calling `UpdateAdminRole` directly in Go allows updating the root role.
+
+---
+
+[Context: ## UpdateAdminRole]
+- [ ] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be updated")`. Go does not check.
+
+---
+
+[Context: ## UpdateAdminRole]
+- [ ] **Bug: Missing all-falsy/no-op early return** — Java checks `Validator.areAllFalsy(newName, permissions, rank)` and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately. Go passes everything to the repo, which checks `len(set) == 0` for a similar effect, but the semantics differ slightly.
+
+---
+
+[Context: ## UpdateAdminRole]
+- [ ] **Bug: Missing validation for newName whitespace and length** — Java validates `noWhitespace` and `length` on newName. Go does not.
+
+---
+
+[Context: ## UpdateAdminRole]
+- [ ] **Bug: Cache invalidation condition differs** — Java invalidates cache in `doOnNext` (only on successful update results), Go invalidates on `modified > 0`. Functionally similar but Go uses modified count while Java uses the update result acknowledgment.
+
+---
+
+[Context: ## QueryAdminRoles]
+- [ ] **Bug: Missing root role inclusion logic** — Java checks `isRootRoleQualified(ids, names, includedPermissions, ranks)` and if true, prepends the root role to the results via `startWith(getRootRole())`. Go simply queries the database and does not include the root role. The root role is an in-memory constant, not stored in the DB, so it will be missing from Go query results.
+
+---
+
+[Context: ## QueryAdminRoles]
+- [ ] **Bug: `includedPermissions` filter semantics differ** — Java uses `$in` to find roles that have any of the specified permissions. But the Go repo uses `$in` on the `perm` array field, which matches roles whose permissions array contains at least one of the specified values. Java's semantics for "includedPermissions" in `isRootRoleQualified` checks `containsAll(rootRole.getPermissions())` meaning the filter permissions must be a subset of root's permissions. The Go DB query uses `$in` which is "matches any", not "contains all".
+
+---
+
+[Context: ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan]
+- [ ] **Bug: Missing root role handling** — Java checks if `roleIds` contains `ADMIN_ROLE_ROOT_ID`. If so, it separates the root role, queries the DB for the remaining IDs, and prepends the root role if its rank is greater than `rankGreaterThan`. If roleIds is just the root ID, it returns the root role or empty based on rank. Go does none of this root role handling.
+
+====================
+Remember: ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.
