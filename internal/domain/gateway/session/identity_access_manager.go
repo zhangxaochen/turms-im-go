@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
-
 	adminconstant "im.turms/server/internal/domain/admin/constant"
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common/authorization"
@@ -24,6 +22,7 @@ import (
 	"im.turms/server/internal/infra/ldap"
 	"im.turms/server/internal/infra/ldap/element"
 	"im.turms/server/internal/infra/plugin"
+	"im.turms/server/internal/pkg/security"
 )
 
 // SessionIdentityAccessManagementSupport maps to the Java support interface.
@@ -138,14 +137,8 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.LoginAuthenticationFailed, nil
 	}
 
-	password, err := m.userService.FindPassword(ctx, loginInfo.UserID)
-	if err != nil {
-		return nil, err
-	}
-	if password == nil {
-		return bo.LoginAuthenticationFailed, nil
-	}
-
+	// Java parity: check active status FIRST, before fetching password.
+	// Java returns LOGGING_IN_USER_NOT_ACTIVE immediately for inactive users.
 	active, err := m.userService.IsActiveAndNotDeleted(ctx, loginInfo.UserID)
 	if err != nil {
 		return nil, err
@@ -154,8 +147,17 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.LoggingInUserNotActive, nil
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(*password), []byte(*loginInfo.Password))
+	password, err := m.userService.FindPassword(ctx, loginInfo.UserID)
 	if err != nil {
+		return nil, err
+	}
+	if password == nil {
+		return bo.LoginAuthenticationFailed, nil
+	}
+
+	// Java parity: use PasswordManager.matchesUserPassword which supports
+	// BCrypt, SALTED_SHA256, and NOOP encoding algorithms via prefixes.
+	if !security.MatchesPassword(*loginInfo.Password, *password) {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -167,6 +169,12 @@ func (m *PasswordSessionIdentityAccessManager) UpdateGlobalProperties(properties
 	if !ok {
 		return false
 	}
+	// Java parity: guard logic - if password manager was not enabled at startup,
+	// refuse to re-enable. In Java, this checks !userService.isEnabled().
+	// For Go, if userService is nil, we cannot enable password auth.
+	if props.Enabled && m.userService == nil {
+		return false
+	}
 	return props.Enabled
 }
 
@@ -175,6 +183,7 @@ type HttpSessionIdentityAccessManager struct {
 	client              *http.Client
 	url                 string
 	method              string
+	requestHeaders      map[string]string
 	expectedStatusCodes map[string]struct{}
 	expectedHeaders     map[string]string
 	expectedBodyFields  map[string]interface{}
@@ -200,6 +209,7 @@ func NewHttpSessionIdentityAccessManager(
 		},
 		url:                 reqProps.URL,
 		method:              string(reqProps.HttpMethod),
+		requestHeaders:      reqProps.Headers,
 		expectedStatusCodes: statusCodes,
 		expectedHeaders:     respProps.Headers,
 		expectedBodyFields:  respProps.BodyFields,
@@ -219,6 +229,11 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	// Java parity: apply configured request headers from properties
+	for k, v := range m.requestHeaders {
+		req.Header.Set(k, v)
+	}
 
 	resp, err := m.client.Do(req)
 	if err != nil {
@@ -242,12 +257,13 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	// Read body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return bo.LoginAuthenticationFailed, nil
+		return nil, fmt.Errorf("failed to read authentication response body: %w", err)
 	}
 
 	var respMap map[string]interface{}
 	if err := json.Unmarshal(respBody, &respMap); err != nil {
-		return bo.LoginAuthenticationFailed, nil
+		// Java parity: JSON parse failure is an error (IllegalArgumentException), not auth failure
+		return nil, fmt.Errorf("illegal request body: failed to parse JSON: %w", err)
 	}
 
 	// Check body fields
@@ -260,7 +276,8 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	// Decode policy
 	policy, err := m.policyDeserializer.Parse(respMap)
 	if err != nil {
-		return nil, err
+		// Java parity: wrap with context "Illegal request body"
+		return nil, fmt.Errorf("illegal request body: failed to parse policy: %w", err)
 	}
 
 	allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)
@@ -279,6 +296,7 @@ func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 	m.url = props.Http.Request.URL
 	m.method = string(props.Http.Request.HttpMethod)
 	m.client.Timeout = time.Duration(props.Http.Request.TimeoutMillis) * time.Millisecond
+	m.requestHeaders = props.Http.Request.Headers
 
 	m.expectedStatusCodes = make(map[string]struct{})
 	for _, sc := range props.Http.Authentication.ResponseExpectation.StatusCodes {
@@ -306,14 +324,16 @@ func NewJwtSessionIdentityAccessManager(
 		algorithm:     props.Algorithm,
 		secretKey:     []byte(props.SecretKey),
 		policyManager: policyManager,
-		// In a real system, these would be populated from properties too
+		// Java parity: expectedClaims populated from jwtProperties.getAuthentication().getExpectation().getCustomPayloadClaims()
+		// Currently empty as config doesn't expose this field yet
 		expectedClaims: make(map[string]interface{}),
 	}
 }
 
 func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
 	if loginInfo.Password == nil || *loginInfo.Password == "" {
-		return bo.LoginAuthenticationFailed, nil
+		// Java parity: blank JWT returns error (IllegalArgumentException), not auth failure
+		return nil, fmt.Errorf("invalid JWT token: JWT must not be blank")
 	}
 
 	tokenString := *loginInfo.Password
@@ -326,17 +346,22 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 	})
 
 	if err != nil || !token.Valid {
-		return bo.LoginAuthenticationFailed, nil
+		// Java parity: JWT parse failure returns error (IllegalArgumentException), not silent auth failure
+		return nil, fmt.Errorf("invalid JWT token: %w", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return bo.LoginAuthenticationFailed, nil
+		return nil, fmt.Errorf("invalid JWT token: unexpected claims type")
 	}
 
 	// Validate userId (subject)
+	// Java parity: missing sub returns error with descriptive message
 	sub, ok := claims["sub"].(string)
-	if !ok || sub != fmt.Sprintf("%d", loginInfo.UserID) {
+	if !ok || sub == "" {
+		return nil, fmt.Errorf("invalid JWT token: the sub claim in the payload must exist")
+	}
+	if sub != fmt.Sprintf("%d", loginInfo.UserID) {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -347,21 +372,25 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 		}
 	}
 
-	// Check policy if it exists in claims
-	if policyData, ok := claims["policy"].(map[string]interface{}); ok {
-		policyDeserializer := &authorization.PolicyDeserializer{}
-		policy, err := policyDeserializer.Parse(policyData)
-		if err == nil {
-			allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)
-			permissions := make(map[int32]bool, len(allowedRequestTypes))
-			for _, rt := range allowedRequestTypes {
-				permissions[rt] = true
-			}
-			return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
-		}
+	// Java parity: always parse policy from the full custom claims map.
+	// PolicyDeserializer scans all custom claims for policy-related fields.
+	policyDeserializer := &authorization.PolicyDeserializer{}
+	policy, err := policyDeserializer.Parse(claims)
+	if err != nil {
+		// Java parity: policy parse failure is an error (IllegalArgumentException)
+		return nil, fmt.Errorf("illegal policy in JWT claims: %w", err)
 	}
 
-	// Granted with all permissions by default if valid
+	if policy != nil && len(policy.Statements) > 0 {
+		allowedRequestTypes := m.policyManager.FindAllowedRequestTypes(policy)
+		permissions := make(map[int32]bool, len(allowedRequestTypes))
+		for _, rt := range allowedRequestTypes {
+			permissions[rt] = true
+		}
+		return bo.NewUserPermissionInfo(constant.ResponseStatusCode_OK, permissions), nil
+	}
+
+	// Granted with all permissions by default if valid JWT with no policy
 	return bo.GrantedWithAllPermissions, nil
 }
 

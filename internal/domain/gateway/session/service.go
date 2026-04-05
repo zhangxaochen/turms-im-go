@@ -481,19 +481,25 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
-		// Bug 534: Only close sessions matching the IP, not all device types
+		// Java parity: close ALL device types for users found by IP
+		// (Java calls closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason))
+		ipUserSet := make(map[int64]struct{})
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
 					if _, ok := userIdSet[sess.UserID]; !ok {
-						s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
-						totalCount++
+						ipUserSet[sess.UserID] = struct{}{}
 					}
 					return true
 				})
 			}
+		}
+		for userId := range ipUserSet {
+			// nil deviceTypes means ALL device types (matches Java: ALL_AVAILABLE_DEVICE_TYPES_SET)
+			n, _ := s.CloseLocalSession(ctx, userId, nil, closeReason)
+			totalCount += n
 		}
 	}
 
@@ -568,6 +574,8 @@ func (s *SessionService) UpdateLocalSession(ctx context.Context, userId int64, d
 		session.Location = &sessionbo.UserLocation{
 			Longitude: location.Longitude,
 			Latitude:  location.Latitude,
+			Timestamp: location.Timestamp,
+			Details:   location.Details,
 		}
 	}
 	return nil
