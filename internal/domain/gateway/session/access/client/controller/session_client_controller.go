@@ -81,32 +81,37 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		return nil, err
 	}
 
-	// Ensure the network connection is still open before cementing the session
-	isConnectionAlive := false
-	if conn := sessionWrapper.GetConnection(); conn != nil {
-		isConnectionAlive = conn.IsActive()
-	}
-
-	if isConnectionAlive {
+	if sessionWrapper.CancelEstablishTimeout() {
+		// Ensure the network connection is still open before cementing the session
+		isConnectionAlive := false
 		if conn := sessionWrapper.GetConnection(); conn != nil {
-			session.SetConnection(conn, net.ParseIP(sessionWrapper.GetIPStr()))
-		}
-		sessionWrapper.SetUserSession(session)
-
-		userSessionsManager := c.sessionService.GetUserSessionsManager(ctx, userID)
-		if userSessionsManager != nil {
-			// Fire session established hooks
-			c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)
-
-			// Invoke online handlers (plugins)
-			c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)
+			isConnectionAlive = conn.IsConnected()
 		}
 
-		return common.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK), nil
+		if isConnectionAlive {
+			if conn := sessionWrapper.GetConnection(); conn != nil {
+				session.SetConnection(conn, net.ParseIP(sessionWrapper.GetIPStr()))
+			}
+			sessionWrapper.SetUserSession(session)
+
+			userSessionsManager := c.sessionService.GetUserSessionsManager(ctx, userID)
+			if userSessionsManager != nil {
+				// Fire session established hooks
+				c.sessionService.OnSessionEstablished(ctx, userSessionsManager, session.DeviceType)
+
+				// Invoke online handlers (plugins)
+				c.sessionService.InvokeGoOnlineHandlers(ctx, userSessionsManager, session)
+			}
+
+			return common.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK), nil
+		}
+
+		// If the connection dropped during the process, clean up
+		c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, sessionbo.NewCloseReason(constant.SessionCloseStatus_LOGIN_TIMEOUT))
+		// Return nil, nil to act like Mono.empty() causing no response sent
+		return nil, nil
 	}
 
-	// If the connection dropped during the process, clean up
 	c.sessionService.CloseLocalSession(ctx, userID, []protocol.DeviceType{deviceType}, sessionbo.NewCloseReason(constant.SessionCloseStatus_LOGIN_TIMEOUT))
-	// Return nil, nil to act like Mono.empty() causing no response sent
-	return nil, nil
+	return common.RequestHandlerResultOfCode(constant.ResponseStatusCode_LOGIN_TIMEOUT), nil
 }

@@ -6,3 +6,6 @@ API Error: 429 {"error":{"code":"1302","message":"您的账户已达到速率限
 API Error: 400 {"type":"error","error":{"message":"操作失败","code":"500"},"request_id":"202604051736280160868473ac473e"}
 [Sun Apr  5 17:38:05 CST 2026] Agent failed with exit code 1. Retrying in 15 seconds...
 [Sun Apr  5 17:38:21 CST 2026] Attempt 3 / 5
+API Error: 400 {"type":"error","error":{"message":"操作失败","code":"500"},"request_id":"20260405175535ac2ccb90b8d64cfa"}
+[Sun Apr  5 18:00:17 CST 2026] Agent failed with exit code 1. Retrying in 15 seconds...
+[Sun Apr  5 18:00:32 CST 2026] Attempt 4 / 5
