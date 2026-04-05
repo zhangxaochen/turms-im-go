@@ -34,46 +34,75 @@ func (m *ServiceAddressManager) UpdateCustomAddresses(
 	advertiseStrategy string,
 	advertiseHost string,
 	attachPortToHost bool,
-	wsHost string, wsPort int, wsSslEnabled bool,
-	tcpHost string, tcpPort int,
-	udpHost string, udpPort int,
+	wsHost string, wsPort int, wsSslEnabled bool, wsEnabled bool,
+	tcpHost string, tcpPort int, tcpEnabled bool,
+	udpHost string, udpPort int, udpEnabled bool,
 ) {
-	// For WS
-	resolvedWsHost := m.queryHost(advertiseStrategy, wsHost, advertiseHost)
-	scheme := "ws://"
-	if wsSslEnabled {
-		scheme = "wss://"
-	}
-	if attachPortToHost {
-		m.wsAddress = fmt.Sprintf("%s%s:%d", scheme, resolvedWsHost, wsPort)
-	} else {
-		m.wsAddress = fmt.Sprintf("%s%s", scheme, resolvedWsHost)
-	}
-
-	// For TCP
-	resolvedTcpHost := m.queryHost(advertiseStrategy, tcpHost, advertiseHost)
-	if attachPortToHost {
-		m.tcpAddress = fmt.Sprintf("%s:%d", resolvedTcpHost, tcpPort)
-	} else {
-		m.tcpAddress = resolvedTcpHost
+	// For WS - only update when WS is enabled (matches Java)
+	if wsEnabled {
+		resolvedWsHost := m.queryHost(advertiseStrategy, wsHost, advertiseHost)
+		scheme := "ws://"
+		if wsSslEnabled {
+			scheme = "wss://"
+		}
+		if attachPortToHost {
+			m.wsAddress = fmt.Sprintf("%s%s:%d", scheme, resolvedWsHost, wsPort)
+		} else {
+			m.wsAddress = fmt.Sprintf("%s%s", scheme, resolvedWsHost)
+		}
 	}
 
-	// For UDP
-	resolvedUdpHost := m.queryHost(advertiseStrategy, udpHost, advertiseHost)
-	if attachPortToHost {
-		m.udpAddress = fmt.Sprintf("%s:%d", resolvedUdpHost, udpPort)
-	} else {
-		m.udpAddress = resolvedUdpHost
+	// For TCP - only update when TCP is enabled (matches Java)
+	if tcpEnabled {
+		resolvedTcpHost := m.queryHost(advertiseStrategy, tcpHost, advertiseHost)
+		if attachPortToHost {
+			m.tcpAddress = fmt.Sprintf("%s:%d", resolvedTcpHost, tcpPort)
+		} else {
+			m.tcpAddress = resolvedTcpHost
+		}
+	}
+
+	// For UDP - only update when UDP is enabled (matches Java)
+	if udpEnabled {
+		resolvedUdpHost := m.queryHost(advertiseStrategy, udpHost, advertiseHost)
+		if attachPortToHost {
+			m.udpAddress = fmt.Sprintf("%s:%d", resolvedUdpHost, udpPort)
+		} else {
+			m.udpAddress = resolvedUdpHost
+		}
 	}
 }
 
 func (m *ServiceAddressManager) queryHost(advertiseStrategy, host, advertiseHost string) string {
-	// Basic simulation of Java's queryHost
-	if advertiseStrategy == "ADVERTISE_ADDRESS" && advertiseHost != "" {
+	switch advertiseStrategy {
+	case "ADVERTISE_ADDRESS":
+		if advertiseHost == "" {
+			panic("The advertised host is not specified")
+		}
 		return advertiseHost
-	}
-	if host != "" {
+	case "BIND_ADDRESS":
+		if host == "" {
+			panic("The bind host is not specified")
+		}
 		return host
+	case "PRIVATE_ADDRESS":
+		// TODO: Query local private IP via IpDetector.queryPrivateIp()
+		// Falls back to host parameter for now
+		if host != "" {
+			return host
+		}
+		return "127.0.0.1"
+	case "PUBLIC_ADDRESS":
+		// TODO: Query public IP via IpDetector.queryPublicIp()
+		// Falls back to host parameter for now
+		if host != "" {
+			return host
+		}
+		return "127.0.0.1"
+	default:
+		if host != "" {
+			return host
+		}
+		return "127.0.0.1"
 	}
-	return "127.0.0.1" // Fallback local address
 }
