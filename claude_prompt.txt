@@ -1,0 +1,282 @@
+You are a specialized coding sub-agent. Your task is to resolve exactly 50 pending bugs in the turms-go codebase.
+CRITICAL RULES:
+1. Be extremely concise in your output and thoughts. Minimize conversational filler.
+2. Fix the issues below, test them, and YOU MUST automatically commit your changes with a descriptive commit message.
+
+BUGS TO FIX:
+====================
+
+[Context: ## handleUpdateGroupJoinRequestRequest]
+- [ ] Missing `reason` parameter: Java passes `request.getReason()`, Go does not
+
+---
+
+[Context: ## handleUpdateGroupJoinRequestRequest]
+- [ ] Missing auth prefix: Java calls `authAndHandleJoinRequest`, Go calls `ReplyToJoinRequest` — missing auth
+
+---
+
+[Context: ## handleUpdateGroupJoinRequestRequest]
+- [ ] Missing complex multi-notification logic: Java handles requester-added-as-new-member notifications, querying group members, and sending separate join-request-updated and member-added notifications, Go has none
+
+---
+
+[Context: ## handleDeleteGroupJoinQuestionsRequest]
+- [ ] Non-batched deletion: Java calls `authAndDeleteGroupJoinQuestions(userId, groupId, questionIdsSet)` as a single batch call, Go iterates and calls `DeleteJoinQuestion` individually — not atomic
+
+---
+
+[Context: ## handleDeleteGroupJoinQuestionsRequest]
+- [ ] Missing auth check: Java calls `authAnd...`, Go calls `DeleteJoinQuestion` without auth
+
+---
+
+[Context: ## handleDeleteGroupJoinQuestionsRequest]
+- [ ] Missing `groupId` parameter: Java passes `groupId` for authorization, Go does not pass it
+
+---
+
+[Context: ## handleQueryGroupJoinRequestsRequest]
+- [ ] Different branching logic: Java calls `authAndQueryGroupJoinRequestsWithVersion(userId, groupId, lastUpdatedDate)` with a single method regardless of whether `groupId` is null, Go branches into two different methods — this may produce different behavior when `groupId` is null
+
+---
+
+[Context: ## handleUpdateGroupJoinQuestionRequest]
+- [ ] Hardcoded `groupId=0`: Go passes `0` as the second argument to `UpdateJoinQuestion`, Java passes `request.getQuestionId()` to `authAndUpdateGroupJoinQuestion` which uses the question's own groupId internally for auth — the `0` is likely wrong
+
+---
+
+[Context: ## handleUpdateGroupJoinQuestionRequest]
+- [ ] Missing auth check: Java calls `authAnd...`, Go calls `UpdateJoinQuestion` without auth
+
+---
+
+[Context: ## handleCreateGroupMembersRequest]
+- [ ] Missing `name` parameter: Java passes `request.getName()` (or null), Go does not pass it
+
+---
+
+[Context: ## handleCreateGroupMembersRequest]
+- [ ] Missing notification logic: Java conditionally notifies other group members, added members, and requester's other sessions, Go has none
+
+---
+
+[Context: ## handleDeleteGroupMembersRequest]
+- [ ] Missing empty-deletion check: Java checks `if (deletedUserIds.isEmpty()) { return RequestHandlerResult.OK; }`, Go does not
+
+---
+
+[Context: ## handleDeleteGroupMembersRequest]
+- [ ] Missing notification logic: Java conditionally notifies other group members, removed members, and requester's other sessions, Go has none
+
+---
+
+[Context: ## handleQueryGroupMembersRequest]
+- [ ] Missing `memberIds`-based query branch: Java has two paths — if `memberIdsCount > 0`, calls `authAndQueryGroupMembers(userId, groupId, memberIds, withStatus)`; otherwise calls `authAndQueryGroupMembersWithVersion(userId, groupId, lastUpdatedDate, withStatus)`. Go only has the versioned path
+
+---
+
+[Context: ## handleQueryGroupMembersRequest]
+- [ ] Missing `withStatus` parameter: Java extracts `request.getWithStatus()` and passes it, Go does not extract or pass it
+
+---
+
+[Context: ## handleUpdateGroupMemberRequest]
+- [ ] Missing notification logic: Java conditionally notifies other group members, updated member, and requester's other sessions, Go has none
+*Checked methods: NewGroupQuestion(String question, LinkedHashSet<String> answers, Integer score)*
+Now I have the complete picture. Let me compare the Java and Go implementations.
+**Java `NewGroupQuestion`**: This is a simple Java record (data carrier) with fields `String question`, `LinkedHashSet<String> answers`, `Integer score`. No validation logic in the constructor itself.
+**Java `validNewGroupQuestion`**: Validates that:
+1. `answers` is not empty (throws if empty)
+2. `score` is not null AND `score >= 0` (throws if null or negative)
+**Go `NewGroupQuestion` struct**: Has fields `Question *string`, `Answers []string`, `Score *int`. This is a faithful structural port (slice instead of LinkedHashSet is acceptable since Go has no LinkedHashSet).
+**Go `ValidNewGroupQuestion`**: Only checks if the input is nil. Missing the core validation logic from Java.
+
+---
+
+[Context: ## ValidNewGroupQuestion]
+- [ ] Missing validation that `Answers` slice is not empty. The Java version throws `EMPTY_GROUP_QUESTION_ANSWERS` ("The answers of a new group question should not be empty") when `question.answers().isEmpty()`. The Go version only checks for nil input and does not validate the answers field at all.
+
+---
+
+[Context: ## ValidNewGroupQuestion]
+- [ ] Missing validation that `Score` is not nil and is >= 0. The Java version throws `ILLEGAL_GROUP_QUESTION_SCORE` ("The score of a new group question should not be null and must be greater than or equal to 0") when `score` is null or negative. The Go version does not validate the score field at all.
+
+---
+
+[Context: ## ValidNewGroupQuestion]
+- [ ] The function accepts `interface{}` instead of `*dto.NewGroupQuestion`, which means it cannot access typed fields and perform the actual field-level validations that the Java version performs.
+*Checked methods: getEntityExpireAfterSeconds(), updateStatusIfPending(Long invitationId, RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session), updateInvitations(Set<Long> invitationIds, @Nullable Long inviterId, @Nullable Long inviteeId, @Nullable String content, @Nullable RequestStatus status, @Nullable Date creationDate, @Nullable Date responseDate), count(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange), findGroupIdAndInviteeIdAndStatus(Long invitationId), findGroupIdAndInviterIdAndInviteeIdAndStatus(Long invitationId), findInvitationsByInviteeId(Long inviteeId), findInvitationsByInviterId(Long inviterId), findInvitationsByGroupId(Long groupId), findInviteeIdAndGroupIdAndCreationDateAndStatus(Long invitationId), findInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)*
+Now I have all the context needed for a thorough comparison. Here are my findings:
+
+---
+
+[Context: ## getEntityExpireAfterSeconds()]
+- [ ] The Go `GroupInvitationRepository` does not implement `getEntityExpireAfterSeconds()`. The Java version returns a configurable `expireAfterSeconds` value from properties, while the Go version has no such method or property at all. The `user_friend_request_repository.go` has `GetEntityExpireAfterSeconds()` but hardcodes it to `0`, which is also incorrect — it should read from configuration like the Java version.
+
+---
+
+[Context: ## updateStatusIfPending()]
+- [ ] The Java version includes an expiration check in the filter via `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())`, which ensures the update only applies to non-expired invitations. The Go version omits this expiration check entirely — the filter only checks `_id` and `stat`.
+
+---
+
+[Context: ## updateStatusIfPending()]
+- [ ] The Java version uses `setIfNotNull` for the response date, meaning if `new Date()` were null it wouldn't be set. However, since `new Date()` is never null in Java, this is a no-op guard. The Go version always sets `rd` to the provided `responseDate` parameter. This is functionally acceptable but differs in that the Java version dynamically generates the date internally (`new Date()`), while the Go version requires it as a parameter — meaning the caller must pass the current time. This is a design difference rather than a bug per se.
+
+---
+
+[Context: ## updateInvitations()]
+- [ ] The Java version calls `updateResponseDateBasedOnStatus` which sets/unsets the response date based on whether the status is processed by a responder (ACCEPTED, DECLINED, IGNORED). If the status is one of these, it sets the response date (to `responseDate` or `new Date()` if null). If the status is anything else (e.g., PENDING), it **unsets** the response date field. The Go version completely omits this logic — it only sets `rd` if `responseDate` is non-nil, with no status-based logic.
+
+---
+
+[Context: ## count()]
+- [ ] The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> inviterIds`, `Set<Long> inviteeIds` (sets for filtering multiple values), but the Go version only accepts `*int64` (single values) for `groupID`, `inviterID`, `inviteeID`. This means the Go version cannot filter by multiple IDs as the Java version can.
+
+---
+
+[Context: ## count()]
+- [ ] The Java version accepts `Set<RequestStatus> statuses` (a set of statuses), while the Go version only accepts `*po.RequestStatus` (a single status). This prevents filtering by multiple statuses.
+
+---
+
+[Context: ## count()]
+- [ ] The Java version uses `DateRange` parameters for creation, response, and expiration date filtering, with `getCreationDateRange` that combines the creation date range with the expiration date range (adjusting expiration by `expireAfterSeconds` and intersecting). The Go version only has a single `lastUpdatedDate *time.Time` parameter and uses a simple `$gt` comparison, completely losing the date range filtering semantics.
+
+---
+
+[Context: ## count()]
+- [ ] The Java version uses `isExpiredOrNot` on the filter, which conditionally adds expiration-based filtering depending on whether the `statuses` set contains `EXPIRED` or `PENDING`. The Go version completely omits this expiration-aware filtering.
+
+---
+
+[Context: ## count()]
+- [ ] The Java version has no `ids` parameter omission in the Go version — the Go `CountInvitations` method does not accept or filter by `ids` at all.
+
+---
+
+[Context: ## findGroupIdAndInviteeIdAndStatus()]
+- [ ] The Java version includes `CREATION_DATE` in the projection explicitly (commented as "Required by findExpirableDoc") and then calls `findExpirableDoc`, which applies `transformExpiredRequest` to change the status to `EXPIRED` if the request is pending and expired. The Go version does not include the creation date in its projection and does not perform any expiration transformation — so if an invitation is pending but expired, the Go version will return `PENDING` while the Java version returns `EXPIRED`.
+
+---
+
+[Context: ## findGroupIdAndInviterIdAndInviteeIdAndStatus()]
+- [ ] Same bug as `findGroupIdAndInviteeIdAndStatus`: the Java version includes `CREATION_DATE` in the projection and calls `findExpirableDoc` for expiration transformation, but the Go version omits the creation date from the projection and does not transform expired pending requests to `EXPIRED` status.
+
+---
+
+[Context: ## findInvitationsByInviteeId()]
+- [ ] The Java version calls `findExpirableDocs(filter)` which applies `transformExpiredRequest` on each result to change pending-and-expired requests to `EXPIRED` status. The Go version does not perform this expiration transformation.
+
+---
+
+[Context: ## findInvitationsByInviteeId()]
+- [ ] The Java version does not specify any sort order, while the Go version adds `SetSort(bson.M{"cd": -1})` (descending by creation date). This is an extra behavior not present in the Java version.
+
+---
+
+[Context: ## findInvitationsByInviterId()]
+- [ ] The Go implementation is a stub that returns `nil, nil` — it does not query the database at all.
+
+---
+
+[Context: ## findInvitationsByGroupId()]
+- [ ] The Java version calls `findExpirableDocs(filter)` which applies expiration transformation. The Go version does not transform expired pending requests to `EXPIRED` status.
+
+---
+
+[Context: ## findInvitationsByGroupId()]
+- [ ] The Java version does not specify a sort order, while the Go version adds `SetSort(bson.M{"cd": -1})`.
+
+---
+
+[Context: ## findInviteeIdAndGroupIdAndCreationDateAndStatus()]
+- [ ] The Java version calls `mongoClient.findOne(entityClass, filter, options)` directly (not `findExpirableDoc`), so it does **not** apply expiration transformation. The Go version also does not apply it. However, the Java version still includes `CREATION_DATE` in the projection. The Go version also includes `cd` in its projection. This method appears to be correctly ported.
+
+---
+
+[Context: ## findInvitations()]
+- [ ] The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> inviterIds`, `Set<Long> inviteeIds`, `Set<RequestStatus> statuses` (all sets for multi-value filtering), but the Go version only accepts single `*int64` / `*po.RequestStatus` values. This prevents filtering by multiple IDs and statuses.
+
+---
+
+[Context: ## findInvitations()]
+- [ ] The Java version uses `DateRange` parameters for creation, response, and expiration date filtering, with `getCreationDateRange` combining creation and expiration ranges. The Go version replaces all three date ranges with a single `lastUpdatedDate *time.Time` using `$gt`, losing all the range filtering semantics.
+
+---
+
+[Context: ## findInvitations()]
+- [ ] The Java version uses `isExpiredOrNot` for expiration-aware filtering based on statuses. The Go version completely omits this.
+
+---
+
+[Context: ## findInvitations()]
+- [ ] The Java version applies `findExpirableDocs` with `transformExpiredRequest` to transform pending-expired results to `EXPIRED` status. The Go version does not perform this transformation.
+
+---
+
+[Context: ## findInvitations()]
+- [ ] The Java version does not specify a sort order, while the Go version adds `SetSort(bson.M{"cd": -1})`.
+
+---
+
+[Context: ## findInvitations()]
+- [ ] The Go version always applies pagination (skip/limit) even when `page` and `size` are zero (which would skip 0 and limit 0, returning no results). The Java version uses `paginateIfNotNull` which likely only applies pagination when page/size are non-null.
+*Checked methods: getEntityExpireAfterSeconds(), updateStatusIfPending(Long requestId, RequestStatus status, Long responderId, @Nullable String reason, @Nullable ClientSession session), updateRequests(Set<Long> requestIds, @Nullable Long requesterId, @Nullable Long responderId, @Nullable String content, @Nullable RequestStatus status, @Nullable Date creationDate, @Nullable Date responseDate), countRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange), findGroupId(Long requestId), findRequesterIdAndStatusAndGroupId(Long requestId), findRequestsByGroupId(Long groupId), findRequestsByRequesterId(Long requesterId), findRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)*
+Now I have all the data needed. Let me compile the full bug report.
+**Java:** Uses `updateResponseDateBasedOnStatus` which either sets or unsets `responseDate` based on whether `status` is ACCEPTED/DECLINED/IGNORED (sets responseDate, defaulting to `new Date()` if null) or not (unsets responseDate).
+**Go:** Simply sets `responseDate` if non-nil via `updateOps["rd"] = *responseDate`. Does NOT implement the `updateResponseDateBasedOnStatus` logic. If status is e.g. ACCEPTED and responseDate is nil, the Java code would set responseDate to `new Date()`, but the Go code would skip it entirely. If status is e.g. CANCELED, the Java code would `$unset` the responseDate, but the Go code would leave it unchanged.
+**Java:** Uses `getEntityExpirationDate()` and applies `isExpiredOrNot(statuses, creationDateFieldName, expirationDate)` which filters by expiration status. Also uses `getCreationDateRange(creationDateRange, expirationDateRange)` which converts expiration date range to creation date range.
+**Go:** No expiration logic at all. Uses `expirationDateRange.ToBson()` applied directly to `"ed"` field, but the Java code applies `expirationDateRange` by converting it to a creation date range offset (not querying an `"ed"` field directly). The `"ed"` field does not even exist in the `GroupJoinRequest` Go struct.
+**Java:** Uses `findExpirableDocs(filter)` which calls `transformExpiredRequest` — it checks if a PENDING request has expired (based on creationDate and expireAfterSeconds) and sets its status to EXPIRED in the returned results.
+**Go:** Returns raw documents without any expiration transformation. Pending requests that have expired will still show as PENDING.
+**Java:** Uses `findExpirableDoc(filter, options)` which applies `transformExpiredRequest` — includes `CREATION_DATE` in the projection specifically for expiration checking.
+**Go:** Does NOT include `cd` (creationDate) in the projection and does NOT apply any expiration transformation.
+**Java:** Uses `getEntityExpirationDate()`, `isExpiredOrNot(statuses, ...)`, `getCreationDateRange(creationDateRange, expirationDateRange)`, and `findExpirableDocs(filter, options)` which applies expiration transformation.
+**Go:** None of this expiration logic is present. Additionally, the Java takes `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> requesterIds`, `Set<Long> responderIds`, `Set<RequestStatus> statuses` (sets/multi-value filters), but the Go takes single `*int64` values for groupID, requesterID, responderID, status. The Java method also uses DateRange objects for date filtering, while the Go uses single `*time.Time` pointers with `$gte`/`$lt` comparisons instead of proper range queries.
+---
+Here is the final bug report:
+
+---
+
+[Context: ## getEntityExpireAfterSeconds]
+- [ ] Go `group_join_request_repository.go` has no `GetEntityExpireAfterSeconds()` method at all. The Java version reads `expireAfterSeconds` from `propertiesManager` and returns it. This value is used by all expiration-aware methods (`countRequests`, `findRequests`, `findRequestsByGroupId`, `findRequestsByRequesterId`, `findRequesterIdAndStatusAndGroupId`).
+
+---
+
+[Context: ## updateStatusIfPending]
+- [ ] Go `group_invitation_repository.go` `UpdateStatusIfPending` is missing the `isNotExpired` filter condition that the Java version applies. The Java code has `.isNotExpired(GroupInvitation.Fields.CREATION_DATE, getEntityExpirationDate())` in the filter, meaning it only updates if the request has NOT expired. The Go code has no expiration check, so it will update expired pending requests that the Java code would skip.
+
+---
+
+[Context: ## updateStatusIfPending]
+- [ ] Go `group_invitation_repository.go` `UpdateStatusIfPending` does not set `RESPONSE_DATE` conditionally — the Java uses `setIfNotNull` for responseDate with `new Date()`, but actually `new Date()` is never null, so it always sets it. The Go code always sets `rd` from the parameter. This is functionally acceptable if callers pass the correct time, but the Java code generates the date internally.
+
+---
+
+[Context: ## updateRequests]
+- [ ] Go `group_join_request_repository.go` `UpdateRequests` does not implement the `updateResponseDateBasedOnStatus` logic. In Java, when `status` is ACCEPTED/DECLINED/IGNORED (processed by responder), it sets `responseDate` (defaulting to `new Date()` if null). When `status` is any other value (e.g., CANCELED/PENDING), it `$unset`s `responseDate`. The Go code simply sets `rd` only if `responseDate` is non-nil, and never unsets it.
+
+---
+
+[Context: ## updateRequests]
+- [ ] Go `group_invitation_repository.go` `UpdateInvitations` has the same missing `updateResponseDateBasedOnStatus` logic — it never unsets `responseDate` for non-responder-processed statuses.
+
+---
+
+[Context: ## countRequests]
+- [ ] Go `group_join_request_repository.go` `CountRequests` does not call `getEntityExpirationDate()` or apply `isExpiredOrNot(statuses, creationDateFieldName, expirationDate)` filter logic. The Java code filters expired/non-expired documents based on `statuses` containing EXPIRED or PENDING, adding `$lt` or `$gteOrNull` conditions on the creation date. The Go code has none of this.
+
+---
+
+[Context: ## countRequests]
+- [ ] Go `group_join_request_repository.go` `CountRequests` does not call `getCreationDateRange(creationDateRange, expirationDateRange)` to convert the expiration date range into a creation date range offset. The Java code intersects the creation date range with the shifted expiration date range. The Go code applies `expirationDateRange.ToBson()` directly to the `"ed"` field, but `"ed"` does not exist in the `GroupJoinRequest` Go struct — this field will never match any documents.
+
+---
+
+[Context: ## findGroupId]
+- [ ] No significant bug — the Go implementation correctly queries by `_id`, projects only `gid`, and returns the group ID.
+
+====================
+Remember: ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.

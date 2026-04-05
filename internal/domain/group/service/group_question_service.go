@@ -142,6 +142,42 @@ func (s *GroupQuestionService) DeleteJoinQuestion(ctx context.Context, questionI
 	return s.questionRepo.Delete(ctx, questionID)
 }
 
+// AuthAndDeleteGroupJoinQuestions performs batched deletion of join questions with authorization.
+// @MappedFrom authAndDeleteGroupJoinQuestions(@NotNull Long userId, @NotNull Long groupId, @NotEmpty Set<Long> questionIds)
+func (s *GroupQuestionService) AuthAndDeleteGroupJoinQuestions(ctx context.Context, requesterID int64, groupID int64, questionIDs []int64) error {
+	if len(questionIDs) == 0 {
+		return nil
+	}
+	isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
+	if err != nil {
+		return err
+	}
+	if !isOwnerOrManager {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_DELETE_GROUP_QUESTION), "Only owner or manager can delete questions")
+	}
+
+	for _, qid := range questionIDs {
+		if err := s.questionRepo.Delete(ctx, qid); err != nil {
+			return err
+		}
+	}
+	return s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+}
+
+// AuthAndUpdateGroupJoinQuestion updates a join question with authorization, looking up groupId from the question itself.
+// @MappedFrom authAndUpdateGroupJoinQuestion(@NotNull Long requesterId, @NotNull Long questionId, @Nullable String question, @Nullable Set<String> answers, @Nullable Integer score)
+func (s *GroupQuestionService) AuthAndUpdateGroupJoinQuestion(ctx context.Context, requesterID int64, questionID int64, question *string, answers []string, score *int) error {
+	// Look up the question's groupId for authorization
+	groupID, err := s.questionRepo.FindGroupId(ctx, questionID)
+	if err != nil {
+		return err
+	}
+	if groupID == nil {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP), "Question not found")
+	}
+	return s.AuthAndUpdateQuestion(ctx, requesterID, *groupID, questionID, question, answers, score)
+}
+
 func (s *GroupQuestionService) UpdateJoinQuestion(ctx context.Context, questionID int64, groupID int64, newQuestion *string, newAnswers []string, newScore *int) error {
 	return s.AuthAndUpdateQuestion(ctx, 0, groupID, questionID, newQuestion, newAnswers, newScore)
 }
