@@ -17,6 +17,89 @@ const (
 	KindNotSet KindCase = 0
 )
 
+// kindCaseNames maps KindCase (proto field number) to the Java TurmsRequest.KindCase enum name.
+// This mirrors Java's KindCase.name() for logging parity.
+var kindCaseNames = map[KindCase]string{
+	KindNotSet: "KIND_NOT_SET",
+	3:    "CREATE_SESSION_REQUEST",
+	4:    "DELETE_SESSION_REQUEST",
+	5:    "QUERY_CONVERSATIONS_REQUEST",
+	6:    "UPDATE_CONVERSATION_REQUEST",
+	7:    "UPDATE_TYPING_STATUS_REQUEST",
+	8:    "CREATE_MESSAGE_REQUEST",
+	9:    "QUERY_MESSAGES_REQUEST",
+	10:   "UPDATE_MESSAGE_REQUEST",
+	11:   "CREATE_GROUP_MEMBERS_REQUEST",
+	12:   "DELETE_GROUP_MEMBERS_REQUEST",
+	13:   "QUERY_GROUP_MEMBERS_REQUEST",
+	14:   "UPDATE_GROUP_MEMBER_REQUEST",
+	100:  "QUERY_USER_PROFILES_REQUEST",
+	101:  "QUERY_NEARBY_USERS_REQUEST",
+	102:  "QUERY_USER_ONLINE_STATUSES_REQUEST",
+	103:  "UPDATE_USER_LOCATION_REQUEST",
+	104:  "UPDATE_USER_ONLINE_STATUS_REQUEST",
+	105:  "UPDATE_USER_REQUEST",
+	200:  "CREATE_FRIEND_REQUEST_REQUEST",
+	201:  "CREATE_RELATIONSHIP_GROUP_REQUEST",
+	202:  "CREATE_RELATIONSHIP_REQUEST",
+	203:  "DELETE_FRIEND_REQUEST_REQUEST",
+	204:  "DELETE_RELATIONSHIP_GROUP_REQUEST",
+	205:  "DELETE_RELATIONSHIP_REQUEST",
+	206:  "QUERY_FRIEND_REQUESTS_REQUEST",
+	207:  "QUERY_RELATED_USER_IDS_REQUEST",
+	208:  "QUERY_RELATIONSHIP_GROUPS_REQUEST",
+	209:  "QUERY_RELATIONSHIPS_REQUEST",
+	210:  "UPDATE_FRIEND_REQUEST_REQUEST",
+	211:  "UPDATE_RELATIONSHIP_GROUP_REQUEST",
+	212:  "UPDATE_RELATIONSHIP_REQUEST",
+	300:  "CREATE_GROUP_REQUEST",
+	301:  "DELETE_GROUP_REQUEST",
+	302:  "QUERY_GROUPS_REQUEST",
+	303:  "QUERY_JOINED_GROUP_IDS_REQUEST",
+	304:  "QUERY_JOINED_GROUP_INFOS_REQUEST",
+	305:  "UPDATE_GROUP_REQUEST",
+	400:  "CREATE_GROUP_BLOCKED_USER_REQUEST",
+	401:  "DELETE_GROUP_BLOCKED_USER_REQUEST",
+	402:  "QUERY_GROUP_BLOCKED_USER_IDS_REQUEST",
+	403:  "QUERY_GROUP_BLOCKED_USER_INFOS_REQUEST",
+	500:  "CHECK_GROUP_JOIN_QUESTIONS_ANSWERS_REQUEST",
+	501:  "CREATE_GROUP_INVITATION_REQUEST",
+	502:  "CREATE_GROUP_JOIN_REQUEST_REQUEST",
+	503:  "CREATE_GROUP_JOIN_QUESTIONS_REQUEST",
+	504:  "DELETE_GROUP_INVITATION_REQUEST",
+	505:  "DELETE_GROUP_JOIN_REQUEST_REQUEST",
+	506:  "DELETE_GROUP_JOIN_QUESTIONS_REQUEST",
+	507:  "QUERY_GROUP_INVITATIONS_REQUEST",
+	508:  "QUERY_GROUP_JOIN_REQUESTS_REQUEST",
+	509:  "QUERY_GROUP_JOIN_QUESTIONS_REQUEST",
+	510:  "UPDATE_GROUP_INVITATION_REQUEST",
+	511:  "UPDATE_GROUP_JOIN_QUESTION_REQUEST",
+	512:  "UPDATE_GROUP_JOIN_REQUEST_REQUEST",
+	900:  "CREATE_MEETING_REQUEST",
+	901:  "DELETE_MEETING_REQUEST",
+	902:  "QUERY_MEETINGS_REQUEST",
+	903:  "UPDATE_MEETING_REQUEST",
+	904:  "UPDATE_MEETING_INVITATION_REQUEST",
+	1000: "DELETE_RESOURCE_REQUEST",
+	1001: "QUERY_RESOURCE_DOWNLOAD_INFO_REQUEST",
+	1002: "QUERY_RESOURCE_UPLOAD_INFO_REQUEST",
+	1003: "QUERY_MESSAGE_ATTACHMENT_INFOS_REQUEST",
+	1004: "UPDATE_MESSAGE_ATTACHMENT_INFO_REQUEST",
+	1100: "DELETE_CONVERSATION_SETTINGS_REQUEST",
+	1101: "QUERY_CONVERSATION_SETTINGS_REQUEST",
+	1102: "UPDATE_CONVERSATION_SETTINGS_REQUEST",
+}
+
+// KindCaseName returns the Java-style enum name for a KindCase value.
+// Returns "KIND_NOT_SET" for 0, and the enum name for known field numbers.
+// Falls back to the numeric string for unknown field numbers.
+func KindCaseName(kc KindCase) string {
+	if name, ok := kindCaseNames[kc]; ok {
+		return name
+	}
+	return fmt.Sprintf("%d", int32(kc))
+}
+
 // SimpleTurmsNotification maps to SimpleTurmsNotification record in Java.
 // @MappedFrom SimpleTurmsNotification
 type SimpleTurmsNotification struct {
@@ -54,7 +137,7 @@ func NewSimpleTurmsRequest(requestID int64, reqType KindCase, createSessionReq *
 
 // @MappedFrom toString()
 func (r *SimpleTurmsRequest) ToString() string {
-	csrStr := "<nil>"
+	csrStr := "null"
 	if r.CreateSessionRequest != nil {
 		csrStr = r.CreateSessionRequest.String()
 	}
@@ -233,10 +316,20 @@ func (p *TurmsNotificationParser) ParseSimpleNotification(data []byte) (*SimpleT
 				if err != nil {
 					return nil, newIllegalArgErr("Not a valid notification: " + err.Error())
 				}
-				pos = np + int(length)
+				endPos := np + int(length)
+				if endPos > len(data) {
+					return nil, newIllegalArgErr("Not a valid notification: truncated length-delimited field")
+				}
+				pos = endPos
 			case 1: // 64-bit
+				if pos+8 > len(data) {
+					return nil, newIllegalArgErr("Not a valid notification: truncated 64-bit field")
+				}
 				pos += 8
 			case 5: // 32-bit
+				if pos+4 > len(data) {
+					return nil, newIllegalArgErr("Not a valid notification: truncated 32-bit field")
+				}
 				pos += 4
 			default:
 				return nil, newIllegalArgErr(fmt.Sprintf("Not a valid notification: unknown wire type %d", wireType))
@@ -248,7 +341,7 @@ func (p *TurmsNotificationParser) ParseSimpleNotification(data []byte) (*SimpleT
 		return nil, newIllegalArgErr("Not a valid notification: No requester ID")
 	}
 	if !kindSet || kindCase == KindNotSet {
-		return nil, newIllegalArgErr("Not a valid notification: Unknown request type")
+		return nil, newIllegalArgErr(fmt.Sprintf("Not a valid notification: Unknown request type: %d", kindCase))
 	}
 
 	return NewSimpleTurmsNotification(requesterID, closeStatus, kindCase), nil
@@ -305,7 +398,7 @@ func (p *TurmsRequestParser) ParseSimpleRequest(data []byte) (*SimpleTurmsReques
 		return nil, newIllegalArgErr("Not a valid request: No request ID")
 	}
 	if kindCase == KindNotSet {
-		return nil, newIllegalArgErr("Not a valid request: Unknown request type")
+		return nil, newIllegalArgErr(fmt.Sprintf("Not a valid request: Unknown request type: %d", kindCase))
 	}
 
 	// CREATE_SESSION_REQUEST has KindCase value matching proto field number for create_session_request.
