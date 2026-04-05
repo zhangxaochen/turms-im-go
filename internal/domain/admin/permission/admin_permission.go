@@ -185,17 +185,32 @@ var AllAdminPermissions = []AdminPermission{
 	Shutdown,
 }
 
-// Group returns the permission group name by extracting the prefix before the last underscore-delimited verb.
-// e.g. "USER_CREATE" → "USER", "GROUP_MEMBER_UPDATE" → "GROUP_MEMBER"
+// Group returns the permission group name, matching Java's explicit group mappings.
+// Java uses Groups inner class with explicit assignments:
+//   - SHUTDOWN → LIFECYCLE
+//   - STATISTICS_USER_QUERY, STATISTICS_GROUP_QUERY, STATISTICS_MESSAGE_QUERY → STATISTICS
+//   - LOG_QUERY → LOG
+//   - All others strip the trailing verb suffix (e.g. USER_CREATE → USER)
+//
 // @MappedFrom AdminPermission.group (via @Getter in Java)
 func (p AdminPermission) Group() string {
-	s := string(p)
-	// Walk backwards to find the last segment (the verb: CREATE/DELETE/UPDATE/QUERY)
-	verbs := []string{"_CREATE", "_DELETE", "_UPDATE", "_QUERY"}
-	for _, v := range verbs {
-		if len(s) > len(v) && s[len(s)-len(v):] == v {
-			return s[:len(s)-len(v)]
+	// Explicit group mappings matching Java's Groups class
+	switch p {
+	case Shutdown:
+		return "LIFECYCLE"
+	case StatisticsUserQuery, StatisticsGroupQuery, StatisticsMessageQuery:
+		return "STATISTICS"
+	case LogQuery:
+		return "LOG"
+	default:
+		// Strip trailing verb suffix for standard permissions
+		s := string(p)
+		verbs := []string{"_CREATE", "_DELETE", "_UPDATE", "_QUERY"}
+		for _, v := range verbs {
+			if len(s) > len(v) && s[len(s)-len(v):] == v {
+				return s[:len(s)-len(v)]
+			}
 		}
+		return s
 	}
-	return s
 }
