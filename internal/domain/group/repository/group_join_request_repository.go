@@ -168,10 +168,11 @@ func (r *groupJoinRequestRepository) FindRequests(ctx context.Context,
 
 	skip := int64(page * size)
 	limit := int64(size)
-	opts := options.Find().
-		SetSort(bson.M{"cd": -1}).
-		SetSkip(skip).
-		SetLimit(limit)
+	opts := options.Find()
+	// Only apply pagination when page and size are meaningful (Java uses paginateIfNotNull)
+	if page > 0 || size > 0 {
+		opts = opts.SetSkip(skip).SetLimit(limit)
+	}
 
 	cursor, err := r.coll.Find(ctx, filter, opts)
 	if err != nil {
@@ -193,6 +194,7 @@ func (r *groupJoinRequestRepository) UpdateRequests(ctx context.Context, request
 	}
 
 	updateOps := bson.M{}
+	unsetOps := bson.M{}
 	if requesterId != nil {
 		updateOps["rqid"] = *requesterId
 	}
@@ -202,20 +204,41 @@ func (r *groupJoinRequestRepository) UpdateRequests(ctx context.Context, request
 	if content != nil {
 		updateOps["cnt"] = *content
 	}
-	if status != nil {
-		updateOps["stat"] = *status
-	}
 	if creationDate != nil {
 		updateOps["cd"] = *creationDate
 	}
-	if responseDate != nil {
+
+	// updateResponseDateBasedOnStatus: if status is a responder-processed status
+	// (ACCEPTED, DECLINED, IGNORED), set responseDate (defaulting to now if nil).
+	// Otherwise (e.g. CANCELED, PENDING), unset responseDate.
+	if status != nil {
+		updateOps["stat"] = *status
+		switch *status {
+		case po.RequestStatusAccepted, po.RequestStatusAcceptedWithoutConfirm, po.RequestStatusDeclined, po.RequestStatusIgnored:
+			rd := responseDate
+			if rd == nil {
+				now := time.Now()
+				rd = &now
+			}
+			updateOps["rd"] = *rd
+		default:
+			unsetOps["rd"] = ""
+		}
+	} else if responseDate != nil {
 		updateOps["rd"] = *responseDate
 	}
 
-	if len(updateOps) == 0 {
+	if len(updateOps) == 0 && len(unsetOps) == 0 {
 		return nil
 	}
-	_, err := r.coll.UpdateMany(ctx, filter, bson.M{"$set": updateOps})
+	update := bson.M{}
+	if len(updateOps) > 0 {
+		update["$set"] = updateOps
+	}
+	if len(unsetOps) > 0 {
+		update["$unset"] = unsetOps
+	}
+	_, err := r.coll.UpdateMany(ctx, filter, update)
 	return err
 }
 
