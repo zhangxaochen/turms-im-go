@@ -66,8 +66,14 @@ func (r *MeetingRepository) UpdateCancelDateIfNotCanceled(ctx context.Context, m
 
 // @MappedFrom updateMeeting(Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password)
 func (r *MeetingRepository) UpdateMeeting(ctx context.Context, meetingID int64, name *string, intro *string, password *string) error {
+	_, err := r.UpdateMeetingWithResult(ctx, meetingID, name, intro, password)
+	return err
+}
+
+// UpdateMeetingWithResult updates a meeting and returns whether any document was modified.
+// Bug fix: Java checks updateResult.getModifiedCount() > 0 and returns FAILED if 0 rows modified.
+func (r *MeetingRepository) UpdateMeetingWithResult(ctx context.Context, meetingID int64, name *string, intro *string, password *string) (bool, error) {
 	filter := bson.M{"_id": meetingID}
-	update := bson.M{}
 	set := bson.M{}
 	if name != nil {
 		set["n"] = *name
@@ -78,12 +84,14 @@ func (r *MeetingRepository) UpdateMeeting(ctx context.Context, meetingID int64, 
 	if password != nil {
 		set["pw"] = *password
 	}
-	if len(set) > 0 {
-		update["$set"] = set
-		_, err := r.col.UpdateOne(ctx, filter, update)
-		return err
+	if len(set) == 0 {
+		return false, nil
 	}
-	return nil
+	res, err := r.col.UpdateOne(ctx, filter, bson.M{"$set": set})
+	if err != nil {
+		return false, err
+	}
+	return res.ModifiedCount > 0, nil
 }
 
 // @MappedFrom find(@Nullable Collection<Long> ids, @Nullable Collection<Long> creatorIds, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)
