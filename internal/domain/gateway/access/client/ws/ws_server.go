@@ -10,9 +10,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pires/go-proxyproto"
 	"im.turms/server/internal/domain/common/constant"
 	"im.turms/server/internal/domain/gateway/access/client/common"
 	"im.turms/server/internal/domain/gateway/access/client/udp"
@@ -51,16 +53,19 @@ func (h *HttpForwardedHeaderHandler) Apply(r *http.Request) error {
 func (h *HttpForwardedHeaderHandler) parseForwardedInfo(r *http.Request, forwarded string) error {
 	// Take first entry
 	part := strings.Split(forwarded, ",")[0]
-	
+
+	// Preserve original port from RemoteAddr
+	_, origPort, _ := net.SplitHostPort(r.RemoteAddr)
+
 	if match := forRegex.FindStringSubmatch(part); len(match) > 1 {
 		ip := strings.TrimSpace(match[1])
-		if _, port, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-			r.RemoteAddr = net.JoinHostPort(ip, port)
+		if origPort != "" && !strings.Contains(ip, ":") {
+			r.RemoteAddr = net.JoinHostPort(ip, origPort)
 		} else {
 			r.RemoteAddr = ip
 		}
 	} else if h.isForwardedIpRequired {
-		return fmt.Errorf("forwarded IP is required but not found in Forwarded header")
+		return fmt.Errorf("The \"for\" directive must be specified in the Forwarded header when IP is required")
 	}
 
 	if match := protoRegex.FindStringSubmatch(part); len(match) > 1 {
@@ -73,15 +78,19 @@ func (h *HttpForwardedHeaderHandler) parseForwardedInfo(r *http.Request, forward
 }
 
 func (h *HttpForwardedHeaderHandler) parseXForwardedInfo(r *http.Request) error {
+	// Preserve original port from RemoteAddr
+	_, origPort, _ := net.SplitHostPort(r.RemoteAddr)
+
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		ip := strings.TrimSpace(strings.Split(xff, ",")[0])
 		if ip == "" {
 			if h.isForwardedIpRequired {
-				return fmt.Errorf("forwarded IP is required but not found in X-Forwarded-For header")
+				return fmt.Errorf("forwarded IP is required but X-Forwarded-For header is empty")
 			}
 		} else {
-			if _, port, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-				r.RemoteAddr = net.JoinHostPort(ip, port)
+			// Preserve original port on X-Forwarded-For IP
+			if origPort != "" && !strings.Contains(ip, ":") {
+				r.RemoteAddr = net.JoinHostPort(ip, origPort)
 			} else {
 				r.RemoteAddr = ip
 			}
@@ -98,15 +107,13 @@ func (h *HttpForwardedHeaderHandler) parseXForwardedInfo(r *http.Request) error 
 	}
 	if xfport := r.Header.Get("X-Forwarded-Port"); xfport != "" {
 		portStr := strings.TrimSpace(strings.Split(xfport, ",")[0])
-		if _, err := strconv.Atoi(portStr); err != nil {
-			return fmt.Errorf("The \"for\" directive must be specified")
-		} else {
-			host, _, err2 := net.SplitHostPort(r.URL.Host)
-			if err2 == nil {
-				r.URL.Host = net.JoinHostPort(host, portStr)
-			} else {
-				r.URL.Host = net.JoinHostPort(r.URL.Host, portStr)
-			}
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			// Java throws IllegalArgumentException unconditionally for invalid port
+			return fmt.Errorf("Invalid X-Forwarded-Port value: %q", portStr)
+		}
+		if port > 0 && !strings.Contains(r.URL.Host, ":") {
+			r.URL.Host = fmt.Sprintf("%s:%d", r.URL.Host, port)
 		}
 	}
 	return nil
@@ -169,8 +176,8 @@ func (c *WSConnection) Start(onMessage func(common.NetConnection, []byte)) {
 	}()
 
 	for {
-		c.conn.SetReadDeadline(time.Now().Add(time.Duration(300) * time.Second)) // Use heartbeat interval if available
-		msgType, message, err := c.conn.ReadMessage()
+		c.conn.SetReadDeadline(time.Now().Add(time.Duration(300) * time.Second))
+		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
 				// Normal close
@@ -179,7 +186,8 @@ func (c *WSConnection) Start(onMessage func(common.NetConnection, []byte)) {
 			}
 			return
 		}
-		if msgType == websocket.BinaryMessage {
+		// Only process binary messages (matching Java's BinaryWebSocketFrame filter)
+		if messageType == websocket.BinaryMessage {
 			onMessage(c, message)
 		}
 	}
@@ -205,7 +213,7 @@ func (c *WSConnection) CloseWithReason(reason sessionbo.CloseReason) bool {
 			}
 		}
 
-		// Bug: Send a Close frame (512)
+		// Send a Close frame
 		if reason.Status == constant.SessionCloseStatus_SWITCH {
 			_ = c.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(int(constant.SessionCloseStatus_SWITCH), reason.Reason))
 		} else {
@@ -244,14 +252,13 @@ func (f *WebSocketServerFactory) Create(
 	serverStatusManager common.ServerStatusManager,
 	sessionService common.SessionService,
 	callback func(*websocket.Conn, http.Header, net.Addr),
-) (net.Listener, *http.Server, error) {
-	
+) (*http.Server, net.Listener, error) {
+	addr := fmt.Sprintf("%s:%d", props.Host, props.Port)
+
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  props.ReadBufferSize,
 		WriteBufferSize: props.WriteBufferSize,
 		CheckOrigin: func(r *http.Request) bool {
-			// In Java: CORS allows all by default unless configured.
-			// Same for Go with this true-returning closure.
 			return true
 		},
 	}
@@ -261,7 +268,7 @@ func (f *WebSocketServerFactory) Create(
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// CORS Preflight
+		// CORS Preflight - match Java's headers exactly
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "*")
@@ -300,17 +307,12 @@ func (f *WebSocketServerFactory) Create(
 			}
 		}
 
-		// Service availability & IP blocklist
+		// Service availability - silently drop blocked IPs (matching Java's Mono.empty())
 		if !availabilityHandler.HandleConnection(&dummyNetConn{r}) {
-			// Bug 8003/8005: Close connection silently, no 503 response
 			hj, ok := w.(http.Hijacker)
 			if ok {
-				conn, _, err := hj.Hijack()
-				if err == nil {
-					conn.Close()
-				}
-			} else {
-				w.WriteHeader(http.StatusServiceUnavailable)
+				conn, _, _ := hj.Hijack()
+				_ = conn.Close()
 			}
 			return
 		}
@@ -321,7 +323,13 @@ func (f *WebSocketServerFactory) Create(
 			return
 		}
 
-		// Fallback remote address resolution (Bug 539)
+		// Set socket options on the underlying TCP connection (matching Java's childOptions)
+		if tcpConn, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
+			_ = tcpConn.SetNoDelay(true)    // TCP_NODELAY (Java: .childOption(TCP_NODELAY, true))
+			_ = tcpConn.SetLinger(0)         // SO_LINGER=0 (Java: .childOption(SO_LINGER, 0)) - RST on close
+		}
+
+		// Remote address resolution
 		host, portStr, splitErr := net.SplitHostPort(r.RemoteAddr)
 		var resolvedAddr net.Addr
 		if splitErr == nil {
@@ -334,37 +342,69 @@ func (f *WebSocketServerFactory) Create(
 		go callback(conn, r.Header, resolvedAddr)
 	})
 
+	// Create listener with configurable backlog and SO_REUSEADDR
+	lc := net.ListenConfig{
+		Control: func(network, address string, c syscall.RawConn) error {
+			return c.Control(func(fd uintptr) {
+				_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+				backlog := props.Backlog
+				if backlog <= 0 {
+					backlog = 4096
+				}
+				_ = syscall.Listen(int(fd), backlog)
+			})
+		},
+	}
+	l, err := lc.Listen(context.Background(), "tcp", addr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to bind the WebSocket server on: %s: %w", addr, err)
+	}
+
+	// SSL/TLS support placeholder (matching Java's SslProperties configuration)
+	// TODO: Implement full TLS configuration when SSL support is needed:
+	// if props.Ssl.Enabled {
+	//     tlsConfig := &tls.Config{...}
+	//     l = tls.NewListener(l, tlsConfig)
+	// }
+
+	// Proxy protocol support
+	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
+		pL := &proxyproto.Listener{Listener: l}
+		blSvc := blocklistService
+		if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
+			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
+				return proxyproto.REQUIRE, nil
+			}
+		} else {
+			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
+				if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
+					if blSvc.IsIpBlocked(tcpAddr.IP.To4()) {
+						return proxyproto.REJECT, nil
+					}
+				}
+				return proxyproto.USE, nil
+			}
+		}
+		l = pL
+	}
+
+	// Wiretap
+	if props.Wiretap {
+		l = common.NewWiretapListener(l)
+	}
+
+	// Metrics
+	if props.MetricsEnabled {
+		l = common.NewMetricsListener(l, "turms.gateway.server.websocket")
+	}
+
 	server := &http.Server{
-		Addr:        fmt.Sprintf("%s:%d", props.Host, props.Port),
+		Addr:        addr,
 		Handler:     mux,
 		IdleTimeout: time.Duration(props.IdleTimeoutSeconds) * time.Second,
 	}
 
-	addr := fmt.Sprintf("%s:%d", props.Host, props.Port)
-	lc := net.ListenConfig{}
-	l, err := lc.Listen(context.Background(), "tcp", addr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to bind the WS server on %s: %w", addr, err)
-	}
-
-	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
-		pL := &proxyproto.Listener{Listener: l}
-		policyFunc := func(upstream net.Addr) (proxyproto.Policy, error) {
-			if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
-				if blocklistService != nil && blocklistService.IsIpBlocked(tcpAddr.IP) {
-					return proxyproto.REJECT, fmt.Errorf("IP is blocked")
-				}
-			}
-			if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
-				return proxyproto.REQUIRE, nil
-			}
-			return proxyproto.USE, nil
-		}
-		pL.Policy = policyFunc
-		l = pL
-	}
-
-	return l, server, nil
+	return server, l, nil
 }
 
 // @MappedFrom WebSocketUserSessionAssembler
@@ -414,10 +454,11 @@ func (d *dummyNetConn) Read(b []byte) (n int, err error)   { return 0, io.EOF }
 func (d *dummyNetConn) Write(b []byte) (n int, err error)  { return 0, nil }
 func (d *dummyNetConn) Close() error                       { return nil }
 func (d *dummyNetConn) LocalAddr() net.Addr                { return nil }
-func (d *dummyNetConn) RemoteAddr() net.Addr               { 
-	// Basic parsing of r.RemoteAddr
+func (d *dummyNetConn) RemoteAddr() net.Addr {
 	host, _, _ := net.SplitHostPort(d.r.RemoteAddr)
-	if host == "" { host = d.r.RemoteAddr }
+	if host == "" {
+		host = d.r.RemoteAddr
+	}
 	return &net.TCPAddr{IP: net.ParseIP(host)}
 }
 func (d *dummyNetConn) SetDeadline(t time.Time) error      { return nil }
