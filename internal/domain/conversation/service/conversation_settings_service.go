@@ -37,7 +37,8 @@ func (s *ConversationSettingsService) UpsertPrivateConversationSettings(ctx cont
 	if len(settings) == 0 {
 		return false, nil
 	}
-	related, err := s.userRelationshipService.HasRelationshipAndNotBlocked(ctx, ownerId, userId)
+	// Java parity: uses hasOneSidedRelationship (checks either direction, without blocked check)
+	related, err := s.userRelationshipService.HasOneSidedRelationship(ctx, ownerId, userId)
 	if err != nil {
 		return false, err
 	}
@@ -71,9 +72,18 @@ func (s *ConversationSettingsService) DeleteSettings(ctx context.Context, ownerI
 }
 
 // @MappedFrom unsetSettings(Long ownerId, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Set<String> settingNames)
-func (s *ConversationSettingsService) UnsetSettings(ctx context.Context, ownerId int64, userIds []int64, groupIds []int64, settingNames []string) (bool, error) {
+func (s *ConversationSettingsService) UnsetSettings(ctx context.Context, ownerId int64, userIds []int64, groupIds []int64, settingNames []string, deletableSettings []string) (bool, error) {
+	// Java parity: when settingNames is empty and deletableSettings is non-empty, use deletableSettings
+	effectiveSettingNames := settingNames
+	if len(effectiveSettingNames) == 0 && len(deletableSettings) > 0 {
+		effectiveSettingNames = deletableSettings
+	}
+	// Java parity: when settingNames is empty and deletableSettings is also empty, return false
+	if len(effectiveSettingNames) == 0 {
+		return false, nil
+	}
 	targetIds := s.getTargetIds(userIds, groupIds)
-	return s.conversationSettingsRepository.UnsetSettings(ctx, ownerId, targetIds, settingNames)
+	return s.conversationSettingsRepository.UnsetSettings(ctx, ownerId, targetIds, effectiveSettingNames)
 }
 
 func (s *ConversationSettingsService) UnsetGroupConversationSettings(ctx context.Context, ownerId int64, groupId int64, settingNames []string) (bool, error) {

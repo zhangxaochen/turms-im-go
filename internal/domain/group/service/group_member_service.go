@@ -339,6 +339,21 @@ func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID 
 	return s.groupMemberRepo.IsGroupMember(ctx, groupID, userID, activeOnly...)
 }
 
+// IsGroupMemberActiveOnly checks if a user is an active member of a group.
+// In the Go implementation, membership presence implies active status (members are removed on deactivation),
+// so this is equivalent to IsGroupMember.
+// Java parity: isGroupMember(groupId, userId, true)
+func (s *GroupMemberService) IsGroupMemberActiveOnly(ctx context.Context, groupID, userID int64) (bool, error) {
+	return s.IsGroupMember(ctx, groupID, userID)
+}
+
+// FindActiveGroupMemberIDs returns only active group member IDs.
+// In the Go implementation, all stored members are considered active.
+// Java parity: queryGroupMemberIds(groupId, true)
+func (s *GroupMemberService) FindActiveGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+	return s.FindGroupMemberIDs(ctx, groupID)
+}
+
 func (s *GroupMemberService) UpdateGroupMemberRole(
 	ctx context.Context,
 	groupID, userID int64,

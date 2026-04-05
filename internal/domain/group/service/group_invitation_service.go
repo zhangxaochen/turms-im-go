@@ -358,6 +358,47 @@ func (s *GroupInvitationService) UpdatePendingInvitationStatus(ctx context.Conte
 
 // Backward Compatibility Aliases
 
+// CreateGroupInvitation creates a group invitation directly without auth checks (admin API).
+// Java parity: createGroupInvitation(Long id, Long groupId, Long inviterId, Long inviteeId, String content, RequestStatus status, Date creationDate, Date responseDate)
+func (s *GroupInvitationService) CreateGroupInvitation(
+	ctx context.Context,
+	id int64,
+	groupID int64,
+	inviterID int64,
+	inviteeID int64,
+	content string,
+	status po.RequestStatus,
+	creationDate *time.Time,
+	responseDate *time.Time,
+) (*po.GroupInvitation, error) {
+	now := time.Now()
+	cd := now
+	if creationDate != nil {
+		cd = *creationDate
+	}
+	inv := &po.GroupInvitation{
+		ID:           id,
+		GroupID:      groupID,
+		InviterID:    inviterID,
+		InviteeID:    inviteeID,
+		Content:      content,
+		Status:       status,
+		CreationDate: cd,
+		ResponseDate: responseDate,
+	}
+	err := s.invRepo.Insert(ctx, inv)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update versions
+	_ = s.groupVersionService.UpdateInvitationsVersion(ctx, groupID)
+	_ = s.userVersionService.UpdateSentGroupInvitationsVersion(ctx, inviterID)
+	_ = s.userVersionService.UpdateReceivedGroupInvitationsVersion(ctx, inviteeID)
+
+	return inv, nil
+}
+
 func (s *GroupInvitationService) CreateInvitation(ctx context.Context, groupID int64, inviterID int64, inviteeID int64, content string) (*po.GroupInvitation, error) {
 	return s.AuthAndCreateGroupInvitation(ctx, inviterID, groupID, inviteeID, content)
 }
