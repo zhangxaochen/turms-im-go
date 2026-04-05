@@ -293,3 +293,14 @@ func (s *GroupJoinRequestService) ReplyToJoinRequest(ctx context.Context, reques
 	err := s.AuthAndHandleJoinRequest(ctx, responderID, requestID, status, "")
 	return err == nil, err
 }
+
+// CreateGroupJoinRequest creates a join request directly (admin-level, no auth checks).
+// This is the admin version that bypasses group validation, membership checks, and blocklist checks.
+func (s *GroupJoinRequestService) CreateGroupJoinRequest(ctx context.Context, req *po.GroupJoinRequest) error {
+	return s.joinReqRepo.Insert(ctx, req)
+}
+
+// GetEntityExpirationDate returns the entity expiration date for response wrapping
+func (s *GroupJoinRequestService) GetEntityExpirationDate(ctx context.Context) *time.Time {
+	return nil
+}

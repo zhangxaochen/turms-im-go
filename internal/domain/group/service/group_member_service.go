@@ -710,6 +710,28 @@ func (s *GroupMemberService) QueryGroupMembersWithFilter(ctx context.Context, gr
 	return s.groupMemberRepo.FindGroupsMembers(ctx, groupIds, userIds, roles, joinDateStart, joinDateEnd, muteEndDateStart, muteEndDateEnd, page, size)
 }
 
+// DeleteGroupMembersByKeys performs a batch delete of group members by their composite keys.
+func (s *GroupMemberService) DeleteGroupMembersByKeys(ctx context.Context, keys []po.GroupMemberKey, updateVersion bool) (*mongo.DeleteResult, error) {
+	result, err := s.groupMemberRepo.DeleteByIds(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range keys {
+		s.memberCache.Delete(fmt.Sprintf("member:%d:%d", key.GroupID, key.UserID))
+		s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", key.GroupID, key.UserID))
+	}
+	if updateVersion {
+		seen := make(map[int64]bool)
+		for _, key := range keys {
+			if !seen[key.GroupID] {
+				seen[key.GroupID] = true
+				_ = s.groupVersionService.UpdateMembersVersion(ctx, key.GroupID)
+			}
+		}
+	}
+	return result, nil
+}
+
 // AuthAndQueryGroupMembersWithVersion queries group members with version control and auth checks.
 // @MappedFrom authAndQueryGroupMembersWithVersion
 func (s *GroupMemberService) AuthAndQueryGroupMembersWithVersion(
