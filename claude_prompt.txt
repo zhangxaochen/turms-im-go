@@ -1,0 +1,267 @@
+You are a specialized coding sub-agent. Your task is to resolve exactly 50 pending bugs in the turms-go codebase.
+CRITICAL RULES:
+1. Be extremely concise in your output and thoughts. Minimize conversational filler.
+2. Fix the issues below, test them, and YOU MUST automatically commit your changes with a descriptive commit message.
+
+BUGS TO FIX:
+====================
+
+[Context: ## close()]
+- [ ] No significant bugs. The behavior matches the Java version — both close/dispose the underlying connection without calling super/base close.
+*Checked methods: create(TcpProperties tcpProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFrameLength)*
+Now I have a thorough understanding of both codebases. Let me compare the `create` method systematically.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing `connectTimeoutMillis` socket option**: The Java code sets `.option(CONNECT_TIMEOUT_MILLIS, tcpProperties.getConnectTimeoutMillis())` on the TCP server. The Go code does not apply any connect timeout to the listener. While Go's `net.Listen` doesn't have a direct equivalent for the backlog/connect-timeout server socket options, the `ConnectTimeoutMillis` is never used or passed.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing `SO_BACKLOG` socket option**: The Java code sets `.option(SO_BACKLOG, tcpProperties.getBacklog())`. The Go `net.Listen` uses the OS default backlog (`SOMAXCONN`), not the configurable backlog value from properties. The Go `Create` method doesn't receive or use the `backlog` parameter at all.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing `SO_REUSEADDR` socket options**: The Java code sets both `.option(SO_REUSEADDR, true)` (server socket) and `.childOption(SO_REUSEADDR, true)` (client sockets). The Go code doesn't set `SO_REUSEADDR` on either the listener or accepted connections.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing SSL/TLS support**: The Java code checks `tcpProperties.getSsl().isEnabled()` and configures SSL via `server.secure(...)` with `SslUtil.configureSslContextSpec(...)`. The Go `Create` method has no SSL/TLS configuration at all - no `SslProperties` parameter and no TLS wrapping of the listener.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing wiretap/logging configuration**: The Java code passes `.wiretap(tcpProperties.isWiretap())`. The Go code does not accept or use a `wiretap` parameter.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing dedicated event loop thread pool**: The Java code uses `.runOn(LoopResourcesFactory.createForServer(ThreadNameConst.GATEWAY_TCP_PREFIX))` to create a dedicated event loop group for the TCP server. The Go code uses goroutines without any thread pool or named thread pattern.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing metrics/recorder**: The Java code configures `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(MetricNameConst.TURMS_GATEWAY_SERVER_TCP))`. The Go code has no metrics collection.
+
+---
+
+[Context: ## Create]
+- [ ] **Proxy protocol mode is simplified to a boolean, losing REQUIRED vs OPTIONAL distinction**: The Java code handles three distinct modes: `REQUIRED` (adds PROXY protocol handlers), `OPTIONAL` (adds a PROXY protocol *detector* handler), and `DISABLED` (no proxy handling). These two modes are fundamentally different - `REQUIRED` expects a PROXY header on every connection, while `OPTIONAL` auto-detects whether a PROXY header is present. The Go code reduces this to a simple `proxy bool` parameter and uses `proxyproto.Listener` which only supports one mode (equivalent to OPTIONAL/auto-detect), losing the REQUIRED behavior.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing blocklist check in proxy protocol callback**: In the Java code, when proxy protocol is REQUIRED or OPTIONAL, the remote address obtained from the PROXY header is checked against the blocklist *inside* the `doOnChannelInit` callback: `if (blocklistService.isIpBlocked(address.getAddress().getAddress())) { remoteAddressSink.tryEmitEmpty(); }`. The Go code delegates proxy protocol parsing entirely to `go-proxyproto` and does the blocklist check later in `HandleConnection`, which checks `conn.RemoteAddr()` — but the `go-proxyproto` library sets the remote address to the PROXY header address, so the blocklist check does happen, but the semantic difference is that Java emits an empty signal (leading to a `flatMap` that gets no value, effectively dropping the connection silently), whereas Go explicitly closes the connection. This is a behavioral difference but functionally similar. However, the key issue is that the Java code has *two* blocklist checks: one during proxy protocol parsing for the *proxied* address, and another in `ServiceAvailabilityHandler.channelRegistered` for the *direct* address. The Go code only has one check in `HandleConnection`.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing `ConnectionListener` integration**: The Java code's `.handle()` block calls `connectionListener.onAdded(connection, remoteAddress, in.receive(), out, connection.onDispose())`, which is the core callback that wires up the session lifecycle. The Go code replaces this with a simple `callback func(net.Conn)` — a much simpler signature that doesn't pass the remote address, inbound stream, outbound sender, or dispose signal to the listener. This fundamentally changes the connection lifecycle management.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing `setAutoRead(true)` equivalent**: The Java code explicitly calls `connection.channel().config().setAutoRead(true)` in the `handle` callback, which is critical for triggering the read event. The Go code has no equivalent — reading is initiated separately in `TcpConnection.Start()`.
+
+---
+
+[Context: ## Create]
+- [ ] **Missing varint codec pipeline setup**: The Java code sets up a complete Netty channel pipeline in `doOnChannelInit` including: `serviceAvailabilityHandler`, `varintLengthBasedFrameDecoder`, `varintLengthFieldPrepender`, and `protobufFrameEncoder`. The Go code has no equivalent pipeline — the frame encoding/decoding is handled inline in `TcpConnection.Send()` and `TcpConnection.Start()` rather than through a pipeline. While functionally the varint framing is implemented, the protobuf frame encoder (`CodecFactory.getProtobufFrameEncoder()`) for encoding `TurmsNotification` instances is not ported — the Go `Send()` method just prepends a varint length to raw bytes, whereas Java also has a dedicated protobuf encoder that serializes protobuf objects.
+
+---
+
+[Context: ## Create]
+- [ ] **`proxy` parameter type loses type safety**: The Java method accepts `TcpProperties` which encapsulates all configuration. The Go method destructures this into individual parameters but loses the `RemoteAddressSourceProxyProtocolMode` enum, replacing it with a `bool`. This means the caller must decide the boolean mapping externally, and the REQUIRED vs OPTIONAL distinction is lost at the API boundary.
+
+---
+
+[Context: ## Create]
+- [ ] **Error message formatting difference on bind failure**: The Java error message is `"Failed to bind the TCP server on: " + host + ":" + port`, while the Go error message is `"Failed to bind the TCP server on: %s. Error: %w"` (using `addr` which is `host:port`). The Go version appends the error separately via `%w` wrapping, which is actually better practice, but the message format differs slightly from the original.
+*Checked methods: UdpSignalRequest(UdpRequestType type, long userId, DeviceType deviceType, int sessionId)*
+The Java code is a simple `record` — a data carrier with four fields (`type`, `userId`, `deviceType`, `sessionId`). The Go `NewUdpSignalRequest` constructor assigns all four corresponding fields. There is no additional logic in the Java record (no custom compact constructor, no validation, no derived fields).
+However, there is a type mismatch in the `sessionId` field:
+
+---
+
+[Context: ## NewUdpSignalRequest]
+- [ ] **`sessionId` type mismatch**: The Java record declares `sessionId` as `int` (32-bit), but the Go struct `UdpSignalRequest.SessionID` is `int64` (64-bit). This is also reflected in the parsing logic at line 205, where `sessionID` is read from 4 bytes (`Uint32`) but then stored in an `int64` field. While this doesn't cause data loss, it is a type discrepancy compared to the Java version.
+*Checked methods: apply(ConnectionInfo connectionInfo, HttpRequest request)*
+
+---
+
+[Context: ## Apply (parseForwardedInfo)]
+- [ ] **Missing `trim()` on `for` match result**: Java does `forMatcher.group(1).trim()` but Go assigns `match[1]` directly to `r.RemoteAddr` without trimming. This could leave leading/trailing whitespace in the remote address.
+
+---
+
+[Context: ## Apply (parseForwardedInfo)]
+- [ ] **Missing original port preservation on `RemoteAddr`**: In Java, when parsing the `for=` directive, the code uses `connectionInfo.getRemoteAddress().getPort()` to preserve the original port: `AddressUtils.parseAddress(forMatcher.group(1).trim(), connectionInfo.getRemoteAddress().getPort(), true)`. The Go code sets `r.RemoteAddr = match[1]` which loses the original port entirely. If the `for=` value is just an IP (no port), the `RemoteAddr` will be missing the port component that was in the original address.
+
+---
+
+[Context: ## Apply (parseForwardedInfo)]
+- [ ] **Missing `trim()` on `host` match result**: Java does `hostMatcher.group(1)` passed to `AddressUtils.parseAddress`, but the Go code assigns `match[1]` to `r.URL.Host` without trimming. While the regex captures the value, the Java code relies on `AddressUtils.parseAddress` which handles whitespace — the Go code does not trim.
+
+---
+
+[Context: ## Apply (parseForwardedInfo)]
+- [ ] **Missing `trim()` on `proto` match result**: Java does `protoMatcher.group(1).trim()` but Go does `strings.ToLower(match[1])` without a separate trim. The Go regex may capture trailing spaces due to differences in pattern matching.
+
+---
+
+[Context: ## Apply (parseXForwardedInfo)]
+- [ ] **Missing port preservation on X-Forwarded-For IP**: In Java, the X-Forwarded-For handler preserves the original port: `AddressUtils.parseAddress(ipHeader.split(",", 2)[0], connectionInfo.getRemoteAddress().getPort())`. The Go code sets `r.RemoteAddr` to just the IP from the header, discarding the original port entirely.
+
+---
+
+[Context: ## Apply (parseXForwardedInfo)]
+- [ ] **Wrong error message on invalid X-Forwarded-Port**: In Java, when `IntUtil.tryParse(portStr)` returns null (invalid port), the exception message is `NO_FORWARDED_IP_ERROR_MESSAGE` ("The \"for\" directive must be specified..."). The Go code silently ignores an invalid port (no error thrown at all), differing from the Java behavior which throws an `IllegalArgumentException`.
+
+---
+
+[Context: ## Apply (parseXForwardedInfo)]
+- [ ] **Missing `withHostAddress` + `withHostName` update on X-Forwarded-Port**: In Java, when a valid port is parsed, it calls `connectionInfo.withHostAddress(createUnresolved(connectionInfo.getHostAddress().getHostString(), port), connectionInfo.getHostName(), port)` which updates the host address with the new port while preserving the hostname. The Go code only appends the port to `r.URL.Host` if it doesn't already contain a colon — it does not update the host address consistently with how Java tracks `hostAddress` and `hostName` separately.
+
+---
+
+[Context: ## Apply (parseXForwardedInfo)]
+- [ ] **Missing empty-string check for X-Forwarded-For**: Java calls `headers.get(X_FORWARDED_IP_HEADER)` which returns null if absent, then checks for null. Go uses `r.Header.Get("X-Forwarded-For")` and checks `!= ""`. This is mostly equivalent, but Java's null check would also cover an empty string header differently. In practice Go handles this correctly, but there's a subtle difference: Java's `ipHeader.split(",", 2)[0]` would return `""` for an empty header value, while Go's `strings.TrimSpace(strings.Split("", ","))` would return `""`, then set `r.RemoteAddr = ""`. The Java code would actually call `AddressUtils.parseAddress("", port)` which might throw. The Go behavior differs from Java for empty-string header values.
+
+---
+
+[Context: ## Apply (parseForwardedInfo - regex differences)]
+- [ ] **Regex case-insensitivity difference**: Java regex patterns like `FORWARDED_FOR_PATTERN` are compiled without `Pattern.CASE_INSENSITIVE`, so they only match lowercase field names (e.g., `for=`, `host=`, `proto=`). The Go regex uses `(?i)` making them case-insensitive, which matches more broadly than the Java version. While RFC 7239 says field names are case-insensitive, this is a behavioral difference from the Java implementation.
+*Checked methods: create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)*
+
+---
+
+[Context: ## create]
+- [ ] **Missing `backlog` configuration**: The Java code sets `.option(SO_BACKLOG, webSocketProperties.getBacklog())` to configure the TCP listen backlog. The Go code does not configure any backlog value on the listener.
+
+---
+
+[Context: ## create]
+- [ ] **Missing `connectTimeoutMillis` configuration**: The Java code sets `.option(CONNECT_TIMEOUT_MILLIS, webSocketProperties.getConnectTimeoutMillis())`. The Go code does not configure any connection timeout. Note: the Go `WebSocketProperties` struct is also missing this field entirely.
+
+---
+
+[Context: ## create]
+- [ ] **Missing `SO_REUSEADDR` option**: The Java code sets both `.option(SO_REUSEADDR, true)` and `.childOption(SO_REUSEADDR, true)`. The Go code does not explicitly set `SO_REUSEADDR` on the listener (though Go's `net.Listen` defaults to enabling it).
+
+---
+
+[Context: ## create]
+- [ ] **Missing `SO_LINGER` option**: The Java code sets `.childOption(SO_LINGER, 0)` to ensure RST on close instead of graceful FIN. The Go code does not configure this socket option.
+
+---
+
+[Context: ## create]
+- [ ] **Missing `TCP_NODELAY` option**: The Java code sets `.childOption(TCP_NODELAY, true)` to disable Nagle's algorithm. The Go code does not configure this socket option.
+
+---
+
+[Context: ## create]
+- [ ] **Missing SSL/TLS support**: The Java code conditionally enables SSL via `SslProperties` (`.secure(spec -> SslUtil.configureSslContextSpec(...), true)`). The Go code has no SSL/TLS configuration at all. The `WebSocketProperties` struct is also missing the `Ssl` field.
+
+---
+
+[Context: ## create]
+- [ ] **Missing proxy protocol support**: The Java code configures proxy protocol based on `RemoteAddressSourceProxyProtocolMode` (REQUIRED→ON, OPTIONAL→AUTO, DISABLED→OFF) via `.proxyProtocol(proxyProtocolSupportType)`. The Go code ignores `props.ProxyProtocolMode` entirely even though the field exists in `WebSocketProperties`.
+
+---
+
+[Context: ## create]
+- [ ] **Missing metrics/recording**: The Java code enables metrics via `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(...))`. The Go code has no metrics instrumentation.
+
+---
+
+[Context: ## create]
+- [ ] **Missing custom thread/loop resources**: The Java code configures dedicated event loop resources via `.runOn(LoopResourcesFactory.createForServer(ThreadNameConst.GATEWAY_WS_PREFIX))`. The Go code does not configure any dedicated goroutine pool or similar.
+
+---
+
+[Context: ## create]
+- [ ] **Missing channel pipeline handler injection**: The Java code injects `ServiceAvailabilityHandler` as a Netty channel pipeline handler via `.doOnChannelInit(...)`, which intercepts at the channel level for every connection. The Go code instead calls `availabilityHandler.HandleConnection()` inside the HTTP handler, which is a different architectural approach — it only checks at the HTTP request level rather than at the connection/channel level. This means the Go code won't intercept corrupted frames or other low-level events the way the Java handler does.
+
+---
+
+[Context: ## create]
+- [ ] **`forwardedHandler` is passed `isForwardedIpRequired` only for REQUIRED mode**: In Java, `HttpForwardedHeaderHandler` is only instantiated when `httpHeaderMode` is REQUIRED or OPTIONAL, and the constructor receives `true`/`false` respectively. The Go code instantiates `NewHttpForwardedHeaderHandler(props.HttpHeaderMode == common.HttpHeaderMode_REQUIRED)` which correctly passes `true` for REQUIRED and `false` for others. However, the Go code checks `props.HttpHeaderMode != common.HttpHeaderMode_DISABLED` before calling `forwardedHandler.Apply(r)`, which means for OPTIONAL mode, the handler is called — matching Java behavior. This part is correct.
+
+---
+
+[Context: ## create]
+- [ ] **Missing `maxFramePayloadLength` usage in upgrader**: The Java code creates a `WebsocketServerSpec` with `.maxFramePayloadLength(maxFramePayloadLength)` and passes it to `sendWebsocket`. The Go code creates a `websocket.Upgrader` with hardcoded `ReadBufferSize: 1024, WriteBufferSize: 1024` and does not use the `maxFramePayloadLength` parameter at all. The method signature also does not accept `maxFramePayloadLength` as a parameter (it uses `callback func(*websocket.Conn, http.Header)` instead of the Java's `ConnectionListener connectionListener, int maxFramePayloadLength`).
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Missing `Access-Control-Allow-Headers: *` CORS header**: Java's preflight response includes four headers: `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: *`, `Access-Control-Allow-Headers: *`, and `Access-Control-Max-Age: 7200`. The Go code only sets `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Methods: GET, OPTIONS` (hardcoded instead of wildcard `*`). It is missing `Access-Control-Allow-Headers` and `Access-Control-Max-Age` entirely.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **`Access-Control-Allow-Methods` is hardcoded to `"GET, OPTIONS"` instead of `"*"`**: Java sends `*` for allowed methods. Go sends the explicit `"GET, OPTIONS"`.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **CORS preflight returns `204 NoContent` instead of `200 OK`**: Java returns `HttpResponseStatus.OK` (200). Go returns `http.StatusNoContent` (204). This is a behavior difference.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Missing WebSocket handshake validation**: Java's `validateHandshakeRequest` checks four conditions: (1) method must be GET, (2) `Upgrade: websocket` header, (3) `Connection: upgrade` header, (4) `Sec-WebSocket-Key` header must be present. The Go code only checks the HTTP method but delegates the remaining WebSocket protocol validation to the `gorilla/websocket` upgrader. While `gorilla/websocket` does perform standard WebSocket handshake validation internally, it may not return the same specific error messages as the Java code (e.g., "Invalid 'Upgrade' header", "Missing \"Sec-WebSocket-Key\" header").
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **IP blocklist check uses wrong approach**: Java checks `blocklistService.isIpBlocked(remoteAddress.getAddress().getAddress())` — i.e., checks only the IP against the blocklist. The Go code calls `availabilityHandler.HandleConnection(&dummyNetConn{r})` which combines both the blocklist check AND the service availability check into one call. While functionally similar, the Java code returns `Mono.empty()` (closes connection silently) when the IP is blocked, while the Go code returns an HTTP 503 error response with body `"Service unavailable or IP blocked"`, leaking information to the blocked client.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Blocked IP response leaks information**: In Java, when the client IP is blocked, `Mono.empty()` is returned, which silently closes the TCP connection without any HTTP response. In Go, `http.Error(w, "Service unavailable or IP blocked", http.StatusServiceUnavailable)` sends a visible 503 error to the blocked client, revealing that they are being blocked.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Missing `Sec-WebSocket-Key` validation**: The Java code explicitly checks for the presence of the `Sec-WebSocket-Key` header and returns a 400 error with the message `"Missing \"Sec-WebSocket-Key\" header"` if absent. While `gorilla/websocket` handles this internally, the explicit validation and error message from Java is lost.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Missing `Upgrade` header validation**: The Java code checks for the `Upgrade: websocket` header. Go delegates this to `gorilla/websocket`.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Missing `Connection` header validation**: The Java code checks for the `Connection: upgrade` header. Go delegates this to `gorilla/websocket`.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **`maxFramePayloadLength` not used in frame aggregation**: The Java code uses `in.aggregateFrames(maxFramePayloadLength)` to aggregate fragmented WebSocket frames with the configured max payload length. The Go code has no equivalent frame aggregation — it reads individual messages from `gorilla/websocket` without any `maxFramePayloadLength` limit beyond the upgrader's default.
+
+---
+
+[Context: ## handleHttpRequest]
+- [ ] **Only `BinaryWebSocketFrame` messages are processed in Java; Go does not filter**: The Java code explicitly filters for `BinaryWebSocketFrame` using `.flatMap(frame -> frame instanceof BinaryWebSocketFrame ? Mono.just(frame.content()) : Mono.empty())`. The Go code reads all message types from the `gorilla/websocket` connection without filtering for binary messages specifically.
+*Checked methods: sendNotificationToLocalClients(TracingContext tracingContext, ByteBuf notificationData, Set<Long> recipientIds, Set<UserSessionId> excludedUserSessionIds, @Nullable DeviceType excludedDeviceType)*
+Now I have a complete understanding of both implementations. Here is my review:
+
+---
+
+[Context: ## SendNotificationToLocalClients]
+- [ ] **Missing nil check for `excludedUserSessionIds` parameter**: The Java code validates `excludedUserSessionIds` with `Validator.notNull(excludedUserSessionIds, "excludedUserSessionIds")` and returns an error if null. The Go code has no nil check for the `excludedUserSessionIds` map parameter. If `nil` is passed, `len(excludedUserSessionIds) > 0` will return `false` (safe in Go), but this deviates from the Java contract which explicitly rejects null.
+
+---
+
+[Context: ## SendNotificationToLocalClients]
+- [ ] **`TryNotifyClientToRecover` called unconditionally instead of only after successful send**: In the Java code, `userSession.getConnection().tryNotifyClientToRecover()` is called **unconditionally** for every non-excluded session, **outside** the send mono (after line 161, not inside the `onErrorResume`). In the Go code (line 118), `sess.Conn.TryNotifyClientToRecover()` is also called unconditionally inside the goroutine — however, it's called **after the send error check**, meaning it runs regardless of send success or failure. This actually matches the Java behavior (Java calls it unconditionally after adding the mono), but there's a subtle difference: in Java, `tryNotifyClientToRecover()` runs synchronously in the for-loop body **before** the send completes, whereas in Go it runs after the send completes inside the goroutine. This is a behavioral timing difference — in Java, the recovery notification is sent immediately when the session is found, not after the notification send result is known.
+
+====================
+Remember: ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.
