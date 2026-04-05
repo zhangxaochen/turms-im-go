@@ -1,6 +1,10 @@
 package logging
 
-import "fmt"
+import (
+	"fmt"
+
+	"im.turms/server/internal/infra/proto"
+)
 
 // NotificationLoggingManager maps to NotificationLoggingManager in Java (turms-gateway).
 // @MappedFrom NotificationLoggingManager
@@ -11,7 +15,7 @@ type NotificationLoggingManager struct{}
 type SimpleNotificationFields struct {
 	RequesterID        int64
 	CloseStatus        *int32
-	RelayedRequestType int32 // KindCase as int32; 0 = KIND_NOT_SET
+	RelayedRequestType proto.KindCase
 }
 
 // @MappedFrom log(SimpleTurmsNotification notification, int notificationBytes, int recipientCount, int onlineRecipientCount)
@@ -30,10 +34,7 @@ func (m *NotificationLoggingManager) Log(
 		closeStatusStr = fmt.Sprintf("%d", *n.CloseStatus)
 	}
 
-	relayedStr := "null"
-	if n.RelayedRequestType != 0 {
-		relayedStr = fmt.Sprintf("%d", n.RelayedRequestType)
-	}
+	relayedStr := proto.KindCaseName(n.RelayedRequestType)
 
 	msg := joinFields(
 		n.RequesterID,
