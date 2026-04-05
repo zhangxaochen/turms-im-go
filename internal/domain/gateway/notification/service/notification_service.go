@@ -45,34 +45,30 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 		return nil, errors.New("recipientIds cannot be empty")
 	}
 
-	var offlineRecipientIds []int64
+	// Use a map as a set for offlineRecipientIds to prevent duplicates (Java uses Set<Long>)
+	offlineSet := make(map[int64]struct{})
 	var mu sync.Mutex
 
-	// Bug 570: Collect errors as Java does with Mono.whenDelayError
+	// Collect errors as Java does with Mono.whenDelayError
 	var sendErrors []error
 	var errorsMu sync.Mutex
 
 	hasExcludedUserSessionIds := len(excludedUserSessionIds) > 0
-	
-	// Create a WaitGroup to handle concurrent sends for ALL sessions (Bug 576)
-	var wg sync.WaitGroup
 
-	// Track per-recipient success
-	recipientSuccessfulCount := make(map[int64]int32)
-	recipientSessionCount := make(map[int64]int32)
+	var wg sync.WaitGroup
 
 	for _, rid := range recipientIds {
 		recipientID := rid
 		manager := s.sessionService.GetUserSessionsManager(ctx, recipientID)
 		if manager == nil {
 			mu.Lock()
-			offlineRecipientIds = append(offlineRecipientIds, recipientID)
+			offlineSet[recipientID] = struct{}{}
 			mu.Unlock()
 			continue
 		}
 
 		sessions := manager.GetAllSessions()
-		
+
 		// Filter sessions
 		var targetSessions []*session.UserSession
 		for _, sess := range sessions {
@@ -90,27 +86,30 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 
 		if len(targetSessions) == 0 {
 			mu.Lock()
-			offlineRecipientIds = append(offlineRecipientIds, recipientID)
+			offlineSet[recipientID] = struct{}{}
 			mu.Unlock()
 			continue
 		}
-
-		recipientSessionCount[recipientID] = int32(len(targetSessions))
 
 		for _, userSession := range targetSessions {
 			wg.Add(1)
 			go func(rid int64, sess *session.UserSession) {
 				defer wg.Done()
-				
+
 				if sess.Conn == nil {
+					// Java parity: onErrorResume immediately adds to offlineRecipientIds
 					mu.Lock()
-					offlineRecipientIds = append(offlineRecipientIds, rid)
+					offlineSet[rid] = struct{}{}
 					mu.Unlock()
 					return
 				}
 
 				err := sess.Conn.SendWithContext(ctx, notificationData)
 				if err != nil {
+					// Java parity: immediately add to offlineRecipientIds on any session send error
+					mu.Lock()
+					offlineSet[rid] = struct{}{}
+					mu.Unlock()
 					if sess.IsOpen() {
 						errorsMu.Lock()
 						sendErrors = append(sendErrors, err)
@@ -118,10 +117,6 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 						log.Printf("Failed to send notification to session: user_id=%d, device_type=%s, error=%v", rid, sess.DeviceType, err)
 						sess.Conn.TryNotifyClientToRecover()
 					}
-				} else {
-					mu.Lock()
-					recipientSuccessfulCount[rid]++
-					mu.Unlock()
 				}
 			}(recipientID, userSession)
 		}
@@ -129,14 +124,18 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 
 	wg.Wait()
 
-	// Identify recipients where NO session was successful
-	for rid, total := range recipientSessionCount {
-		if recipientSuccessfulCount[rid] == 0 && total > 0 {
-			offlineRecipientIds = append(offlineRecipientIds, rid)
-		}
+	// Log aggregated error message (matches Java: "Caught an error while sending a notification to user sessions")
+	if len(sendErrors) > 0 {
+		log.Printf("Caught %d error(s) while sending notifications to user sessions", len(sendErrors))
 	}
 
-	// Bug 558: Invoke NotificationHandler extension points
+	// Convert offlineSet to slice
+	offlineRecipientIds := make([]int64, 0, len(offlineSet))
+	for id := range offlineSet {
+		offlineRecipientIds = append(offlineRecipientIds, id)
+	}
+
+	// Invoke NotificationHandler extension points
 	if s.pluginManager != nil && s.pluginManager.HasRunningExtensions("NotificationHandler") {
 		_, _ = s.pluginManager.InvokeExtensionPoints(ctx, "NotificationHandler", "HandleNotifications", notificationData, recipientIds, offlineRecipientIds)
 	}

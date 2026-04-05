@@ -56,9 +56,9 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 	}
 
 	deviceType := req.DeviceType
-	if deviceType == protocol.DeviceType_UNKNOWN {
-		deviceType = protocol.DeviceType_DESKTOP // Default or throw as per Java
-	}
+	// Java parity: DeviceType_UNRECOGNIZED (proto wire value -1) maps to DeviceType_UNKNOWN.
+	// DeviceType_UNKNOWN is kept as-is (Java does NOT convert UNKNOWN to DESKTOP).
+	// The session service will reject UNKNOWN via TryRegisterOnlineUser.
 
 	deviceDetails := req.DeviceDetails
 	var location *protocol.UserLocation
