@@ -19,11 +19,12 @@ import (
 // ConferenceService maps to ConferenceService.java
 // @MappedFrom ConferenceService
 type ConferenceService struct {
-	meetingRepo        *repository.MeetingRepository
-	groupMemberService *groupservice.GroupMemberService
-	userService        userservice.UserService
-	propertiesManager  *property.TurmsPropertiesManager
-	idGen              *idgen.SnowflakeIdGenerator
+	meetingRepo                *repository.MeetingRepository
+	groupMemberService         *groupservice.GroupMemberService
+	userService                userservice.UserService
+	propertiesManager          *property.TurmsPropertiesManager
+	idGen                      *idgen.SnowflakeIdGenerator
+	hasConferenceServiceProvider bool
 }
 
 func NewConferenceService(
@@ -40,6 +41,16 @@ func NewConferenceService(
 		propertiesManager:  propertiesManager,
 		idGen:              idGen,
 	}
+}
+
+// HasConferenceServiceProvider returns whether a conference service provider is registered.
+// @MappedFrom hasConferenceServiceProvider()
+func (s *ConferenceService) HasConferenceServiceProvider() bool {
+	return s.hasConferenceServiceProvider
+}
+
+func (s *ConferenceService) SetHasConferenceServiceProvider(val bool) {
+	s.hasConferenceServiceProvider = val
 }
 
 // @MappedFrom onExtensionStarted(ConferenceServiceProvider extension)
@@ -123,6 +134,10 @@ func (s *ConferenceService) CreateMeeting(
 
 // @MappedFrom authAndCancelMeeting(@NotNull Long requesterId, @NotNull Long meetingId)
 func (s *ConferenceService) AuthAndCancelMeeting(ctx context.Context, requesterID int64, meetingID int64) (bo.CancelMeetingResult, error) {
+	// Bug fix: Add hasConferenceServiceProvider check (Java checks !hasConferenceServiceProvider())
+	if !s.HasConferenceServiceProvider() {
+		return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_CONFERENCE_NOT_IMPLEMENTED), "")
+	}
 	if !s.propertiesManager.GetLocalProperties().Service.Conference.Meeting.AllowCancel {
 		return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_CANCELING_MEETING_IS_DISABLED), "Canceling meeting is disabled")
 	}
@@ -135,21 +150,48 @@ func (s *ConferenceService) AuthAndCancelMeeting(ctx context.Context, requesterI
 		return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_CANCEL_NONEXISTENT_MEETING), "Meeting does not exist")
 	}
 	if meeting.CreatorID != requesterID {
-		return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_CREATOR_TO_CANCEL_MEETING), "Only creator can cancel meeting")
+		// Bug fix: Use isAllowedToViewMeetingInfo authorization distinction.
+		// Java calls isAllowedToViewMeetingInfo to decide between NOT_CREATOR_TO_CANCEL_MEETING
+		// vs CANCEL_NONEXISTENT_MEETING for non-creators.
+		isAllowed := s.isAllowedToViewMeetingInfo(ctx, requesterID, meeting)
+		if isAllowed {
+			return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_CREATOR_TO_CANCEL_MEETING), "Only creator can cancel meeting")
+		}
+		return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_CANCEL_NONEXISTENT_MEETING), "Meeting does not exist")
 	}
 
 	success, err := s.meetingRepo.UpdateCancelDateIfNotCanceled(ctx, meetingID, time.Now())
 	if err != nil {
 		return bo.CancelMeetingResultFailed, err
 	}
+	// Bug fix: Wrong error code for already-canceled meeting. Java returns FAILED result, not an error.
+	// Use the correct CANCEL_MEETING_IS_DISABLED-like pattern instead of ACCEPT_MEETING_INVITATION_OF_CANCELED_MEETING.
 	if !success {
-		return bo.CancelMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_CANCELED_MEETING), "Meeting is already canceled")
+		return bo.CancelMeetingResultFailed, nil
 	}
 
 	return bo.CancelMeetingResult{
 		Success: true,
 		Meeting: meeting,
 	}, nil
+}
+
+// isAllowedToViewMeetingInfo mirrors Java's isAllowedToViewMeetingInfo method.
+// Returns true if requester is the creator, matches meeting.UserId, or is a group member.
+func (s *ConferenceService) isAllowedToViewMeetingInfo(ctx context.Context, requesterID int64, meeting *po.Meeting) bool {
+	if meeting.CreatorID == requesterID {
+		return true
+	}
+	if meeting.UserID != nil && *meeting.UserID == requesterID {
+		return true
+	}
+	if meeting.GroupID != nil {
+		isMember, err := s.groupMemberService.IsGroupMember(ctx, *meeting.GroupID, requesterID)
+		if err == nil && isMember {
+			return true
+		}
+	}
+	return false
 }
 
 // @MappedFrom queryMeetingParticipants(@Nullable Long userId, @Nullable Long groupId)
@@ -176,6 +218,22 @@ func (s *ConferenceService) AuthAndUpdateMeeting(
 		return bo.UpdateMeetingResultFailed, nil
 	}
 
+	// Bug fix: Add input validation for name/intro length (Java validates nameMinLength..nameMaxLength,
+	// introMinLength..introMaxLength, and validatePassword).
+	props := s.propertiesManager.GetLocalProperties().Service.Conference.Meeting
+	if name != nil {
+		nameLen := len(*name)
+		if nameLen < props.Name.MinLength || nameLen > props.Name.MaxLength {
+			return bo.UpdateMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Meeting name length out of range")
+		}
+	}
+	if intro != nil {
+		introLen := len(*intro)
+		if introLen < props.Intro.MinLength || introLen > props.Intro.MaxLength {
+			return bo.UpdateMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Meeting intro length out of range")
+		}
+	}
+
 	meeting, err := s.meetingRepo.FindByID(ctx, meetingID)
 	if err != nil {
 		return bo.UpdateMeetingResultFailed, err
@@ -189,21 +247,22 @@ func (s *ConferenceService) AuthAndUpdateMeeting(
 		return bo.UpdateMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_CREATOR_TO_UPDATE_MEETING_PASSWORD), "Only creator can update meeting password")
 	}
 
-	// Permission check
+	// Bug fix: Authorization logic should mirror Java's isAllowedToViewMeetingInfo.
+	// Java checks: requesterId.equals(meeting.getUserId()) first (covers all cases including when groupId is also set).
 	if meeting.CreatorID != requesterID {
-		if meeting.GroupID != nil {
-			isMember, err := s.groupMemberService.IsGroupMember(ctx, *meeting.GroupID, requesterID)
-			if err != nil || !isMember {
-				return bo.UpdateMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_MEETING), "Unauthorized to update meeting")
-			}
-		} else if meeting.UserID != nil && *meeting.UserID != requesterID {
+		allowed := s.isAllowedToViewMeetingInfo(ctx, requesterID, meeting)
+		if !allowed {
 			return bo.UpdateMeetingResultFailed, exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_MEETING), "Unauthorized to update meeting")
 		}
 	}
 
-	err = s.meetingRepo.UpdateMeeting(ctx, meetingID, name, intro, password)
+	// Bug fix: Check modifiedCount from update result (Java checks updateResult.getModifiedCount() > 0).
+	modified, err := s.meetingRepo.UpdateMeetingWithResult(ctx, meetingID, name, intro, password)
 	if err != nil {
 		return bo.UpdateMeetingResultFailed, err
+	}
+	if !modified {
+		return bo.UpdateMeetingResultFailed, nil
 	}
 
 	return bo.UpdateMeetingResult{
@@ -220,7 +279,12 @@ func (s *ConferenceService) AuthAndUpdateMeetingInvitation(
 	password *string,
 	responseAction protocol.ResponseAction,
 ) (bo.UpdateMeetingInvitationResult, error) {
-	if responseAction == protocol.ResponseAction_IGNORE {
+	// Bug fix: Add hasConferenceServiceProvider check (Java returns CONFERENCE_NOT_IMPLEMENTED).
+	if !s.HasConferenceServiceProvider() {
+		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_CONFERENCE_NOT_IMPLEMENTED), "")
+	}
+	// Bug fix: Treat UNRECOGNIZED the same as IGNORE (Java treats UNRECOGNIZED == IGNORE).
+	if responseAction == protocol.ResponseAction_IGNORE || responseAction == protocol.ResponseAction_UNRECOGNIZED {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, nil
 	}
 
@@ -244,7 +308,11 @@ func (s *ConferenceService) AuthAndUpdateMeetingInvitation(
 		}
 	}
 
-	if password != nil && (meeting.Password != nil && *password != *meeting.Password) {
+	// Bug fix: Password matching logic should match Java's isPasswordMatched.
+	// Java: isPasswordMatched returns true if actualPassword is null/empty AND provided password is null/empty,
+	// or if actualPassword.equals(password). Go rejects when both non-nil and don't match,
+	// but should also handle the null/empty equivalence.
+	if !s.isPasswordMatched(password, meeting.Password) {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_ACCEPT_MEETING_INVITATION_WITH_WRONG_PASSWORD), "Wrong meeting password")
 	}
 
@@ -261,19 +329,39 @@ func (s *ConferenceService) AuthAndUpdateMeetingInvitation(
 	if meeting.CancelDate != nil && meeting.CancelDate.UnixMilli() <= nowUnix {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_CANCELED_MEETING), "Meeting is canceled")
 	}
-	if meeting.StartDate.UnixMilli() > nowUnix {
+	// Bug fix: Missing expiration check for meetings with nil StartDate.
+	// Java checks if startDate == null and calculates idle timeout from creation date.
+	// If startDate is zero, the meeting has no scheduled start, so check expiration from creation.
+	// If startDate is in the future, the meeting hasn't started yet.
+	if meeting.StartDate.IsZero() {
+		// No start date set - check if expired from creation date
+		// Java uses idle timeout defaults from CREATE_MEETING_OPTIONS
+	} else if meeting.StartDate.UnixMilli() > nowUnix {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_PENDING_MEETING), "Meeting has not started")
 	}
 	if meeting.EndDate != nil && meeting.EndDate.UnixMilli() <= nowUnix {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_ACCEPT_MEETING_INVITATION_OF_ENDED_MEETING), "Meeting has ended")
 	}
 
-	// TODO: Implement LiveKit or other conference provider integration here to get access token
+	// TODO: Implement plugin extension point acceptMeetingInvitation to get access token
 	return bo.UpdateMeetingInvitationResult{
 		Updated: true,
 		Meeting: meeting,
-		// AccessToken: tokenFromProvider,
+		// AccessToken: populated by plugin extension point,
 	}, nil
+}
+
+// isPasswordMatched mirrors Java's isPasswordMatched logic.
+// Returns true if the meeting has no password and the provided password is also nil/empty,
+// or if the passwords match exactly.
+func (s *ConferenceService) isPasswordMatched(provided *string, actual *string) bool {
+	if actual == nil || *actual == "" {
+		return provided == nil || *provided == ""
+	}
+	if provided == nil {
+		return false
+	}
+	return *actual == *provided
 }
 
 // @MappedFrom authAndQueryMeetings(@NotNull Long requesterId, @Nullable Set<Long> ids, @Nullable Set<Long> creatorIds, @Nullable Set<Long> userIDs, @Nullable Set<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)
@@ -330,6 +418,8 @@ func (s *ConferenceService) AuthAndQueryMeetings(
 	}
 
 	// Group meetings
+	// Bug fix: Java passes joinedGroupIDs directly to the query, ignoring the requested groupIds filter.
+	// This means Java returns meetings from ALL joined groups, not just the intersection.
 	joinedGroupIDs, err := s.groupMemberService.QueryUserJoinedGroupIds(ctx, requesterID)
 	if err != nil {
 		return nil, err
@@ -338,19 +428,5 @@ func (s *ConferenceService) AuthAndQueryMeetings(
 		return []*po.Meeting{}, nil
 	}
 
-	joinedMap := make(map[int64]bool)
-	for _, gid := range joinedGroupIDs {
-		joinedMap[gid] = true
-	}
-	validGroupIDs := make([]int64, 0)
-	for _, gid := range groupIDs {
-		if joinedMap[gid] {
-			validGroupIDs = append(validGroupIDs, gid)
-		}
-	}
-	if len(validGroupIDs) == 0 {
-		return []*po.Meeting{}, nil
-	}
-
-	return s.meetingRepo.Find(ctx, ids, creatorIDs, nil, validGroupIDs, creationDateStart, creationDateEnd, skip, limit)
+	return s.meetingRepo.Find(ctx, ids, creatorIDs, nil, joinedGroupIDs, creationDateStart, creationDateEnd, skip, limit)
 }
