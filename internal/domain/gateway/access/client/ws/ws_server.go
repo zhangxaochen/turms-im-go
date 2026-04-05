@@ -18,6 +18,8 @@ import (
 	"im.turms/server/internal/domain/gateway/access/client/udp"
 	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/internal/infra/exception"
+
+	"github.com/pires/go-proxyproto"
 )
 
 // @MappedFrom HttpForwardedHeaderHandler
@@ -32,9 +34,9 @@ func NewHttpForwardedHeaderHandler(isForwardedIpRequired bool) *HttpForwardedHea
 }
 
 var (
-	forRegex   = regexp.MustCompile(`(?i)for="?([^";,]+)"?`)
-	protoRegex = regexp.MustCompile(`(?i)proto="?([^";,]+)"?`)
-	hostRegex  = regexp.MustCompile(`(?i)host="?([^";,]+)"?`)
+	forRegex   = regexp.MustCompile(`for="?([^";,]+)"?`)
+	protoRegex = regexp.MustCompile(`proto="?([^";,]+)"?`)
+	hostRegex  = regexp.MustCompile(`host="?([^";,]+)"?`)
 )
 
 func (h *HttpForwardedHeaderHandler) Apply(r *http.Request) error {
@@ -51,23 +53,39 @@ func (h *HttpForwardedHeaderHandler) parseForwardedInfo(r *http.Request, forward
 	part := strings.Split(forwarded, ",")[0]
 	
 	if match := forRegex.FindStringSubmatch(part); len(match) > 1 {
-		r.RemoteAddr = match[1]
+		ip := strings.TrimSpace(match[1])
+		if _, port, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			r.RemoteAddr = net.JoinHostPort(ip, port)
+		} else {
+			r.RemoteAddr = ip
+		}
 	} else if h.isForwardedIpRequired {
 		return fmt.Errorf("forwarded IP is required but not found in Forwarded header")
 	}
 
 	if match := protoRegex.FindStringSubmatch(part); len(match) > 1 {
-		r.URL.Scheme = strings.ToLower(match[1])
+		r.URL.Scheme = strings.ToLower(strings.TrimSpace(match[1]))
 	}
 	if match := hostRegex.FindStringSubmatch(part); len(match) > 1 {
-		r.URL.Host = match[1]
+		r.URL.Host = strings.TrimSpace(match[1])
 	}
 	return nil
 }
 
 func (h *HttpForwardedHeaderHandler) parseXForwardedInfo(r *http.Request) error {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		r.RemoteAddr = strings.TrimSpace(strings.Split(xff, ",")[0])
+		ip := strings.TrimSpace(strings.Split(xff, ",")[0])
+		if ip == "" {
+			if h.isForwardedIpRequired {
+				return fmt.Errorf("forwarded IP is required but not found in X-Forwarded-For header")
+			}
+		} else {
+			if _, port, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+				r.RemoteAddr = net.JoinHostPort(ip, port)
+			} else {
+				r.RemoteAddr = ip
+			}
+		}
 	} else if h.isForwardedIpRequired {
 		return fmt.Errorf("forwarded IP is required but not found in X-Forwarded-For header")
 	}
@@ -80,9 +98,14 @@ func (h *HttpForwardedHeaderHandler) parseXForwardedInfo(r *http.Request) error 
 	}
 	if xfport := r.Header.Get("X-Forwarded-Port"); xfport != "" {
 		portStr := strings.TrimSpace(strings.Split(xfport, ",")[0])
-		if _, err := strconv.Atoi(portStr); err == nil {
-			if !strings.Contains(r.URL.Host, ":") {
-				r.URL.Host = fmt.Sprintf("%s:%s", r.URL.Host, portStr)
+		if _, err := strconv.Atoi(portStr); err != nil {
+			return fmt.Errorf("The \"for\" directive must be specified")
+		} else {
+			host, _, err2 := net.SplitHostPort(r.URL.Host)
+			if err2 == nil {
+				r.URL.Host = net.JoinHostPort(host, portStr)
+			} else {
+				r.URL.Host = net.JoinHostPort(r.URL.Host, portStr)
 			}
 		}
 	}
@@ -147,7 +170,7 @@ func (c *WSConnection) Start(onMessage func(common.NetConnection, []byte)) {
 
 	for {
 		c.conn.SetReadDeadline(time.Now().Add(time.Duration(300) * time.Second)) // Use heartbeat interval if available
-		_, message, err := c.conn.ReadMessage()
+		msgType, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if !websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway, websocket.CloseNoStatusReceived) {
 				// Normal close
@@ -156,7 +179,9 @@ func (c *WSConnection) Start(onMessage func(common.NetConnection, []byte)) {
 			}
 			return
 		}
-		onMessage(c, message)
+		if msgType == websocket.BinaryMessage {
+			onMessage(c, message)
+		}
 	}
 }
 
@@ -219,7 +244,7 @@ func (f *WebSocketServerFactory) Create(
 	serverStatusManager common.ServerStatusManager,
 	sessionService common.SessionService,
 	callback func(*websocket.Conn, http.Header, net.Addr),
-) (*http.Server, error) {
+) (net.Listener, *http.Server, error) {
 	
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  props.ReadBufferSize,
@@ -239,13 +264,31 @@ func (f *WebSocketServerFactory) Create(
 		// CORS Preflight
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-			w.WriteHeader(http.StatusNoContent)
+			w.Header().Set("Access-Control-Allow-Methods", "*")
+			w.Header().Set("Access-Control-Allow-Headers", "*")
+			w.Header().Set("Access-Control-Max-Age", "7200")
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Protocol Handshake validation
+		if strings.ToLower(r.Header.Get("Upgrade")) != "websocket" {
+			http.Error(w, "Invalid \"Upgrade\" header", http.StatusBadRequest)
+			return
+		}
+
+		if !strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade") {
+			http.Error(w, "Invalid \"Connection\" header", http.StatusBadRequest)
+			return
+		}
+
+		if r.Header.Get("Sec-WebSocket-Key") == "" {
+			http.Error(w, "Missing \"Sec-WebSocket-Key\" header", http.StatusBadRequest)
 			return
 		}
 
@@ -257,9 +300,18 @@ func (f *WebSocketServerFactory) Create(
 			}
 		}
 
-		// Service availability
+		// Service availability & IP blocklist
 		if !availabilityHandler.HandleConnection(&dummyNetConn{r}) {
-			http.Error(w, "Service unavailable or IP blocked", http.StatusServiceUnavailable)
+			// Bug 8003/8005: Close connection silently, no 503 response
+			hj, ok := w.(http.Hijacker)
+			if ok {
+				conn, _, err := hj.Hijack()
+				if err == nil {
+					conn.Close()
+				}
+			} else {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}
 			return
 		}
 
@@ -288,7 +340,31 @@ func (f *WebSocketServerFactory) Create(
 		IdleTimeout: time.Duration(props.IdleTimeoutSeconds) * time.Second,
 	}
 
-	return server, nil
+	addr := fmt.Sprintf("%s:%d", props.Host, props.Port)
+	lc := net.ListenConfig{}
+	l, err := lc.Listen(context.Background(), "tcp", addr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to bind the WS server on %s: %w", addr, err)
+	}
+
+	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
+		pL := &proxyproto.Listener{Listener: l}
+		policyFunc := func(upstream net.Addr) (proxyproto.Policy, error) {
+			if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
+				if blocklistService != nil && blocklistService.IsIpBlocked(tcpAddr.IP) {
+					return proxyproto.REJECT, fmt.Errorf("IP is blocked")
+				}
+			}
+			if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
+				return proxyproto.REQUIRE, nil
+			}
+			return proxyproto.USE, nil
+		}
+		pL.Policy = policyFunc
+		l = pL
+	}
+
+	return l, server, nil
 }
 
 // @MappedFrom WebSocketUserSessionAssembler

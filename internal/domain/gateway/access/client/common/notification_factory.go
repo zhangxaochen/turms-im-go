@@ -76,14 +76,10 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 			reason = &r
 		}
 	} else if err != nil {
+		// Just map to internal server error if not TurmsError.
 		code = constant.ResponseStatusCode_SERVER_INTERNAL_ERROR
-		if f.returnReasonForServerError {
-			errStr := err.Error()
-			reason = &errStr
-		} else {
-			r := code.Reason()
-			reason = &r
-		}
+		errStr := err.Error()
+		reason = &errStr
 	} else {
 		r := code.Reason()
 		reason = &r
@@ -103,18 +99,6 @@ func (f *NotificationFactory) CreateFromError(err error, requestID *int64) *prot
 // @MappedFrom createBuffer(CloseReason closeReason)
 func (f *NotificationFactory) CreateCloseReasonBuffer(reason sessionbo.CloseReason) ([]byte, error) {
 	code := reason.BusinessStatusCode
-	if code == 0 {
-		code = constant.ResponseStatusCode_OK // or some default if appropriate, mapped from Java where it might be null
-	}
-	r := &reason.Reason
-	if reason.Reason == "" {
-		if code != 0 {
-			cr := code.Reason()
-			r = &cr
-		} else {
-			r = nil
-		}
-	}
 
 	notification := &protocol.TurmsNotification{
 		Timestamp:   time.Now().UnixMilli(),
@@ -123,9 +107,16 @@ func (f *NotificationFactory) CreateCloseReasonBuffer(reason sessionbo.CloseReas
 
 	if code != 0 {
 		notification.Code = proto.Int32(int32(code))
+		var r *string
+		if reason.Reason != "" {
+			r = &reason.Reason
+		}
+		f.trySetReason(notification, code, r)
+	} else {
+		if reason.Reason != "" {
+			notification.Reason = &reason.Reason
+		}
 	}
-
-	f.trySetReason(notification, code, r)
 	return proto.Marshal(notification)
 }
 
@@ -145,20 +136,11 @@ func (f *NotificationFactory) SessionClosed(requestID *int64) *protocol.TurmsNot
 }
 
 func (f *NotificationFactory) trySetReason(notification *protocol.TurmsNotification, code constant.ResponseStatusCode, reason *string) {
-	if reason != nil {
-		if *reason == "" {
-			return
-		}
-		if constant.IsServerError(int32(code)) {
-			if f.returnReasonForServerError {
-				notification.Reason = reason
-			}
-		} else {
-			notification.Reason = reason
-		}
-	} else {
-		// Fallback to default reason based on standard code values if missing
-		// Since we don't have GetReason() on ResponseStatusCode mapped yet in Go,
-		// we skip setting a reason if it's nil.
+	if reason == nil || *reason == "" {
+		return
 	}
+	if constant.IsServerError(int32(code)) && !f.returnReasonForServerError {
+		return
+	}
+	notification.Reason = reason
 }
