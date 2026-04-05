@@ -350,6 +350,7 @@ func (c *GroupServiceController) HandleCreateGroupMembersRequest(ctx context.Con
 		createReq.GetGroupId(),
 		createReq.GetUserIds(),
 		createReq.GetRole(),
+		createReq.Name,
 		muteEndDate,
 	)
 	if err != nil {
@@ -375,11 +376,15 @@ func (c *GroupServiceController) HandleCreateGroupMembersRequest(ctx context.Con
 // @MappedFrom handleDeleteGroupMembersRequest()
 func (c *GroupServiceController) HandleDeleteGroupMembersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupMembersRequest()
+	memberIds := deleteReq.GetMemberIds()
+	if len(memberIds) == 0 {
+		return buildSuccessNotification(req.RequestId), nil
+	}
 	err := c.groupMemberService.AuthAndDeleteGroupMembers(
 		ctx,
 		s.UserID,
 		deleteReq.GetGroupId(),
-		deleteReq.GetMemberIds(),
+		memberIds,
 		deleteReq.SuccessorId,
 		deleteReq.GetQuitAfterTransfer(),
 	)
@@ -390,7 +395,6 @@ func (c *GroupServiceController) HandleDeleteGroupMembersRequest(ctx context.Con
 }
 
 // @MappedFrom handleQueryGroupMembersRequest()
-// @MappedFrom handleQueryGroupMembersRequest()
 func (c *GroupServiceController) HandleQueryGroupMembersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryGroupMembersRequest()
 
@@ -400,13 +404,30 @@ func (c *GroupServiceController) HandleQueryGroupMembersRequest(ctx context.Cont
 		lastUpdatedDate = &t
 	}
 
-	members, version, err := c.groupMemberService.AuthAndQueryGroupMembersWithVersion(
-		ctx,
-		s.UserID,
-		queryReq.GroupId,
-		queryReq.MemberIds,
-		lastUpdatedDate,
-	)
+	memberIds := queryReq.GetMemberIds()
+	withStatus := queryReq.GetWithStatus()
+
+	var members []*po.GroupMember
+	var version *time.Time
+	var err error
+
+	if len(memberIds) > 0 {
+		members, err = c.groupMemberService.AuthAndQueryGroupMembers(
+			ctx,
+			s.UserID,
+			queryReq.GroupId,
+			memberIds,
+			withStatus,
+		)
+	} else {
+		members, version, err = c.groupMemberService.AuthAndQueryGroupMembersWithVersion(
+			ctx,
+			s.UserID,
+			queryReq.GroupId,
+			nil,
+			lastUpdatedDate,
+		)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -841,7 +862,8 @@ func (c *GroupServiceController) HandleQueryGroupJoinRequestsRequest(ctx context
 func (c *GroupServiceController) HandleUpdateGroupJoinRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupJoinRequestRequest()
 	accept := protocol.ResponseAction_name[int32(updateReq.GetResponseAction())] == "ACCEPT"
-	_, err := c.groupJoinRequestService.ReplyToJoinRequest(ctx, updateReq.GetRequestId(), s.UserID, accept)
+	reason := updateReq.Reason
+	_, err := c.groupJoinRequestService.AuthAndHandleJoinRequest(ctx, s.UserID, updateReq.GetRequestId(), accept, reason)
 	if err != nil {
 		return nil, err
 	}
@@ -876,11 +898,11 @@ func (c *GroupServiceController) HandleCreateGroupJoinQuestionsRequest(ctx conte
 // @MappedFrom handleDeleteGroupJoinQuestionsRequest()
 func (c *GroupServiceController) HandleDeleteGroupJoinQuestionsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupJoinQuestionsRequest()
-	for _, questionID := range deleteReq.GetQuestionIds() {
-		err := c.groupQuestionService.DeleteJoinQuestion(ctx, questionID)
-		if err != nil {
-			return nil, err
-		}
+	groupID := deleteReq.GetGroupId()
+	questionIDs := deleteReq.GetQuestionIds()
+	err := c.groupQuestionService.AuthAndDeleteGroupJoinQuestions(ctx, s.UserID, groupID, questionIDs)
+	if err != nil {
+		return nil, err
 	}
 	return buildSuccessNotification(req.RequestId), nil
 }
@@ -941,7 +963,7 @@ func (c *GroupServiceController) HandleUpdateGroupJoinQuestionRequest(ctx contex
 		s := int(*updateReq.Score)
 		score = &s
 	}
-	err := c.groupQuestionService.UpdateJoinQuestion(ctx, updateReq.GetQuestionId(), 0, updateReq.Question, updateReq.Answers, score)
+	err := c.groupQuestionService.AuthAndUpdateGroupJoinQuestion(ctx, s.UserID, updateReq.GetQuestionId(), updateReq.Question, updateReq.Answers, score)
 	if err != nil {
 		return nil, err
 	}

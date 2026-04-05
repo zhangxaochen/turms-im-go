@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"im.turms/server/internal/domain/group/dto"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/pkg/codes"
 )
@@ -140,6 +141,16 @@ func ValidGroupBlockedUserKey(key interface{}) error {
 func ValidNewGroupQuestion(question interface{}) error {
 	if question == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "NewGroupQuestion must not be null")
+	}
+	q, ok := question.(*dto.NewGroupQuestion)
+	if !ok {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "NewGroupQuestion must not be null")
+	}
+	if len(q.Answers) == 0 {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "The answers of a new group question should not be empty")
+	}
+	if q.Score == nil || *q.Score < 0 {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "The score of a new group question should not be null and must be greater than or equal to 0")
 	}
 	return nil
 }

@@ -434,6 +434,7 @@ func (s *GroupMemberService) AuthAndAddGroupMembers(
 	groupID int64,
 	userIDs []int64,
 	role protocol.GroupMemberRole,
+	name *string,
 	muteEndDate *time.Time,
 ) ([]po.GroupMember, error) {
 	if len(userIDs) == 0 {
@@ -493,7 +494,7 @@ func (s *GroupMemberService) AuthAndAddGroupMembers(
 	}
 
 	// 5. Add members
-	return s.AddGroupMembers(ctx, groupID, validUserIDs, role, nil, nil, muteEndDate, nil)
+	return s.AddGroupMembers(ctx, groupID, validUserIDs, role, name, nil, muteEndDate, nil)
 }
 
 // AuthAndDeleteGroupMembers deletes members from a group after performing authorization checks.
