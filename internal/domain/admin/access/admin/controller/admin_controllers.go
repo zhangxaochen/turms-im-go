@@ -32,9 +32,9 @@ func (c *AdminController) CheckLoginNameAndPassword() error {
 
 // @MappedFrom addAdmin
 func (c *AdminController) AddAdmin(ctx context.Context, requesterId int64, addAdminDTO admindto.AddAdminDTO) (*adminpo.Admin, error) {
-	displayName := ""
+	var displayName *string
 	if addAdminDTO.DisplayName != nil {
-		displayName = *addAdminDTO.DisplayName
+		displayName = addAdminDTO.DisplayName
 	}
 	return c.adminService.AuthAndAddAdmin(
 		ctx,
@@ -88,7 +88,7 @@ func (c *AdminController) UpdateAdmins(ctx context.Context, requesterId int64, i
 		requesterId,
 		ids,
 		updateAdminDTO.Password,
-		updateAdminDTO.Name,
+		updateAdminDTO.DisplayName,
 		updateAdminDTO.RoleIDs,
 	)
 	return err
@@ -145,17 +145,13 @@ func (c *AdminRoleController) AddAdminRole(ctx context.Context, requesterId int6
 	if addAdminRoleDTO.Name != nil {
 		name = *addAdminRoleDTO.Name
 	}
-	var rank int
-	if addAdminRoleDTO.Rank != nil {
-		rank = *addAdminRoleDTO.Rank
-	}
 	return c.adminRoleService.AuthAndAddAdminRole(
 		ctx,
 		requesterId,
 		addAdminRoleDTO.ID,
 		name,
 		addAdminRoleDTO.Permissions,
-		rank,
+		addAdminRoleDTO.Rank,
 	)
 }
 

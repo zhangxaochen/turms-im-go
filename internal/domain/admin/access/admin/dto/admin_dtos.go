@@ -24,6 +24,21 @@ func (d AddAdminDTO) String() string {
 		d.LoginName, d.DisplayName, d.RoleIDs)
 }
 
+// MarshalJSON prevents password from being serialized in responses.
+// @MappedFrom @SensitiveProperty(ALLOW_DESERIALIZATION) on password field in Java.
+func (d AddAdminDTO) MarshalJSON() ([]byte, error) {
+	type Alias struct {
+		LoginName   string  `json:"loginName"`
+		DisplayName *string `json:"displayName,omitempty"`
+		RoleIDs     []int64 `json:"roleIds,omitempty"`
+	}
+	return json.Marshal(Alias{
+		LoginName:   d.LoginName,
+		DisplayName: d.DisplayName,
+		RoleIDs:     d.RoleIDs,
+	})
+}
+
 // AddAdminRoleDTO maps to AddAdminRoleDTO in Java.
 // @MappedFrom AddAdminRoleDTO
 // Note: rank is Integer (nullable) in Java → *int in Go.
@@ -39,35 +54,29 @@ type AddAdminRoleDTO struct {
 // Password uses write-only semantics: can be deserialized but never serialized in responses.
 type UpdateAdminDTO struct {
 	// password is unexported from JSON responses via custom MarshalJSON.
-	Password *string `json:"password,omitempty"`
-	Name     *string `json:"name,omitempty"`
-	RoleIDs  []int64 `json:"roleIds,omitempty"`
+	Password    *string `json:"password,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	RoleIDs     []int64 `json:"roleIds,omitempty"`
 }
 
 // MarshalJSON prevents password from being serialized in responses.
 // @MappedFrom @SensitiveProperty(ALLOW_DESERIALIZATION) on password field.
 func (d UpdateAdminDTO) MarshalJSON() ([]byte, error) {
 	type Alias struct {
-		Name    *string `json:"name,omitempty"`
-		RoleIDs []int64 `json:"roleIds,omitempty"`
+		DisplayName *string `json:"displayName,omitempty"`
+		RoleIDs     []int64 `json:"roleIds,omitempty"`
 	}
 	return json.Marshal(Alias{
-		Name:    d.Name,
-		RoleIDs: d.RoleIDs,
+		DisplayName: d.DisplayName,
+		RoleIDs:     d.RoleIDs,
 	})
 }
 
 // String masks password to avoid leaking it in logs.
 // @MappedFrom UpdateAdminDTO.toString()
 func (d UpdateAdminDTO) String() string {
-	var passwordStr string
-	if d.Password != nil {
-		passwordStr = "***"
-	} else {
-		passwordStr = "null"
-	}
-	return fmt.Sprintf("UpdateAdminDTO[password=%s, name=%v, roleIds=%v]",
-		passwordStr, d.Name, d.RoleIDs)
+	return fmt.Sprintf("UpdateAdminDTO[password=***, displayName=%v, roleIds=%v]",
+		d.DisplayName, d.RoleIDs)
 }
 
 // UpdateAdminRoleDTO maps to UpdateAdminRoleDTO in Java.

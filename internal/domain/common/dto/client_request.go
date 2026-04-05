@@ -3,7 +3,9 @@ package dto
 import (
 	"fmt"
 	"hash/fnv"
+	"strings"
 
+	"google.golang.org/protobuf/proto"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -69,7 +71,15 @@ func (c *ClientRequest) String() string {
 	} else {
 		deviceTypeStr = "null"
 	}
-	ipStr = fmt.Sprintf("%v", c.clientIp)
+	if c.clientIp == nil {
+		ipStr = "null"
+	} else {
+		parts := make([]string, len(c.clientIp))
+		for i, b := range c.clientIp {
+			parts[i] = fmt.Sprintf("%d", b)
+		}
+		ipStr = "[" + strings.Join(parts, ", ") + "]"
+	}
 	if c.requestId != nil {
 		requestIdStr = fmt.Sprintf("%d", *c.requestId)
 	} else {
@@ -105,8 +115,14 @@ func (c *ClientRequest) Equals(other *ClientRequest) bool {
 	if !int64PtrEq(c.requestId, other.requestId) {
 		return false
 	}
-	// turmsRequest: proto messages don't implement ==; compare by pointer identity as Java does
-	return c.turmsRequest == other.turmsRequest
+	// turmsRequest: use proto.Equal for deep value equality like Java's Objects.equals()
+	if c.turmsRequest == nil && other.turmsRequest == nil {
+		return true
+	}
+	if c.turmsRequest == nil || other.turmsRequest == nil {
+		return false
+	}
+	return proto.Equal(c.turmsRequest, other.turmsRequest)
 }
 
 // HashCode mirrors Java's Objects.hash + Arrays.hashCode pattern.
@@ -119,9 +135,17 @@ func (c *ClientRequest) HashCode() int {
 	if c.deviceType != nil {
 		fmt.Fprintf(h, "%d", int32(*c.deviceType))
 	}
-	h.Write(c.clientIp)
+	if c.clientIp != nil {
+		h.Write(c.clientIp)
+	}
 	if c.requestId != nil {
 		fmt.Fprintf(h, "%d", *c.requestId)
+	}
+	if c.turmsRequest != nil {
+		data, err := proto.Marshal(c.turmsRequest)
+		if err == nil {
+			h.Write(data)
+		}
 	}
 	return int(h.Sum32())
 }
@@ -149,6 +173,14 @@ func deviceTypeEq(a, b *protocol.DeviceType) bool {
 }
 
 func bytesEq(a, b []byte) bool {
+	// Match Java's Arrays.equals: nil and empty slice are NOT equal
+	// (Arrays.equals(null, new byte[0]) returns false)
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
 	if len(a) != len(b) {
 		return false
 	}

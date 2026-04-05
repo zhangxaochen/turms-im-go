@@ -8,7 +8,7 @@ type Admin struct {
 	ID               int64     `bson:"_id"`
 	LoginName        string    `bson:"ln"`
 	Password         []byte    `bson:"pw"`
-	DisplayName      string    `bson:"n"`
+	DisplayName      *string   `bson:"n,omitempty"`
 	RoleIDs          []int64   `bson:"rid,omitempty"`
 	RegistrationDate time.Time `bson:"rd,omitempty"`
 }

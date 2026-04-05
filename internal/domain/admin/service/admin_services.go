@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -22,11 +23,16 @@ var (
 const RootRoleID int64 = 0
 const RootAdminID int64 = 0
 
+const (
+	MinRoleNameLimit = 1
+	MaxRoleNameLimit = 32
+)
+
 // AdminRoleService maps to AdminRoleService in Java.
 // @MappedFrom AdminRoleService
 type AdminRoleService interface {
-	AuthAndAddAdminRole(ctx context.Context, requesterId int64, roleId *int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error)
-	AddAdminRole(ctx context.Context, roleId int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error)
+	AuthAndAddAdminRole(ctx context.Context, requesterId int64, roleId *int64, name string, permissions []permission.AdminPermission, rank *int) (*po.AdminRole, error)
+	AddAdminRole(ctx context.Context, roleId int64, name string, permissions []permission.AdminPermission, rank *int) (*po.AdminRole, error)
 	AuthAndDeleteAdminRoles(ctx context.Context, requesterId int64, roleIds []int64) (int64, error)
 	DeleteAdminRoles(ctx context.Context, roleIds []int64) (int64, error)
 	AuthAndUpdateAdminRoles(ctx context.Context, requesterId int64, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error)
@@ -59,29 +65,63 @@ func NewAdminRoleService(idGen *idgen.SnowflakeIdGenerator, repo repository.Admi
 	}
 }
 
+// rootRole returns the in-memory root admin role (not stored in DB).
+// @MappedFrom getRootRole() in Java
+func rootRole() *po.AdminRole {
+	return &po.AdminRole{
+		ID:          RootRoleID,
+		Name:        "ROOT",
+		Permissions: permission.AllAdminPermissions,
+		Rank:        0,
+	}
+}
+
 func (s *adminRoleService) SetAdminService(adminService AdminService) {
 	s.adminService = adminService
 }
 
 // @MappedFrom authAndAddAdminRole
-func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId int64, roleId *int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error) {
+func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId int64, roleId *int64, name string, permissions []permission.AdminPermission, rank *int) (*po.AdminRole, error) {
 	if roleId != nil && *roleId == RootRoleID {
 		return nil, errors.New("the root role cannot be created")
 	}
 	if name == "" {
 		return nil, errors.New("name must not be blank")
 	}
-	higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, rank)
+	if strings.Contains(name, " ") || strings.Contains(name, "\t") || strings.Contains(name, "\n") || strings.Contains(name, "\r") {
+		return nil, errors.New("name must not contain whitespace")
+	}
+	if len(name) < MinRoleNameLimit || len(name) > MaxRoleNameLimit {
+		return nil, errors.New("name length must be between 1 and 32")
+	}
+	if len(permissions) == 0 {
+		return nil, errors.New("permissions must not be empty")
+	}
+	if rank == nil {
+		return nil, errors.New("rank must not be null")
+	}
+	higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, *rank)
 	if err != nil {
 		return nil, err
 	}
 	if !higher {
+		// Check if requester exists at all (Java: switchIfEmpty(errorRequesterNotExist))
+		requesterPerms, permErr := s.QueryPermissions(ctx, requesterId)
+		if permErr != nil {
+			return nil, permErr
+		}
+		if len(requesterPerms) == 0 {
+			return nil, ErrRequesterNotExist
+		}
 		return nil, ErrPermissionDenied
 	}
 	// Verify that the requester has all the requested permissions
 	requesterPermissions, err := s.QueryPermissions(ctx, requesterId)
 	if err != nil {
 		return nil, err
+	}
+	if len(requesterPermissions) == 0 {
+		return nil, ErrRequesterNotExist
 	}
 	permMap := make(map[permission.AdminPermission]bool)
 	for _, p := range requesterPermissions {
@@ -103,15 +143,27 @@ func (s *adminRoleService) AuthAndAddAdminRole(ctx context.Context, requesterId 
 }
 
 // @MappedFrom addAdminRole
-func (s *adminRoleService) AddAdminRole(ctx context.Context, roleId int64, name string, permissions []permission.AdminPermission, rank int) (*po.AdminRole, error) {
+func (s *adminRoleService) AddAdminRole(ctx context.Context, roleId int64, name string, permissions []permission.AdminPermission, rank *int) (*po.AdminRole, error) {
 	if roleId == RootRoleID {
-		return nil, errors.New("the root role already exists")
+		return nil, errors.New("the new role ID cannot be the root role ID")
+	}
+	if len(permissions) == 0 {
+		return nil, errors.New("permissions must not be empty")
+	}
+	if strings.Contains(name, " ") || strings.Contains(name, "\t") || strings.Contains(name, "\n") || strings.Contains(name, "\r") {
+		return nil, errors.New("name must not contain whitespace")
+	}
+	if len(name) < MinRoleNameLimit || len(name) > MaxRoleNameLimit {
+		return nil, errors.New("name length must be between 1 and 32")
+	}
+	if rank == nil {
+		return nil, errors.New("rank must not be null")
 	}
 	role := &po.AdminRole{
 		ID:           roleId,
 		Name:         name,
 		Permissions:  permissions,
-		Rank:         rank,
+		Rank:         *rank,
 		CreationDate: time.Now(),
 	}
 	err := s.repo.Insert(ctx, role)
@@ -126,11 +178,15 @@ func (s *adminRoleService) AddAdminRole(ctx context.Context, roleId int64, name 
 
 // @MappedFrom authAndDeleteAdminRoles
 func (s *adminRoleService) AuthAndDeleteAdminRoles(ctx context.Context, requesterId int64, roleIds []int64) (int64, error) {
+	if len(roleIds) == 0 {
+		return 0, nil
+	}
 	for _, id := range roleIds {
 		if id == RootRoleID {
-			return 0, errors.New("the root role cannot be deleted")
+			return 0, errors.New("the root admin is reserved and cannot be deleted")
 		}
 	}
+	// Query each target role individually and check rank (Java: checkIfAllowedToManageRoles)
 	targetHighest, err := s.QueryHighestRankByRoleIds(ctx, roleIds)
 	if err != nil {
 		return 0, err
@@ -143,6 +199,14 @@ func (s *adminRoleService) AuthAndDeleteAdminRoles(ctx context.Context, requeste
 		return 0, err
 	}
 	if !higher {
+		// Check if requester exists
+		requesterRank, rankErr := s.QueryHighestRankByAdminId(ctx, requesterId)
+		if rankErr != nil {
+			return 0, rankErr
+		}
+		if requesterRank == nil {
+			return 0, ErrRequesterNotExist
+		}
 		return 0, ErrPermissionDenied
 	}
 	return s.DeleteAdminRoles(ctx, roleIds)
@@ -150,6 +214,14 @@ func (s *adminRoleService) AuthAndDeleteAdminRoles(ctx context.Context, requeste
 
 // @MappedFrom deleteAdminRoles
 func (s *adminRoleService) DeleteAdminRoles(ctx context.Context, roleIds []int64) (int64, error) {
+	if len(roleIds) == 0 {
+		return 0, nil
+	}
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			return 0, errors.New("the root admin is reserved and cannot be deleted")
+		}
+	}
 	deleted, err := s.repo.DeleteAdminRoles(ctx, roleIds)
 	if err == nil && deleted > 0 {
 		s.mutex.Lock()
@@ -165,18 +237,10 @@ func (s *adminRoleService) DeleteAdminRoles(ctx context.Context, roleIds []int64
 func (s *adminRoleService) AuthAndUpdateAdminRoles(ctx context.Context, requesterId int64, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error) {
 	for _, id := range roleIds {
 		if id == RootRoleID {
-			return 0, errors.New("the root role cannot be updated")
+			return 0, errors.New("the root admin is reserved and cannot be updated")
 		}
 	}
-	if rank != nil {
-		higher, err := s.IsAdminRankHigherThanRank(ctx, requesterId, *rank)
-		if err != nil {
-			return 0, err
-		}
-		if !higher {
-			return 0, ErrPermissionDenied
-		}
-	}
+	// Check if requester rank is higher than target roles
 	targetHighest, err := s.QueryHighestRankByRoleIds(ctx, roleIds)
 	if err != nil {
 		return 0, err
@@ -189,13 +253,74 @@ func (s *adminRoleService) AuthAndUpdateAdminRoles(ctx context.Context, requeste
 		return 0, err
 	}
 	if !higher {
+		requesterRank, rankErr := s.QueryHighestRankByAdminId(ctx, requesterId)
+		if rankErr != nil {
+			return 0, rankErr
+		}
+		if requesterRank == nil {
+			return 0, ErrRequesterNotExist
+		}
 		return 0, ErrPermissionDenied
+	}
+	// Check rank if updating rank
+	if rank != nil {
+		rankHigher, rankErr := s.IsAdminRankHigherThanRank(ctx, requesterId, *rank)
+		if rankErr != nil {
+			return 0, rankErr
+		}
+		if !rankHigher {
+			return 0, ErrPermissionDenied
+		}
+	}
+	// Verify requester has all permissions being assigned
+	if len(permissions) > 0 {
+		requesterPermissions, permErr := s.QueryPermissions(ctx, requesterId)
+		if permErr != nil {
+			return 0, permErr
+		}
+		if len(requesterPermissions) == 0 {
+			return 0, ErrRequesterNotExist
+		}
+		permMap := make(map[permission.AdminPermission]bool)
+		for _, p := range requesterPermissions {
+			permMap[p] = true
+		}
+		for _, p := range permissions {
+			if !permMap[p] {
+				return 0, ErrPermissionDenied
+			}
+		}
 	}
 	return s.UpdateAdminRole(ctx, roleIds, newName, permissions, rank)
 }
 
 // @MappedFrom updateAdminRole
 func (s *adminRoleService) UpdateAdminRole(ctx context.Context, roleIds []int64, newName *string, permissions []permission.AdminPermission, rank *int) (int64, error) {
+	if len(roleIds) == 0 {
+		return 0, nil
+	}
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			return 0, errors.New("the root admin is reserved and cannot be updated")
+		}
+	}
+	// No-op early return if all update fields are nil/empty (Java: Validator.areAllFalsy)
+	if newName == nil && len(permissions) == 0 && rank == nil {
+		return 0, nil
+	}
+	// Validate name if provided
+	if newName != nil {
+		name := *newName
+		if name == "" {
+			return 0, errors.New("name must not be blank")
+		}
+		if strings.Contains(name, " ") || strings.Contains(name, "\t") || strings.Contains(name, "\n") || strings.Contains(name, "\r") {
+			return 0, errors.New("name must not contain whitespace")
+		}
+		if len(name) < MinRoleNameLimit || len(name) > MaxRoleNameLimit {
+			return 0, errors.New("name length must be between 1 and 32")
+		}
+	}
 	modified, err := s.repo.UpdateAdminRoles(ctx, roleIds, newName, permissions, rank)
 	if err == nil && modified > 0 {
 		s.mutex.Lock()
@@ -212,11 +337,103 @@ func (s *adminRoleService) QueryRoleIdsByAdminId(ctx context.Context, adminId in
 }
 
 func (s *adminRoleService) QueryAdminRoles(ctx context.Context, ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int, page *int, size *int) ([]*po.AdminRole, error) {
-	return s.repo.FindAdminRoles(ctx, ids, names, includedPermissions, ranks, page, size)
+	roles, err := s.repo.FindAdminRoles(ctx, ids, names, includedPermissions, ranks, page, size)
+	if err != nil {
+		return nil, err
+	}
+	// Include root role if qualified (Java: isRootRoleQualified + startWith(getRootRole()))
+	if isRootRoleQualified(ids, names, includedPermissions, ranks) {
+		// Prepend root role
+		result := make([]*po.AdminRole, 0, len(roles)+1)
+		result = append(result, rootRole())
+		result = append(result, roles...)
+		return result, nil
+	}
+	return roles, nil
+}
+
+// isRootRoleQualified checks whether the root role should be included in query results.
+// @MappedFrom isRootRoleQualified in Java
+func isRootRoleQualified(ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int) bool {
+	// If ids is specified, only include root if RootRoleID is in the list
+	if len(ids) > 0 {
+		found := false
+		for _, id := range ids {
+			if id == RootRoleID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	// If names is specified, check if "ROOT" is in the list
+	if len(names) > 0 {
+		found := false
+		for _, n := range names {
+			if n == "ROOT" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	// If includedPermissions is specified, check that root role contains all of them
+	if len(includedPermissions) > 0 {
+		root := rootRole()
+		rootPermSet := make(map[permission.AdminPermission]bool)
+		for _, p := range root.Permissions {
+			rootPermSet[p] = true
+		}
+		for _, p := range includedPermissions {
+			if !rootPermSet[p] {
+				return false
+			}
+		}
+	}
+	// If ranks is specified, check if root rank (0) is in the list
+	if len(ranks) > 0 {
+		found := false
+		for _, r := range ranks {
+			if r == 0 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *adminRoleService) QueryAndCacheRolesByRoleIdsAndRankGreaterThan(ctx context.Context, roleIds []int64, rankGreaterThan int) ([]*po.AdminRole, error) {
-	return s.repo.FindAdminRolesByIdsAndRankGreaterThan(ctx, roleIds, &rankGreaterThan)
+	var result []*po.AdminRole
+	containsRoot := false
+	nonRootIds := make([]int64, 0, len(roleIds))
+	for _, id := range roleIds {
+		if id == RootRoleID {
+			containsRoot = true
+		} else {
+			nonRootIds = append(nonRootIds, id)
+		}
+	}
+	// Query DB for non-root IDs
+	if len(nonRootIds) > 0 {
+		roles, err := s.repo.FindAdminRolesByIdsAndRankGreaterThan(ctx, nonRootIds, &rankGreaterThan)
+		if err != nil {
+			return nil, err
+		}
+		result = roles
+	}
+	// Include root role if its rank qualifies
+	if containsRoot && rootRole().Rank > rankGreaterThan {
+		result = append([]*po.AdminRole{rootRole()}, result...)
+	}
+	return result, nil
 }
 
 func (s *adminRoleService) CountAdminRoles(ctx context.Context, ids []int64, names []string, includedPermissions []permission.AdminPermission, ranks []int) (int64, error) {
@@ -272,8 +489,8 @@ func (s *adminRoleService) QueryPermissions(ctx context.Context, adminId int64) 
 // @MappedFrom AdminService
 type AdminService interface {
 	QueryRoleIdsByAdminIds(ctx context.Context, adminIds []int64) ([]int64, error)
-	AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error)
-	AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error)
+	AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error)
+	AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error)
 	QueryAdmins(ctx context.Context, ids []int64, loginNames []string, roleIds []int64, page *int, size *int) ([]*po.Admin, error)
 	AuthAndDeleteAdmins(ctx context.Context, requesterId int64, adminIds []int64) (int64, error)
 	AuthAndUpdateAdmins(ctx context.Context, requesterId int64, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error)
@@ -308,7 +525,7 @@ func (s *adminService) QueryRoleIdsByAdminIds(ctx context.Context, adminIds []in
 	return roles, nil
 }
 
-func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
+func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
 	if len(roleIds) > 0 {
 		targetHighest, err := s.adminRoleService.QueryHighestRankByRoleIds(ctx, roleIds)
 		if err != nil {
@@ -327,7 +544,7 @@ func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, l
 	return s.AddAdmin(ctx, nil, loginName, rawPassword, displayName, roleIds)
 }
 
-func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
+func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
 	adminID := s.idGen.NextIncreasingId()
 	if id != nil {
 		adminID = *id
