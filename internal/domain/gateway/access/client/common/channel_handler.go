@@ -18,6 +18,19 @@ const (
 	StatusShuttingDown
 )
 
+func (s ServerStatus) String() string {
+	switch s {
+	case StatusStarting:
+		return "STARTING"
+	case StatusRunning:
+		return "RUNNING"
+	case StatusShuttingDown:
+		return "SHUTTING_DOWN"
+	default:
+		return "UNKNOWN"
+	}
+}
+
 // ServiceAvailabilityHandler maintains the global health and availability state of the nodes.
 type ServiceAvailabilityHandler struct {
 	status atomic.Int32

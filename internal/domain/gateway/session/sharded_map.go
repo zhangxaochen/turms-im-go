@@ -1,7 +1,9 @@
 package session
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/pkg/protocol"
@@ -55,6 +57,40 @@ func (m *UserSessionsManager) RemoveSession(deviceType protocol.DeviceType) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.Sessions, deviceType)
+}
+
+func (m *UserSessionsManager) Push(ctx context.Context, notification *protocol.TurmsNotification, excludedDeviceType *protocol.DeviceType) {
+	m.mu.RLock()
+	sessions := make([]*UserSession, 0, len(m.Sessions))
+	for dt, sess := range m.Sessions {
+		if excludedDeviceType != nil && *excludedDeviceType == dt {
+			continue
+		}
+		sessions = append(sessions, sess)
+	}
+	m.mu.RUnlock()
+
+	if len(sessions) == 0 {
+		return
+	}
+
+	for _, sess := range sessions {
+		_ = sess.SendMessageWithContext(ctx, notification)
+	}
+}
+
+func (m *UserSessionsManager) PushSessionNotification(ctx context.Context, serverID string, excludedDeviceType *protocol.DeviceType) {
+	notification := &protocol.TurmsNotification{
+		Timestamp: time.Now().UnixMilli(),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_UserSession{
+				UserSession: &protocol.UserSession{
+					ServerId: serverID,
+				},
+			},
+		},
+	}
+	m.Push(ctx, notification, excludedDeviceType)
 }
 
 // @MappedFrom isEmpty()

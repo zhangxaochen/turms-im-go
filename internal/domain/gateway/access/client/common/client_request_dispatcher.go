@@ -141,6 +141,24 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 		}
 		requestType = req.GetKind()
 
+		availability := d.ServerStatusManager.GetServiceAvailability()
+		if !availability.Available {
+			notif := d.NotificationFactory.CreateWithReason(&requestID, constant.ResponseStatusCode_SERVER_UNAVAILABLE, &availability.Reason)
+			return proto.Marshal(notif)
+		}
+
+		if d.IpRequestThrottler != nil {
+			if !d.IpRequestThrottler.TryAcquireToken(sessionWrapper.GetIPStr(), time.Now().UnixNano()) {
+				ip := net.ParseIP(sessionWrapper.GetIP())
+				d.BlocklistService.TryBlockIpForFrequentRequest(ip)
+				if sessionWrapper.HasUserSession() {
+					d.BlocklistService.TryBlockUserIdForFrequentRequest(sessionWrapper.UserSession.UserID)
+				}
+				notif := d.NotificationFactory.Create(&requestID, constant.ResponseStatusCode_CLIENT_REQUESTS_TOO_FREQUENT)
+				return proto.Marshal(notif)
+			}
+		}
+
 		if sessionWrapper.HasUserSession() {
 			tag := int32(0)
 			if req.Kind != nil {
@@ -183,7 +201,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 	finalCanLogRequest := canLogRequest
 	isServerError := constant.IsServerError(notification.GetCode())
 
-	if isServerError && err == nil { // err!=nil handled above for corrupted
+	if isServerError {
 		fmt.Printf("ERROR: Failed to handle the service request: type=%T, code=%d\n", requestType, notification.GetCode())
 	}
 

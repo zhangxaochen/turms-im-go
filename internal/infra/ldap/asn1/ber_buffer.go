@@ -17,10 +17,11 @@ const (
 // BerBuffer maps to BerBuffer in Java.
 // @MappedFrom BerBuffer
 type BerBuffer struct {
-	buf                        []byte
-	readerIdx                  int
+	buf                         []byte
+	readerIdx                   int
 	sequenceLengthWriterIndexes []int
 	currentSequenceLengthIndex  int
+	marks                       []int
 }
 
 func NewBerBuffer(initialCapacity int) *BerBuffer {
@@ -88,13 +89,13 @@ func (b *BerBuffer) SkipLengthAndValue() {
 
 // @MappedFrom writeLength(int length)
 func (b *BerBuffer) WriteLength(length int) {
-	if length <= 127 {
+	if length <= 0x7F {
 		b.buf = append(b.buf, byte(length))
-	} else if length <= 255 {
+	} else if length <= 0xFF {
 		b.buf = append(b.buf, 0x81, byte(length))
-	} else if length <= 65535 {
+	} else if length <= 0xFFFF {
 		b.buf = append(b.buf, 0x82, byte(length>>8), byte(length))
-	} else if length <= 16777215 {
+	} else if length <= 0xFF_FFFF {
 		b.buf = append(b.buf, 0x83, byte(length>>16), byte(length>>8), byte(length))
 	} else {
 		b.buf = append(b.buf, 0x84, byte(length>>24), byte(length>>16), byte(length>>8), byte(length))
@@ -104,7 +105,7 @@ func (b *BerBuffer) WriteLength(length int) {
 // @MappedFrom readLength()
 func (b *BerBuffer) ReadLength() int {
 	if b.readerIdx >= len(b.buf) {
-		return 0
+		panic("readLength: insufficient data")
 	}
 	lenByte := int(b.buf[b.readerIdx])
 	b.readerIdx++
@@ -113,15 +114,21 @@ func (b *BerBuffer) ReadLength() int {
 	}
 	numBytes := lenByte & 0x7F
 	if numBytes == 0 {
-		return 0 // indefinite length not fully supported, assume 0 for structural simplicity
+		panic("Indefinite length is not supported")
+	}
+	if numBytes > 4 {
+		panic(fmt.Sprintf("The length (%d) is too long", numBytes))
+	}
+	if b.readerIdx+numBytes > len(b.buf) {
+		panic("Insufficient data")
 	}
 	length := 0
 	for i := 0; i < numBytes; i++ {
-		if b.readerIdx >= len(b.buf) {
-			break
-		}
 		length = (length << 8) | int(b.buf[b.readerIdx])
 		b.readerIdx++
+	}
+	if length < 0 {
+		panic("Invalid length bytes")
 	}
 	return length
 }
@@ -131,43 +138,66 @@ func (b *BerBuffer) TryReadLengthIfReadable() int {
 	if b.readerIdx >= len(b.buf) {
 		return -1
 	}
-	return b.ReadLength()
+	lenByte := int(b.buf[b.readerIdx])
+	if (lenByte & 0x80) == 0 {
+		b.readerIdx++
+		return lenByte
+	}
+	numBytes := lenByte & 0x7F
+	if numBytes == 0 {
+		panic("Indefinite length is not supported")
+	}
+	if numBytes > 4 {
+		panic(fmt.Sprintf("The length (%d) is too long", numBytes))
+	}
+	if b.readerIdx+1+numBytes > len(b.buf) {
+		return -1
+	}
+	b.readerIdx++
+	length := 0
+	for i := 0; i < numBytes; i++ {
+		length = (length << 8) | int(b.buf[b.readerIdx])
+		b.readerIdx++
+	}
+	if length < 0 {
+		panic("Invalid length bytes")
+	}
+	return length
 }
 
 // @MappedFrom beginSequence()
 func (b *BerBuffer) BeginSequence() {
-	b.BeginSequenceWithTag(TagSequence)
+	b.BeginSequenceWithTag(TagSequence | FormConstructed)
 }
 
 // @MappedFrom beginSequence(int tag)
 func (b *BerBuffer) BeginSequenceWithTag(tag int) {
 	b.buf = append(b.buf, byte(tag))
-	// Reserve 2 bytes for length (0x82, LengthHigh, LengthLow = 3 bytes total)
-	b.sequenceLengthWriterIndexes = append(b.sequenceLengthWriterIndexes, len(b.buf))
+	// 3 = 1 (for the byte length of value length) + 2 (for the value length up to 64k)
+	lengthIdx := len(b.buf)
+	b.sequenceLengthWriterIndexes = append(b.sequenceLengthWriterIndexes, lengthIdx)
 	b.currentSequenceLengthIndex++
-	b.buf = append(b.buf, 0x82, 0, 0)
+	b.buf = append(b.buf, 0, 0, 0)
 }
 
 // @MappedFrom endSequence()
 func (b *BerBuffer) EndSequence() {
-	if b.currentSequenceLengthIndex > 0 {
-		b.currentSequenceLengthIndex--
-		lengthIdx := b.sequenceLengthWriterIndexes[b.currentSequenceLengthIndex]
-		b.sequenceLengthWriterIndexes = b.sequenceLengthWriterIndexes[:b.currentSequenceLengthIndex]
-		
-		// The length of the sequence is the total buffer size minus the start of the sequence body
-		sequenceLength := len(b.buf) - (lengthIdx + 3)
-		
-		if sequenceLength <= 65535 {
-			b.buf[lengthIdx] = 0x82
-			b.buf[lengthIdx+1] = byte(sequenceLength >> 8)
-			b.buf[lengthIdx+2] = byte(sequenceLength)
-		} else {
-			// This simplified version only reserves 2 bytes for length.
-			// Production implementation would shift bytes if length > 65535.
-			// Doing best effort for now by capping or expecting standard payload sizes.
-			panic(fmt.Sprintf("Sequence too long: %d", sequenceLength))
-		}
+	if b.currentSequenceLengthIndex <= 0 {
+		panic("Unbalanced sequences")
+	}
+	b.currentSequenceLengthIndex--
+	lengthIdx := b.sequenceLengthWriterIndexes[b.currentSequenceLengthIndex]
+	b.sequenceLengthWriterIndexes = b.sequenceLengthWriterIndexes[:b.currentSequenceLengthIndex]
+
+	valueWriterIndexStart := lengthIdx + 3
+	valueLength := len(b.buf) - valueWriterIndexStart
+
+	if valueLength <= 0xFFFF {
+		b.buf[lengthIdx] = 0x82
+		b.buf[lengthIdx+1] = byte(valueLength >> 8)
+		b.buf[lengthIdx+2] = byte(valueLength)
+	} else {
+		panic(fmt.Sprintf("Expecting the sequence value length to be less than or equal to 64k, but got %d", valueLength))
 	}
 }
 
@@ -182,19 +212,26 @@ func (b *BerBuffer) WriteBooleanWithTag(tag int, value bool) {
 	if value {
 		b.buf = append(b.buf, 0xFF)
 	} else {
-		b.buf = append(b.buf, 0x00)
+		b.buf = append(b.buf, 0)
 	}
 }
 
 // @MappedFrom readBoolean()
 func (b *BerBuffer) ReadBoolean() bool {
-	b.SkipTagAndLength()
-	if b.readerIdx < len(b.buf) {
-		val := b.buf[b.readerIdx]
-		b.readerIdx++
-		return val != 0
+	actualTag := b.ReadTag()
+	if actualTag != TagBoolean {
+		panic(fmt.Sprintf("Expecting tag: %d, but got: %d", TagBoolean, actualTag))
 	}
-	return false
+	length := b.ReadLength()
+	if length > 1 {
+		panic("The boolean is too large")
+	}
+	if b.readerIdx >= len(b.buf) {
+		panic("Insufficient data")
+	}
+	val := b.buf[b.readerIdx]
+	b.readerIdx++
+	return val != 0
 }
 
 // @MappedFrom writeInteger(int value)
@@ -205,14 +242,27 @@ func (b *BerBuffer) WriteInteger(value int) {
 // @MappedFrom writeInteger(int tag, int value)
 func (b *BerBuffer) WriteIntegerWithTag(tag int, value int) {
 	b.buf = append(b.buf, byte(tag))
-	if value >= -128 && value <= 127 {
-		b.buf = append(b.buf, 1, byte(value))
-	} else if value >= -32768 && value <= 32767 {
-		b.buf = append(b.buf, 2, byte(value>>8), byte(value))
-	} else if value >= -8388608 && value <= 8388607 {
-		b.buf = append(b.buf, 3, byte(value>>16), byte(value>>8), byte(value))
+	v := uint32(value)
+	if value < 0 {
+		if (v & 0xFFFF_FF80) == 0xFFFF_FF80 {
+			b.buf = append(b.buf, 1, byte(v))
+		} else if (v & 0xFFFF_8000) == 0xFFFF_8000 {
+			b.buf = append(b.buf, 2, byte(v>>8), byte(v))
+		} else if (v & 0xFF80_0000) == 0xFF80_0000 {
+			b.buf = append(b.buf, 3, byte(v>>16), byte(v>>8), byte(v))
+		} else {
+			b.buf = append(b.buf, 4, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+		}
 	} else {
-		b.buf = append(b.buf, 4, byte(value>>24), byte(value>>16), byte(value>>8), byte(value))
+		if (v & 0x0000_007F) == v {
+			b.buf = append(b.buf, 1, byte(v))
+		} else if (v & 0x0000_7FFF) == v {
+			b.buf = append(b.buf, 2, byte(v>>8), byte(v))
+		} else if (v & 0x007F_FFFF) == v {
+			b.buf = append(b.buf, 3, byte(v>>16), byte(v>>8), byte(v))
+		} else {
+			b.buf = append(b.buf, 4, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+		}
 	}
 }
 
@@ -223,25 +273,28 @@ func (b *BerBuffer) ReadInteger() int {
 
 // @MappedFrom readIntWithTag(int tag)
 func (b *BerBuffer) ReadIntWithTag(tag int) int {
-	readT := b.ReadTag()
-	if readT != tag {
-		return 0
+	actualTag := b.ReadTag()
+	if actualTag != tag {
+		panic(fmt.Sprintf("Expecting tag: %d, but got: %d", tag, actualTag))
 	}
 	length := b.ReadLength()
-	if length == 0 || b.readerIdx+length > len(b.buf) {
-		return 0
+	if length > 4 {
+		panic("The integer is too long")
 	}
-	
-	val := 0
-	isNegative := (b.buf[b.readerIdx] & 0x80) != 0
-	for i := 0; i < length; i++ {
-		val = (val << 8) | int(b.buf[b.readerIdx])
+	if b.readerIdx+length > len(b.buf) {
+		panic("Insufficient data")
+	}
+	firstByte := b.buf[b.readerIdx]
+	b.readerIdx++
+	value := int(firstByte & 0x7F)
+	for i := 1; i < length; i++ {
+		value = (value << 8) | int(b.buf[b.readerIdx])
 		b.readerIdx++
 	}
-	if isNegative {
-		val |= ^((1 << (length * 8)) - 1)
+	if (firstByte & 0x80) != 0 {
+		value = -value
 	}
-	return val
+	return value
 }
 
 // @MappedFrom writeOctetString(String value)
@@ -251,7 +304,9 @@ func (b *BerBuffer) WriteOctetString(value string) {
 
 // @MappedFrom writeOctetString(byte[] value)
 func (b *BerBuffer) WriteOctetStringBytes(value []byte) {
-	b.WriteOctetStringBytesWithTag(TagOctetString, value)
+	b.buf = append(b.buf, TagOctetString)
+	b.WriteLength(len(value))
+	b.buf = append(b.buf, value...)
 }
 
 // @MappedFrom writeOctetString(int tag, byte[] value)
@@ -263,7 +318,9 @@ func (b *BerBuffer) WriteOctetStringBytesWithTag(tag int, value []byte) {
 
 // @MappedFrom writeOctetString(byte[] value, int start, int length)
 func (b *BerBuffer) WriteOctetStringBytesWithStart(value []byte, start int, length int) {
-	b.WriteOctetStringBytesWithStartAndTag(TagOctetString, value, start, length)
+	b.buf = append(b.buf, TagOctetString)
+	b.WriteLength(length)
+	b.buf = append(b.buf, value[start:start+length]...)
 }
 
 // @MappedFrom writeOctetString(int tag, byte[] value, int start, int length)
@@ -276,8 +333,20 @@ func (b *BerBuffer) WriteOctetStringBytesWithStartAndTag(tag int, value []byte, 
 // @MappedFrom writeOctetString(int tag, String value)
 func (b *BerBuffer) WriteOctetStringWithTag(tag int, value string) {
 	b.buf = append(b.buf, byte(tag))
-	b.WriteLength(len(value))
+	lengthIdx := len(b.buf)
+	b.buf = append(b.buf, 0, 0, 0)
+	
+	startIdx := len(b.buf)
 	b.buf = append(b.buf, value...)
+	valueLength := len(b.buf) - startIdx
+
+	if valueLength <= 0xFFFF {
+		b.buf[lengthIdx] = 0x82
+		b.buf[lengthIdx+1] = byte(valueLength >> 8)
+		b.buf[lengthIdx+2] = byte(valueLength)
+	} else {
+		panic(fmt.Sprintf("Expecting the sequence value length to be less than or equal to 64k, but got %d", valueLength))
+	}
 }
 
 // @MappedFrom writeOctetStrings(List<String> values)
@@ -294,9 +363,9 @@ func (b *BerBuffer) ReadOctetString() string {
 
 // @MappedFrom readOctetStringWithTag(int tag)
 func (b *BerBuffer) ReadOctetStringWithTag(tag int) string {
-	readT := b.ReadTag()
-	if readT != tag {
-		return ""
+	actualTag := b.ReadTag()
+	if actualTag != tag {
+		panic(fmt.Sprintf("Encountered ASN.1 tag %d (expected tag %d)", actualTag, tag))
 	}
 	length := b.ReadLength()
 	return b.ReadOctetStringWithLength(length)
@@ -304,8 +373,11 @@ func (b *BerBuffer) ReadOctetStringWithTag(tag int) string {
 
 // @MappedFrom readOctetStringWithLength(int length)
 func (b *BerBuffer) ReadOctetStringWithLength(length int) string {
-	if length == 0 || b.readerIdx+length > len(b.buf) {
+	if length == 0 {
 		return ""
+	}
+	if b.readerIdx+length > len(b.buf) {
+		panic("Insufficient data")
 	}
 	str := string(b.buf[b.readerIdx : b.readerIdx+length])
 	b.readerIdx += length
@@ -338,7 +410,6 @@ func (b *BerBuffer) SkipBytes(length int) {
 
 // @MappedFrom close()
 func (b *BerBuffer) Close() {
-	// Releasing buffers to pool can be added here
 }
 
 // @MappedFrom refCnt()
@@ -384,10 +455,49 @@ func (b *BerBuffer) IsReadable() bool {
 
 // @MappedFrom isReadableWithEnd(int end)
 func (b *BerBuffer) IsReadableWithEnd(end int) bool {
-	return b.readerIdx < end && b.readerIdx < len(b.buf)
+	return b.readerIdx < end
 }
 
-// @MappedFrom readerIndex()
 func (b *BerBuffer) ReaderIndex() int {
 	return b.readerIdx
 }
+
+func (b *BerBuffer) WriterIndex() int {
+	return len(b.buf)
+}
+
+func (b *BerBuffer) Append(data []byte) {
+	b.buf = append(b.buf, data...)
+}
+
+func (b *BerBuffer) PeekTag() byte {
+	if b.readerIdx >= len(b.buf) {
+		return 0
+	}
+	return b.buf[b.readerIdx]
+}
+
+func (b *BerBuffer) MarkReaderIndex() {
+	b.marks = append(b.marks, b.readerIdx)
+}
+
+func (b *BerBuffer) ResetReaderIndex() {
+	if len(b.marks) > 0 {
+		b.readerIdx = b.marks[len(b.marks)-1]
+		b.marks = b.marks[:len(b.marks)-1]
+	}
+}
+
+func (b *BerBuffer) Bytes() []byte {
+	return b.buf
+}
+
+func (b *BerBuffer) IsReadableWithCount(n int) bool {
+	return b.readerIdx+n <= len(b.buf)
+}
+
+func (b *BerBuffer) WriteTag(tag int) {
+	b.buf = append(b.buf, byte(tag))
+}
+
+const TagSet = 0x31

@@ -93,18 +93,20 @@ func (h *HttpForwardedHeaderHandler) parseXForwardedInfo(r *http.Request) error 
 type WSConnection struct {
 	*common.BaseNetConnection
 	conn         *websocket.Conn
+	remoteAddr   net.Addr
 	closeTimeout time.Duration
 	writeTimeout time.Duration
 	onClose      chan struct{}
 }
 
-func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.Duration, writeTimeout time.Duration, onClose chan struct{}, maxFramePayloadLength int) *WSConnection {
+func NewWSConnection(conn *websocket.Conn, remoteAddr net.Addr, isConnected bool, closeTimeout time.Duration, writeTimeout time.Duration, onClose chan struct{}, maxFramePayloadLength int) *WSConnection {
 	if maxFramePayloadLength > 0 {
 		conn.SetReadLimit(int64(maxFramePayloadLength))
 	}
 	return &WSConnection{
 		BaseNetConnection: common.NewBaseNetConnection(isConnected),
 		conn:              conn,
+		remoteAddr:        remoteAddr,
 		closeTimeout:      closeTimeout,
 		writeTimeout:      writeTimeout,
 		onClose:           onClose,
@@ -112,6 +114,9 @@ func NewWSConnection(conn *websocket.Conn, isConnected bool, closeTimeout time.D
 }
 
 func (c *WSConnection) GetAddress() net.Addr {
+	if c.remoteAddr != nil {
+		return c.remoteAddr
+	}
 	return c.conn.RemoteAddr()
 }
 
@@ -213,7 +218,7 @@ func (f *WebSocketServerFactory) Create(
 	blocklistService common.BlocklistService,
 	serverStatusManager common.ServerStatusManager,
 	sessionService common.SessionService,
-	callback func(*websocket.Conn, http.Header),
+	callback func(*websocket.Conn, http.Header, net.Addr),
 ) (*http.Server, error) {
 	
 	upgrader := websocket.Upgrader{
@@ -263,8 +268,18 @@ func (f *WebSocketServerFactory) Create(
 			log.Printf("Upgrade error: %v", err)
 			return
 		}
-		
-		go callback(conn, r.Header)
+
+		// Fallback remote address resolution (Bug 539)
+		host, portStr, splitErr := net.SplitHostPort(r.RemoteAddr)
+		var resolvedAddr net.Addr
+		if splitErr == nil {
+			port, _ := strconv.Atoi(portStr)
+			resolvedAddr = &net.TCPAddr{IP: net.ParseIP(host), Port: port}
+		} else {
+			resolvedAddr = &net.TCPAddr{IP: net.ParseIP(r.RemoteAddr), Port: 0}
+		}
+
+		go callback(conn, r.Header, resolvedAddr)
 	})
 
 	server := &http.Server{
@@ -305,8 +320,8 @@ func (a *WebSocketUserSessionAssembler) GetPort() (int, error) {
 	return a.Port, nil
 }
 
-func (a *WebSocketUserSessionAssembler) CreateConnection(conn *websocket.Conn, closeTimeout time.Duration, writeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
-	c := NewWSConnection(conn, true, closeTimeout, writeTimeout, onClose, a.MaxFramePayloadLength)
+func (a *WebSocketUserSessionAssembler) CreateConnection(conn *websocket.Conn, remoteAddr net.Addr, closeTimeout time.Duration, writeTimeout time.Duration, onClose chan struct{}) common.NetConnection {
+	c := NewWSConnection(conn, remoteAddr, true, closeTimeout, writeTimeout, onClose, a.MaxFramePayloadLength)
 	c.SetUdpSignalDispatcher(func(addr *net.UDPAddr) {
 		if udp.Instance != nil {
 			udp.Instance.SendSignal(addr, udp.OpenConnectionNotification)
