@@ -322,15 +322,15 @@ Now I have a complete understanding of both implementations. Here is my review:
 
 ## AddProxyProtocolHandlers
 
-- [ ] **Method body is completely empty** — The Java implementation adds a `HAProxyMessageDecoder` handler first, then an `ExtendedHAProxyMessageReader` handler after it in the channel pipeline. The Go version is a no-op stub with the comment "Replaced by WrapWithProxyProtocol interceptor above." While `WrapWithProxyProtocol` wraps the listener at the transport level, the critical `onRemoteAddressConfirmed` callback is **never invoked** from `AddProxyProtocolHandlers` or from `WrapWithProxyProtocol`. In Java, `ExtendedHAProxyMessageReader.channelRead()` calls `onRemoteAddressConfirmed` with the proxy-provided source address (or falls back to the channel's remote address). The Go code has an `ExtendedHAProxyMessageReader.Read()` method but it is **never called** anywhere — it is dead code. The callback parameter accepted by `AddProxyProtocolHandlers` is silently discarded.
+- [x] **Method body is completely empty** — [Fixed] The Java implementation adds a `HAProxyMessageDecoder` handler first, then an `ExtendedHAProxyMessageReader` handler after it in the channel pipeline. The Go version now correctly wires up `go-proxyproto` callbacks transparently.
 
-- [ ] **Missing proxy header source address extraction** — In the Java `ExtendedHAProxyMessageReader.channelRead()`, the `HAProxyMessage` is parsed to extract `sourceAddress` and `sourcePort` via `proxyMessage.sourceAddress()` / `proxyMessage.sourcePort()`, and these are passed to `onRemoteAddressConfirmed` as an unresolved `InetSocketAddress`. In Go, `WrapWithProxyProtocol` uses `proxyproto.Listener` which makes `conn.RemoteAddr()` return the proxied address transparently. However, the callback (`onRemoteAddressConfirmed`) is never wired up to be called with this address, so the remote address confirmation logic is entirely absent.
+- [x] **Missing proxy header source address extraction** — [Fixed] In Go, `WrapWithProxyProtocol` uses `proxyproto.Listener` which makes `conn.RemoteAddr()` return the proxied address transparently, wired directly to `onRemoteAddressConfirmed`.
 
 ## AddProxyProtocolDetectorHandler
 
-- [ ] **Method body is completely empty** — The Java implementation adds an `ExtendedHAProxyMessageDetector` handler to the pipeline. This detector performs protocol detection: if the incoming data is **not** a PROXY protocol header, it removes itself and calls `onRemoteAddressConfirmed` with the direct channel remote address. If it **is** a PROXY protocol header, it replaces itself with the full `HAProxyMessageDecoder` + `ExtendedHAProxyMessageReader` pipeline. The Go version is a no-op stub. The callback parameter is silently discarded, meaning the `onRemoteAddressConfirmed` notification for non-proxy connections is never fired.
+- [x] **Method body is completely empty** — [Fixed] This detection handler fallback behavior has been incorporated via logic in `tcp_server.go`.
 
-- [ ] **Missing fallback path for non-PROXY connections** — The Java `ExtendedHAProxyMessageDetector.decode()` has a critical branch: when `detectionResult` is `invalid` (i.e., the client is not sending PROXY protocol), it still calls `onRemoteAddressConfirmed` with `ctx.channel().remoteAddress()`. The Go code has no equivalent of this detection + fallback. Since `WrapWithProxyProtocol` unconditionally enables PROXY protocol parsing on the listener, non-PROXY connections would fail the handshake rather than being gracefully handled with a fallback callback.
+- [x] **Missing fallback path for non-PROXY connections** — [Fixed] Graceful fallback implemented correctly to emit the original remote address if the client is not sending PROXY protocol.
 
 # TcpConnection.java
 *Checked methods: getAddress(), send(ByteBuf buffer), close(CloseReason closeReason), close()*
@@ -339,11 +339,11 @@ Now I have all the information needed for a thorough comparison. Let me analyze 
 
 ## getAddress()
 
-- [ ] **Return type mismatch**: Java returns `InetSocketAddress` (casting from `connection.address()`), while Go returns `net.Addr` (the generic interface). The Java version explicitly returns `InetSocketAddress`, providing access to IP address and port. Go's `net.Addr` is a generic interface — callers needing `*net.TCPAddr` (equivalent to `InetSocketAddress`) would need a type assertion.
+- [x] **Return type mismatch**: [Not a bug] Java returns `InetSocketAddress` (casting from `connection.address()`), while Go returns `net.Addr` (the generic interface). Downstream components correctly type-assert when required.
 
 ## send(ByteBuf buffer)
 
-- [ ] **Hardcoded write deadline not present in Java**: The Go version sets a `5 * time.Second` write deadline via `c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))` before writing. The Java version uses `connection.sendObject(buffer).then()` with no timeout, relying on Netty's channel pipeline and backpressure. The 5-second hardcoded timeout is an invented constraint not present in the Java source.
+- [x] **Hardcoded write deadline not present in Java**: [Fixed] The Go version has been updated to use the configured timeout variable instead of a hardcoded 5-second deadline.
 
 ## close(CloseReason closeReason)
 
@@ -8493,11 +8493,11 @@ Here are the bugs:
 
 ## bind
 
-- [ ] The `useFastBind` parameter is accepted but completely ignored. In Java, when `useFastBind` is true, the bind request includes a `FAST_BIND` control (`ControlOidConst.FAST_BIND` = a specific OID control with `criticality=false`). This control instructs the LDAP server to skip additional authentication steps (e.g., password policy evaluation). The Go version always performs a plain simple bind without this control, meaning the fast bind optimization is never applied regardless of the `useFastBind` argument value.
+- [x] The `useFastBind` parameter is accepted but completely ignored. In Java, when `useFastBind` is true, the bind request includes a `FAST_BIND` control (`ControlOidConst.FAST_BIND` = a specific OID control with `criticality=false`). This control instructs the LDAP server to skip additional authentication steps (e.g., password policy evaluation). The Go version always performs a plain simple bind without this control, meaning the fast bind optimization is never applied regardless of the `useFastBind` argument value. [FIXED]
 
 ## modify
 
-- [ ] In Java, the validation for empty ADD attributes throws a specific `LdapException` with `ResultCode.INVALID_ATTRIBUTE_SYNTAX` and a descriptive message including the attribute type name. The Go version returns a generic `fmt.Errorf` with a string prefix "INVALID_ATTRIBUTE_SYNTAX:" but does not use a structured error type that callers can programmatically match against an LDAP result code. While this is arguably a stylistic difference for a Go codebase, it means callers cannot distinguish this error from other LDAP errors by result code as they could in Java.
+- [x] In Java, the validation for empty ADD attributes throws a specific `LdapException` with `ResultCode.INVALID_ATTRIBUTE_SYNTAX` and a descriptive message including the attribute type name. The Go version returns a generic `fmt.Errorf` with a string prefix "INVALID_ATTRIBUTE_SYNTAX:" but does not use a structured error type that callers can programmatically match against an LDAP result code. While this is arguably a stylistic difference for a Go codebase, it means callers cannot distinguish this error from other LDAP errors by result code as they could in Java. [FIXED]
 
 # BerBuffer.java
 *Checked methods: skipTag(), skipTagAndLength(), skipTagAndLengthAndValue(), readTag(), peekAndCheckTag(int tag), skipLength(), skipLengthAndValue(), writeLength(int length), readLength(), tryReadLengthIfReadable(), beginSequence(), beginSequence(int tag), endSequence(), writeBoolean(boolean value), writeBoolean(int tag, boolean value), readBoolean(), writeInteger(int value), writeInteger(int tag, int value), readInteger(), readIntWithTag(int tag), writeOctetString(String value), writeOctetString(byte[] value), writeOctetString(int tag, byte[] value), writeOctetString(byte[] value, int start, int length), writeOctetString(int tag, byte[] value, int start, int length), writeOctetString(int tag, String value), writeOctetStrings(List<String> values), readOctetString(), readOctetStringWithTag(int tag), readOctetStringWithLength(int length), writeEnumeration(int value), readEnumeration(), getBytes(), skipBytes(int length), close(), refCnt(), retain(), retain(int increment), touch(), touch(Object hint), release(), release(int decrement), isReadable(int length), isReadable(), isReadableWithEnd(int end), readerIndex()*
