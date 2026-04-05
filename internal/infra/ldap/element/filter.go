@@ -126,20 +126,7 @@ func writeFiltersInSet(buffer *asn1.BerBuffer, filter []byte, filterType int, st
 				if filterType == typeNot && currentFilterCount > 0 {
 					panic("The filter \"!\" cannot be followed by more than one filter")
 				}
-				
-				// Re-wrap and write as a nested filter
 				length := closingParenIndex - readIdx
-				wrapped := make([]byte, length+1)
-				copy(wrapped, filter[readIdx:closingParenIndex+1])
-				
-				// The Java implementation does something like:
-				// newFilter = new byte[length + 2];
-				// System.arraycopy(filter, context.readIndex, newFilter, 1, length);
-				// newFilter[0] = (byte) '(';
-				// newFilter[length + 1] = (byte) ')';
-				// But we already have parenthesis in the filter excerpt if we are here.
-				// Wait, the Java code (line 442) seems to assume context.readIndex is the start of the inner filter.
-				
 				writeFilterInner(buffer, filter[readIdx:closingParenIndex+1], length+1)
 				currentFilterCount++
 				readIdx = closingParenIndex + 1
@@ -148,7 +135,6 @@ func writeFiltersInSet(buffer *asn1.BerBuffer, filter []byte, filterType int, st
 			}
 			continue
 		}
-		// If it's not a parenthesis, it might be a malformed set or a direct leaf
 		readIdx++
 	}
 }
@@ -183,10 +169,10 @@ func writeLeafFilter(buffer *asn1.BerBuffer, filter []byte, start int, end int) 
 		panic("Missing \"=\"")
 	}
 	equalIndex += start
-	
+
 	filterType := -1
 	filterTypeEndIndex := equalIndex
-	
+
 	if equalIndex > start {
 		switch filter[equalIndex-1] {
 		case '<':
@@ -206,9 +192,9 @@ func writeLeafFilter(buffer *asn1.BerBuffer, filter []byte, start int, end int) 
 			filterTypeEndIndex = equalIndex
 		}
 	}
-	
+
 	valueStartIndex := equalIndex + 1
-	
+
 	if filterTypeEndIndex == equalIndex {
 		// Potential equality, present, or substring
 		if findUnescaped(filter, valueStartIndex, end) == -1 {
@@ -222,13 +208,13 @@ func writeLeafFilter(buffer *asn1.BerBuffer, filter []byte, start int, end int) 
 			return
 		}
 	}
-	
+
 	if filterType == typeExtensibleMatch {
 		writeExtensibleMatchFilter(buffer, filter, start, filterTypeEndIndex, valueStartIndex, end)
 	} else {
 		buffer.BeginSequenceWithTag(filterType)
 		buffer.WriteOctetStringBytesWithStartAndTag(asn1.TagOctetString, filter, start, filterTypeEndIndex-start)
-		
+
 		unescaped := unescapeFilterValue(filter, valueStartIndex, end)
 		if unescaped == nil {
 			buffer.WriteOctetStringBytesWithStartAndTag(asn1.TagOctetString, filter, valueStartIndex, end-valueStartIndex)
@@ -243,34 +229,40 @@ func writeSubstringFilter(buffer *asn1.BerBuffer, filter []byte, typeStart, type
 	buffer.BeginSequenceWithTag(typeSubstring)
 	buffer.WriteOctetStringBytesWithStartAndTag(asn1.TagOctetString, filter, typeStart, typeEnd-typeStart)
 	buffer.BeginSequence()
-	
+
+	isFirst := true
 	previousIndex := valueStart
 	for {
 		index := findUnescaped(filter, previousIndex, valueEnd)
 		if index == -1 {
 			break
 		}
-		
+
 		if previousIndex < index {
+			// There is content before this star
 			unescaped := unescapeFilterValue(filter, previousIndex, index)
-			if unescaped == nil {
-				buffer.WriteOctetStringBytesWithStartAndTag(substringInitial, filter, previousIndex, index-previousIndex)
+			if isFirst {
+				// First component: write as substringInitial
+				if unescaped == nil {
+					buffer.WriteOctetStringBytesWithStartAndTag(substringInitial, filter, previousIndex, index-previousIndex)
+				} else {
+					buffer.WriteOctetStringBytesWithTag(substringInitial, unescaped)
+				}
 			} else {
-				buffer.WriteOctetStringBytesWithTag(substringInitial, unescaped)
+				// Middle component: write as substringAny
+				if unescaped == nil {
+					buffer.WriteOctetStringBytesWithStartAndTag(substringAny, filter, previousIndex, index-previousIndex)
+				} else {
+					buffer.WriteOctetStringBytesWithTag(substringAny, unescaped)
+				}
 			}
-		} else if previousIndex == valueStart {
-			// Initial star, nothing to write
-		} else {
-			// Any star
-			// SubstringAny is written if there's content between stars. 
-			// But LDAP allows empty ANY segments? Usually no.
 		}
-		// In Turms, if it's the first segment it's INITIAL, otherwise it's ANY
-		// Wait, the Java implementation (line 467) checks if previousIndex == valueStart
-		
+
+		isFirst = false
 		previousIndex = index + 1
 	}
-	
+
+	// Last component (after the last star): write as substringFinal
 	if previousIndex < valueEnd {
 		unescaped := unescapeFilterValue(filter, previousIndex, valueEnd)
 		if unescaped == nil {
@@ -279,34 +271,88 @@ func writeSubstringFilter(buffer *asn1.BerBuffer, filter []byte, typeStart, type
 			buffer.WriteOctetStringBytesWithTag(substringFinal, unescaped)
 		}
 	}
-	
+
 	buffer.EndSequence()
 	buffer.EndSequence()
 }
 
 func writeExtensibleMatchFilter(buffer *asn1.BerBuffer, filter []byte, matchStart, matchEnd, valueStart, valueEnd int) {
-	// Porting writeExtensibleMatchFilter
+	// Parse extensible match: [attr][:dn][:matchingRule]:=value
+	// or :matchingRule:=value or :dn:=value
+	attrStart := matchStart
+	attrEnd := matchEnd
+	var matchingRule []byte
+	var attrType []byte
 	matchDN := false
-	firstColon := bytes.IndexByte(filter[matchStart:matchEnd], ':')
-	if firstColon != -1 {
-		firstColon += matchStart
-		if bytes.Contains(filter[firstColon:matchEnd], []byte(":dn")) {
-			matchDN = true
+
+	// Find the colon that precedes '=' (extensible match separator)
+	pos := matchStart
+	for pos < matchEnd {
+		if filter[pos] == ':' {
+			colonPos := pos
+			// Check for ":dn" flag
+			if colonPos+3 <= matchEnd && bytes.Equal(filter[colonPos:colonPos+3], []byte(":dn")) {
+				// Check if it's ":dn:" or ":dn" at end of attr portion
+				if colonPos+3 >= matchEnd || filter[colonPos+3] == ':' {
+					matchDN = true
+					pos = colonPos + 3
+					if pos < matchEnd && filter[pos] == ':' {
+						pos++
+					}
+					continue
+				}
+			}
+			// It could be a matching rule: ":matchingRule"
+			ruleStart := colonPos + 1
+			ruleEnd := matchEnd
+			// Look for another colon after this one (for ":dn:matchingRule" or ":matchingRule:dn")
+			nextColon := bytes.IndexByte(filter[ruleStart:matchEnd], ':')
+			if nextColon != -1 {
+				nextColon += ruleStart
+				// Check if the part between colons is "dn"
+				if bytes.Equal(filter[ruleStart:nextColon], []byte("dn")) {
+					matchDN = true
+					ruleEnd = ruleStart // no matching rule in this segment
+					pos = nextColon + 1
+					continue
+				}
+				ruleEnd = nextColon
+			}
+			matchingRule = filter[ruleStart:ruleEnd]
+			attrEnd = colonPos
+			break
 		}
-		// Test for matching rule
-		secondColon := bytes.IndexByte(filter[firstColon+1:matchEnd], ':')
-		if secondColon != -1 {
-			secondColon += firstColon + 1
-			// Simplified port: matching rule is usually after the second colon or between first/second
-		}
+		pos++
 	}
-	
+
+	// If there was a colon, extract attr type from before the first colon
+	if attrEnd < matchEnd {
+		attrType = filter[attrStart:attrEnd]
+	}
+
 	buffer.BeginSequenceWithTag(typeExtensibleMatch)
-	// (Writing logic omitted for brevity as it requires complex index tracking, 
-	// using the most common case or keeping it simple for now as Turms usually uses simple filters)
-	
-	// Write mandatory value and return success
+
+	// Write matching rule first (tag 0x81) if present
+	if len(matchingRule) > 0 {
+		buffer.WriteOctetStringBytesWithTag(extensibleMatchingRule, matchingRule)
+	}
+
+	// Write attribute type (tag 0x82) if present
+	if len(attrType) > 0 {
+		buffer.WriteOctetStringBytesWithTag(extensibleMatchingType, attrType)
+	}
+
+	// Write value (tag 0x83) - mandatory
+	unescaped := unescapeFilterValue(filter, valueStart, valueEnd)
+	if unescaped == nil {
+		buffer.WriteOctetStringBytesWithStartAndTag(extensibleMatchingValue, filter, valueStart, valueEnd-valueStart)
+	} else {
+		buffer.WriteOctetStringBytesWithTag(extensibleMatchingValue, unescaped)
+	}
+
+	// Write dn flag (tag 0x84)
 	buffer.WriteBooleanWithTag(extensibleMatchingDN, matchDN)
+
 	buffer.EndSequence()
 }
 
@@ -321,7 +367,7 @@ func unescapeFilterValue(filter []byte, start, end int) []byte {
 	if !hasEscape {
 		return nil
 	}
-	
+
 	res := make([]byte, 0, end-start)
 	for i := start; i < end; i++ {
 		if filter[i] == '\\' && i+2 < end {
