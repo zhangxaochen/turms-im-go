@@ -164,8 +164,8 @@ func (s *GroupMemberService) QueryGroupMemberRole(ctx context.Context, groupID, 
 	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
 }
 
-func (s *GroupMemberService) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
-	return s.groupMemberRepo.FindGroupMemberIDs(ctx, groupID)
+func (s *GroupMemberService) FindGroupMemberIDs(ctx context.Context, groupID int64, activeOnly ...bool) ([]int64, error) {
+	return s.groupMemberRepo.FindGroupMemberIDs(ctx, groupID, activeOnly...)
 }
 
 // FindExistentMemberGroupIds returns a list of group IDs where the user is an existent member.
@@ -319,19 +319,24 @@ func (s *GroupMemberService) IsOwnerOrManagerOrMember(ctx context.Context, userI
 	return *role == protocol.GroupMemberRole_OWNER || *role == protocol.GroupMemberRole_MANAGER || *role == protocol.GroupMemberRole_MEMBER, nil
 }
 
-func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
-	cacheKey := fmt.Sprintf("member:%d:%d", groupID, userID)
-	if isMember, ok := s.memberCache.Get(cacheKey); ok {
+func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID int64, activeOnly ...bool) (bool, error) {
+	// Only use cache when not filtering by activeOnly (backward compatible)
+	if len(activeOnly) == 0 || !activeOnly[0] {
+		cacheKey := fmt.Sprintf("member:%d:%d", groupID, userID)
+		if isMember, ok := s.memberCache.Get(cacheKey); ok {
+			return isMember, nil
+		}
+
+		isMember, err := s.groupMemberRepo.IsGroupMember(ctx, groupID, userID, activeOnly...)
+		if err != nil {
+			return false, err
+		}
+
+		s.memberCache.Set(cacheKey, isMember)
 		return isMember, nil
 	}
 
-	isMember, err := s.groupMemberRepo.IsGroupMember(ctx, groupID, userID)
-	if err != nil {
-		return false, err
-	}
-
-	s.memberCache.Set(cacheKey, isMember)
-	return isMember, nil
+	return s.groupMemberRepo.IsGroupMember(ctx, groupID, userID, activeOnly...)
 }
 
 func (s *GroupMemberService) UpdateGroupMemberRole(

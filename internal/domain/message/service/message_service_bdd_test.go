@@ -38,11 +38,11 @@ type mockGroupMemService struct {
 	allowed bool
 }
 
-func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error) {
+func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, userID int64, activeOnly ...bool) (bool, error) {
 	return m.allowed, nil
 }
 
-func (m *mockGroupMemService) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+func (m *mockGroupMemService) FindGroupMemberIDs(ctx context.Context, groupID int64, activeOnly ...bool) ([]int64, error) {
 	return []int64{1, 2, 3}, nil
 }
 

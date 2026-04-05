@@ -70,9 +70,20 @@ func (r *GroupMemberRepository) FindGroupMemberRole(ctx context.Context, groupID
 // FindGroupMemberIDs retrieves all user IDs within a group.
 // @MappedFrom findGroupMemberIds(Long groupId)
 // @MappedFrom findGroupMemberIds(Set<Long> groupIds)
-func (r *GroupMemberRepository) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
+// If activeOnly is true, only returns members with active roles (OWNER, MANAGER, MEMBER),
+// excluding GUEST and ANONYMOUS_GUEST. This matches Java's queryGroupMemberIds(groupId, true).
+func (r *GroupMemberRepository) FindGroupMemberIDs(ctx context.Context, groupID int64, activeOnly ...bool) ([]int64, error) {
 	filter := bson.M{
 		"_id.gid": groupID,
+	}
+	if len(activeOnly) > 0 && activeOnly[0] {
+		filter["role"] = bson.M{
+			"$in": []protocol.GroupMemberRole{
+				protocol.GroupMemberRole_OWNER,
+				protocol.GroupMemberRole_MANAGER,
+				protocol.GroupMemberRole_MEMBER,
+			},
+		}
 	}
 	opts := options.Find().SetProjection(bson.M{"_id.uid": 1})
 
@@ -236,9 +247,20 @@ func (r *GroupMemberRepository) FindGroupMemberKeyAndRolePairs(ctx context.Conte
 // IsGroupMember checks if a user is a member of a group.
 // @MappedFrom isGroupMember(@NotNull Long groupId, @NotNull Long userId, boolean preferCache)
 // @MappedFrom isGroupMember(@NotEmpty Set<Long> groupIds, @NotNull Long userId)
-func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, userID int64) (bool, error) {
+// If activeOnly is true, only considers members with active roles (OWNER, MANAGER, MEMBER),
+// excluding GUEST and ANONYMOUS_GUEST. This matches Java's isGroupMember(groupId, userId, true).
+func (r *GroupMemberRepository) IsGroupMember(ctx context.Context, groupID, userID int64, activeOnly ...bool) (bool, error) {
 	filter := bson.M{
 		"_id": po.GroupMemberKey{GroupID: groupID, UserID: userID},
+	}
+	if len(activeOnly) > 0 && activeOnly[0] {
+		filter["role"] = bson.M{
+			"$in": []protocol.GroupMemberRole{
+				protocol.GroupMemberRole_OWNER,
+				protocol.GroupMemberRole_MANAGER,
+				protocol.GroupMemberRole_MEMBER,
+			},
+		}
 	}
 	count, err := r.col.CountDocuments(ctx, filter, options.Count().SetLimit(1))
 	if err != nil {

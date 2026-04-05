@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -23,8 +24,8 @@ type GroupService interface {
 }
 
 type GroupMemberService interface {
-	IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error)
-	FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error)
+	IsGroupMember(ctx context.Context, groupID int64, userID int64, activeOnly ...bool) (bool, error)
+	FindGroupMemberIDs(ctx context.Context, groupID int64, activeOnly ...bool) ([]int64, error)
 	QueryUserJoinedGroupIds(ctx context.Context, userID int64) ([]int64, error)
 }
 
@@ -78,7 +79,9 @@ func (s *ConversationService) AuthAndUpsertGroupConversationReadDate(ctx context
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATING_READ_DATE_OF_NONEXISTENT_GROUP_CONVERSATION), "")
 	}
 
-	isMember, err := s.groupMemberSvc.IsGroupMember(ctx, groupID, memberID)
+	// Bug fix: Pass activeOnly=true to only check active members (OWNER, MANAGER, MEMBER),
+	// matching Java's isGroupMember(groupId, memberId, true).
+	isMember, err := s.groupMemberSvc.IsGroupMember(ctx, groupID, memberID, true)
 	if err != nil {
 		return err
 	}
@@ -124,10 +127,21 @@ func (s *ConversationService) AuthAndUpsertPrivateConversationReadDate(ctx conte
 
 // UpsertGroupConversationReadDate
 // @MappedFrom upsertGroupConversationReadDate(@NotNull Long groupId, @NotNull Long memberId, @Nullable @PastOrPresent Date readDate)
+// readDate is required and should already be defaulted to time.Now() by the caller if originally nil.
 func (s *ConversationService) UpsertGroupConversationReadDate(ctx context.Context, groupID int64, memberID int64, readDate time.Time) error {
 	allowMoveForward := s.propertiesManager.GetLocalProperties().Service.Conversation.ReadReceipt.AllowMoveReadDateForward
 	err := s.groupConvRepo.Upsert(ctx, groupID, memberID, readDate, allowMoveForward)
 	if err != nil && exception.IsDuplicateKeyError(err) {
+		// Bug fix: Match Java behavior — if the readDate was server-generated (i.e. caller
+		// passed a default), swallow the DuplicateKey error because the server-generated time
+		// can't move forward. Only return the error when the client provided a specific date.
+		// Since UpsertGroupConversationReadDate is always called with a resolved non-nil
+		// readDate from the Auth* methods, the DuplicateKey should still produce the error
+		// when a client-provided date triggers it. However, when called directly with a
+		// zero-value readDate (indicating server should default), swallow the error.
+		if readDate.IsZero() {
+			return nil
+		}
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_MOVING_READ_DATE_FORWARD_IS_DISABLED), "")
 	}
 	return err
@@ -144,11 +158,20 @@ func (s *ConversationService) UpsertGroupConversationsReadDate(ctx context.Conte
 		finalReadDate = *readDate
 	}
 
+	// Bug fix: Aggregate all errors instead of failing fast on the first one,
+	// matching Java's Mono.whenDelayError behavior.
+	var allErrors []error
 	for groupID, memberIDs := range groupIDToMemberIDs {
 		err := s.groupConvRepo.BulkUpsert(ctx, groupID, memberIDs, finalReadDate)
 		if err != nil {
-			return err
+			allErrors = append(allErrors, err)
 		}
+	}
+	if len(allErrors) == 1 {
+		return allErrors[0]
+	}
+	if len(allErrors) > 1 {
+		return errors.Join(allErrors...)
 	}
 	return nil
 }
@@ -172,6 +195,12 @@ func (s *ConversationService) UpsertPrivateConversationsReadDate(ctx context.Con
 	allowMoveForward := s.propertiesManager.GetLocalProperties().Service.Conversation.ReadReceipt.AllowMoveReadDateForward
 	err := s.privateConvRepo.Upsert(ctx, keys, finalReadDate, allowMoveForward)
 	if err != nil && exception.IsDuplicateKeyError(err) {
+		// Bug fix: Match Java behavior — swallow DuplicateKey when readDate was nil
+		// (server-generated time), because the server's own timestamp can't conflict
+		// with itself in a meaningful way. Only error when client provided a date.
+		if readDate == nil {
+			return nil
+		}
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_MOVING_READ_DATE_FORWARD_IS_DISABLED), "")
 	}
 	return err
@@ -204,9 +233,23 @@ func (s *ConversationService) QueryPrivateConversations(ctx context.Context, key
 	return s.privateConvRepo.FindByIds(ctx, keys)
 }
 
+// QueryPrivateConversationsByOwnerAndTarget builds PrivateConversationKey list from owner IDs
+// paired with a common target ID, then queries for those conversations.
+// @MappedFrom queryPrivateConversations(Collection<Long> ownerIds, Long targetId)
+func (s *ConversationService) QueryPrivateConversationsByOwnerAndTarget(ctx context.Context, ownerIDs []int64, targetID int64) ([]*po.PrivateConversation, error) {
+	if len(ownerIDs) == 0 {
+		return nil, nil
+	}
+	keys := make([]po.PrivateConversationKey, len(ownerIDs))
+	for i, ownerID := range ownerIDs {
+		keys[i] = po.PrivateConversationKey{OwnerID: ownerID, TargetID: targetID}
+	}
+	return s.privateConvRepo.FindByIds(ctx, keys)
+}
+
 // DeletePrivateConversationsByKeys
 // @MappedFrom deletePrivateConversations(@NotNull Set<PrivateConversation.Key> keys)
-func (s *ConversationService) DeletePrivateConversationsByKeys(ctx context.Context, keys []po.PrivateConversationKey) (*mongo.DeleteResult, error) {
+func (s *ConversationService) DeletePrivateConversationsByKeys(ctx context.Context, keys []po.PrivateConversationKey, opts ...*mongo.Session) (*mongo.DeleteResult, error) {
 	if len(keys) == 0 {
 		return &mongo.DeleteResult{}, nil
 	}
@@ -215,7 +258,7 @@ func (s *ConversationService) DeletePrivateConversationsByKeys(ctx context.Conte
 
 // DeletePrivateConversationsByUserIds
 // @MappedFrom deletePrivateConversations(@NotNull Set<Long> userIds, @Nullable ClientSession session)
-func (s *ConversationService) DeletePrivateConversationsByUserIds(ctx context.Context, userIDs []int64) (*mongo.DeleteResult, error) {
+func (s *ConversationService) DeletePrivateConversationsByUserIds(ctx context.Context, userIDs []int64, opts ...*mongo.Session) (*mongo.DeleteResult, error) {
 	if len(userIDs) == 0 {
 		return &mongo.DeleteResult{}, nil
 	}
@@ -224,7 +267,7 @@ func (s *ConversationService) DeletePrivateConversationsByUserIds(ctx context.Co
 
 // DeleteGroupConversations
 // @MappedFrom deleteGroupConversations(@Nullable Set<Long> groupIds, @Nullable ClientSession session)
-func (s *ConversationService) DeleteGroupConversations(ctx context.Context, groupIDs []int64) (*mongo.DeleteResult, error) {
+func (s *ConversationService) DeleteGroupConversations(ctx context.Context, groupIDs []int64, opts ...*mongo.Session) (*mongo.DeleteResult, error) {
 	if len(groupIDs) == 0 {
 		return &mongo.DeleteResult{}, nil
 	}
@@ -233,7 +276,7 @@ func (s *ConversationService) DeleteGroupConversations(ctx context.Context, grou
 
 // DeleteGroupMemberConversations
 // @MappedFrom deleteGroupMemberConversations(@NotNull Collection<Long> userIds, @Nullable ClientSession session)
-func (s *ConversationService) DeleteGroupMemberConversations(ctx context.Context, userIDs []int64) error {
+func (s *ConversationService) DeleteGroupMemberConversations(ctx context.Context, userIDs []int64, opts ...*mongo.Session) error {
 	if len(userIDs) == 0 {
 		return nil
 	}
@@ -260,14 +303,18 @@ func (s *ConversationService) AuthAndUpdateTypingStatus(ctx context.Context, req
 	}
 
 	if isGroupMessage {
-		isMember, err := s.groupMemberSvc.IsGroupMember(ctx, toID, requesterID)
+		// Bug fix: Pass activeOnly=true to only check active members (OWNER, MANAGER, MEMBER),
+		// matching Java's isGroupMember(toId, requesterId, true).
+		isMember, err := s.groupMemberSvc.IsGroupMember(ctx, toID, requesterID, true)
 		if err != nil {
 			return nil, err
 		}
 		if !isMember {
 			return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_SEND_TYPING_STATUS), "")
 		}
-		return s.groupMemberSvc.FindGroupMemberIDs(ctx, toID)
+		// Bug fix: Pass activeOnly=true to only return active group members,
+		// matching Java's queryGroupMemberIds(toId, true).
+		return s.groupMemberSvc.FindGroupMemberIDs(ctx, toID, true)
 	} else {
 		canSend, err := s.userRelationshipSvc.HasRelationshipAndNotBlocked(ctx, toID, requesterID)
 		if err != nil {
