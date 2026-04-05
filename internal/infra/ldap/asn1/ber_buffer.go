@@ -61,7 +61,7 @@ func (b *BerBuffer) SkipTagAndLengthAndValue() {
 // @MappedFrom readTag()
 func (b *BerBuffer) ReadTag() int {
 	if b.readerIdx >= len(b.buf) {
-		return 0
+		panic("Insufficient data: cannot read tag")
 	}
 	tag := int(b.buf[b.readerIdx])
 	b.readerIdx++
