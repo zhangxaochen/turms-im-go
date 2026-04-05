@@ -35,6 +35,8 @@ type WebSocketProperties struct {
 	Enabled               bool
 	Host                  string
 	Port                  int
+	Backlog               int
+	ConnectTimeoutMillis  int
 	ProxyProtocolMode     RemoteAddressSourceProxyProtocolMode
 	HttpHeaderMode        RemoteAddressSourceHttpHeaderMode
 	MaxFramePayloadLength int
@@ -44,6 +46,7 @@ type WebSocketProperties struct {
 	WriteTimeoutMillis    int
 	Wiretap               bool
 	MetricsEnabled        bool
+	Ssl                   SslProperties
 }
 
 type RemoteAddressSourceHttpHeaderMode int

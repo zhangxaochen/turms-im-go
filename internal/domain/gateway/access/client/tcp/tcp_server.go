@@ -227,14 +227,18 @@ func (f *TcpServerFactory) Create(
 				if props.KeepAlive {
 					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_KEEPALIVE, 1)
 				}
-				// Bug 872: Set backlog to 4096 (matching Turms Java)
-				_ = syscall.Listen(int(fd), 4096)
+							// Bug 872: Set backlog from properties (matching Turms Java)
+				backlog := props.Backlog
+				if backlog <= 0 {
+					backlog = 4096 // Default matching Turms Java
+				}
+				_ = syscall.Listen(int(fd), backlog)
 			})
 		},
 	}
 	l, err := lc.Listen(context.Background(), "tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to bind the TCP server on %s: %w", addr, err)
+		return nil, fmt.Errorf("Failed to bind the TCP server on: %s: %w", addr, err)
 	}
 
 	if props.Ssl.Enabled {
@@ -247,12 +251,20 @@ func (f *TcpServerFactory) Create(
 
 	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
 		pL := &proxyproto.Listener{Listener: l}
+		blSvc := blocklistService // Capture for closure
 		if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
 			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
 				return proxyproto.REQUIRE, nil
 			}
 		} else {
 			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
+				// Check blocklist for the direct (upstream) IP during proxy protocol detection
+				// to match Java's behavior of checking in doOnChannelInit callback
+				if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
+					if blSvc.IsIpBlocked(tcpAddr.IP.To4()) {
+						return proxyproto.REJECT, nil
+					}
+				}
 				return proxyproto.USE, nil
 			}
 		}
@@ -281,7 +293,13 @@ func (f *TcpServerFactory) Create(
 				_ = tcpConn.SetNoDelay(props.TcpNoDelay)
 				// Bug 422: SO_LINGER parity - matched Java's default netty config (reset immediately)
 				_ = tcpConn.SetLinger(0)
-				
+				// Connect timeout: In Java, CONNECT_TIMEOUT_MILLIS is set as a server socket option.
+				// In Go, we apply it as an initial read/write deadline on accepted connections.
+				if props.ConnectTimeoutMillis > 0 {
+					deadline := time.Now().Add(time.Duration(props.ConnectTimeoutMillis) * time.Millisecond)
+					_ = tcpConn.SetDeadline(deadline)
+				}
+
 				if props.KeepAlive {
 					_ = tcpConn.SetKeepAlive(true)
 					_ = tcpConn.SetKeepAlivePeriod(1 * time.Minute) // Matching Java's default
