@@ -13,6 +13,7 @@ import (
 
 type AdminRepository interface {
 	Insert(ctx context.Context, admin *po.Admin) error
+	Upsert(ctx context.Context, admin *po.Admin) error
 	UpdateAdmins(ctx context.Context, ids []int64, password []byte, displayName *string, roleIDs []int64) (int64, error)
 	CountAdmins(ctx context.Context, ids []int64, roleIDs []int64) (int64, error)
 	FindAdmins(ctx context.Context, ids []int64, loginNames []string, roleIDs []int64, page *int, size *int) ([]*po.Admin, error)
@@ -31,6 +32,14 @@ func NewAdminRepository(client *turmsmongo.Client) AdminRepository {
 
 func (r *adminRepository) Insert(ctx context.Context, admin *po.Admin) error {
 	_, err := r.coll.InsertOne(ctx, admin)
+	return err
+}
+
+func (r *adminRepository) Upsert(ctx context.Context, admin *po.Admin) error {
+	filter := bson.M{po.AdminFieldID: admin.ID}
+	update := bson.M{"$set": admin}
+	opts := options.Update().SetUpsert(true)
+	_, err := r.coll.UpdateOne(ctx, filter, update, opts)
 	return err
 }
 
