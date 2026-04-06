@@ -2,6 +2,7 @@ package bo
 
 import (
 	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/gateway/access/client/common/authorization"
 )
 
 // UserPermissionInfo represents the permissions granted to a user session.
@@ -28,8 +29,23 @@ func NewUserPermissionInfoCodeOnly(authenticationCode constant.ResponseStatusCod
 	}
 }
 
+// allPermissionsMap holds a pre-built permissions map with all request types.
+// Java parity: TurmsRequestTypePool.ALL (populated set of all request types).
+var allPermissionsMap map[int32]bool
+
+func init() {
+	allPermissionsMap = make(map[int32]bool, len(authorization.ALL_REQUEST_TYPES))
+	for _, rt := range authorization.ALL_REQUEST_TYPES {
+		allPermissionsMap[rt] = true
+	}
+}
+
+// GrantedWithAllPermissions returns a UserPermissionInfo with ALL request types granted.
+// Java parity: GRANTED_WITH_ALL_PERMISSIONS uses TurmsRequestTypePool.ALL (populated set),
+// not nil/empty. Downstream code checks permissions[requestType] and expects true for all.
+var GrantedWithAllPermissions = NewUserPermissionInfo(constant.ResponseStatusCode_OK, allPermissionsMap)
+
 var (
-	GrantedWithAllPermissions = NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil)
 	LoginAuthenticationFailed = NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_LOGIN_AUTHENTICATION_FAILED)
 	LoggingInUserNotActive    = NewUserPermissionInfoCodeOnly(constant.ResponseStatusCode_LOGGING_IN_USER_NOT_ACTIVE)
 )
