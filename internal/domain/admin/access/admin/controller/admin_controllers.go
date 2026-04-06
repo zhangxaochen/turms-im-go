@@ -32,16 +32,12 @@ func (c *AdminController) CheckLoginNameAndPassword() error {
 
 // @MappedFrom addAdmin
 func (c *AdminController) AddAdmin(ctx context.Context, requesterId int64, addAdminDTO admindto.AddAdminDTO) (*adminpo.Admin, error) {
-	var displayName string
-	if addAdminDTO.DisplayName != nil {
-		displayName = *addAdminDTO.DisplayName
-	}
 	return c.adminService.AuthAndAddAdmin(
 		ctx,
 		requesterId,
 		addAdminDTO.LoginName,
 		addAdminDTO.Password,
-		displayName,
+		addAdminDTO.DisplayName,
 		addAdminDTO.RoleIDs,
 	)
 }

@@ -633,8 +633,8 @@ func (s *GroupService) Count(ctx context.Context) (int64, error) {
 }
 
 // @MappedFrom countGroups(@Nullable DateRange dateRange)
-func (s *GroupService) CountGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
-	return s.groupRepo.CountGroups(ctx, dateRange)
+func (s *GroupService) CountGroups(ctx context.Context, ids []int64, typeIds []int64, creatorIds []int64, ownerIds []int64, isActive *bool) (int64, error) {
+	return s.groupRepo.CountGroups(ctx, ids, typeIds, creatorIds, ownerIds, isActive)
 }
 
 func (s *GroupService) QueryGroupsWithPagination(ctx context.Context, page, size *int) ([]*po.Group, error) {

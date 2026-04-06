@@ -34,10 +34,6 @@ const rootRoleRank = int(^uint(0) >> 1)
 // rootRoleRankValue is a variable copy of rootRoleRank for taking its address.
 var rootRoleRankValue = rootRoleRank
 
-// Role name length limits (matching Java's AdminRoleService constants).
-const MinRoleNameLimit = 1
-const MaxRoleNameLimit = 32
-
 // rootRole is the in-memory root admin role (not stored in DB).
 var rootRole = &po.AdminRole{
 	ID:          RootRoleID,
@@ -583,8 +579,8 @@ func (s *adminRoleService) QueryPermissions(ctx context.Context, adminId int64) 
 // @MappedFrom AdminService
 type AdminService interface {
 	QueryRoleIdsByAdminIds(ctx context.Context, adminIds []int64) ([]int64, error)
-	AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error)
-	AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName string, roleIds []int64, upsert bool, registrationDate *time.Time) (*po.Admin, error)
+	AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error)
+	AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64, upsert bool, registrationDate *time.Time) (*po.Admin, error)
 	QueryAdmins(ctx context.Context, ids []int64, loginNames []string, roleIds []int64, page *int, size *int) ([]*po.Admin, error)
 	AuthAndDeleteAdmins(ctx context.Context, requesterId int64, adminIds []int64) (int64, error)
 	AuthAndUpdateAdmins(ctx context.Context, requesterId int64, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error)
@@ -743,7 +739,7 @@ func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string
 		ID:               adminID,
 		LoginName:        loginName,
 		Password:         hashed,
-		DisplayName:      &displayName,
+		DisplayName:      displayName,
 		RoleIDs:          roleIds,
 		RegistrationDate: regDate,
 	}
