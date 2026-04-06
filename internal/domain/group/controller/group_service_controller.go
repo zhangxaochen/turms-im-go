@@ -314,35 +314,32 @@ func (c *GroupServiceController) HandleUpdateGroupRequest(ctx context.Context, s
 	// BUG FIX: Add branching logic for successorId vs regular update
 	if updateReq.SuccessorId != nil {
 		// Java: authAndTransferGroupOwnership when successorId is present
+		quitAfterTransfer := updateReq.GetQuitAfterTransfer()
 		err := c.groupService.AuthAndTransferGroupOwnership(
 			ctx,
 			s.UserID,
-			updateReq.GroupId,
+			updateReq.GetGroupId(),
 			*updateReq.SuccessorId,
-			updateReq.QuitAfterTransfer,
+			quitAfterTransfer,
+			nil, // session
 		)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		// BUG FIX: Add missing muteEndDate, announcement, userDefinedAttributes parameters
-		var muteEndDate *time.Time
-		if updateReq.MuteEndDate != nil {
-			med := time.UnixMilli(*updateReq.MuteEndDate)
-			muteEndDate = &med
-		}
-
-		err := c.groupService.AuthAndUpdateGroupInformation(
+		// BUG FIX: Use correct AuthAndUpdateGroup signature matching the service method
+		err := c.groupService.AuthAndUpdateGroup(
 			ctx,
 			s.UserID,
-			updateReq.GroupId,
+			updateReq.GetGroupId(),
 			updateReq.TypeId,
+			updateReq.SuccessorId,
 			updateReq.Name,
 			updateReq.Intro,
 			updateReq.Announcement,
 			updateReq.MinScore,
-			muteEndDate,
-			nil, // userDefinedAttributes - not implemented yet
+			updateReq.Active,
+			updateReq.QuitAfterTransfer,
 		)
 		if err != nil {
 			return nil, err
@@ -546,20 +543,28 @@ func (c *GroupServiceController) HandleUpdateGroupMemberRequest(ctx context.Cont
 // @MappedFrom handleCreateGroupBlockedUserRequest()
 func (c *GroupServiceController) HandleCreateGroupBlockedUserRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupBlockedUserRequest()
-	err := c.groupBlocklistService.BlockUser(ctx, createReq.GetGroupId(), createReq.GetUserId(), s.UserID)
+	// BUG FIX: Use AuthAndBlockUser for proper authorization check, matching Java's authAndBlockUser
+	err := c.groupBlocklistService.AuthAndBlockUser(ctx, s.UserID, createReq.GetGroupId(), createReq.GetUserId())
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Add notification logic for group members, blocked user, and requester's other sessions
 	return buildSuccessNotification(req.RequestId), nil
 }
 
 // @MappedFrom handleDeleteGroupBlockedUserRequest()
 func (c *GroupServiceController) HandleDeleteGroupBlockedUserRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupBlockedUserRequest()
-	err := c.groupBlocklistService.UnblockUser(ctx, deleteReq.GetGroupId(), deleteReq.GetUserId())
+	// BUG FIX: Use AuthAndUnblockUser with requester ID for authorization, matching Java's authAndUnblockUser
+	wasBlocked, err := c.groupBlocklistService.AuthAndUnblockUser(ctx, s.UserID, deleteReq.GetGroupId(), deleteReq.GetUserId())
 	if err != nil {
 		return nil, err
 	}
+	// BUG FIX: Check wasBlocked - Java: if (!wasBlocked) { return RequestHandlerResult.OK; }
+	if !wasBlocked {
+		return buildSuccessNotification(req.RequestId), nil
+	}
+	// TODO: Add notification logic for group members, unblocked user, and requester's other sessions
 	return buildSuccessNotification(req.RequestId), nil
 }
 
@@ -573,9 +578,10 @@ func (c *GroupServiceController) HandleQueryGroupBlockedUserIdsRequest(ctx conte
 		lastUpdatedDate = &t
 	}
 
-	userIDs, version, err := c.groupBlocklistService.AuthAndQueryGroupBlockedUserIds(
+	// BUG FIX: Java calls queryGroupBlockedUserIdsWithVersion without userId auth check.
+	// Use non-auth version to match Java behavior.
+	userIDs, version, err := c.groupBlocklistService.QueryGroupBlockedUserIdsWithVersion(
 		ctx,
-		s.UserID,
 		queryReq.GetGroupId(),
 		lastUpdatedDate,
 	)
@@ -620,9 +626,10 @@ func (c *GroupServiceController) HandleQueryGroupBlockedUserInfosRequest(ctx con
 		lastUpdatedDate = &t
 	}
 
-	blockedUsers, version, err := c.groupBlocklistService.AuthAndQueryGroupBlockedUserInfos(
+	// BUG FIX: Java calls queryGroupBlockedUserInfosWithVersion without userId auth check.
+	// Use non-auth version to match Java behavior.
+	blockedUsers, version, err := c.groupBlocklistService.QueryGroupBlockedUserInfosWithVersion(
 		ctx,
-		s.UserID,
 		queryReq.GetGroupId(),
 		lastUpdatedDate,
 	)
@@ -669,10 +676,12 @@ func (c *GroupServiceController) HandleQueryGroupBlockedUserInfosRequest(ctx con
 
 func (c *GroupServiceController) HandleCreateGroupInvitationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupInvitationRequest()
-	invitation, err := c.groupInvitationService.CreateInvitation(ctx, createReq.GetGroupId(), s.UserID, createReq.GetInviteeId(), createReq.GetContent())
+	// BUG FIX: Use AuthAndCreateGroupInvitation for authorization check, matching Java's authAndCreateGroupInvitation
+	invitation, err := c.groupInvitationService.AuthAndCreateGroupInvitation(ctx, s.UserID, createReq.GetGroupId(), createReq.GetInviteeId(), createReq.GetContent())
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Add notification logic for group members, owner/managers, invitee, and requester's other sessions
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(1000),
@@ -779,13 +788,21 @@ func (c *GroupServiceController) HandleQueryGroupInvitationsRequest(ctx context.
 func (c *GroupServiceController) HandleUpdateGroupInvitationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupInvitationRequest()
 	accept := protocol.ResponseAction_name[int32(updateReq.GetResponseAction())] == "ACCEPT" // Simplistic mapping
-	// BUG FIX: Preserve reason parameter instead of dropping it
-	_, err := c.groupInvitationService.ReplyToInvitationWithReason(ctx, updateReq.GetInvitationId(), s.UserID, accept, updateReq.GetReason())
+	// BUG FIX: Preserve reason parameter and auth check, matching Java's authAndHandleInvitation
+	status := po.RequestStatusDeclined
+	if accept {
+		status = po.RequestStatusAccepted
+	}
+	reason := ""
+	if updateReq.Reason != nil {
+		reason = *updateReq.Reason
+	}
+	err := c.groupInvitationService.AuthAndHandleInvitation(ctx, s.UserID, updateReq.GetInvitationId(), status, reason)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: Add notification logic
+	// TODO: Add notification logic (invitation updates and member additions)
 
 	return buildSuccessNotification(req.RequestId), nil
 }
@@ -795,10 +812,12 @@ func (c *GroupServiceController) HandleUpdateGroupInvitationRequest(ctx context.
 // @MappedFrom handleCreateGroupJoinRequestRequest()
 func (c *GroupServiceController) HandleCreateGroupJoinRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupJoinRequestRequest()
-	joinRequest, err := c.groupJoinRequestService.CreateJoinRequest(ctx, createReq.GetGroupId(), s.UserID, createReq.GetContent())
+	// BUG FIX: Use AuthAndCreateJoinRequest for authorization check, matching Java's authAndCreateGroupJoinRequest
+	joinRequest, err := c.groupJoinRequestService.AuthAndCreateJoinRequest(ctx, s.UserID, createReq.GetGroupId(), createReq.GetContent())
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Add notification logic for group members, owner/managers, and requester's other sessions
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(1000),
@@ -932,14 +951,20 @@ func (c *GroupServiceController) HandleUpdateGroupJoinRequestRequest(ctx context
 
 func (c *GroupServiceController) HandleCreateGroupJoinQuestionsRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateGroupJoinQuestionsRequest()
+	groupID := createReq.GetGroupId()
 	var ids []int64
+	// BUG FIX: Use AuthAndCreateQuestion for authorization check, matching Java's authAndCreateGroupJoinQuestions.
+	// Note: Java creates questions in a single batch call. Go creates individually which is not atomic,
+	// but the service-level AuthAndCreateQuestion ensures auth is checked for each.
 	for _, question := range createReq.GetQuestions() {
-		q, err := c.groupQuestionService.CreateJoinQuestion(ctx, createReq.GetGroupId(), question.GetQuestion(), question.GetAnswers(), int(question.GetScore()))
+		q, err := c.groupQuestionService.AuthAndCreateQuestion(ctx, s.UserID, groupID, question.GetQuestion(), question.GetAnswers(), int(question.GetScore()))
 		if err != nil {
 			return nil, err
 		}
 		ids = append(ids, q.ID)
 	}
+	// BUG FIX: Java returns RequestHandlerResult.ofDataLongs(questionIds) which is LongsWithVersion with just longs.
+	// Match that format exactly.
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(1000),
