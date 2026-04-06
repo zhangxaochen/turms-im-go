@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	ErrRequesterNotExist = errors.New("requester does not exist")
+	ErrRequesterNotExist = errors.New("UNAUTHORIZED: requester does not exist")
 	ErrPermissionDenied  = errors.New("permission denied")
 )
 
@@ -30,6 +30,13 @@ const MaxRoleNameLimit = 32
 
 // rootRoleRank is the rank of the root role (Integer.MAX_VALUE in Java).
 const rootRoleRank = int(^uint(0) >> 1)
+
+// rootRoleRankValue is a variable copy of rootRoleRank for taking its address.
+var rootRoleRankValue = rootRoleRank
+
+// Role name length limits (matching Java's AdminRoleService constants).
+const MinRoleNameLimit = 1
+const MaxRoleNameLimit = 32
 
 // rootRole is the in-memory root admin role (not stored in DB).
 var rootRole = &po.AdminRole{
@@ -360,7 +367,7 @@ func (s *adminRoleService) QueryAdminRoles(ctx context.Context, ids []int64, nam
 	if isRootRoleQualified(ids, names, includedPermissions, ranks) {
 		// Prepend root role
 		result := make([]*po.AdminRole, 0, len(roles)+1)
-		result = append(result, getRootRole())
+		result = append(result, rootRole)
 		result = append(result, roles...)
 		return result, nil
 	}
@@ -398,7 +405,7 @@ func isRootRoleQualified(ids []int64, names []string, includedPermissions []perm
 	}
 	// If includedPermissions is specified, check that root role contains all of them
 	if len(includedPermissions) > 0 {
-		root := getRootRole()
+		root := rootRole
 		rootPermSet := make(map[permission.AdminPermission]bool)
 		for _, p := range root.Permissions {
 			rootPermSet[p] = true
@@ -495,8 +502,7 @@ func (s *adminRoleService) QueryHighestRankByRoleIds(ctx context.Context, roleId
 	// Bug fix: Missing root role handling — if RootRoleID is in roleIds, return MAX_VALUE rank
 	for _, id := range roleIds {
 		if id == RootRoleID {
-			rank := rootRoleRank
-			return &rank, nil
+			return &rootRoleRankValue, nil
 		}
 	}
 	return s.repo.FindHighestRankByRoleIds(ctx, roleIds)
@@ -577,8 +583,8 @@ func (s *adminRoleService) QueryPermissions(ctx context.Context, adminId int64) 
 // @MappedFrom AdminService
 type AdminService interface {
 	QueryRoleIdsByAdminIds(ctx context.Context, adminIds []int64) ([]int64, error)
-	AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error)
-	AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error)
+	AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error)
+	AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName string, roleIds []int64, upsert bool, registrationDate *time.Time) (*po.Admin, error)
 	QueryAdmins(ctx context.Context, ids []int64, loginNames []string, roleIds []int64, page *int, size *int) ([]*po.Admin, error)
 	AuthAndDeleteAdmins(ctx context.Context, requesterId int64, adminIds []int64) (int64, error)
 	AuthAndUpdateAdmins(ctx context.Context, requesterId int64, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error)
@@ -696,11 +702,11 @@ func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, l
 			}
 		}
 	}
-	return s.AddAdmin(ctx, nil, loginName, rawPassword, displayName, roleIds)
+	return s.AddAdmin(ctx, nil, loginName, rawPassword, displayName, roleIds, false, nil)
 }
 
 // @MappedFrom addAdmin
-func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
+func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64, upsert bool, registrationDate *time.Time) (*po.Admin, error) {
 	adminID := s.idGen.NextIncreasingId()
 	if id != nil {
 		adminID = *id
@@ -727,17 +733,29 @@ func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string
 		return nil, err
 	}
 
+	// Bug fix: Use caller-provided registrationDate, default to time.Now() if nil
+	regDate := time.Now()
+	if registrationDate != nil {
+		regDate = *registrationDate
+	}
+
 	admin := &po.Admin{
 		ID:               adminID,
 		LoginName:        loginName,
 		Password:         hashed,
-		DisplayName:      displayName,
+		DisplayName:      &displayName,
 		RoleIDs:          roleIds,
-		RegistrationDate: time.Now(),
+		RegistrationDate: regDate,
 	}
 
-	if err := s.repo.Insert(ctx, admin); err != nil {
-		return nil, err
+	if upsert {
+		if err := s.repo.Upsert(ctx, admin); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.repo.Insert(ctx, admin); err != nil {
+			return nil, err
+		}
 	}
 
 	// Bug fix: Update in-memory cache after successful DB write

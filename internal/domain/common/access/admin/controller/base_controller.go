@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"math"
+	"sort"
 	"time"
 
 	"im.turms/server/internal/domain/common/access/admin/dto"
@@ -72,6 +73,10 @@ func (c *BaseController) QueryBetweenDate(
 			Total: total,
 		})
 	}
+	// Bug fix: Sort results by date to match Java's collectSortedList behavior
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Date.Before(results[j].Date)
+	})
 	return results, nil
 }
 
@@ -94,6 +99,10 @@ func (c *BaseController) QueryBetweenDateFunc(
 			Total: total,
 		})
 	}
+	// Bug fix: Sort results by date to match Java's collectSortedList behavior
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Date.Before(results[j].Date)
+	})
 	return results, nil
 }
 
@@ -146,7 +155,8 @@ func (c *BaseController) CalculateDuration(startDate, endDate time.Time, divideB
 	case timeutil.DivideBy_DAY:
 		return math.Ceil(diff.Hours() / 24)
 	case timeutil.DivideBy_MONTH:
-		return math.Ceil(diff.Hours() / (24 * 30.4375)) // Approximate month
+	// Java uses 2629746000L ms = 2629746 seconds = 730.485 hours
+	return math.Ceil(diff.Seconds() / 2629746)
 	case timeutil.DivideBy_NOOP:
 		return 1
 	}
