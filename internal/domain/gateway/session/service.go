@@ -253,7 +253,7 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	if password != "" {
 		passwordPtr = &password
 	}
-	loginInfo := sessionbo.NewUserLoginInfo(version, userId, passwordPtr, deviceType, deviceDetails, &userStatus, location, ipStr)
+	loginInfo := sessionbo.NewUserLoginInfo(version, &userId, passwordPtr, deviceType, deviceDetails, &userStatus, location, ipStr)
 	permissionInfo, err := s.sessionAuthenticationManager.VerifyAndGrant(ctx, loginInfo)
 	if err != nil {
 		return nil, err
@@ -514,7 +514,9 @@ func (s *SessionService) CloseLocalSession(ctx context.Context, userId int64, de
 
 	manager.mu.Unlock()
 	s.shardedMap.RemoveIfEmpty(userId)
-	// Call InvokeGoOfflineHandlers outside the lock (matches Java behavior)
+	// Java parity: removeSessionsManagerIfEmpty ALWAYS invokes goOffline plugin handlers,
+	// regardless of whether the manager is empty. The goOffline hook fires for every
+	// close operation, not just when the last session is removed.
 	s.InvokeGoOfflineHandlers(ctx, manager, closeReason.Status)
 	return count, nil
 }
@@ -572,9 +574,9 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
-		// Fix: When closing sessions by IP, Java calls closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)
-		// which closes ALL device types for users found by IP — not just the matching session's device type.
-		// Collect unique user IDs from IP-matched sessions, then close all device types for those users.
+		// Java parity: Close ALL sessions matching each IP.
+		// Java has completely separate methods for userIds and IPs, always closing
+		// all sessions for each IP.
 		ipUserSet := make(map[int64]struct{})
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {

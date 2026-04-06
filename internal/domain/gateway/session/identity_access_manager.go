@@ -96,7 +96,7 @@ func (m *SessionIdentityAccessManager) UpdateGlobalProperties(properties interfa
 
 // @MappedFrom verifyAndGrant(int version, Long userId, String password, DeviceType deviceType, Map<String, String> deviceDetails, UserStatus userStatus, Location location, String ip)
 func (m *SessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, loginInfo *bo.UserLoginInfo) (*bo.UserPermissionInfo, error) {
-	if loginInfo.UserID == adminconstant.AdminRequesterId {
+	if loginInfo.UserID != nil && *loginInfo.UserID == adminconstant.AdminRequesterId {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -137,9 +137,15 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.LoginAuthenticationFailed, nil
 	}
 
+	// UserID must not be nil
+	if loginInfo.UserID == nil {
+		return bo.LoginAuthenticationFailed, nil
+	}
+	userID := *loginInfo.UserID
+
 	// Java parity: check active status FIRST, before fetching password.
 	// Java returns LOGGING_IN_USER_NOT_ACTIVE immediately for inactive users.
-	active, err := m.userService.IsActiveAndNotDeleted(ctx, loginInfo.UserID)
+	active, err := m.userService.IsActiveAndNotDeleted(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +153,7 @@ func (m *PasswordSessionIdentityAccessManager) VerifyAndGrant(ctx context.Contex
 		return bo.LoggingInUserNotActive, nil
 	}
 
-	password, err := m.userService.FindPassword(ctx, loginInfo.UserID)
+	password, err := m.userService.FindPassword(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +367,7 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 	if !ok || sub == "" {
 		return nil, fmt.Errorf("invalid JWT token: the sub claim in the payload must exist")
 	}
-	if sub != fmt.Sprintf("%d", loginInfo.UserID) {
+	if loginInfo.UserID == nil || sub != fmt.Sprintf("%d", *loginInfo.UserID) {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -487,8 +493,13 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		return bo.LoginAuthenticationFailed, fmt.Errorf("LDAP clients not initialized")
 	}
 
+	if loginInfo.UserID == nil {
+		return bo.LoginAuthenticationFailed, nil
+	}
+	userID := *loginInfo.UserID
+
 	// 1. Search for the user DN using adminClient
-	filter := strings.ReplaceAll(userFilter, "{0}", fmt.Sprintf("%d", loginInfo.UserID))
+	filter := strings.ReplaceAll(userFilter, "{0}", fmt.Sprintf("%d", userID))
 	searchResult, err := adminClient.Search(
 		baseDN,
 		element.ScopeWholeSubtree,
@@ -509,7 +520,7 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	if len(searchResult.Entries) > 1 {
 		return nil, exception.NewTurmsError(
 			int32(constant.ResponseStatusCode_SERVER_INTERNAL_ERROR),
-			fmt.Sprintf("More than 1 entry found for the user (%d), which means that the filter \"%s\" is wrong", loginInfo.UserID, userFilter),
+			fmt.Sprintf("More than 1 entry found for the user (%d), which means that the filter \"%s\" is wrong", userID, userFilter),
 		)
 	}
 
