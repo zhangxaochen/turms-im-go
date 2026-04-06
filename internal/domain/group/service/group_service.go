@@ -633,7 +633,7 @@ func (s *GroupService) Count(ctx context.Context) (int64, error) {
 }
 
 // @MappedFrom countGroups(@Nullable DateRange dateRange)
-func (s *GroupService) CountGroups(ctx context.Context, ids []int64, typeIds []int64, creatorIds []int64, ownerIds []int64, isActive *bool) (int64, error) {
+func (s *GroupService) CountGroups(ctx context.Context, ids, typeIds, creatorIds, ownerIds []int64, isActive *bool) (int64, error) {
 	return s.groupRepo.CountGroups(ctx, ids, typeIds, creatorIds, ownerIds, isActive)
 }
 
