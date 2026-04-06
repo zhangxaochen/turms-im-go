@@ -295,8 +295,8 @@ func (s *ConferenceService) AuthAndUpdateMeetingInvitation(
 	if !s.HasConferenceServiceProvider() {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_CONFERENCE_NOT_IMPLEMENTED), "")
 	}
-	// Bug fix: Treat UNRECOGNIZED the same as IGNORE (Java treats UNRECOGNIZED == IGNORE).
-	if responseAction == protocol.ResponseAction_IGNORE {
+	// Bug fix: Treat unrecognized values the same as IGNORE (Java treats UNRECOGNIZED == IGNORE).
+	if responseAction == protocol.ResponseAction_IGNORE || int32(responseAction) < 0 || int32(responseAction) > 2 {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, nil
 	}
 

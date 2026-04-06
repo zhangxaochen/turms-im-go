@@ -99,8 +99,10 @@ func (h *ServiceAvailabilityChannelHandler) HandleException(conn net.Conn, cause
 	// If corrupted frame, block IP and session users
 	if errors.Is(cause, ErrCorruptedFrame) {
 		addr := conn.RemoteAddr()
-		// Replicate Java's implicit NullPointerException / ClassCastException behavior fail-fast
-		tcpAddr := addr.(*net.TCPAddr)
+		tcpAddr, ok := addr.(*net.TCPAddr)
+		if !ok {
+			return cause
+		}
 		ipBytes := tcpAddr.IP
 		h.blocklistService.TryBlockIpForCorruptedFrame(ipBytes)
 

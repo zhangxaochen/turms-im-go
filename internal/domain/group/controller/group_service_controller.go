@@ -861,9 +861,23 @@ func (c *GroupServiceController) HandleQueryGroupJoinRequestsRequest(ctx context
 // @MappedFrom handleUpdateGroupJoinRequestRequest()
 func (c *GroupServiceController) HandleUpdateGroupJoinRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupJoinRequestRequest()
-	accept := protocol.ResponseAction_name[int32(updateReq.GetResponseAction())] == "ACCEPT"
-	reason := updateReq.Reason
-	_, err := c.groupJoinRequestService.AuthAndHandleJoinRequest(ctx, s.UserID, updateReq.GetRequestId(), accept, reason)
+	action := updateReq.GetResponseAction()
+	var status po.RequestStatus
+	switch action {
+	case protocol.ResponseAction_ACCEPT:
+		status = po.RequestStatusAccepted
+	case protocol.ResponseAction_DECLINE:
+		status = po.RequestStatusDeclined
+	case protocol.ResponseAction_IGNORE:
+		status = po.RequestStatusIgnored
+	default:
+		status = po.RequestStatusIgnored
+	}
+	reason := ""
+	if updateReq.Reason != nil {
+		reason = *updateReq.Reason
+	}
+	err := c.groupJoinRequestService.AuthAndHandleJoinRequest(ctx, s.UserID, updateReq.GetRequestId(), status, reason)
 	if err != nil {
 		return nil, err
 	}

@@ -1,5 +1,7 @@
 package constant
 
+import "fmt"
+
 // ResponseStatusCode defines the business response codes for Turms.
 type ResponseStatusCode int32
 
@@ -163,8 +165,7 @@ func (c ResponseStatusCode) Reason() string {
 	case ResponseStatusCode_UNAUTHORIZED_REQUEST:
 		return "The request is unauthorized"
 	default:
-		// Fallback similar to code.name() in Java but keeping it simple
-		return "status code " + string(rune(c))
+		return fmt.Sprintf("status code %d", int(c))
 	}
 }
 

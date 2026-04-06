@@ -124,7 +124,9 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 		if sessionWrapper.HasUserSession() {
 			d.BlocklistService.TryBlockUserIdForCorruptedRequest(sessionWrapper.UserSession.UserID)
 		}
-		d.BlocklistService.TryBlockIpForCorruptedRequest(net.ParseIP(sessionWrapper.GetIPStr()))
+		if ip := net.ParseIP(sessionWrapper.GetIPStr()); ip != nil {
+			d.BlocklistService.TryBlockIpForCorruptedRequest(ip)
+		}
 		if req.RequestId != nil {
 			requestID = *req.RequestId
 		}
@@ -149,7 +151,7 @@ func (d *ClientRequestDispatcher) HandleRequest0(ctx context.Context, sessionWra
 
 		if d.IpRequestThrottler != nil {
 			if !d.IpRequestThrottler.TryAcquireToken(sessionWrapper.GetIPStr(), time.Now().UnixNano()) {
-				ip := net.ParseIP(sessionWrapper.GetIP())
+				ip := net.ParseIP(sessionWrapper.GetIPStr())
 				d.BlocklistService.TryBlockIpForFrequentRequest(ip)
 				if sessionWrapper.HasUserSession() {
 					d.BlocklistService.TryBlockUserIdForFrequentRequest(sessionWrapper.UserSession.UserID)
@@ -252,7 +254,9 @@ func (d *ClientRequestDispatcher) HandleServiceRequest(ctx context.Context, sess
 	// Rate limiting
 	now := time.Now().UnixNano()
 	if !d.IpRequestThrottler.TryAcquireToken(sessionWrapper.GetIPStr(), now) {
-		d.BlocklistService.TryBlockIpForFrequentRequest(net.ParseIP(sessionWrapper.GetIPStr()))
+		if ip := net.ParseIP(sessionWrapper.GetIPStr()); ip != nil {
+			d.BlocklistService.TryBlockIpForFrequentRequest(ip)
+		}
 		if sessionWrapper.HasUserSession() {
 			d.BlocklistService.TryBlockUserIdForFrequentRequest(sessionWrapper.UserSession.UserID)
 		}
@@ -285,7 +289,7 @@ func (d *ClientRequestDispatcher) handleGenericServiceRequest(ctx context.Contex
 
 	session := sessionWrapper.UserSession
 	svcReq := &dto.ServiceRequest{
-		Ip:           []byte(sessionWrapper.GetIPStr()),
+		Ip:           []byte(sessionWrapper.GetIP()),
 		UserId:       session.UserID,
 		DeviceType:   session.DeviceType,
 		RequestId:    request.GetRequestId(),

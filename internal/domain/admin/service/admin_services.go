@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,7 +14,6 @@ import (
 	"im.turms/server/internal/domain/admin/po"
 	"im.turms/server/internal/domain/admin/repository"
 	"im.turms/server/internal/domain/common/infra/idgen"
-	"sync"
 )
 
 var (
@@ -23,6 +24,10 @@ var (
 const RootRoleID int64 = 0
 const RootAdminID int64 = 0
 
+// MinRoleNameLimit and MaxRoleNameLimit define the valid length range for role names.
+const MinRoleNameLimit = 1
+const MaxRoleNameLimit = 32
+
 // rootRoleRank is the rank of the root role (Integer.MAX_VALUE in Java).
 const rootRoleRank = int(^uint(0) >> 1)
 
@@ -32,6 +37,11 @@ var rootRole = &po.AdminRole{
 	Name:        "ROOT",
 	Permissions: permission.AllAdminPermissions,
 	Rank:        rootRoleRank,
+}
+
+// getRootRole returns the in-memory root admin role.
+func getRootRole() *po.AdminRole {
+	return rootRole
 }
 
 // randomAlphabetic generates a random alphabetic string of the given length.
@@ -78,17 +88,6 @@ func NewAdminRoleService(idGen *idgen.SnowflakeIdGenerator, repo repository.Admi
 		idGen:    idGen,
 		repo:     repo,
 		idToRole: make(map[int64]*po.AdminRole),
-	}
-}
-
-// rootRole returns the in-memory root admin role (not stored in DB).
-// @MappedFrom getRootRole() in Java
-func rootRole() *po.AdminRole {
-	return &po.AdminRole{
-		ID:          RootRoleID,
-		Name:        "ROOT",
-		Permissions: permission.AllAdminPermissions,
-		Rank:        0,
 	}
 }
 
@@ -361,7 +360,7 @@ func (s *adminRoleService) QueryAdminRoles(ctx context.Context, ids []int64, nam
 	if isRootRoleQualified(ids, names, includedPermissions, ranks) {
 		// Prepend root role
 		result := make([]*po.AdminRole, 0, len(roles)+1)
-		result = append(result, rootRole())
+		result = append(result, getRootRole())
 		result = append(result, roles...)
 		return result, nil
 	}
@@ -399,7 +398,7 @@ func isRootRoleQualified(ids []int64, names []string, includedPermissions []perm
 	}
 	// If includedPermissions is specified, check that root role contains all of them
 	if len(includedPermissions) > 0 {
-		root := rootRole()
+		root := getRootRole()
 		rootPermSet := make(map[permission.AdminPermission]bool)
 		for _, p := range root.Permissions {
 			rootPermSet[p] = true
@@ -496,7 +495,8 @@ func (s *adminRoleService) QueryHighestRankByRoleIds(ctx context.Context, roleId
 	// Bug fix: Missing root role handling — if RootRoleID is in roleIds, return MAX_VALUE rank
 	for _, id := range roleIds {
 		if id == RootRoleID {
-			return &rootRoleRank, nil
+			rank := rootRoleRank
+			return &rank, nil
 		}
 	}
 	return s.repo.FindHighestRankByRoleIds(ctx, roleIds)
@@ -653,7 +653,7 @@ func (s *adminService) QueryRoleIdsByAdminIds(ctx context.Context, adminIds []in
 }
 
 // @MappedFrom authAndAddAdmin
-func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
+func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
 	// Bug fix: Validate that roleIds does not contain RootRoleID
 	for _, id := range roleIds {
 		if id == RootRoleID {
@@ -700,7 +700,7 @@ func (s *adminService) AuthAndAddAdmin(ctx context.Context, requesterId int64, l
 }
 
 // @MappedFrom addAdmin
-func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName string, roleIds []int64) (*po.Admin, error) {
+func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string, rawPassword string, displayName *string, roleIds []int64) (*po.Admin, error) {
 	adminID := s.idGen.NextIncreasingId()
 	if id != nil {
 		adminID = *id
@@ -716,9 +716,10 @@ func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string
 		rawPassword = randomAlphabetic(10)
 	}
 
-	// Bug fix: Default displayName to loginName if empty
-	if displayName == "" {
-		displayName = loginName
+	// Default displayName to loginName if nil or empty
+	if displayName == nil || *displayName == "" {
+		name := loginName
+		displayName = &name
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.DefaultCost)

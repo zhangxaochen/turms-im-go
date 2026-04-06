@@ -278,7 +278,6 @@ func (f *TcpServerFactory) Create(
 				return proxyproto.USE, nil
 			}
 		}
-		// Policy already set in the if/else block above
 		l = pL
 	}
 

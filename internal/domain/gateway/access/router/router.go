@@ -71,7 +71,7 @@ func (r *Router) HandleMessage(ctx context.Context, s *session.UserSession, payl
 	}
 	timestamp := time.Now().UnixNano()
 	if !r.throttler.TryAcquireToken(ipStr, timestamp) {
-		r.sendNotification(s, nil, 1400, "Too many requests") // e.g. Turms 1400/429
+		r.sendNotification(s, nil, int32(constant.ResponseStatusCode_CLIENT_REQUESTS_TOO_FREQUENT), "Too many requests")
 		return
 	}
 
