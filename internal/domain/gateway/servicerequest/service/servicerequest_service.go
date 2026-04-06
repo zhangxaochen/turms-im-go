@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"im.turms/server/internal/domain/common/access/servicerequest/dto"
 	"im.turms/server/internal/domain/common/access/servicerequest/rpc"
+	"im.turms/server/internal/domain/common/constant"
 
 	cluster "im.turms/server/internal/domain/common/infra/cluster/rpc"
 	"im.turms/server/internal/domain/gateway/session"
@@ -48,7 +49,6 @@ func (s *ServiceRequestService) HandleServiceRequest(ctx context.Context, defaul
 	// Unmarshal search response from JSON (until binary codec is implemented)
 	var serviceResp dto.ServiceResponse
 	if err := json.Unmarshal(rpcResp.Payload, &serviceResp); err != nil {
-		// Log error if backend returned something unparseable, but normally RPC layer handles this.
 		return nil, err
 	}
 
@@ -77,4 +77,14 @@ func (s *ServiceRequestService) getNotificationFromResponse(response *dto.Servic
 		notification.Data = response.Data
 	}
 	return notification
+}
+
+// GetNotificationFromResponse is a helper to create a notification for a given status code and request ID.
+// Used for creating NO_CONTENT and similar notifications externally.
+func GetNotificationFromResponse(code constant.ResponseStatusCode, requestId int64) *protocol.TurmsNotification {
+	return &protocol.TurmsNotification{
+		Timestamp: time.Now().UnixMilli(),
+		RequestId: proto.Int64(requestId),
+		Code:      proto.Int32(int32(code)),
+	}
 }

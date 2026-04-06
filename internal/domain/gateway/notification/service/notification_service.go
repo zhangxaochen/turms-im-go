@@ -52,7 +52,7 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 	offlineRecipientIdsSet := make(map[int64]struct{})
 	var mu sync.Mutex
 
-	// Bug 570: Collect errors as Java does with Mono.whenDelayError
+	// Collect errors as Java does with Mono.whenDelayError
 	var sendErrors []error
 	var errorsMu sync.Mutex
 
@@ -71,7 +71,7 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 		}
 
 		sessions := manager.GetAllSessions()
-		
+
 		// Filter sessions
 		var targetSessions []*session.UserSession
 		for _, sess := range sessions {
@@ -111,8 +111,9 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 				defer wg.Done()
 
 				if sess.Conn == nil {
+					// Java parity: onErrorResume immediately adds to offlineRecipientIds
 					mu.Lock()
-					offlineRecipientIds = append(offlineRecipientIds, rid)
+					offlineSet[rid] = struct{}{}
 					mu.Unlock()
 					return
 				}
@@ -153,7 +154,13 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 		log.Printf("Caught an error while sending a notification to user sessions: %v", finalErr)
 	}
 
-	// Bug 558: Invoke NotificationHandler extension points
+	// Convert offlineSet to slice
+	offlineRecipientIds := make([]int64, 0, len(offlineSet))
+	for id := range offlineSet {
+		offlineRecipientIds = append(offlineRecipientIds, id)
+	}
+
+	// Invoke NotificationHandler extension points
 	if s.pluginManager != nil && s.pluginManager.HasRunningExtensions("NotificationHandler") {
 		_, _ = s.pluginManager.InvokeExtensionPoints(ctx, "NotificationHandler", "HandleNotifications", notificationData, recipientIds, offlineRecipientIds)
 	}
