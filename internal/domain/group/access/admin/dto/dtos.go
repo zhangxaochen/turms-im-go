@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	common_dto "im.turms/server/internal/domain/common/access/admin/dto"
+)
 
 // @MappedFrom AddGroupBlockedUserDTO
 type AddGroupBlockedUserDTO struct {
@@ -162,7 +166,7 @@ type GroupStatisticsDTO struct {
 	DeletedGroups                 *int64 `json:"deletedGroups"`
 	GroupsThatSentMessages        *int64 `json:"groupsThatSentMessages"`
 	CreatedGroups                 *int64 `json:"createdGroups"`
-	DeletedGroupsRecords          []any  `json:"deletedGroupsRecords"`
-	GroupsThatSentMessagesRecords []any  `json:"groupsThatSentMessagesRecords"`
-	CreatedGroupsRecords          []any  `json:"createdGroupsRecords"`
+	DeletedGroupsRecords          []dto.StatisticsRecordDTO `json:"deletedGroupsRecords"`
+	GroupsThatSentMessagesRecords []dto.StatisticsRecordDTO `json:"groupsThatSentMessagesRecords"`
+	CreatedGroupsRecords          []dto.StatisticsRecordDTO `json:"createdGroupsRecords"`
 }
