@@ -114,11 +114,11 @@ const { execSync, spawn } = require('child_process');
             fs.writeFileSync(tempTaskPath, taskContent);
         }
 
-        const gitignorePath = path.join(worktreePath, '.gitignore');
-        if (fs.existsSync(gitignorePath)) {
-            const ignores = fs.readFileSync(gitignorePath, 'utf8');
-            if (!ignores.includes('temp_task.md')) {
-                fs.appendFileSync(gitignorePath, '\ntemp_task.md\n');
+        const excludePath = path.join(projectRoot, '.git', 'info', 'exclude');
+        if (fs.existsSync(excludePath)) {
+            const excludes = fs.readFileSync(excludePath, 'utf8');
+            if (!excludes.includes('temp_task.md')) {
+                fs.appendFileSync(excludePath, '\ntemp_task.md\n');
             }
         }
 
@@ -130,6 +130,7 @@ const { execSync, spawn } = require('child_process');
             + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first! You might be resuming an interrupted execution where some bugs are already fixed or partially staged.\n`
             + `3. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
             + `4. Very Important: Before wrapping up, you MUST also find those exact same resolved bugs in 'docs/pending_bugs.md' and check them off ('- [x]') there as well, so that the main tracked documentation sees your progress.\n`
+            + `   (Note: The '[Context: ...]' headings in 'temp_task.md' were auto-injected for context. They do NOT exist line-by-line in 'docs/pending_bugs.md'. Search by the actual bug description.)\n`
             + `5. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. At that point, test the code, use 'git add .', and 'git commit' with a neat descriptive message.\n`
             + `KEEP LOGS CONCISE. Stop and commit when all tasks in the scratchpad are fully resolved.`;
 
