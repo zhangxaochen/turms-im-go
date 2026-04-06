@@ -158,7 +158,7 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	msgRepo := messagerepo.NewMessageRepository(mongoClient)
 
 	// 3. Services
-	sessionSvc := session.NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
+	sessionSvc := session.NewSessionService(nil, nil, nil, nil, "test-server-id", nil, nil)
 	sessionSvc.ConflictStrategy = session.KickExisting
 
 	idGen, _ := idgen.NewSnowflakeIdGenerator(1, 1)

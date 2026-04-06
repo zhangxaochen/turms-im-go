@@ -52,7 +52,7 @@ func TestRouter_HandleMessage(t *testing.T) {
 	ctx := context.Background()
 
 	setupRouter := func() (*session.SessionService, *router.Router) {
-		sessionSvc := session.NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
+		sessionSvc := session.NewSessionService(nil, nil, nil, nil, "test-server-id", nil, nil)
 		r := router.NewRouter(sessionSvc)
 		r.SetServiceAvailability(common.StatusRunning)
 

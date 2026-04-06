@@ -107,15 +107,21 @@ func (m *ServiceAddressManager) queryHost(advertiseStrategy, host, advertiseHost
 		}
 		return host
 	case "PRIVATE_ADDRESS":
-		// TODO: Query local private IP via IpDetector.queryPrivateIp()
-		// Falls back to host parameter for now
+		// @MappedFrom Java: IpDetector.queryPrivateIp()
+		ip, err := m.ipDetector.QueryPrivateIp(0)
+		if err == nil && ip != "" {
+			return ip
+		}
 		if host != "" {
 			return host
 		}
 		return "127.0.0.1"
 	case "PUBLIC_ADDRESS":
-		// TODO: Query public IP via IpDetector.queryPublicIp()
-		// Falls back to host parameter for now
+		// @MappedFrom Java: IpDetector.queryPublicIp()
+		ip, err := m.ipDetector.QueryPublicIp(context.Background(), nil, 0)
+		if err == nil && ip != "" {
+			return ip
+		}
 		if host != "" {
 			return host
 		}
