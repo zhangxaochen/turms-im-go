@@ -52,7 +52,7 @@ const { execSync, spawn } = require('child_process');
             if (currentBug.length > 0) {
                 bugList.push(currentBug.join('\n'));
             }
-            currentBug = [currentHeader ? `[Context: ${currentHeader}]\n${line}` : line];
+            currentBug = [line]; // 严格复制整行，不额外拼接 Context 等前缀，防止 sync 脚本报错或混淆
         } else if (currentBug.length > 0 && line.trim() !== '') {
             currentBug.push(line);
         }
@@ -130,7 +130,8 @@ const { execSync, spawn } = require('child_process');
             + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first! You might be resuming an interrupted execution where some bugs are already fixed or partially staged.\n`
             + `3. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
             + `4. Very Important: You ONLY need to check off ('- [x]') the bugs in your local 'temp_task.md'. Under NO CIRCUMSTANCES should you modify 'docs/pending_bugs.md'. The main scheduler will sync it automatically.\n`
-            + `5. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. At that point, test the code, use 'git add .', and 'git commit' with a neat descriptive message.\n`
+            + `5. ABSOLUTELY CRITICAL: When updating 'temp_task.md', you MUST ONLY change '- [ ]' to '- [x]'. DO NOT rewrite, reformat, or change a single word of the task description text. Changing the text will break the global regex sync script.\n`
+            + `6. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. At that point, test the code, use 'git add .', and 'git commit' with a neat descriptive message.\n`
             + `KEEP LOGS CONCISE. Stop and commit when all tasks in the scratchpad are fully resolved.`;
 
         fs.writeFileSync(promptPath, promptText);

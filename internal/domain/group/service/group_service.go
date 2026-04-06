@@ -379,6 +379,7 @@ func (s *GroupService) AuthAndUpdateGroup(
 	minimumScore *int32,
 	isActive *bool,
 	quitAfterTransfer *bool,
+	muteEndDate *time.Time,
 ) error {
 	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
 	if err != nil {
@@ -436,6 +437,9 @@ func (s *GroupService) AuthAndUpdateGroup(
 	}
 	if isActive != nil {
 		update["ac"] = *isActive
+	}
+	if muteEndDate != nil {
+		update["med"] = *muteEndDate
 	}
 
 	if len(update) == 0 {
