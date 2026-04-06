@@ -137,10 +137,7 @@ func NewSimpleTurmsRequest(requestID int64, reqType KindCase, createSessionReq *
 
 // @MappedFrom toString()
 func (r *SimpleTurmsRequest) ToString() string {
-	csrStr := "null"
-	if r.CreateSessionRequest != nil {
-		csrStr = r.CreateSessionRequest.String()
-	}
+	csrStr := ToLogString(r.CreateSessionRequest)
 	return fmt.Sprintf("SimpleTurmsRequest[requestId=%d, type=%v, createSessionRequest=%s]",
 		r.RequestID, r.Type, csrStr)
 }

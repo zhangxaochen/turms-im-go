@@ -1,8 +1,6 @@
 package logging
 
 import (
-	"fmt"
-
 	"im.turms/server/internal/infra/proto"
 )
 
@@ -29,18 +27,13 @@ func (m *NotificationLoggingManager) Log(
 		return
 	}
 
-	closeStatusStr := "null"
-	if n.CloseStatus != nil {
-		closeStatusStr = fmt.Sprintf("%d", *n.CloseStatus)
-	}
-
 	relayedStr := proto.KindCaseName(n.RelayedRequestType)
 
 	msg := joinFields(
 		n.RequesterID,
 		recipientCount,
 		onlineRecipientCount,
-		closeStatusStr,
+		n.CloseStatus,
 		notificationBytes,
 		relayedStr,
 	)

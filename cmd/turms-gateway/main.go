@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -16,8 +17,9 @@ func init() {
 
 func validateEnv() {
 	// Equivalent to Java's JVM compatibility check (IncompatibleJvmException)
-	if runtime.Version() == "" {
-		log.Fatalf("Incompatible Go runtime")
+	ver := runtime.Version()
+	if ver == "" || strings.HasPrefix(ver, "devel") {
+		log.Fatalf("Incompatible Go runtime: %s", ver)
 	}
 }
 
@@ -25,12 +27,10 @@ func validateEnv() {
 // @SpringBootApplication(scanBasePackages = {PackageConst.GATEWAY, PackageConst.SERVER_COMMON})
 // @MappedFrom main(String[] args)
 func main() {
+	// Catch panics and ensure clean exit (equivalent to Java's try-catch in bootstrap)
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("Fatal error during startup: %v\n", r)
-			// Ensure logs are flushed before exiting
-			// (Mocked: in Java it waits for LoggerFactory to close)
-			time.Sleep(1 * time.Second)
 			os.Exit(1)
 		}
 	}()

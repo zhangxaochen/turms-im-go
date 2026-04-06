@@ -37,10 +37,28 @@ func (r *Router) Register(codecID uint16, handler HandlerFunc) {
 	r.handlers[codecID] = handler
 }
 
+// Unregister removes the handler for a specific CodecID.
+func (r *Router) Unregister(codecID uint16) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.handlers, codecID)
+}
+
+// HandlerCount returns the number of registered handlers.
+func (r *Router) HandlerCount() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.handlers)
+}
+
 // Dispatch routes the incoming RPC frame to its corresponding handler.
 // It returns an error if the codec ID is not registered, or if the handler fails.
 // @MappedFrom dispatch(TracingContext context, ServiceRequest serviceRequest)
 func (r *Router) Dispatch(ctx context.Context, frame *codec.RpcFrame) ([]byte, error) {
+	if frame == nil {
+		return nil, ErrHandlerNotFound
+	}
+
 	r.mu.RLock()
 	handler, exists := r.handlers[frame.CodecID]
 	r.mu.RUnlock()

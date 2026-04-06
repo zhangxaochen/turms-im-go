@@ -586,11 +586,6 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 				})
 			}
 		}
-		for userId := range ipUserSet {
-			// nil deviceTypes means ALL device types (matches Java: ALL_AVAILABLE_DEVICE_TYPES_SET)
-			n, _ := s.CloseLocalSession(ctx, userId, nil, closeReason)
-			totalCount += n
-		}
 	}
 
 	return totalCount, nil

@@ -45,5 +45,9 @@ func (r *RequestHandlerResult) String() string {
 	if r.Reason != nil {
 		reasonStr = *r.Reason
 	}
-	return fmt.Sprintf("RequestHandlerResult[code=%v, reason='%s']", r.Code, reasonStr)
+	dataStr := "null"
+	if r.Data != nil {
+		dataStr = fmt.Sprintf("%v", r.Data)
+	}
+	return fmt.Sprintf("RequestHandlerResult[code=%v, reason='%s', response=%s]", r.Code, reasonStr, dataStr)
 }
