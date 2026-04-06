@@ -2,6 +2,8 @@ package service
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"im.turms/server/internal/domain/common/repository"
@@ -71,17 +73,26 @@ func (s *UserDefinedAttributesService) UpdateGlobalProperties(properties *UserDe
 		sourceName := attr.SourceName
 		storedName := attr.StoredName
 
+		// Bug fix: Create a copy instead of mutating the input attr directly.
+		// Java builds a new object via .toBuilder().storedName(sourceName).build().
+		attrCopy := &UserDefinedAttributeProperties{
+			SourceName: attr.SourceName,
+			StoredName: attr.StoredName,
+			Immutable:  attr.Immutable,
+			Value:      attr.Value,
+		}
+
 		if storedName == "" {
-			attr.StoredName = sourceName
+			attrCopy.StoredName = sourceName
 			if _, exists := newSourceNameToAttrProps[sourceName]; exists {
 				return fmt.Errorf("found a duplicate attribute: %s", sourceName)
 			}
-			newSourceNameToAttrProps[sourceName] = attr
+			newSourceNameToAttrProps[sourceName] = attrCopy
 		} else {
 			if _, exists := newSourceNameToAttrProps[storedName]; exists {
 				return fmt.Errorf("found a duplicate attribute: %s", storedName)
 			}
-			newSourceNameToAttrProps[storedName] = attr
+			newSourceNameToAttrProps[storedName] = attrCopy
 		}
 
 		if attr.Immutable {
@@ -119,6 +130,8 @@ func (s *UserDefinedAttributesService) parseAttributes(ignoreUnknownAttributes b
 		for k := range inputAttributes {
 			keys = append(keys, k)
 		}
+		// Bug fix: Sort keys for deterministic error messages (Java uses TreeSet).
+		sort.Strings(keys)
 		return nil, fmt.Errorf("unknown attributes: %v", keys) // Should use exception.NewTurmsError usually
 	}
 
@@ -143,6 +156,8 @@ func (s *UserDefinedAttributesService) parseAttributes(ignoreUnknownAttributes b
 					unknownKeys = append(unknownKeys, k)
 				}
 			}
+			// Bug fix: Sort unknown keys for deterministic error messages (Java uses TreeSet).
+			sort.Strings(unknownKeys)
 			return nil, fmt.Errorf("unknown attributes: %v", unknownKeys) // Usually an error
 		}
 
@@ -208,7 +223,9 @@ func (s *UserDefinedAttributesService) ParseAttributesForUpsert(userDefinedAttri
 	}
 
 	if len(conflicted) > 0 {
-		return nil, fmt.Errorf("cannot update existing immutable attributes: %v", conflicted)
+		// Bug fix: Sort conflicted attributes for deterministic error messages (Java sorts).
+		sort.Strings(conflicted)
+		return nil, fmt.Errorf("cannot update existing immutable attributes: %s", strings.Join(conflicted, ", "))
 	}
 
 	return s.parseAttributes(s.ignoreUnknownAttributesOnUpsert, userDefinedAttributes)

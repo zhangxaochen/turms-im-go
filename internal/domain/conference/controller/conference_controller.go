@@ -82,12 +82,19 @@ func (c *ConferenceServiceController) HandleDeleteMeetingRequest(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
+	// Bug fix: Return OK response even on unsuccessful cancel (Java returns RequestHandlerResult.OK).
 	if !result.Success {
-		return nil, nil // Should be handled by error
+		return &protocol.TurmsNotification{
+			RequestId: req.RequestId,
+			Code:      proto.Int32(int32(constant.ResponseStatusCode_OK)),
+		}, nil
 	}
 
 	p := c.propertiesManager.GetLocalProperties()
-	if p.Service.Notification.MeetingCanceled.NotifyMeetingParticipants {
+	notifyParticipants := p.Service.Notification.MeetingCanceled.NotifyMeetingParticipants
+	notifyRequesterOtherSessions := p.Service.Notification.MeetingCanceled.NotifyRequesterOtherOnlineSessions
+
+	if notifyParticipants {
 		participantIds, err := c.conferenceService.QueryMeetingParticipants(ctx, result.Meeting.UserID, result.Meeting.GroupID)
 		if err == nil && len(participantIds) > 0 {
 			filteredIds := make([]int64, 0, len(participantIds))
@@ -103,12 +110,21 @@ func (c *ConferenceServiceController) HandleDeleteMeetingRequest(ctx context.Con
 				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, filteredIds)
 			}
 		}
-	} else if p.Service.Notification.MeetingCanceled.NotifyRequesterOtherOnlineSessions {
+		// Bug fix: Also forward notification to requester's other online sessions.
+		// Java: RequestHandlerResult.of(true, participantIds, turmsRequest) - the 'true' flag
+		// forwards to requester's other online sessions.
+		if notifyRequesterOtherSessions && c.outboundMessageService != nil {
+			notif := &protocol.TurmsNotification{
+				RelayedRequest: req,
+			}
+			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID})
+		}
+	} else if notifyRequesterOtherSessions {
 		if c.outboundMessageService != nil {
 			notif := &protocol.TurmsNotification{
 				RelayedRequest: req,
 			}
-			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID}) // Forward to other sessions
+			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID})
 		}
 	}
 
@@ -131,12 +147,12 @@ func (c *ConferenceServiceController) HandleQueryMeetingsRequest(ctx context.Con
 		t := time.UnixMilli(*queryMeetingsRequest.CreationDateEnd)
 		creationDateEnd = &t
 	}
-	
+
 	ids := queryMeetingsRequest.Ids
 	creatorIds := queryMeetingsRequest.CreatorIds
 	userIds := queryMeetingsRequest.UserIds
 	groupIds := queryMeetingsRequest.GroupIds
-	
+
 	meetings, err := c.conferenceService.AuthAndQueryMeetings(
 		ctx,
 		s.UserID,
@@ -205,11 +221,17 @@ func (c *ConferenceServiceController) HandleUpdateMeetingRequest(ctx context.Con
 		return nil, err
 	}
 	if !result.Success {
-		return nil, nil
+		return &protocol.TurmsNotification{
+			RequestId: req.RequestId,
+			Code:      proto.Int32(int32(constant.ResponseStatusCode_OK)),
+		}, nil
 	}
 
 	p := c.propertiesManager.GetLocalProperties()
-	if p.Service.Notification.MeetingUpdated.NotifyMeetingParticipants && (updateMeetingRequest.Name != nil || updateMeetingRequest.Intro != nil) {
+	notifyParticipants := p.Service.Notification.MeetingUpdated.NotifyMeetingParticipants
+	notifyRequesterOtherSessions := p.Service.Notification.MeetingUpdated.NotifyRequesterOtherOnlineSessions
+
+	if notifyParticipants && (updateMeetingRequest.Name != nil || updateMeetingRequest.Intro != nil) {
 		participantIds, err := c.conferenceService.QueryMeetingParticipants(ctx, result.Meeting.UserID, result.Meeting.GroupID)
 		if err == nil && len(participantIds) > 0 {
 			filteredIds := make([]int64, 0, len(participantIds))
@@ -219,7 +241,7 @@ func (c *ConferenceServiceController) HandleUpdateMeetingRequest(ctx context.Con
 				}
 			}
 			if len(filteredIds) > 0 && c.outboundMessageService != nil {
-				// Clear password before sending
+				// Clear password before sending to participants
 				copiedReq := proto.Clone(req).(*protocol.TurmsRequest)
 				copiedReq.GetUpdateMeetingRequest().Password = nil
 				notif := &protocol.TurmsNotification{
@@ -228,7 +250,18 @@ func (c *ConferenceServiceController) HandleUpdateMeetingRequest(ctx context.Con
 				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, filteredIds)
 			}
 		}
-	} else if p.Service.Notification.MeetingUpdated.NotifyRequesterOtherOnlineSessions && (updateMeetingRequest.Name != nil || updateMeetingRequest.Intro != nil) {
+		// Bug fix: Forward original request (with password) to requester's other online sessions.
+		// Java: RequestHandlerResult.of(participantIds, modifiedRequest, originalRequest)
+		// sends password-cleared to participants AND original to requester's other sessions.
+		if notifyRequesterOtherSessions && c.outboundMessageService != nil {
+			notif := &protocol.TurmsNotification{
+				RelayedRequest: req,
+			}
+			_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID})
+		}
+	} else if notifyRequesterOtherSessions && (updateMeetingRequest.Name != nil || updateMeetingRequest.Intro != nil) {
+		// Bug fix: Forward original request to requester's other online sessions when no participants.
+		// Java: RequestHandlerResult.of(true, clientRequest.turmsRequest())
 		if c.outboundMessageService != nil {
 			notif := &protocol.TurmsNotification{
 				RelayedRequest: req,
@@ -267,8 +300,11 @@ func (c *ConferenceServiceController) HandleUpdateMeetingInvitationRequest(ctx c
 	}
 
 	p := c.propertiesManager.GetLocalProperties()
+	notifyParticipants := p.Service.Notification.MeetingInvitationUpdated.NotifyMeetingParticipants
+	notifyRequesterOtherSessions := p.Service.Notification.MeetingInvitationUpdated.NotifyRequesterOtherOnlineSessions
+
 	if result.Updated {
-		if p.Service.Notification.MeetingInvitationUpdated.NotifyMeetingParticipants {
+		if notifyParticipants {
 			participantIds, err := c.conferenceService.QueryMeetingParticipants(ctx, result.Meeting.UserID, result.Meeting.GroupID)
 			if err == nil && len(participantIds) > 0 {
 				filteredIds := make([]int64, 0, len(participantIds))
@@ -279,14 +315,28 @@ func (c *ConferenceServiceController) HandleUpdateMeetingInvitationRequest(ctx c
 				}
 				if len(filteredIds) > 0 && c.outboundMessageService != nil {
 					copiedReq := proto.Clone(req).(*protocol.TurmsRequest)
-					copiedReq.GetUpdateMeetingInvitationRequest().Password = nil
+					// Bug fix: Only clear password when the request has a password.
+					// Java: only clears when request.hasPassword() is true.
+					if updateMeetingInvitationRequest.Password != nil {
+						copiedReq.GetUpdateMeetingInvitationRequest().Password = nil
+					}
 					notif := &protocol.TurmsNotification{
 						RelayedRequest: copiedReq,
 					}
 					_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, filteredIds)
 				}
 			}
-		} else if p.Service.Notification.MeetingInvitationUpdated.NotifyRequesterOtherOnlineSessions {
+			// Bug fix: Forward to requester's other online sessions in participant notification path.
+			// Java: RequestHandlerResult.of(response, true, participantIds, notification)
+			if notifyRequesterOtherSessions && c.outboundMessageService != nil {
+				notif := &protocol.TurmsNotification{
+					RelayedRequest: req,
+				}
+				_ = c.outboundMessageService.ForwardNotificationToMultiple(ctx, notif, []int64{s.UserID})
+			}
+		} else if notifyRequesterOtherSessions {
+			// Bug fix: Include response data (access token) in forwarded notification.
+			// Java: RequestHandlerResult.of(data, true, Collections.emptySet(), turmsRequest)
 			if c.outboundMessageService != nil {
 				notif := &protocol.TurmsNotification{
 					RelayedRequest: req,

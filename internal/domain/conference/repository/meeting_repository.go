@@ -52,11 +52,14 @@ func (r *MeetingRepository) UpdateEndDate(ctx context.Context, meetingID int64, 
 
 // @MappedFrom updateCancelDateIfNotCanceled(Long meetingId, Date cancelDate)
 func (r *MeetingRepository) UpdateCancelDateIfNotCanceled(ctx context.Context, meetingID int64, cancelDate time.Time) (bool, error) {
+	// Bug fix: Use $eq: nil instead of $exists: false to match Java's eq(CANCEL_DATE, null).
+	// Java's eq(null) matches documents where the field is absent OR explicitly null.
+	// $exists: false only matches documents where the field doesn't exist at all.
 	filter := bson.M{
 		"_id": meetingID,
-		"cad": bson.M{"$exists": false},
+		"ccd": nil,
 	}
-	update := bson.M{"$set": bson.M{"cad": cancelDate}}
+	update := bson.M{"$set": bson.M{"ccd": cancelDate}}
 	res, err := r.col.UpdateOne(ctx, filter, update)
 	if err != nil {
 		return false, err
@@ -160,11 +163,13 @@ func (r *MeetingRepository) FindByCreatorAndUser(ctx context.Context,
 	skip *int32,
 	limit *int32,
 ) ([]*po.Meeting, error) {
+	// Bug fix: Java uses .or(Filter.newBuilder(2).eq(CREATOR_ID, creatorId).eq(USER_ID, userId))
+	// which is actually AND inside a single OR clause (one group), equivalent to matching
+	// documents where BOTH creatorId AND userId match. Go incorrectly used $or with two
+	// separate conditions (either match). Fix: use top-level AND (both must match).
 	filter := bson.M{
-		"$or": []bson.M{
-			{"cid": creatorID},
-			{"uid": userID},
-		},
+		"cid": creatorID,
+		"uid": userID,
 	}
 	if len(ids) > 0 {
 		filter["_id"] = bson.M{"$in": ids}

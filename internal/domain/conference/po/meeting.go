@@ -11,7 +11,8 @@ type Meeting struct {
 	GroupID      *int64     `bson:"gid,omitempty"`
 	CreationDate time.Time  `bson:"cd"`
 	StartDate    time.Time  `bson:"sd"`
-	CancelDate   *time.Time `bson:"cad,omitempty"`
+	// Bug fix: Changed bson tag from "cad" to "ccd" to match Java's Meeting.Fields.CANCEL_DATE = "ccd".
+	CancelDate   *time.Time `bson:"ccd,omitempty"`
 	EndDate      *time.Time `bson:"ed,omitempty"`
 	Name         *string    `bson:"n,omitempty"`
 	Intro        *string    `bson:"intro,omitempty"`
