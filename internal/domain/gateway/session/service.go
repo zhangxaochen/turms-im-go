@@ -16,6 +16,7 @@ import (
 	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	userbo "im.turms/server/internal/domain/user/bo"
 	"im.turms/server/internal/domain/user/service/onlineuser"
+	"im.turms/server/internal/infra/plugin"
 	"im.turms/server/pkg/protocol"
 )
 
@@ -64,6 +65,12 @@ type SessionService struct {
 	// @MappedFrom Java: SessionService.notifyClientsOfSessionInfoAfterConnected
 	// Default true: send session notification (sessionId + serverId) to the new device upon login.
 	notifyClientsOfSessionInfoAfterConnected bool
+
+	// @MappedFrom Java: SessionService.pluginManager
+	pluginManager *plugin.PluginManager
+
+	// @MappedFrom Java: SessionService.loggedInUsersCounter (LongAdder)
+	loggedInUsersCounter atomic.Int64
 }
 
 func NewSessionService(
@@ -73,6 +80,7 @@ func NewSessionService(
 	sessionAuthenticationManager *SessionIdentityAccessManager,
 	nodeID string,
 	rpcService *rpc.RpcService,
+	pluginMgr *plugin.PluginManager,
 ) *SessionService {
 	svc := &SessionService{
 		shardedMap:                   NewShardedUserSessionsMap(256),
@@ -83,6 +91,7 @@ func NewSessionService(
 		sessionAuthenticationManager: sessionAuthenticationManager,
 		nodeID:                       nodeID,
 		rpcService:                   rpcService,
+		pluginManager:                pluginMgr,
 		// Java default: notifyClientsOfSessionInfoAfterConnected = true
 		notifyClientsOfSessionInfoAfterConnected: true,
 	}
@@ -828,7 +837,8 @@ func (s *SessionService) GetLocalUserSessionsByIp(ip []byte) []*UserSession {
 }
 
 func (s *SessionService) OnSessionEstablished(ctx context.Context, manager *UserSessionsManager, deviceType protocol.DeviceType) {
-	// TODO: Increment metrics (e.g. LoggedInUsersCounter) (Bug 851)
+	// @MappedFrom Java: loggedInUsersCounter.increment()
+	s.loggedInUsersCounter.Add(1)
 
 	// @MappedFrom Java: if (notifyClientsOfSessionInfoAfterConnected) userSessionsManager.pushSessionNotification(deviceType, serverId)
 	// Java sends to the device that just logged in (deviceType), NOT to other devices.
@@ -845,11 +855,17 @@ func (s *SessionService) AddOnSessionClosedListeners(ctx context.Context, onSess
 }
 
 func (s *SessionService) InvokeGoOnlineHandlers(ctx context.Context, userSessionsManager *UserSessionsManager, userSession *UserSession) {
-	// TODO: 插件系统尚未实现: 调用 PluginManager (UserOnlineStatusChangeHandler.goOnline)
+	// @MappedFrom Java: pluginManager.invokeExtensionPointsSimultaneously(UserOnlineStatusChangeHandler.class, "goOnline", userSessionsManager, userSession)
+	if s.pluginManager != nil {
+		_, _ = s.pluginManager.InvokeExtensionPoints(ctx, "UserOnlineStatusChangeHandler", "goOnline", userSessionsManager, userSession)
+	}
 }
 
 func (s *SessionService) InvokeGoOfflineHandlers(ctx context.Context, userSessionsManager *UserSessionsManager, closeReason constant.SessionCloseStatus) {
-	// TODO: plugin hooks (Bug 897)
+	// @MappedFrom Java: pluginManager.invokeExtensionPointsSimultaneously(UserOnlineStatusChangeHandler.class, "goOffline", userSessionsManager, closeReason)
+	if s.pluginManager != nil {
+		_, _ = s.pluginManager.InvokeExtensionPoints(ctx, "UserOnlineStatusChangeHandler", "goOffline", userSessionsManager, closeReason)
+	}
 }
 
 func (s *SessionService) CloseLocalSessionByDeviceType(ctx context.Context, userId int64, deviceType protocol.DeviceType, closeReason sessionbo.CloseReason) bool {

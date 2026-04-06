@@ -11,7 +11,7 @@ import (
 )
 
 func TestHeartbeatManager_KickTimeout(t *testing.T) {
-	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil)
+	svc := NewSessionService(nil, nil, nil, nil, "test-server-id", nil, nil)
 
 	conn := &MockConnection{}
 	session := NewUserSession(1, nil, 123, protocol.DeviceType_ANDROID, nil, nil)
