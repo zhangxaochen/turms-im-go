@@ -7902,33 +7902,33 @@ Now I have a thorough understanding of both codebases. Let me compare the `creat
 
 ## Create
 
-- [x] **Missing `connectTimeoutMillis` socket option**: The Java code sets `.option(CONNECT_TIMEOUT_MILLIS, tcpProperties.getConnectTimeoutMillis())` on the TCP server. The Go code does not apply any connect timeout to the listener. While Go's `net.Listen` doesn't have a direct equivalent for the backlog/connect-timeout server socket options, the `ConnectTimeoutMillis` is never used or passed.
+- [ ] **Missing `connectTimeoutMillis` socket option**: The Java code sets `.option(CONNECT_TIMEOUT_MILLIS, tcpProperties.getConnectTimeoutMillis())` on the TCP server. The Go code does not apply any connect timeout to the listener. While Go's `net.Listen` doesn't have a direct equivalent for the backlog/connect-timeout server socket options, the `ConnectTimeoutMillis` is never used or passed.
 
-- [x] **Missing `SO_BACKLOG` socket option**: The Java code sets `.option(SO_BACKLOG, tcpProperties.getBacklog())`. The Go `net.Listen` uses the OS default backlog (`SOMAXCONN`), not the configurable backlog value from properties. The Go `Create` method doesn't receive or use the `backlog` parameter at all.
+- [ ] **Missing `SO_BACKLOG` socket option**: The Java code sets `.option(SO_BACKLOG, tcpProperties.getBacklog())`. The Go `net.Listen` uses the OS default backlog (`SOMAXCONN`), not the configurable backlog value from properties. The Go `Create` method doesn't receive or use the `backlog` parameter at all.
 
-- [x] **Missing `SO_REUSEADDR` socket options**: The Java code sets both `.option(SO_REUSEADDR, true)` (server socket) and `.childOption(SO_REUSEADDR, true)` (client sockets). The Go code doesn't set `SO_REUSEADDR` on either the listener or accepted connections.
+- [ ] **Missing `SO_REUSEADDR` socket options**: The Java code sets both `.option(SO_REUSEADDR, true)` (server socket) and `.childOption(SO_REUSEADDR, true)` (client sockets). The Go code doesn't set `SO_REUSEADDR` on either the listener or accepted connections.
 
-- [x] **Missing SSL/TLS support**: The Java code checks `tcpProperties.getSsl().isEnabled()` and configures SSL via `server.secure(...)` with `SslUtil.configureSslContextSpec(...)`. The Go `Create` method has no SSL/TLS configuration at all - no `SslProperties` parameter and no TLS wrapping of the listener.
+- [ ] **Missing SSL/TLS support**: The Java code checks `tcpProperties.getSsl().isEnabled()` and configures SSL via `server.secure(...)` with `SslUtil.configureSslContextSpec(...)`. The Go `Create` method has no SSL/TLS configuration at all - no `SslProperties` parameter and no TLS wrapping of the listener.
 
-- [x] **Missing wiretap/logging configuration**: The Java code passes `.wiretap(tcpProperties.isWiretap())`. The Go code does not accept or use a `wiretap` parameter.
+- [ ] **Missing wiretap/logging configuration**: The Java code passes `.wiretap(tcpProperties.isWiretap())`. The Go code does not accept or use a `wiretap` parameter.
 
-- [x] **Missing dedicated event loop thread pool**: The Java code uses `.runOn(LoopResourcesFactory.createForServer(ThreadNameConst.GATEWAY_TCP_PREFIX))` to create a dedicated event loop group for the TCP server. The Go code uses goroutines without any thread pool or named thread pattern.
+- [ ] **Missing dedicated event loop thread pool**: The Java code uses `.runOn(LoopResourcesFactory.createForServer(ThreadNameConst.GATEWAY_TCP_PREFIX))` to create a dedicated event loop group for the TCP server. The Go code uses goroutines without any thread pool or named thread pattern.
 
-- [x] **Missing metrics/recorder**: The Java code configures `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(MetricNameConst.TURMS_GATEWAY_SERVER_TCP))`. The Go code has no metrics collection.
+- [ ] **Missing metrics/recorder**: The Java code configures `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(MetricNameConst.TURMS_GATEWAY_SERVER_TCP))`. The Go code has no metrics collection.
 
-- [x] **Proxy protocol mode is simplified to a boolean, losing REQUIRED vs OPTIONAL distinction**: The Java code handles three distinct modes: `REQUIRED` (adds PROXY protocol handlers), `OPTIONAL` (adds a PROXY protocol *detector* handler), and `DISABLED` (no proxy handling). These two modes are fundamentally different - `REQUIRED` expects a PROXY header on every connection, while `OPTIONAL` auto-detects whether a PROXY header is present. The Go code reduces this to a simple `proxy bool` parameter and uses `proxyproto.Listener` which only supports one mode (equivalent to OPTIONAL/auto-detect), losing the REQUIRED behavior.
+- [ ] **Proxy protocol mode is simplified to a boolean, losing REQUIRED vs OPTIONAL distinction**: The Java code handles three distinct modes: `REQUIRED` (adds PROXY protocol handlers), `OPTIONAL` (adds a PROXY protocol *detector* handler), and `DISABLED` (no proxy handling). These two modes are fundamentally different - `REQUIRED` expects a PROXY header on every connection, while `OPTIONAL` auto-detects whether a PROXY header is present. The Go code reduces this to a simple `proxy bool` parameter and uses `proxyproto.Listener` which only supports one mode (equivalent to OPTIONAL/auto-detect), losing the REQUIRED behavior.
 
-- [x] **Missing blocklist check in proxy protocol callback**: In the Java code, when proxy protocol is REQUIRED or OPTIONAL, the remote address obtained from the PROXY header is checked against the blocklist *inside* the `doOnChannelInit` callback: `if (blocklistService.isIpBlocked(address.getAddress().getAddress())) { remoteAddressSink.tryEmitEmpty(); }`. The Go code delegates proxy protocol parsing entirely to `go-proxyproto` and does the blocklist check later in `HandleConnection`, which checks `conn.RemoteAddr()` — but the `go-proxyproto` library sets the remote address to the PROXY header address, so the blocklist check does happen, but the semantic difference is that Java emits an empty signal (leading to a `flatMap` that gets no value, effectively dropping the connection silently), whereas Go explicitly closes the connection. This is a behavioral difference but functionally similar. However, the key issue is that the Java code has *two* blocklist checks: one during proxy protocol parsing for the *proxied* address, and another in `ServiceAvailabilityHandler.channelRegistered` for the *direct* address. The Go code only has one check in `HandleConnection`.
+- [ ] **Missing blocklist check in proxy protocol callback**: In the Java code, when proxy protocol is REQUIRED or OPTIONAL, the remote address obtained from the PROXY header is checked against the blocklist *inside* the `doOnChannelInit` callback: `if (blocklistService.isIpBlocked(address.getAddress().getAddress())) { remoteAddressSink.tryEmitEmpty(); }`. The Go code delegates proxy protocol parsing entirely to `go-proxyproto` and does the blocklist check later in `HandleConnection`, which checks `conn.RemoteAddr()` — but the `go-proxyproto` library sets the remote address to the PROXY header address, so the blocklist check does happen, but the semantic difference is that Java emits an empty signal (leading to a `flatMap` that gets no value, effectively dropping the connection silently), whereas Go explicitly closes the connection. This is a behavioral difference but functionally similar. However, the key issue is that the Java code has *two* blocklist checks: one during proxy protocol parsing for the *proxied* address, and another in `ServiceAvailabilityHandler.channelRegistered` for the *direct* address. The Go code only has one check in `HandleConnection`.
 
-- [x] **Missing `ConnectionListener` integration**: The Java code's `.handle()` block calls `connectionListener.onAdded(connection, remoteAddress, in.receive(), out, connection.onDispose())`, which is the core callback that wires up the session lifecycle. The Go code replaces this with a simple `callback func(net.Conn)` — a much simpler signature that doesn't pass the remote address, inbound stream, outbound sender, or dispose signal to the listener. This fundamentally changes the connection lifecycle management.
+- [ ] **Missing `ConnectionListener` integration**: The Java code's `.handle()` block calls `connectionListener.onAdded(connection, remoteAddress, in.receive(), out, connection.onDispose())`, which is the core callback that wires up the session lifecycle. The Go code replaces this with a simple `callback func(net.Conn)` — a much simpler signature that doesn't pass the remote address, inbound stream, outbound sender, or dispose signal to the listener. This fundamentally changes the connection lifecycle management.
 
-- [x] **Missing `setAutoRead(true)` equivalent**: The Java code explicitly calls `connection.channel().config().setAutoRead(true)` in the `handle` callback, which is critical for triggering the read event. The Go code has no equivalent — reading is initiated separately in `TcpConnection.Start()`.
+- [ ] **Missing `setAutoRead(true)` equivalent**: The Java code explicitly calls `connection.channel().config().setAutoRead(true)` in the `handle` callback, which is critical for triggering the read event. The Go code has no equivalent — reading is initiated separately in `TcpConnection.Start()`.
 
-- [x] **Missing varint codec pipeline setup**: The Java code sets up a complete Netty channel pipeline in `doOnChannelInit` including: `serviceAvailabilityHandler`, `varintLengthBasedFrameDecoder`, `varintLengthFieldPrepender`, and `protobufFrameEncoder`. The Go code has no equivalent pipeline — the frame encoding/decoding is handled inline in `TcpConnection.Send()` and `TcpConnection.Start()` rather than through a pipeline. While functionally the varint framing is implemented, the protobuf frame encoder (`CodecFactory.getProtobufFrameEncoder()`) for encoding `TurmsNotification` instances is not ported — the Go `Send()` method just prepends a varint length to raw bytes, whereas Java also has a dedicated protobuf encoder that serializes protobuf objects.
+- [ ] **Missing varint codec pipeline setup**: The Java code sets up a complete Netty channel pipeline in `doOnChannelInit` including: `serviceAvailabilityHandler`, `varintLengthBasedFrameDecoder`, `varintLengthFieldPrepender`, and `protobufFrameEncoder`. The Go code has no equivalent pipeline — the frame encoding/decoding is handled inline in `TcpConnection.Send()` and `TcpConnection.Start()` rather than through a pipeline. While functionally the varint framing is implemented, the protobuf frame encoder (`CodecFactory.getProtobufFrameEncoder()`) for encoding `TurmsNotification` instances is not ported — the Go `Send()` method just prepends a varint length to raw bytes, whereas Java also has a dedicated protobuf encoder that serializes protobuf objects.
 
-- [x] **`proxy` parameter type loses type safety**: The Java method accepts `TcpProperties` which encapsulates all configuration. The Go method destructures this into individual parameters but loses the `RemoteAddressSourceProxyProtocolMode` enum, replacing it with a `bool`. This means the caller must decide the boolean mapping externally, and the REQUIRED vs OPTIONAL distinction is lost at the API boundary.
+- [ ] **`proxy` parameter type loses type safety**: The Java method accepts `TcpProperties` which encapsulates all configuration. The Go method destructures this into individual parameters but loses the `RemoteAddressSourceProxyProtocolMode` enum, replacing it with a `bool`. This means the caller must decide the boolean mapping externally, and the REQUIRED vs OPTIONAL distinction is lost at the API boundary.
 
-- [x] **Error message formatting difference on bind failure**: The Java error message is `"Failed to bind the TCP server on: " + host + ":" + port`, while the Go error message is `"Failed to bind the TCP server on: %s. Error: %w"` (using `addr` which is `host:port`). The Go version appends the error separately via `%w` wrapping, which is actually better practice, but the message format differs slightly from the original.
+- [ ] **Error message formatting difference on bind failure**: The Java error message is `"Failed to bind the TCP server on: " + host + ":" + port`, while the Go error message is `"Failed to bind the TCP server on: %s. Error: %w"` (using `addr` which is `host:port`). The Go version appends the error separately via `%w` wrapping, which is actually better practice, but the message format differs slightly from the original.
 
 # UdpSignalRequest.java
 *Checked methods: UdpSignalRequest(UdpRequestType type, long userId, DeviceType deviceType, int sessionId)*
@@ -7938,65 +7938,65 @@ The Java code is a simple `record` — a data carrier with four fields (`type`, 
 However, there is a type mismatch in the `sessionId` field:
 
 ## NewUdpSignalRequest
-- [x] **`sessionId` type mismatch**: The Java record declares `sessionId` as `int` (32-bit), but the Go struct `UdpSignalRequest.SessionID` is `int64` (64-bit). This is also reflected in the parsing logic at line 205, where `sessionID` is read from 4 bytes (`Uint32`) but then stored in an `int64` field. While this doesn't cause data loss, it is a type discrepancy compared to the Java version.
+- [ ] **`sessionId` type mismatch**: The Java record declares `sessionId` as `int` (32-bit), but the Go struct `UdpSignalRequest.SessionID` is `int64` (64-bit). This is also reflected in the parsing logic at line 205, where `sessionID` is read from 4 bytes (`Uint32`) but then stored in an `int64` field. While this doesn't cause data loss, it is a type discrepancy compared to the Java version.
 
 # HttpForwardedHeaderHandler.java
 *Checked methods: apply(ConnectionInfo connectionInfo, HttpRequest request)*
 
 ## Apply (parseForwardedInfo)
 
-- [x] **Missing `trim()` on `for` match result**: Java does `forMatcher.group(1).trim()` but Go assigns `match[1]` directly to `r.RemoteAddr` without trimming. This could leave leading/trailing whitespace in the remote address.
-- [x] **Missing original port preservation on `RemoteAddr`**: In Java, when parsing the `for=` directive, the code uses `connectionInfo.getRemoteAddress().getPort()` to preserve the original port: `AddressUtils.parseAddress(forMatcher.group(1).trim(), connectionInfo.getRemoteAddress().getPort(), true)`. The Go code sets `r.RemoteAddr = match[1]` which loses the original port entirely. If the `for=` value is just an IP (no port), the `RemoteAddr` will be missing the port component that was in the original address.
-- [x] **Missing `trim()` on `host` match result**: Java does `hostMatcher.group(1)` passed to `AddressUtils.parseAddress`, but the Go code assigns `match[1]` to `r.URL.Host` without trimming. While the regex captures the value, the Java code relies on `AddressUtils.parseAddress` which handles whitespace — the Go code does not trim.
-- [x] **Missing `trim()` on `proto` match result**: Java does `protoMatcher.group(1).trim()` but Go does `strings.ToLower(match[1])` without a separate trim. The Go regex may capture trailing spaces due to differences in pattern matching.
+- [ ] **Missing `trim()` on `for` match result**: Java does `forMatcher.group(1).trim()` but Go assigns `match[1]` directly to `r.RemoteAddr` without trimming. This could leave leading/trailing whitespace in the remote address.
+- [ ] **Missing original port preservation on `RemoteAddr`**: In Java, when parsing the `for=` directive, the code uses `connectionInfo.getRemoteAddress().getPort()` to preserve the original port: `AddressUtils.parseAddress(forMatcher.group(1).trim(), connectionInfo.getRemoteAddress().getPort(), true)`. The Go code sets `r.RemoteAddr = match[1]` which loses the original port entirely. If the `for=` value is just an IP (no port), the `RemoteAddr` will be missing the port component that was in the original address.
+- [ ] **Missing `trim()` on `host` match result**: Java does `hostMatcher.group(1)` passed to `AddressUtils.parseAddress`, but the Go code assigns `match[1]` to `r.URL.Host` without trimming. While the regex captures the value, the Java code relies on `AddressUtils.parseAddress` which handles whitespace — the Go code does not trim.
+- [ ] **Missing `trim()` on `proto` match result**: Java does `protoMatcher.group(1).trim()` but Go does `strings.ToLower(match[1])` without a separate trim. The Go regex may capture trailing spaces due to differences in pattern matching.
 
 ## Apply (parseXForwardedInfo)
 
-- [x] **Missing port preservation on X-Forwarded-For IP**: In Java, the X-Forwarded-For handler preserves the original port: `AddressUtils.parseAddress(ipHeader.split(",", 2)[0], connectionInfo.getRemoteAddress().getPort())`. The Go code sets `r.RemoteAddr` to just the IP from the header, discarding the original port entirely.
-- [x] **Wrong error message on invalid X-Forwarded-Port**: In Java, when `IntUtil.tryParse(portStr)` returns null (invalid port), the exception message is `NO_FORWARDED_IP_ERROR_MESSAGE` ("The \"for\" directive must be specified..."). The Go code silently ignores an invalid port (no error thrown at all), differing from the Java behavior which throws an `IllegalArgumentException`.
-- [x] **Missing `withHostAddress` + `withHostName` update on X-Forwarded-Port**: In Java, when a valid port is parsed, it calls `connectionInfo.withHostAddress(createUnresolved(connectionInfo.getHostAddress().getHostString(), port), connectionInfo.getHostName(), port)` which updates the host address with the new port while preserving the hostname. The Go code only appends the port to `r.URL.Host` if it doesn't already contain a colon — it does not update the host address consistently with how Java tracks `hostAddress` and `hostName` separately.
-- [x] **Missing empty-string check for X-Forwarded-For**: Java calls `headers.get(X_FORWARDED_IP_HEADER)` which returns null if absent, then checks for null. Go uses `r.Header.Get("X-Forwarded-For")` and checks `!= ""`. This is mostly equivalent, but Java's null check would also cover an empty string header differently. In practice Go handles this correctly, but there's a subtle difference: Java's `ipHeader.split(",", 2)[0]` would return `""` for an empty header value, while Go's `strings.TrimSpace(strings.Split("", ","))` would return `""`, then set `r.RemoteAddr = ""`. The Java code would actually call `AddressUtils.parseAddress("", port)` which might throw. The Go behavior differs from Java for empty-string header values.
+- [ ] **Missing port preservation on X-Forwarded-For IP**: In Java, the X-Forwarded-For handler preserves the original port: `AddressUtils.parseAddress(ipHeader.split(",", 2)[0], connectionInfo.getRemoteAddress().getPort())`. The Go code sets `r.RemoteAddr` to just the IP from the header, discarding the original port entirely.
+- [ ] **Wrong error message on invalid X-Forwarded-Port**: In Java, when `IntUtil.tryParse(portStr)` returns null (invalid port), the exception message is `NO_FORWARDED_IP_ERROR_MESSAGE` ("The \"for\" directive must be specified..."). The Go code silently ignores an invalid port (no error thrown at all), differing from the Java behavior which throws an `IllegalArgumentException`.
+- [ ] **Missing `withHostAddress` + `withHostName` update on X-Forwarded-Port**: In Java, when a valid port is parsed, it calls `connectionInfo.withHostAddress(createUnresolved(connectionInfo.getHostAddress().getHostString(), port), connectionInfo.getHostName(), port)` which updates the host address with the new port while preserving the hostname. The Go code only appends the port to `r.URL.Host` if it doesn't already contain a colon — it does not update the host address consistently with how Java tracks `hostAddress` and `hostName` separately.
+- [ ] **Missing empty-string check for X-Forwarded-For**: Java calls `headers.get(X_FORWARDED_IP_HEADER)` which returns null if absent, then checks for null. Go uses `r.Header.Get("X-Forwarded-For")` and checks `!= ""`. This is mostly equivalent, but Java's null check would also cover an empty string header differently. In practice Go handles this correctly, but there's a subtle difference: Java's `ipHeader.split(",", 2)[0]` would return `""` for an empty header value, while Go's `strings.TrimSpace(strings.Split("", ","))` would return `""`, then set `r.RemoteAddr = ""`. The Java code would actually call `AddressUtils.parseAddress("", port)` which might throw. The Go behavior differs from Java for empty-string header values.
 
 ## Apply (parseForwardedInfo - regex differences)
 
-- [x] **Regex case-insensitivity difference**: Java regex patterns like `FORWARDED_FOR_PATTERN` are compiled without `Pattern.CASE_INSENSITIVE`, so they only match lowercase field names (e.g., `for=`, `host=`, `proto=`). The Go regex uses `(?i)` making them case-insensitive, which matches more broadly than the Java version. While RFC 7239 says field names are case-insensitive, this is a behavioral difference from the Java implementation.
+- [ ] **Regex case-insensitivity difference**: Java regex patterns like `FORWARDED_FOR_PATTERN` are compiled without `Pattern.CASE_INSENSITIVE`, so they only match lowercase field names (e.g., `for=`, `host=`, `proto=`). The Go regex uses `(?i)` making them case-insensitive, which matches more broadly than the Java version. While RFC 7239 says field names are case-insensitive, this is a behavioral difference from the Java implementation.
 
 # WebSocketServerFactory.java
 *Checked methods: create(WebSocketProperties webSocketProperties, BlocklistService blocklistService, ServerStatusManager serverStatusManager, SessionService sessionService, ConnectionListener connectionListener, int maxFramePayloadLength)*
 
 ## create
 
-- [x] **Missing `backlog` configuration**: The Java code sets `.option(SO_BACKLOG, webSocketProperties.getBacklog())` to configure the TCP listen backlog. The Go code does not configure any backlog value on the listener.
+- [ ] **Missing `backlog` configuration**: The Java code sets `.option(SO_BACKLOG, webSocketProperties.getBacklog())` to configure the TCP listen backlog. The Go code does not configure any backlog value on the listener.
 
-- [x] **Missing `connectTimeoutMillis` configuration**: The Java code sets `.option(CONNECT_TIMEOUT_MILLIS, webSocketProperties.getConnectTimeoutMillis())`. The Go code does not configure any connection timeout. Note: the Go `WebSocketProperties` struct is also missing this field entirely.
+- [ ] **Missing `connectTimeoutMillis` configuration**: The Java code sets `.option(CONNECT_TIMEOUT_MILLIS, webSocketProperties.getConnectTimeoutMillis())`. The Go code does not configure any connection timeout. Note: the Go `WebSocketProperties` struct is also missing this field entirely.
 
-- [x] **Missing `SO_REUSEADDR` option**: The Java code sets both `.option(SO_REUSEADDR, true)` and `.childOption(SO_REUSEADDR, true)`. The Go code does not explicitly set `SO_REUSEADDR` on the listener (though Go's `net.Listen` defaults to enabling it).
+- [ ] **Missing `SO_REUSEADDR` option**: The Java code sets both `.option(SO_REUSEADDR, true)` and `.childOption(SO_REUSEADDR, true)`. The Go code does not explicitly set `SO_REUSEADDR` on the listener (though Go's `net.Listen` defaults to enabling it).
 
-- [x] **Missing `SO_LINGER` option**: The Java code sets `.childOption(SO_LINGER, 0)` to ensure RST on close instead of graceful FIN. The Go code does not configure this socket option.
+- [ ] **Missing `SO_LINGER` option**: The Java code sets `.childOption(SO_LINGER, 0)` to ensure RST on close instead of graceful FIN. The Go code does not configure this socket option.
 
-- [x] **Missing `TCP_NODELAY` option**: The Java code sets `.childOption(TCP_NODELAY, true)` to disable Nagle's algorithm. The Go code does not configure this socket option.
+- [ ] **Missing `TCP_NODELAY` option**: The Java code sets `.childOption(TCP_NODELAY, true)` to disable Nagle's algorithm. The Go code does not configure this socket option.
 
-- [x] **Missing SSL/TLS support**: The Java code conditionally enables SSL via `SslProperties` (`.secure(spec -> SslUtil.configureSslContextSpec(...), true)`). The Go code has no SSL/TLS configuration at all. The `WebSocketProperties` struct is also missing the `Ssl` field.
+- [ ] **Missing SSL/TLS support**: The Java code conditionally enables SSL via `SslProperties` (`.secure(spec -> SslUtil.configureSslContextSpec(...), true)`). The Go code has no SSL/TLS configuration at all. The `WebSocketProperties` struct is also missing the `Ssl` field.
 
 - [x] **Missing proxy protocol support**: The Java code configures proxy protocol based on `RemoteAddressSourceProxyProtocolMode` (REQUIRED→ON, OPTIONAL→AUTO, DISABLED→OFF) via `.proxyProtocol(proxyProtocolSupportType)`. The Go code ignores `props.ProxyProtocolMode` entirely even though the field exists in `WebSocketProperties`.
 
-- [x] **Missing metrics/recording**: The Java code enables metrics via `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(...))`. The Go code has no metrics instrumentation.
+- [ ] **Missing metrics/recording**: The Java code enables metrics via `.metrics(true, () -> new TurmsMicrometerChannelMetricsRecorder(...))`. The Go code has no metrics instrumentation.
 
-- [x] **Missing custom thread/loop resources**: The Java code configures dedicated event loop resources via `.runOn(LoopResourcesFactory.createForServer(ThreadNameConst.GATEWAY_WS_PREFIX))`. The Go code does not configure any dedicated goroutine pool or similar.
+- [ ] **Missing custom thread/loop resources**: The Java code configures dedicated event loop resources via `.runOn(LoopResourcesFactory.createForServer(ThreadNameConst.GATEWAY_WS_PREFIX))`. The Go code does not configure any dedicated goroutine pool or similar.
 
-- [x] **Missing channel pipeline handler injection**: The Java code injects `ServiceAvailabilityHandler` as a Netty channel pipeline handler via `.doOnChannelInit(...)`, which intercepts at the channel level for every connection. The Go code instead calls `availabilityHandler.HandleConnection()` inside the HTTP handler, which is a different architectural approach — it only checks at the HTTP request level rather than at the connection/channel level. This means the Go code won't intercept corrupted frames or other low-level events the way the Java handler does.
+- [ ] **Missing channel pipeline handler injection**: The Java code injects `ServiceAvailabilityHandler` as a Netty channel pipeline handler via `.doOnChannelInit(...)`, which intercepts at the channel level for every connection. The Go code instead calls `availabilityHandler.HandleConnection()` inside the HTTP handler, which is a different architectural approach — it only checks at the HTTP request level rather than at the connection/channel level. This means the Go code won't intercept corrupted frames or other low-level events the way the Java handler does.
 
-- [x] **`forwardedHandler` is passed `isForwardedIpRequired` only for REQUIRED mode**: In Java, `HttpForwardedHeaderHandler` is only instantiated when `httpHeaderMode` is REQUIRED or OPTIONAL, and the constructor receives `true`/`false` respectively. The Go code instantiates `NewHttpForwardedHeaderHandler(props.HttpHeaderMode == common.HttpHeaderMode_REQUIRED)` which correctly passes `true` for REQUIRED and `false` for others. However, the Go code checks `props.HttpHeaderMode != common.HttpHeaderMode_DISABLED` before calling `forwardedHandler.Apply(r)`, which means for OPTIONAL mode, the handler is called — matching Java behavior. This part is correct.
+- [ ] **`forwardedHandler` is passed `isForwardedIpRequired` only for REQUIRED mode**: In Java, `HttpForwardedHeaderHandler` is only instantiated when `httpHeaderMode` is REQUIRED or OPTIONAL, and the constructor receives `true`/`false` respectively. The Go code instantiates `NewHttpForwardedHeaderHandler(props.HttpHeaderMode == common.HttpHeaderMode_REQUIRED)` which correctly passes `true` for REQUIRED and `false` for others. However, the Go code checks `props.HttpHeaderMode != common.HttpHeaderMode_DISABLED` before calling `forwardedHandler.Apply(r)`, which means for OPTIONAL mode, the handler is called — matching Java behavior. This part is correct.
 
-- [x] **Missing `maxFramePayloadLength` usage in upgrader**: The Java code creates a `WebsocketServerSpec` with `.maxFramePayloadLength(maxFramePayloadLength)` and passes it to `sendWebsocket`. The Go code creates a `websocket.Upgrader` with hardcoded `ReadBufferSize: 1024, WriteBufferSize: 1024` and does not use the `maxFramePayloadLength` parameter at all. The method signature also does not accept `maxFramePayloadLength` as a parameter (it uses `callback func(*websocket.Conn, http.Header)` instead of the Java's `ConnectionListener connectionListener, int maxFramePayloadLength`).
+- [ ] **Missing `maxFramePayloadLength` usage in upgrader**: The Java code creates a `WebsocketServerSpec` with `.maxFramePayloadLength(maxFramePayloadLength)` and passes it to `sendWebsocket`. The Go code creates a `websocket.Upgrader` with hardcoded `ReadBufferSize: 1024, WriteBufferSize: 1024` and does not use the `maxFramePayloadLength` parameter at all. The method signature also does not accept `maxFramePayloadLength` as a parameter (it uses `callback func(*websocket.Conn, http.Header)` instead of the Java's `ConnectionListener connectionListener, int maxFramePayloadLength`).
 
 ## handleHttpRequest
 
-- [x] **Missing `Access-Control-Allow-Headers: *` CORS header**: Java's preflight response includes four headers: `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: *`, `Access-Control-Allow-Headers: *`, and `Access-Control-Max-Age: 7200`. The Go code only sets `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Methods: GET, OPTIONS` (hardcoded instead of wildcard `*`). It is missing `Access-Control-Allow-Headers` and `Access-Control-Max-Age` entirely.
+- [ ] **Missing `Access-Control-Allow-Headers: *` CORS header**: Java's preflight response includes four headers: `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: *`, `Access-Control-Allow-Headers: *`, and `Access-Control-Max-Age: 7200`. The Go code only sets `Access-Control-Allow-Origin: *` and `Access-Control-Allow-Methods: GET, OPTIONS` (hardcoded instead of wildcard `*`). It is missing `Access-Control-Allow-Headers` and `Access-Control-Max-Age` entirely.
 
-- [x] **`Access-Control-Allow-Methods` is hardcoded to `"GET, OPTIONS"` instead of `"*"`**: Java sends `*` for allowed methods. Go sends the explicit `"GET, OPTIONS"`.
+- [ ] **`Access-Control-Allow-Methods` is hardcoded to `"GET, OPTIONS"` instead of `"*"`**: Java sends `*` for allowed methods. Go sends the explicit `"GET, OPTIONS"`.
 
-- [x] **CORS preflight returns `204 NoContent` instead of `200 OK`**: Java returns `HttpResponseStatus.OK` (200). Go returns `http.StatusNoContent` (204). This is a behavior difference.
+- [ ] **CORS preflight returns `204 NoContent` instead of `200 OK`**: Java returns `HttpResponseStatus.OK` (200). Go returns `http.StatusNoContent` (204). This is a behavior difference.
 
 - [x] **Missing WebSocket handshake validation**: Java's `validateHandshakeRequest` checks four conditions: (1) method must be GET, (2) `Upgrade: websocket` header, (3) `Connection: upgrade` header, (4) `Sec-WebSocket-Key` header must be present. The Go code only checks the HTTP method but delegates the remaining WebSocket protocol validation to the `gorilla/websocket` upgrader. While `gorilla/websocket` does perform standard WebSocket handshake validation internally, it may not return the same specific error messages as the Java code (e.g., "Invalid 'Upgrade' header", "Missing \"Sec-WebSocket-Key\" header").
 
@@ -8010,9 +8010,9 @@ However, there is a type mismatch in the `sessionId` field:
 
 - [x] **Missing `Connection` header validation**: The Java code checks for the `Connection: upgrade` header. Go delegates this to `gorilla/websocket`.
 
-- [x] **`maxFramePayloadLength` not used in frame aggregation**: The Java code uses `in.aggregateFrames(maxFramePayloadLength)` to aggregate fragmented WebSocket frames with the configured max payload length. The Go code has no equivalent frame aggregation — it reads individual messages from `gorilla/websocket` without any `maxFramePayloadLength` limit beyond the upgrader's default.
+- [ ] **`maxFramePayloadLength` not used in frame aggregation**: The Java code uses `in.aggregateFrames(maxFramePayloadLength)` to aggregate fragmented WebSocket frames with the configured max payload length. The Go code has no equivalent frame aggregation — it reads individual messages from `gorilla/websocket` without any `maxFramePayloadLength` limit beyond the upgrader's default.
 
-- [x] **Only `BinaryWebSocketFrame` messages are processed in Java; Go does not filter**: The Java code explicitly filters for `BinaryWebSocketFrame` using `.flatMap(frame -> frame instanceof BinaryWebSocketFrame ? Mono.just(frame.content()) : Mono.empty())`. The Go code reads all message types from the `gorilla/websocket` connection without filtering for binary messages specifically.
+- [ ] **Only `BinaryWebSocketFrame` messages are processed in Java; Go does not filter**: The Java code explicitly filters for `BinaryWebSocketFrame` using `.flatMap(frame -> frame instanceof BinaryWebSocketFrame ? Mono.just(frame.content()) : Mono.empty())`. The Go code reads all message types from the `gorilla/websocket` connection without filtering for binary messages specifically.
 
 # NotificationService.java
 *Checked methods: sendNotificationToLocalClients(TracingContext tracingContext, ByteBuf notificationData, Set<Long> recipientIds, Set<UserSessionId> excludedUserSessionIds, @Nullable DeviceType excludedDeviceType)*
@@ -8023,21 +8023,21 @@ Now I have a complete understanding of both implementations. Here is my review:
 
 - [x] **Missing nil check for `excludedUserSessionIds` parameter**: The Java code validates `excludedUserSessionIds` with `Validator.notNull(excludedUserSessionIds, "excludedUserSessionIds")` and returns an error if null. The Go code has no nil check for the `excludedUserSessionIds` map parameter. If `nil` is passed, `len(excludedUserSessionIds) > 0` will return `false` (safe in Go), but this deviates from the Java contract which explicitly rejects null.
 
-- [x] **`TryNotifyClientToRecover` called unconditionally instead of only after successful send**: In the Java code, `userSession.getConnection().tryNotifyClientToRecover()` is called **unconditionally** for every non-excluded session, **outside** the send mono (after line 161, not inside the `onErrorResume`). In the Go code (line 118), `sess.Conn.TryNotifyClientToRecover()` is also called unconditionally inside the goroutine — however, it's called **after the send error check**, meaning it runs regardless of send success or failure. This actually matches the Java behavior (Java calls it unconditionally after adding the mono), but there's a subtle difference: in Java, `tryNotifyClientToRecover()` runs synchronously in the for-loop body **before** the send completes, whereas in Go it runs after the send completes inside the goroutine. This is a behavioral timing difference — in Java, the recovery notification is sent immediately when the session is found, not after the notification send result is known.
+- [ ] **`TryNotifyClientToRecover` called unconditionally instead of only after successful send**: In the Java code, `userSession.getConnection().tryNotifyClientToRecover()` is called **unconditionally** for every non-excluded session, **outside** the send mono (after line 161, not inside the `onErrorResume`). In the Go code (line 118), `sess.Conn.TryNotifyClientToRecover()` is also called unconditionally inside the goroutine — however, it's called **after the send error check**, meaning it runs regardless of send success or failure. This actually matches the Java behavior (Java calls it unconditionally after adding the mono), but there's a subtle difference: in Java, `tryNotifyClientToRecover()` runs synchronously in the for-loop body **before** the send completes, whereas in Go it runs after the send completes inside the goroutine. This is a behavioral timing difference — in Java, the recovery notification is sent immediately when the session is found, not after the notification send result is known.
 
 - [x] **Different offline recipient classification logic**: In the Java code, when `userSession.sendNotification()` fails (`.onErrorResume`), the recipient ID is **immediately** added to `offlineRecipientIds`, regardless of whether other sessions for the same recipient succeeded. This means a recipient can appear in `offlineRecipientIds` even if other sessions for that user received the notification successfully. The Go code (lines 126-130) instead uses a **per-recipient success counting** approach: it only marks a recipient as offline if **zero** sessions for that recipient succeeded. This is a fundamental behavioral difference from the Java version.
 
 - [x] **Missing logging of aggregated errors**: The Java code logs `"Caught an error while sending a notification to user sessions"` with the aggregate error from `Mono.whenDelayError` in the `doOnEach` callback. The Go code only logs individual send errors per session (`log.Printf(...)`) but does not log an aggregated error message after all sends complete, as the Java version does.
 
-- [x] **Missing notification logging**: The Java code has a `doOnEach` block that handles notification logging via `notificationLoggingManager.log()` when `isNotificationLoggingEnabled` is true and `apiLoggingContext.shouldLogNotification()` returns true. The Go code has `isNotificationLoggingEnabled` commented out and has no notification logging logic at all.
+- [ ] **Missing notification logging**: The Java code has a `doOnEach` block that handles notification logging via `notificationLoggingManager.log()` when `isNotificationLoggingEnabled` is true and `apiLoggingContext.shouldLogNotification()` returns true. The Go code has `isNotificationLoggingEnabled` commented out and has no notification logging logic at all.
 
-- [x] **Missing tracing context propagation**: The Java code uses `Mono.deferContextual(context -> ...)` and `TracingContext.getCloseableContext(context)` to propagate the tracing context through the reactive chain. The Go code receives a `context.Context` but does not use it for tracing propagation in the notification sending or logging paths.
+- [ ] **Missing tracing context propagation**: The Java code uses `Mono.deferContextual(context -> ...)` and `TracingContext.getCloseableContext(context)` to propagate the tracing context through the reactive chain. The Go code receives a `context.Context` but does not use it for tracing propagation in the notification sending or logging paths.
 
-- [x] **`notificationData` is not copied/retained per send — shared byte slice across goroutines**: In Java, `notificationData.retain()` is called before each `userSession.sendNotification()`, effectively creating a reference-counted copy per send. In Go, `notificationData` is a `[]byte` passed by value (slice header), but all goroutines share the same underlying array. If `SendWithContext` or the downstream code modifies the buffer or if the buffer is released/freed by one goroutine, other goroutines will see corrupted data. This is a concurrency safety issue — Java's `ByteBuf.retain()` ensures the buffer stays alive until each downstream consumer is done.
+- [ ] **`notificationData` is not copied/retained per send — shared byte slice across goroutines**: In Java, `notificationData.retain()` is called before each `userSession.sendNotification()`, effectively creating a reference-counted copy per send. In Go, `notificationData` is a `[]byte` passed by value (slice header), but all goroutines share the same underlying array. If `SendWithContext` or the downstream code modifies the buffer or if the buffer is released/freed by one goroutine, other goroutines will see corrupted data. This is a concurrency safety issue — Java's `ByteBuf.retain()` ensures the buffer stays alive until each downstream consumer is done.
 
 - [x] **Error handling differs — Java propagates errors via `Mono.whenDelayError`, Go collects but returns `nil` error**: The Java code uses `Mono.whenDelayError(monos)` which collects all errors and surfaces them through the reactive chain. The `.onErrorComplete(t -> true)` swallows the composite error but individual errors are still logged. The Go code collects `sendErrors` but never returns them — the method always returns `nil` as the error, even when sends fail for open sessions. In Java, the `onErrorResume` re-raises errors for open sessions (line 154: `return Mono.error(...)`), which propagates through `whenDelayError` and triggers the error logging path. The Go code logs individual errors but discards them entirely.
 
-- [x] **`offlineRecipientIds` should be a set, not a slice**: The Java code uses `Set<Long>` for `offlineRecipientIds`, ensuring no duplicate entries. The Go code uses `[]int64` (a slice), which can contain duplicate recipient IDs — for example, if a recipient has multiple sessions and multiple session sends fail, the recipient ID would only be added once in Java (it's a set) but could potentially be added once in Go too due to the counting logic. However, with the current Go counting logic, this particular issue is mitigated. But with the original Java behavior (add on any session error), duplicates would occur.
+- [ ] **`offlineRecipientIds` should be a set, not a slice**: The Java code uses `Set<Long>` for `offlineRecipientIds`, ensuring no duplicate entries. The Go code uses `[]int64` (a slice), which can contain duplicate recipient IDs — for example, if a recipient has multiple sessions and multiple session sends fail, the recipient ID would only be added once in Java (it's a set) but could potentially be added once in Go too due to the counting logic. However, with the current Go counting logic, this particular issue is mitigated. But with the original Java behavior (add on any session error), duplicates would occur.
 
 # ServiceRequestService.java
 *Checked methods: handleServiceRequest(UserSession session, ServiceRequest serviceRequest)*
@@ -8069,7 +8069,7 @@ This is a behavioral difference: if a user has sessions on multiple devices and 
 
 ## DeleteSessions
 
-- [x] **Behavioral difference in IP-based session closing**: When closing sessions by IP, the Java version calls `closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` which closes ALL device types for users found by IP. The Go version calls `CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)` which only closes the specific device type of the matching session. This means if a user has sessions on multiple devices (e.g., desktop and mobile) and one session matches the target IP, Java closes all their sessions while Go only closes the matching one.
+- [ ] **Behavioral difference in IP-based session closing**: When closing sessions by IP, the Java version calls `closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)` which closes ALL device types for users found by IP. The Go version calls `CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)` which only closes the specific device type of the matching session. This means if a user has sessions on multiple devices (e.g., desktop and mobile) and one session matches the target IP, Java closes all their sessions while Go only closes the matching one.
 
 # SessionClientController.java
 *Checked methods: handleDeleteSessionRequest(UserSessionWrapper sessionWrapper), handleCreateSessionRequest(UserSessionWrapper sessionWrapper, CreateSessionRequest createSessionRequest)*
@@ -8080,13 +8080,13 @@ Now I have a comprehensive understanding. Let me compile the final bug report.
 
 - [x] **Incorrect return behavior**: The Java version returns `Mono.empty()`, which means **no response notification is sent back to the client**. The Go version returns `NewRequestHandlerResult(ResponseStatusCode_OK, "")`, which causes an OK notification to be sent to the client. This is a behavioral difference — the delete session should be silent (no response sent to the client) in the Java version.
 
-- [x] **Missing null-session check logic**: The Java code checks `session == null` (no user session exists on the wrapper) and returns `Mono.empty()` immediately. The Go code uses `sessionWrapper.HasUserSession()` which may differ semantically, but more importantly, when the session is absent in Java, no further action is taken. The Go code returns an OK result in both cases (session present or absent), whereas Java sends nothing in both cases.
+- [ ] **Missing null-session check logic**: The Java code checks `session == null` (no user session exists on the wrapper) and returns `Mono.empty()` immediately. The Go code uses `sessionWrapper.HasUserSession()` which may differ semantically, but more importantly, when the session is absent in Java, no further action is taken. The Go code returns an OK result in both cases (session present or absent), whereas Java sends nothing in both cases.
 
-- [x] **Extra `SetUserSession(nil)` call**: The Go code calls `sessionWrapper.SetUserSession(nil)` after closing the local session. The Java version does not set the session to null on the wrapper — it just fires-and-forgets the close and returns empty. This is an extra operation not present in the Java version.
+- [ ] **Extra `SetUserSession(nil)` call**: The Go code calls `sessionWrapper.SetUserSession(nil)` after closing the local session. The Java version does not set the session to null on the wrapper — it just fires-and-forgets the close and returns empty. This is an extra operation not present in the Java version.
 
 ## HandleCreateSessionRequest
 
-- [x] **Missing session establish timeout handling**: The Java code retrieves `sessionEstablishTimeout = sessionWrapper.getEstablishTimeoutTask()` and uses it to decide behavior. If the timeout already fired (cancel returns false), it closes the session with `LOGIN_TIMEOUT` and returns a `ResponseStatusCode.LOGIN_TIMEOUT` result. If the connection is not alive, it also closes with `LOGIN_TIMEOUT` but returns `Mono.empty()` (no response). The Go code has no establish timeout concept at all — it only checks connection liveness and has a single fallback path for connection-dead scenarios. This means the Go code cannot distinguish between "timeout already fired" and "connection dropped," and the response behavior differs: Java returns `LOGIN_TIMEOUT` result when timeout has already fired, but returns nothing when the connection just dropped.
+- [ ] **Missing session establish timeout handling**: The Java code retrieves `sessionEstablishTimeout = sessionWrapper.getEstablishTimeoutTask()` and uses it to decide behavior. If the timeout already fired (cancel returns false), it closes the session with `LOGIN_TIMEOUT` and returns a `ResponseStatusCode.LOGIN_TIMEOUT` result. If the connection is not alive, it also closes with `LOGIN_TIMEOUT` but returns `Mono.empty()` (no response). The Go code has no establish timeout concept at all — it only checks connection liveness and has a single fallback path for connection-dead scenarios. This means the Go code cannot distinguish between "timeout already fired" and "connection dropped," and the response behavior differs: Java returns `LOGIN_TIMEOUT` result when timeout has already fired, but returns nothing when the connection just dropped.
 
 - [x] **Different response for dead-connection path**: In the Java version, when the connection is not alive (`!connection.isConnected()`), it calls `closeLocalSession` and then returns `Mono.empty()` — meaning **no response is sent to the client**. The Go version returns `NewRequestHandlerResult(ResponseStatusCode_LOGIN_TIMEOUT, "")`, which **sends a LOGIN_TIMEOUT notification to the client**. This is a behavioral difference in the dead-connection path.
 
@@ -8099,7 +8099,7 @@ Now I have a comprehensive understanding. Let me compile the final bug report.
 
 ## UserLoginInfo (constructor/record)
 
-- [x] Missing `Location` field: The Java record has a `Location location` field and constructor parameter, but the Go struct and `NewUserLoginInfo` function omit it entirely (commented out). The `Location` field is not present in the Go struct and is not assigned in the constructor.
+- [ ] Missing `Location` field: The Java record has a `Location location` field and constructor parameter, but the Go struct and `NewUserLoginInfo` function omit it entirely (commented out). The `Location` field is not present in the Go struct and is not assigned in the constructor.
 - [ ] `UserID` type mismatch: The Java version uses `Long userId` (nullable boxed type), but the Go version uses `int64` (non-nullable). This means the Go version cannot represent a `nil`/missing user ID, which changes behavior if `userId` was ever expected to be unset.
 
 # UserPermissionInfo.java
@@ -8384,33 +8384,33 @@ Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
 
 ## resolveConflicts / closeSessionsWithConflictedDeviceTypes
 
-- [x] Java uses `SessionCloseStatus.DISCONNECTED_BY_CLIENT` to close conflicted sessions. Go uses `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`, which is a different close status code.
-- [x] Java builds `nodeIdToDeviceTypes` by adding `deviceType` (the logging-in device type) to each node's set (line 817: `.add(deviceType)`). Go adds `conflictedDT` (the conflicted device type) to the node mapping. This means Java tells remote nodes to disconnect the logging-in device type, while Go tells them to disconnect the conflicted device types — fundamentally different conflict resolution behavior.
+- [ ] Java uses `SessionCloseStatus.DISCONNECTED_BY_CLIENT` to close conflicted sessions. Go uses `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`, which is a different close status code.
+- [ ] Java builds `nodeIdToDeviceTypes` by adding `deviceType` (the logging-in device type) to each node's set (line 817: `.add(deviceType)`). Go adds `conflictedDT` (the conflicted device type) to the node mapping. This means Java tells remote nodes to disconnect the logging-in device type, while Go tells them to disconnect the conflicted device types — fundamentally different conflict resolution behavior.
 
 ## tryRegisterOnlineUser
 
-- [x] Java has a step (lines 656-676) that closes local sessions for device types that are already registered on Redis by other nodes. This handles edge cases like Redis crashes/restarts or lost connections to Redis. Go's `resolveConflicts` does not include this step — it only handles conflicted device types, not stale local sessions registered by other nodes.
-- [x] Java has a session recovery path (lines 695-734) where if the session exists locally and its connection is closed, it returns the existing session for connection replacement (UDP-to-TCP/WebSocket recovery). This entire recovery branch is missing from Go.
+- [ ] Java has a step (lines 656-676) that closes local sessions for device types that are already registered on Redis by other nodes. This handles edge cases like Redis crashes/restarts or lost connections to Redis. Go's `resolveConflicts` does not include this step — it only handles conflicted device types, not stale local sessions registered by other nodes.
+- [ ] Java has a session recovery path (lines 695-734) where if the session exists locally and its connection is closed, it returns the existing session for connection replacement (UDP-to-TCP/WebSocket recovery). This entire recovery branch is missing from Go.
 - [x] Java calls `addOnlineDeviceIfAbsent` with `closeIdleSessionAfterSeconds`, `expectedNodeId`, and `expectedDeviceTimestamp` parameters for optimistic concurrency control. Go calls `AddOnlineDevice` without these parameters, losing the CAS-style protection against race conditions.
-- [x] Java filters `deviceDetails` through `deviceDetailsItemPropertiesList` configuration before storing. Go passes `deviceDetails` directly without filtering.
-- [x] Go calls `s.InvokeGoOnlineHandlers(ctx, nil, session)` passing `nil` as the `userSessionsManager`. Java calls `invokeGoOnlineHandlers(userSessionsManager, userSession)` with the actual non-null manager retrieved from `userIdToSessionsManager.computeIfAbsent`.
+- [ ] Java filters `deviceDetails` through `deviceDetailsItemPropertiesList` configuration before storing. Go passes `deviceDetails` directly without filtering.
+- [ ] Go calls `s.InvokeGoOnlineHandlers(ctx, nil, session)` passing `nil` as the `userSessionsManager`. Java calls `invokeGoOnlineHandlers(userSessionsManager, userSession)` with the actual non-null manager retrieved from `userIdToSessionsManager.computeIfAbsent`.
 
 ## onSessionEstablished
 
-- [x] Java increments the `loggedInUsersCounter` metric. Go has an empty stub with a TODO comment.
-- [x] Java conditionally pushes a session notification to the client via `userSessionsManager.pushSessionNotification(deviceType, serverId)` when `notifyClientsOfSessionInfoAfterConnected` is enabled. Go has an empty stub with no notification logic.
+- [ ] Java increments the `loggedInUsersCounter` metric. Go has an empty stub with a TODO comment.
+- [ ] Java conditionally pushes a session notification to the client via `userSessionsManager.pushSessionNotification(deviceType, serverId)` when `notifyClientsOfSessionInfoAfterConnected` is enabled. Go has an empty stub with no notification logic.
 
 ## invokeGoOnlineHandlers
 
-- [x] Java invokes the `UserOnlineStatusChangeHandler.goOnline` plugin extension point via `pluginManager.invokeExtensionPointsSimultaneously`. Go has an empty stub with a TODO and does not invoke any plugin.
+- [ ] Java invokes the `UserOnlineStatusChangeHandler.goOnline` plugin extension point via `pluginManager.invokeExtensionPointsSimultaneously`. Go has an empty stub with a TODO and does not invoke any plugin.
 
 ## authAndUpdateHeartbeatTimestamp
 
-- [x] Java validates `deviceType` with `Validator.notNull` and `DeviceTypeUtil.validDeviceType`. Go does not validate the `deviceType` parameter at all.
+- [ ] Java validates `deviceType` with `Validator.notNull` and `DeviceTypeUtil.validDeviceType`. Go does not validate the `deviceType` parameter at all.
 
 ## notifySessionClosedListeners
 
-- [x] Java wraps each listener invocation in a try-catch block to prevent one failing listener from affecting others. Go calls listeners without any panic recovery, so a panic in one listener will propagate and abort the remaining listeners.
+- [ ] Java wraps each listener invocation in a try-catch block to prevent one failing listener from affecting others. Go calls listeners without any panic recovery, so a panic in one listener will propagate and abort the remaining listeners.
 
 # ServiceAddressManager.java
 *Checked methods: getWsAddress(), getTcpAddress(), getUdpAddress()*
@@ -8419,15 +8419,15 @@ Now I have the full picture. Let me compare the three getter methods and the `up
 
 ## getWsAddress()
 
-- [x] **Missing null/empty check when WS is disabled**: In Java, `wsAddress` is only updated inside `if (webSocketProperties.isEnabled())`, so it retains its previous value (initially `null`) when WS is disabled. In Go, `UpdateCustomAddresses` always unconditionally sets `m.wsAddress` regardless of whether WS is enabled or not. There is no `wsEnabled` parameter or check. The Go code always resolves and assigns the WS address even when it shouldn't.
+- [ ] **Missing null/empty check when WS is disabled**: In Java, `wsAddress` is only updated inside `if (webSocketProperties.isEnabled())`, so it retains its previous value (initially `null`) when WS is disabled. In Go, `UpdateCustomAddresses` always unconditionally sets `m.wsAddress` regardless of whether WS is enabled or not. There is no `wsEnabled` parameter or check. The Go code always resolves and assigns the WS address even when it shouldn't.
 
 ## getTcpAddress()
 
-- [x] **Missing enabled check when TCP is disabled**: Same issue as WS. Java only updates `tcpAddress` inside `if (tcpProperties.isEnabled())`. Go unconditionally sets `m.tcpAddress` every time `UpdateCustomAddresses` is called. There is no `tcpEnabled` parameter or conditional guard.
+- [ ] **Missing enabled check when TCP is disabled**: Same issue as WS. Java only updates `tcpAddress` inside `if (tcpProperties.isEnabled())`. Go unconditionally sets `m.tcpAddress` every time `UpdateCustomAddresses` is called. There is no `tcpEnabled` parameter or conditional guard.
 
 ## getUdpAddress()
 
-- [x] **Missing enabled check when UDP is disabled**: Same issue as WS/TCP. Java only updates `udpAddress` inside `if (udpProperties.isEnabled())`. Go unconditionally sets `m.udpAddress`. There is no `udpEnabled` parameter or conditional guard.
+- [ ] **Missing enabled check when UDP is disabled**: Same issue as WS/TCP. Java only updates `udpAddress` inside `if (udpProperties.isEnabled())`. Go unconditionally sets `m.udpAddress`. There is no `udpEnabled` parameter or conditional guard.
 
 ## queryHost() (supporting method for all three)
 
@@ -8506,86 +8506,86 @@ The `ttl_cache.go` file is not related to `BerBuffer` — it's a separate utilit
 
 ## readLength()
 
-- [x] **Missing error handling for indefinite length (numBytes == 0)**: Java throws `DecodeException("Indefinite length is not supported")`, Go silently returns 0. This will cause the caller to misinterpret the structure.
-- [x] **Missing validation for numBytes > 4**: Java throws `DecodeException("The length (...) is too long")`, Go silently proceeds with any numBytes value, potentially reading far beyond valid data.
-- [x] **Missing insufficient data check**: Java checks `buffer.isReadable(lengthBytes)` before reading the length bytes and throws `DecodeException("Insufficient data")`. Go silently breaks out of the loop with a partial/truncated length value instead of throwing an error.
-- [x] **Missing negative length check**: Java checks `if (length < 0)` after computation and throws `DecodeException("Invalid length bytes")`. Go returns the potentially corrupted length without validation.
+- [ ] **Missing error handling for indefinite length (numBytes == 0)**: Java throws `DecodeException("Indefinite length is not supported")`, Go silently returns 0. This will cause the caller to misinterpret the structure.
+- [ ] **Missing validation for numBytes > 4**: Java throws `DecodeException("The length (...) is too long")`, Go silently proceeds with any numBytes value, potentially reading far beyond valid data.
+- [ ] **Missing insufficient data check**: Java checks `buffer.isReadable(lengthBytes)` before reading the length bytes and throws `DecodeException("Insufficient data")`. Go silently breaks out of the loop with a partial/truncated length value instead of throwing an error.
+- [ ] **Missing negative length check**: Java checks `if (length < 0)` after computation and throws `DecodeException("Invalid length bytes")`. Go returns the potentially corrupted length without validation.
 
 ## tryReadLengthIfReadable()
 
-- [x] **Delegates to ReadLength() which has different error behavior**: Java's `tryReadLengthIfReadable` has its own full logic that returns -1 when there isn't enough data for the multi-byte length (line 155-157 in Java). The Go version simply delegates to `ReadLength()` which can silently return a truncated/incorrect value instead of -1 when multi-byte length data is partially available.
-- [x] **Missing indefinite length error**: Java throws `DecodeException("Indefinite length is not supported")` when numBytes == 0, but Go's `ReadLength()` returns 0 silently.
-- [x] **Missing numBytes > 4 error**: Java throws an exception, Go proceeds silently.
-- [x] **Missing negative length check**: Java validates `length < 0`, Go does not.
+- [ ] **Delegates to ReadLength() which has different error behavior**: Java's `tryReadLengthIfReadable` has its own full logic that returns -1 when there isn't enough data for the multi-byte length (line 155-157 in Java). The Go version simply delegates to `ReadLength()` which can silently return a truncated/incorrect value instead of -1 when multi-byte length data is partially available.
+- [ ] **Missing indefinite length error**: Java throws `DecodeException("Indefinite length is not supported")` when numBytes == 0, but Go's `ReadLength()` returns 0 silently.
+- [ ] **Missing numBytes > 4 error**: Java throws an exception, Go proceeds silently.
+- [ ] **Missing negative length check**: Java validates `length < 0`, Go does not.
 
 ## readBoolean()
 
-- [x] **Missing tag validation**: Java reads the tag and verifies it equals `TAG_BOOLEAN`, throwing `DecodeException` on mismatch. Go calls `SkipTagAndLength()` which blindly skips the tag without validating it.
-- [x] **Missing length validation**: Java checks `length > 1` and throws `DecodeException("The boolean is too large")`, and checks `isReadable(length)`. Go skips the length without any validation.
-- [x] **Returns false on insufficient data instead of throwing**: Java throws `DecodeException("Insufficient data")`. Go returns `false`, which is incorrect behavior — the caller cannot distinguish between "read a false boolean" and "failed to read".
+- [ ] **Missing tag validation**: Java reads the tag and verifies it equals `TAG_BOOLEAN`, throwing `DecodeException` on mismatch. Go calls `SkipTagAndLength()` which blindly skips the tag without validating it.
+- [ ] **Missing length validation**: Java checks `length > 1` and throws `DecodeException("The boolean is too large")`, and checks `isReadable(length)`. Go skips the length without any validation.
+- [ ] **Returns false on insufficient data instead of throwing**: Java throws `DecodeException("Insufficient data")`. Go returns `false`, which is incorrect behavior — the caller cannot distinguish between "read a false boolean" and "failed to read".
 
 ## readIntWithTag(int tag)
 
-- [x] **Returns 0 instead of throwing on tag mismatch**: Java throws `DecodeException` with tag mismatch details. Go silently returns 0, hiding protocol errors.
-- [x] **Returns 0 instead of throwing when length > 4**: Java throws `DecodeException("The integer is too long")`. Go silently returns 0.
-- [x] **Returns 0 instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")`. Go returns 0.
-- [x] **Incorrect negative value decoding logic**: Java extracts bits 0-6 of the first byte (`firstByte & 0x7F`) and then negates (`-value`). Go reads all bytes including the sign bit, then applies a sign-extension mask (`val |= ^((1 << (length * 8)) - 1)`). These produce different results for negative integers. For example, a 2-byte encoding of -129 (0xFF, 0x7F): Java computes `value = 0x7F = 127`, then `value = -127`. Go computes `val = 0xFF7F = 65407`, then `val |= ^0xFFFF = val | 0xFFFF0000 = 0xFFFFFF7F = -129`. The results differ (-127 vs -129).
-- [x] **Returns 0 when length == 0**: Java would proceed to read a byte with `buffer.readByte()` and potentially throw. Go returns 0 silently.
+- [ ] **Returns 0 instead of throwing on tag mismatch**: Java throws `DecodeException` with tag mismatch details. Go silently returns 0, hiding protocol errors.
+- [ ] **Returns 0 instead of throwing when length > 4**: Java throws `DecodeException("The integer is too long")`. Go silently returns 0.
+- [ ] **Returns 0 instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")`. Go returns 0.
+- [ ] **Incorrect negative value decoding logic**: Java extracts bits 0-6 of the first byte (`firstByte & 0x7F`) and then negates (`-value`). Go reads all bytes including the sign bit, then applies a sign-extension mask (`val |= ^((1 << (length * 8)) - 1)`). These produce different results for negative integers. For example, a 2-byte encoding of -129 (0xFF, 0x7F): Java computes `value = 0x7F = 127`, then `value = -127`. Go computes `val = 0xFF7F = 65407`, then `val |= ^0xFFFF = val | 0xFFFF0000 = 0xFFFFFF7F = -129`. The results differ (-127 vs -129).
+- [ ] **Returns 0 when length == 0**: Java would proceed to read a byte with `buffer.readByte()` and potentially throw. Go returns 0 silently.
 
 ## writeInteger(int tag, int value)
 
-- [x] **Incorrect encoding for negative values**: Java's encoding uses bitmasks to determine the minimal encoding size for negative numbers (e.g., `(value & 0xFFFF_FF80) == 0xFFFF_FF80` checks if the value fits in 1 byte with sign extension). Go uses range checks (`value >= -128 && value <= 127`). While the range checks happen to produce the same byte count for negative values, the Go version writes different byte values. For example, for `value = -1`: Java writes `byte(value & 0xFF) = 0xFF`. Go writes `byte(-1) = 0xFF` — same in this case. But for `value = -129`: Java's 2-byte path writes `byte((value >> 8) & 0xFF) = 0xFF` and `byte(value & 0xFF) = 0x7F`. Go writes `byte(-129 >> 8) = 0xFF` and `byte(-129) = 0x7F`. These match. However, **the positive-value encoding differs**: Java masks the high byte with `& 0x7F` (e.g., `buffer.writeByte((value >> 8) & 0x7F)` for 2-byte positive values), while Go does not mask with `0x7F`. For positive values in the range 128-255, Java's 1-byte branch writes `value & 0x7F` (stripping bit 7), but Go's range check puts values > 127 into the 2-byte branch, so the behavior diverges. For value=200: Java's `(value & 0x0000_007F) == value` is `200 & 0x7F = 72 != 200`, so it falls to 2-byte: writes `byte((200 >> 8) & 0x7F) = 0` and `byte(200 & 0xFF) = 0xC8`. Go's `value >= -128 && value <= 127` is false for 200, so 2-byte: writes `byte(200 >> 8) = 0` and `byte(200) = 0xC8`. Same in this case. But for value=128: Java 2-byte path writes `byte((128>>8) & 0x7F) = 0` and `byte(128 & 0xFF) = 0x80`. Go writes same. So the positive paths are actually equivalent since Go's range boundaries align with Java's bitmask-based boundaries. This is correct.
+- [ ] **Incorrect encoding for negative values**: Java's encoding uses bitmasks to determine the minimal encoding size for negative numbers (e.g., `(value & 0xFFFF_FF80) == 0xFFFF_FF80` checks if the value fits in 1 byte with sign extension). Go uses range checks (`value >= -128 && value <= 127`). While the range checks happen to produce the same byte count for negative values, the Go version writes different byte values. For example, for `value = -1`: Java writes `byte(value & 0xFF) = 0xFF`. Go writes `byte(-1) = 0xFF` — same in this case. But for `value = -129`: Java's 2-byte path writes `byte((value >> 8) & 0xFF) = 0xFF` and `byte(value & 0xFF) = 0x7F`. Go writes `byte(-129 >> 8) = 0xFF` and `byte(-129) = 0x7F`. These match. However, **the positive-value encoding differs**: Java masks the high byte with `& 0x7F` (e.g., `buffer.writeByte((value >> 8) & 0x7F)` for 2-byte positive values), while Go does not mask with `0x7F`. For positive values in the range 128-255, Java's 1-byte branch writes `value & 0x7F` (stripping bit 7), but Go's range check puts values > 127 into the 2-byte branch, so the behavior diverges. For value=200: Java's `(value & 0x0000_007F) == value` is `200 & 0x7F = 72 != 200`, so it falls to 2-byte: writes `byte((200 >> 8) & 0x7F) = 0` and `byte(200 & 0xFF) = 0xC8`. Go's `value >= -128 && value <= 127` is false for 200, so 2-byte: writes `byte(200 >> 8) = 0` and `byte(200) = 0xC8`. Same in this case. But for value=128: Java 2-byte path writes `byte((128>>8) & 0x7F) = 0` and `byte(128 & 0xFF) = 0x80`. Go writes same. So the positive paths are actually equivalent since Go's range boundaries align with Java's bitmask-based boundaries. This is correct.
 
 ## writeOctetString(int tag, String value)
 
-- [x] **Missing length pre-reservation / backpatching logic**: Java reserves 3 bytes for the length (0x82 + 2 bytes), writes the UTF-8 string, then backpatches the actual length. Go writes the length immediately with `WriteLength(len(value))`, which uses `len(value)` (byte count of the Go string, which is already UTF-8). However, the critical difference is that Java always writes a 3-byte length (0x82 + 2 bytes) regardless of actual string length, while Go's `WriteLength` uses a variable-length encoding (1 byte for lengths <= 127, etc.). This means the wire format differs for short strings: Java produces 3 bytes of length overhead for all strings, Go produces 1 byte for strings <= 127 bytes. This is actually a more compact encoding, but it is not byte-compatible with the Java version. Whether this is a "bug" depends on whether wire-compatibility is required; for an LDAP client it may work fine since servers should handle both forms.
+- [ ] **Missing length pre-reservation / backpatching logic**: Java reserves 3 bytes for the length (0x82 + 2 bytes), writes the UTF-8 string, then backpatches the actual length. Go writes the length immediately with `WriteLength(len(value))`, which uses `len(value)` (byte count of the Go string, which is already UTF-8). However, the critical difference is that Java always writes a 3-byte length (0x82 + 2 bytes) regardless of actual string length, while Go's `WriteLength` uses a variable-length encoding (1 byte for lengths <= 127, etc.). This means the wire format differs for short strings: Java produces 3 bytes of length overhead for all strings, Go produces 1 byte for strings <= 127 bytes. This is actually a more compact encoding, but it is not byte-compatible with the Java version. Whether this is a "bug" depends on whether wire-compatibility is required; for an LDAP client it may work fine since servers should handle both forms.
 
 ## readOctetStringWithTag(int tag)
 
-- [x] **Returns empty string instead of throwing on tag mismatch**: Java throws `DecodeException` with tag details. Go silently returns `""`.
-- [x] **Returns empty string instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")` when `!buffer.isReadable(length)`. Go's `ReadOctetStringWithLength` returns `""` silently.
+- [ ] **Returns empty string instead of throwing on tag mismatch**: Java throws `DecodeException` with tag details. Go silently returns `""`.
+- [ ] **Returns empty string instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")` when `!buffer.isReadable(length)`. Go's `ReadOctetStringWithLength` returns `""` silently.
 
 ## readOctetStringWithLength(int length)
 
-- [x] **Returns empty string instead of throwing on insufficient data**: Java reads with `buffer.readCharSequence(length, UTF_8)` which would throw if insufficient data (Netty's ByteBuf does bounds checking). Go silently returns `""` when `b.readerIdx+length > len(b.buf)`.
+- [ ] **Returns empty string instead of throwing on insufficient data**: Java reads with `buffer.readCharSequence(length, UTF_8)` which would throw if insufficient data (Netty's ByteBuf does bounds checking). Go silently returns `""` when `b.readerIdx+length > len(b.buf)`.
 
 ## beginSequence(int tag)
 
-- [x] **Different initialization of sequenceLengthWriterIndexes**: Java pre-allocates with `new int[8]` (fixed-size array with length 8) and tracks usage via `currentSequenceLengthIndex`. Go uses `append` to a dynamically grown slice starting from capacity 8 but length 0. This works but the slice index semantics differ — Go uses `append` which is fine.
-- [x] **Missing overflow/growth check**: Java explicitly checks `currentSequenceLengthIndex >= writerIndexCount` and grows the array. Go relies on `append` to handle growth automatically. This is functionally equivalent.
+- [ ] **Different initialization of sequenceLengthWriterIndexes**: Java pre-allocates with `new int[8]` (fixed-size array with length 8) and tracks usage via `currentSequenceLengthIndex`. Go uses `append` to a dynamically grown slice starting from capacity 8 but length 0. This works but the slice index semantics differ — Go uses `append` which is fine.
+- [ ] **Missing overflow/growth check**: Java explicitly checks `currentSequenceLengthIndex >= writerIndexCount` and grows the array. Go relies on `append` to handle growth automatically. This is functionally equivalent.
 
 ## endSequence()
 
-- [x] **Missing "Unbalanced sequences" validation**: Java throws `IllegalStateException("Unbalanced sequences")` when `--currentSequenceLengthIndex < 0`. Go silently does nothing (the `if b.currentSequenceLengthIndex > 0` check just skips).
-- [x] **Missing exception for length > 65535**: Java throws `DecodeException`. Go uses `panic`, which is a different error mechanism (not recoverable in normal Go flow without recover()).
+- [ ] **Missing "Unbalanced sequences" validation**: Java throws `IllegalStateException("Unbalanced sequences")` when `--currentSequenceLengthIndex < 0`. Go silently does nothing (the `if b.currentSequenceLengthIndex > 0` check just skips).
+- [ ] **Missing exception for length > 65535**: Java throws `DecodeException`. Go uses `panic`, which is a different error mechanism (not recoverable in normal Go flow without recover()).
 
 ## peekAndCheckTag(int tag)
 
-- [x] **Minor difference — functionally equivalent but uses different comparison**: Java compares `buffer.getByte(buffer.readerIndex()) == tag` where `tag` is an `int` and `getByte` returns a `byte`. Go compares `int(b.buf[b.readerIdx]) == tag`. Both work correctly since Go's byte-to-int conversion matches Java's byte-to-int implicit widening (both produce unsigned 0-255 values). No bug here.
+- [ ] **Minor difference — functionally equivalent but uses different comparison**: Java compares `buffer.getByte(buffer.readerIndex()) == tag` where `tag` is an `int` and `getByte` returns a `byte`. Go compares `int(b.buf[b.readerIdx]) == tag`. Both work correctly since Go's byte-to-int conversion matches Java's byte-to-int implicit widening (both produce unsigned 0-255 values). No bug here.
 
 ## writeOctetString(String value)
 
-- [x] **Delegates to WriteOctetStringWithTag which uses different length encoding**: Same issue as `writeOctetString(int tag, String value)` — variable-length vs fixed 3-byte length encoding.
+- [ ] **Delegates to WriteOctetStringWithTag which uses different length encoding**: Same issue as `writeOctetString(int tag, String value)` — variable-length vs fixed 3-byte length encoding.
 
 ## readTag()
 
-- [x] **Returns 0 on buffer underflow instead of throwing/panic**: Java's `buffer.readByte()` would throw `IndexOutOfBoundsException` if no bytes are readable. Go returns 0. This could be misinterpreted as a valid tag by callers.
+- [ ] **Returns 0 on buffer underflow instead of throwing/panic**: Java's `buffer.readByte()` would throw `IndexOutOfBoundsException` if no bytes are readable. Go returns 0. This could be misinterpreted as a valid tag by callers.
 
 ## skipTagAndLengthAndValue()
 
-- [x] **Functionally equivalent**: Correct.
+- [ ] **Functionally equivalent**: Correct.
 
 ## skipLengthAndValue()
 
-- [x] **Functionally equivalent** (given ReadLength differences propagate).
+- [ ] **Functionally equivalent** (given ReadLength differences propagate).
 
 ## isReadableWithEnd(int end)
 
-- [x] **Extra bounds check not present in Java**: Java's `isReadableWithEnd` only checks `buffer.readerIndex() < end`. Go adds `&& b.readerIdx < len(b.buf)`. The additional check means Go may return false when Java would return true (if `readerIndex < end` but `readerIdx >= len(buf)`). In practice this could cause early termination of parsing loops that rely on the Java semantics.
+- [ ] **Extra bounds check not present in Java**: Java's `isReadableWithEnd` only checks `buffer.readerIndex() < end`. Go adds `&& b.readerIdx < len(b.buf)`. The additional check means Go may return false when Java would return true (if `readerIndex < end` but `readerIdx >= len(buf)`). In practice this could cause early termination of parsing loops that rely on the Java semantics.
 
 ## readBoolean() (second look)
 
-- [x] **Reads only 1 byte of value, ignoring length field**: Java reads the length via `readLength()` and validates it, but then reads exactly 1 byte. Go calls `SkipTagAndLength()` which consumes the tag byte and length bytes, then reads 1 byte. If the length indicated more than 1 byte of content, Go would leave the reader index misaligned compared to Java which also only reads 1 byte but validates the length first. The Java code validates `length > 1` and throws an error; Go silently ignores extra bytes.
+- [ ] **Reads only 1 byte of value, ignoring length field**: Java reads the length via `readLength()` and validates it, but then reads exactly 1 byte. Go calls `SkipTagAndLength()` which consumes the tag byte and length bytes, then reads 1 byte. If the length indicated more than 1 byte of content, Go would leave the reader index misaligned compared to Java which also only reads 1 byte but validates the length first. The Java code validates `length > 1` and throws an error; Go silently ignores extra bytes.
 
 ---
 
@@ -8593,69 +8593,69 @@ Here is the consolidated bug list:
 
 ## readLength
 
-- [x] Silently returns 0 for indefinite length (numBytes == 0) instead of throwing an error like Java's `DecodeException("Indefinite length is not supported")`
-- [x] Missing validation that numBytes <= 4; Java throws `DecodeException` for lengths > 4, Go silently reads up to any number of bytes
-- [x] Silently breaks with a truncated/partial length when insufficient bytes are available instead of throwing `DecodeException("Insufficient data")`
-- [x] Missing negative length validation; Java checks `length < 0` and throws `DecodeException("Invalid length bytes")`, Go does not
+- [ ] Silently returns 0 for indefinite length (numBytes == 0) instead of throwing an error like Java's `DecodeException("Indefinite length is not supported")`
+- [ ] Missing validation that numBytes <= 4; Java throws `DecodeException` for lengths > 4, Go silently reads up to any number of bytes
+- [ ] Silently breaks with a truncated/partial length when insufficient bytes are available instead of throwing `DecodeException("Insufficient data")`
+- [ ] Missing negative length validation; Java checks `length < 0` and throws `DecodeException("Invalid length bytes")`, Go does not
 
 ## tryReadLengthIfReadable
 
-- [x] Delegates to `ReadLength()` instead of having independent logic; when multi-byte length data is partially readable, Go returns a truncated value instead of -1 as Java does
-- [x] Missing indefinite length error (numBytes == 0); Java throws, Go returns 0 via `ReadLength()`
-- [x] Missing numBytes > 4 error; Java throws, Go proceeds silently via `ReadLength()`
+- [ ] Delegates to `ReadLength()` instead of having independent logic; when multi-byte length data is partially readable, Go returns a truncated value instead of -1 as Java does
+- [ ] Missing indefinite length error (numBytes == 0); Java throws, Go returns 0 via `ReadLength()`
+- [ ] Missing numBytes > 4 error; Java throws, Go proceeds silently via `ReadLength()`
 
 ## readBoolean
 
-- [x] Missing tag validation against `TAG_BOOLEAN`; Java throws `DecodeException` on mismatch, Go calls `SkipTagAndLength()` which skips blindly
-- [x] Missing length validation (`length > 1` check); Java throws `DecodeException("The boolean is too large")`, Go skips the length without checking
-- [x] Returns `false` on insufficient data instead of throwing `DecodeException("Insufficient data")`, conflating a read failure with a legitimate false value
+- [ ] Missing tag validation against `TAG_BOOLEAN`; Java throws `DecodeException` on mismatch, Go calls `SkipTagAndLength()` which skips blindly
+- [ ] Missing length validation (`length > 1` check); Java throws `DecodeException("The boolean is too large")`, Go skips the length without checking
+- [ ] Returns `false` on insufficient data instead of throwing `DecodeException("Insufficient data")`, conflating a read failure with a legitimate false value
 
 ## readIntWithTag
 
-- [x] Returns 0 on tag mismatch instead of throwing `DecodeException` with tag details
-- [x] Returns 0 when length > 4 instead of throwing `DecodeException("The integer is too long")`
-- [x] Returns 0 on insufficient data instead of throwing `DecodeException("Insufficient data")`
-- [x] Incorrect negative value decoding: Java computes `value = firstByte & 0x7F` then accumulates remaining bytes and negates with `-value`. Go reads all bytes including the sign bit into `val` then applies a sign-extension mask. These produce different results for many negative values (e.g., 2-byte encoding of -129: Java gives -127, Go gives -129)
-- [x] Returns 0 when length == 0 instead of reading and processing the first byte as Java does
+- [ ] Returns 0 on tag mismatch instead of throwing `DecodeException` with tag details
+- [ ] Returns 0 when length > 4 instead of throwing `DecodeException("The integer is too long")`
+- [ ] Returns 0 on insufficient data instead of throwing `DecodeException("Insufficient data")`
+- [ ] Incorrect negative value decoding: Java computes `value = firstByte & 0x7F` then accumulates remaining bytes and negates with `-value`. Go reads all bytes including the sign bit into `val` then applies a sign-extension mask. These produce different results for many negative values (e.g., 2-byte encoding of -129: Java gives -127, Go gives -129)
+- [ ] Returns 0 when length == 0 instead of reading and processing the first byte as Java does
 
 ## writeOctetString(int tag, String value)
 
-- [x] Uses variable-length encoding via `WriteLength()` instead of Java's fixed 3-byte length encoding (0x82 + 2 bytes). This produces different wire format for strings <= 127 bytes, breaking byte-level compatibility with the Java version.
+- [ ] Uses variable-length encoding via `WriteLength()` instead of Java's fixed 3-byte length encoding (0x82 + 2 bytes). This produces different wire format for strings <= 127 bytes, breaking byte-level compatibility with the Java version.
 
 ## readOctetStringWithTag
 
-- [x] Returns empty string on tag mismatch instead of throwing `DecodeException` with tag details
-- [x] Returns empty string on insufficient data instead of throwing `DecodeException("Insufficient data")`
+- [ ] Returns empty string on tag mismatch instead of throwing `DecodeException` with tag details
+- [ ] Returns empty string on insufficient data instead of throwing `DecodeException("Insufficient data")`
 
 ## readOctetStringWithLength
 
-- [x] Returns empty string on insufficient data instead of letting the read fail as Java does via Netty's bounds checking
+- [ ] Returns empty string on insufficient data instead of letting the read fail as Java does via Netty's bounds checking
 
 ## endSequence
 
-- [x] Silently does nothing on unbalanced sequences instead of throwing `IllegalStateException("Unbalanced sequences")` as Java does when `currentSequenceLengthIndex` is already 0
+- [ ] Silently does nothing on unbalanced sequences instead of throwing `IllegalStateException("Unbalanced sequences")` as Java does when `currentSequenceLengthIndex` is already 0
 
 ## isReadableWithEnd
 
-- [x] Adds an extra `b.readerIdx < len(b.buf)` check not present in Java; Java only checks `readerIndex() < end`. This can cause early termination of parsing loops that depend on the Java semantics
+- [ ] Adds an extra `b.readerIdx < len(b.buf)` check not present in Java; Java only checks `readerIndex() < end`. This can cause early termination of parsing loops that depend on the Java semantics
 
 ## readTag
 
-- [x] Returns 0 on buffer underflow instead of throwing/panicking as Java does (via Netty's `IndexOutOfBoundsException`). Callers may misinterpret 0 as a valid tag.
+- [ ] Returns 0 on buffer underflow instead of throwing/panicking as Java does (via Netty's `IndexOutOfBoundsException`). Callers may misinterpret 0 as a valid tag.
 
 ## writeOctetString(String value)
 
-- [x] Inherits the wire-format difference from `WriteOctetStringWithTag` — variable-length vs fixed 3-byte length encoding, same as `writeOctetString(int tag, String value)`
+- [ ] Inherits the wire-format difference from `WriteOctetStringWithTag` — variable-length vs fixed 3-byte length encoding, same as `writeOctetString(int tag, String value)`
 
 # LdapMessage.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## estimateSize()
-- [x] **Different base return value**: The Java `estimateSize()` returns a hardcoded `0`, while the Go `EstimateSize()` returns `16` plus the protocol operation's estimated size. The Java version does not compute or delegate to the protocol operation's size at all.
+- [ ] **Different base return value**: The Java `estimateSize()` returns a hardcoded `0`, while the Go `EstimateSize()` returns `16` plus the protocol operation's estimated size. The Java version does not compute or delegate to the protocol operation's size at all.
 
 ## WriteTo()
-- [x] **Missing controls serialization**: The Java `writeTo()` serializes the `controls` list when non-empty: it writes a `LdapTagConst.CONTROLS`-tagged sequence, iterates over controls, and for each control writes its OID as an octet string and its criticality as a boolean if true. The Go `WriteTo()` completely omits any controls handling — it only writes the message ID and protocol operation.
-- [x] **Silent no-op on nil/non-writeable ProtocolOp**: The Go code uses a type assertion `m.ProtocolOp.(interface{ WriteTo(*asn1.BerBuffer) })` and silently skips writing the protocol operation if the assertion fails. The Java code unconditionally calls `protocolOperation.writeTo(buffer)`, which would throw a NullPointerException if `protocolOperation` were null — there is no silent fallback.
+- [ ] **Missing controls serialization**: The Java `writeTo()` serializes the `controls` list when non-empty: it writes a `LdapTagConst.CONTROLS`-tagged sequence, iterates over controls, and for each control writes its OID as an octet string and its criticality as a boolean if true. The Go `WriteTo()` completely omits any controls handling — it only writes the message ID and protocol operation.
+- [ ] **Silent no-op on nil/non-writeable ProtocolOp**: The Go code uses a type assertion `m.ProtocolOp.(interface{ WriteTo(*asn1.BerBuffer) })` and silently skips writing the protocol operation if the assertion fails. The Java code unconditionally calls `protocolOperation.writeTo(buffer)`, which would throw a NullPointerException if `protocolOperation` were null — there is no silent fallback.
 
 # Control.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -8664,11 +8664,11 @@ Now I have all the information needed to compare the two implementations. Let me
 
 ## DecodeControls
 
-- [x] **Missing bounded loop: Java uses `isReadableWithEnd(end)` but Go uses `isReadable()` — the loop in Go does not respect the outer Controls SEQUENCE length boundary.** In Java (line 48-50), after reading the Controls tag and length, it computes `end = buffer.readerIndex() + length` and uses `while (buffer.isReadableWithEnd(end))` to ensure the loop stops at the exact end of the Controls SEQUENCE. In Go (line 126-128), after `SkipTagAndLength()` the length is discarded, and the loop uses `for buffer.IsReadable()` which will continue reading past the Controls SEQUENCE boundary and into whatever bytes follow in the buffer, potentially parsing non-Control data as controls or causing errors.
+- [ ] **Missing bounded loop: Java uses `isReadableWithEnd(end)` but Go uses `isReadable()` — the loop in Go does not respect the outer Controls SEQUENCE length boundary.** In Java (line 48-50), after reading the Controls tag and length, it computes `end = buffer.readerIndex() + length` and uses `while (buffer.isReadableWithEnd(end))` to ensure the loop stops at the exact end of the Controls SEQUENCE. In Go (line 126-128), after `SkipTagAndLength()` the length is discarded, and the loop uses `for buffer.IsReadable()` which will continue reading past the Controls SEQUENCE boundary and into whatever bytes follow in the buffer, potentially parsing non-Control data as controls or causing errors.
 
-- [x] **Missing null-check on `oid` before appending to the controls list.** In Java (lines 72-74), there is an explicit `if (oid != null)` guard before adding a Control to the list. In Go (line 139), `controls = append(controls, Control{OID: oid, Criticality: criticality})` appends unconditionally. While `ReadOctetString` returning an empty string rather than nil may make this less critical in practice, it is a behavioral difference — an empty-string OID would be added in Go but not in Java (where a null OID would be skipped).
+- [ ] **Missing null-check on `oid` before appending to the controls list.** In Java (lines 72-74), there is an explicit `if (oid != null)` guard before adding a Control to the list. In Go (line 139), `controls = append(controls, Control{OID: oid, Criticality: criticality})` appends unconditionally. While `ReadOctetString` returning an empty string rather than nil may make this less critical in practice, it is a behavioral difference — an empty-string OID would be added in Go but not in Java (where a null OID would be skipped).
 
-- [x] **Outer `readTag()` + `readLength()` is replaced by `SkipTagAndLength()`, discarding the length that Java uses to bound the loop.** The Java code calls `buffer.readTag()` on line 47 and `buffer.readLength()` on line 48 explicitly, storing the length in a variable used to compute `end`. The Go code calls `buffer.SkipTagAndLength()` which internally discards the length value. This is the root cause of bug #1 above — the length is needed to create the bounded loop but is thrown away.
+- [ ] **Outer `readTag()` + `readLength()` is replaced by `SkipTagAndLength()`, discarding the length that Java uses to bound the loop.** The Java code calls `buffer.readTag()` on line 47 and `buffer.readLength()` on line 48 explicitly, storing the length in a variable used to compute `end`. The Go code calls `buffer.SkipTagAndLength()` which internally discards the length value. This is the root cause of bug #1 above — the length is needed to create the bounded loop but is thrown away.
 
 # BindResponse.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -8687,9 +8687,9 @@ This reveals two distinct bugs:
 
 ## BindResponse.Decode
 
-- [x] **Bug 1: Missing tag skip** — The Java code calls `buffer.skipTagAndLength()` which skips both the tag byte AND the length, while the Go code calls `buffer.SkipLength()` which only skips the length. This means the Go code is not skipping the protocol operation tag byte (e.g., `0x61` for BindResponse), which will cause the subsequent reads to be off by one byte, reading the tag value as part of the result code enumeration.
+- [ ] **Bug 1: Missing tag skip** — The Java code calls `buffer.skipTagAndLength()` which skips both the tag byte AND the length, while the Go code calls `buffer.SkipLength()` which only skips the length. This means the Go code is not skipping the protocol operation tag byte (e.g., `0x61` for BindResponse), which will cause the subsequent reads to be off by one byte, reading the tag value as part of the result code enumeration.
 
-- [x] **Bug 2: Missing referrals decoding** — The Java `LdapResult.decodeResult()` method handles referrals by checking for a `LdapTagConst.REFERRAL` tag and reading referral URLs if present. The Go `DecodeLdapResult()` function only reads `ResultCode`, `MatchedDN`, and `DiagnosticMessage`, completely omitting any referral handling. This means if the LDAP server returns referrals in a bind response, the Go code will not parse them and the buffer position will be incorrect, corrupting subsequent reads.
+- [ ] **Bug 2: Missing referrals decoding** — The Java `LdapResult.decodeResult()` method handles referrals by checking for a `LdapTagConst.REFERRAL` tag and reading referral URLs if present. The Go `DecodeLdapResult()` function only reads `ResultCode`, `MatchedDN`, and `DiagnosticMessage`, completely omitting any referral handling. This means if the LDAP server returns referrals in a bind response, the Go code will not parse them and the buffer position will be incorrect, corrupting subsequent reads.
 
 # ModifyRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
@@ -8698,11 +8698,11 @@ Now I have all the information needed for the comparison.
 
 ## EstimateSize
 
-- [x] The Java version computes `dn.length() + changes.size() * 32`, which produces a value that scales with the DN length and number of changes. The Go version returns a hardcoded constant `128` that ignores `r.DN` length and `r.Changes` count entirely.
+- [ ] The Java version computes `dn.length() + changes.size() * 32`, which produces a value that scales with the DN length and number of changes. The Go version returns a hardcoded constant `128` that ignores `r.DN` length and `r.Changes` count entirely.
 
 ## WriteTo
 
-- [x] The Go code calls `buffer.BeginSequenceWithTag(0x31)` (SET tag, `0x31`) for the values sequence, but the Java code uses `Asn1IdConst.TAG_SEQUENCE | Asn1IdConst.FORM_CONSTRUCTED` which equals `16 | 0x20 = 0x30` (SEQUENCE tag, `0x30`). The Go code uses `0x31` (SET) instead of `0x30` (SEQUENCE). This writes an incorrect ASN.1 tag for the attribute values sequence.
+- [ ] The Go code calls `buffer.BeginSequenceWithTag(0x31)` (SET tag, `0x31`) for the values sequence, but the Java code uses `Asn1IdConst.TAG_SEQUENCE | Asn1IdConst.FORM_CONSTRUCTED` which equals `16 | 0x20 = 0x30` (SEQUENCE tag, `0x30`). The Go code uses `0x31` (SET) instead of `0x30` (SEQUENCE). This writes an incorrect ASN.1 tag for the attribute values sequence.
 
 # ModifyResponse.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -8722,40 +8722,40 @@ The comparison is clear:
 
 ## ModifyResponse.Decode
 
-- [x] **Missing `SkipTag` call**: The Java version calls `buffer.skipTagAndLength()` which skips both the tag byte and the length, but the Go version only calls `buffer.SkipLength()`, missing the tag skip. This will misalign the buffer read position.
+- [ ] **Missing `SkipTag` call**: The Java version calls `buffer.skipTagAndLength()` which skips both the tag byte and the length, but the Go version only calls `buffer.SkipLength()`, missing the tag skip. This will misalign the buffer read position.
 
-- [x] **Missing referrals parsing**: The Java `LdapResult.decodeResult()` includes referral parsing logic — it checks for a referral tag (`LdapTagConst.REFERRAL`), reads the referral sequence length, and parses individual referral URLs as octet strings. The Go `DecodeLdapResult()` only reads 3 fields (`ResultCode`, `MatchedDN`, `DiagnosticMessage`) and never handles referrals at all. This means the `Referrals` field of `LdapResult` will always be `nil`/empty, and if the server returns a referral, the buffer will be left in an inconsistent state with unread bytes.
+- [ ] **Missing referrals parsing**: The Java `LdapResult.decodeResult()` includes referral parsing logic — it checks for a referral tag (`LdapTagConst.REFERRAL`), reads the referral sequence length, and parses individual referral URLs as octet strings. The Go `DecodeLdapResult()` only reads 3 fields (`ResultCode`, `MatchedDN`, `DiagnosticMessage`) and never handles referrals at all. This means the `Referrals` field of `LdapResult` will always be `nil`/empty, and if the server returns a referral, the buffer will be left in an inconsistent state with unread bytes.
 
-- [x] **Returns void instead of creating a new instance**: The Java `decode` method is a factory that returns a **new** `ModifyResponse` instance. The Go version mutates the receiver (`r`) in-place. While this is a design difference rather than strictly a bug, it changes the usage pattern — callers cannot reuse the `DECODER` constant safely across concurrent or sequential decode operations since it's being mutated rather than creating a fresh instance.
+- [ ] **Returns void instead of creating a new instance**: The Java `decode` method is a factory that returns a **new** `ModifyResponse` instance. The Go version mutates the receiver (`r`) in-place. While this is a design difference rather than strictly a bug, it changes the usage pattern — callers cannot reuse the `DECODER` constant safely across concurrent or sequential decode operations since it's being mutated rather than creating a fresh instance.
 
 # Filter.java
 *Checked methods: write(BerBuffer buffer, String filter)*
 
 ## `Filter.Write`
 
-- [x] **Hardcoded output ignoring the `filter` parameter entirely**: The Go `Write` method at line 233 hardcodes writing `(objectClass=*)` as an equality-match BER sequence every time, completely discarding the `filter string` argument. The Java version at line 57–60 calls `writeFilter` with the actual filter bytes and performs full RFC 4515 filter parsing (handling `&`, `|`, `!`, substring, extensible match, present, greater/less/approximate filters, nested parentheses, escape sequences, attribute description validation, etc.).
-- [x] **Missing entire `writeFilter` recursive parsing logic**: The Java code has a complete `writeFilter` method (lines 62–133) that parses the filter string character by character, handling parentheses, AND/OR/NOT sets, balance tracking, and unbalanced-parenthesis error detection. None of this logic exists in Go.
-- [x] **Missing `writeFilterSet` / `writeFilterInSet` for compound filters**: Java handles `(&...)`, `(|...)`, `(!(..))` via `writeFilterSet` and `writeFilterInSet` (lines 406–450), including NOT filter validation (only one child allowed). The Go code has none of this.
-- [x] **Missing `writeFilter` inner method for simple filter items**: The Java inner `writeFilter(buffer, filter, start, end)` (lines 230–404) parses `attr=value`, `attr<=value`, `attr>=value`, `attr~=value`, `attr:=value`, detects substring vs equality vs present filters, validates attribute descriptions, and handles extensible match. The Go code has none of this.
-- [x] **Missing `writeSubstringFilter`**: Java handles `attr=*val*` patterns with initial/any/final substring components (lines 452–507). The Go code has none of this.
-- [x] **Missing `writeExtensibleMatchFilter`**: Java handles extensible match filters with matching rules, `:dn`, and attribute types (lines 509–571). The Go code has none of this.
-- [x] **Missing `unescapeFilterValue`**: Java handles backslash-hex escape sequences in filter values (lines 136–181). The Go code has none of this.
-- [x] **Missing `findUnescaped` and `findClosingParenIndex`**: Java has helper methods for finding unescaped `*` characters and matching closing parentheses (lines 183–228). The Go code has none of this.
-- [x] **Missing all filter type constants**: The Java code defines 9 filter type constants (`TYPE_AND` through `TYPE_PRESENT`), 4 extensible match constants, and 3 substring constants (lines 34–52). The Go code has none of these.
-- [x] **Missing all validation logic**: The Java code validates attribute descriptions (alphabetic/digit/OID rules), detects consecutive semicolons, invalid trailing characters, unbalanced parentheses, and missing `=` signs — all throwing `LdapException` with appropriate `ResultCode.FILTER_ERROR`. The Go code has none of this.
+- [ ] **Hardcoded output ignoring the `filter` parameter entirely**: The Go `Write` method at line 233 hardcodes writing `(objectClass=*)` as an equality-match BER sequence every time, completely discarding the `filter string` argument. The Java version at line 57–60 calls `writeFilter` with the actual filter bytes and performs full RFC 4515 filter parsing (handling `&`, `|`, `!`, substring, extensible match, present, greater/less/approximate filters, nested parentheses, escape sequences, attribute description validation, etc.).
+- [ ] **Missing entire `writeFilter` recursive parsing logic**: The Java code has a complete `writeFilter` method (lines 62–133) that parses the filter string character by character, handling parentheses, AND/OR/NOT sets, balance tracking, and unbalanced-parenthesis error detection. None of this logic exists in Go.
+- [ ] **Missing `writeFilterSet` / `writeFilterInSet` for compound filters**: Java handles `(&...)`, `(|...)`, `(!(..))` via `writeFilterSet` and `writeFilterInSet` (lines 406–450), including NOT filter validation (only one child allowed). The Go code has none of this.
+- [ ] **Missing `writeFilter` inner method for simple filter items**: The Java inner `writeFilter(buffer, filter, start, end)` (lines 230–404) parses `attr=value`, `attr<=value`, `attr>=value`, `attr~=value`, `attr:=value`, detects substring vs equality vs present filters, validates attribute descriptions, and handles extensible match. The Go code has none of this.
+- [ ] **Missing `writeSubstringFilter`**: Java handles `attr=*val*` patterns with initial/any/final substring components (lines 452–507). The Go code has none of this.
+- [ ] **Missing `writeExtensibleMatchFilter`**: Java handles extensible match filters with matching rules, `:dn`, and attribute types (lines 509–571). The Go code has none of this.
+- [ ] **Missing `unescapeFilterValue`**: Java handles backslash-hex escape sequences in filter values (lines 136–181). The Go code has none of this.
+- [ ] **Missing `findUnescaped` and `findClosingParenIndex`**: Java has helper methods for finding unescaped `*` characters and matching closing parentheses (lines 183–228). The Go code has none of this.
+- [ ] **Missing all filter type constants**: The Java code defines 9 filter type constants (`TYPE_AND` through `TYPE_PRESENT`), 4 extensible match constants, and 3 substring constants (lines 34–52). The Go code has none of these.
+- [ ] **Missing all validation logic**: The Java code validates attribute descriptions (alphabetic/digit/OID rules), detects consecutive semicolons, invalid trailing characters, unbalanced parentheses, and missing `=` signs — all throwing `LdapException` with appropriate `ResultCode.FILTER_ERROR`. The Go code has none of this.
 
 # SearchRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## estimateSize
 
-- [x] **No bug found** — The Go implementation `return 128` matches the Java implementation `return 128` exactly.
+- [ ] **No bug found** — The Go implementation `return 128` matches the Java implementation `return 128` exactly.
 
 ## writeTo
 
-- [x] **`Filter.Write` completely ignores the `filter` string parameter and hardcodes a single equality-match filter (`objectClass=*`)**. In Java, `Filter.write(buffer, filter)` parses the filter string into BER-encoded LDAP filter elements, supporting AND (`&`), OR (`|`), NOT (`!`), equality, substring, greater, less, approximate, present, and extensible-match filter types with full RFC 4515 compliance (nested parentheses, escape sequences, wildcard handling, etc. — a ~540-line implementation). The Go version at `elements.go:233-238` always writes a hardcoded `(objectClass=*)` equality-match regardless of the `filter` argument passed to `SearchRequest.WriteTo`. This means every `SearchRequest` will search for `objectClass=*` regardless of what `r.Filter` is set to.
+- [ ] **`Filter.Write` completely ignores the `filter` string parameter and hardcodes a single equality-match filter (`objectClass=*`)**. In Java, `Filter.write(buffer, filter)` parses the filter string into BER-encoded LDAP filter elements, supporting AND (`&`), OR (`|`), NOT (`!`), equality, substring, greater, less, approximate, present, and extensible-match filter types with full RFC 4515 compliance (nested parentheses, escape sequences, wildcard handling, etc. — a ~540-line implementation). The Go version at `elements.go:233-238` always writes a hardcoded `(objectClass=*)` equality-match regardless of the `filter` argument passed to `SearchRequest.WriteTo`. This means every `SearchRequest` will search for `objectClass=*` regardless of what `r.Filter` is set to.
 
-- [x] **`Filter.Write` always writes a presence-like filter using tag `0xA3` (TYPE_EQUALITY) for `objectClass=*`**, which is semantically incorrect even for the hardcoded case. In Java, `objectClass=*` would be encoded as a TYPE_PRESENT (`0x87`) filter, not TYPE_EQUALITY (`0xA3`). The Go code writes an equality match with attribute `objectClass` and value `*`, which is not the same as a present filter.
+- [ ] **`Filter.Write` always writes a presence-like filter using tag `0xA3` (TYPE_EQUALITY) for `objectClass=*`**, which is semantically incorrect even for the hardcoded case. In Java, `objectClass=*` would be encoded as a TYPE_PRESENT (`0x87`) filter, not TYPE_EQUALITY (`0xA3`). The Go code writes an equality match with attribute `objectClass` and value `*`, which is not the same as a present filter.
 
 # SearchResult.java
 *Checked methods: decode(BerBuffer buffer), isComplete()*
@@ -8764,13 +8764,13 @@ Now I have the full picture. Here are the bugs:
 
 ## decode
 
-- [x] **Missing referrals parsing in `SEARCH_RESULT_DONE` branch**: The Java code calls `LdapResult.decodeResult(buffer)` which parses `resultCode`, `matchedDn`, `diagnosticMessage`, AND `referrals`. The Go code manually reads only `resultCode`, `matchedDN`, and `diagnosticMsg` but never parses referrals from the buffer. The returned `SearchResult.Referrals` field will always be `nil` in the `SEARCH_RESULT_DONE` case, whereas Java populates it from the wire.
+- [ ] **Missing referrals parsing in `SEARCH_RESULT_DONE` branch**: The Java code calls `LdapResult.decodeResult(buffer)` which parses `resultCode`, `matchedDn`, `diagnosticMessage`, AND `referrals`. The Go code manually reads only `resultCode`, `matchedDN`, and `diagnosticMsg` but never parses referrals from the buffer. The returned `SearchResult.Referrals` field will always be `nil` in the `SEARCH_RESULT_DONE` case, whereas Java populates it from the wire.
 
-- [x] **Guard condition for "not complete yet" is wrong**: The Java code checks `if (entries == null)` — i.e., it checks whether the `entries` field on the DECODER singleton (which has `Collections.emptyList()`) has been replaced. In practice this means it checks whether any entries have been accumulated. The Go code checks `if r == nil`, which is a receiver nil-check. Since Go methods can be called on nil receivers, and the caller likely always passes a non-nil `SearchResult` for accumulation, this check will almost never trigger, producing a different failure mode than the Java version.
+- [ ] **Guard condition for "not complete yet" is wrong**: The Java code checks `if (entries == null)` — i.e., it checks whether the `entries` field on the DECODER singleton (which has `Collections.emptyList()`) has been replaced. In practice this means it checks whether any entries have been accumulated. The Go code checks `if r == nil`, which is a receiver nil-check. Since Go methods can be called on nil receivers, and the caller likely always passes a non-nil `SearchResult` for accumulation, this check will almost never trigger, producing a different failure mode than the Java version.
 
 ## IsComplete
 
-- [x] **Java uses an anonymous class override for `isComplete()` returning `false` on entry, not a stored field**: In the Java `SEARCH_RESULT_ENTRY` branch, the returned `SearchResult` is an anonymous subclass that overrides `isComplete()` to always return `false`. The Go code uses a `complete` bool field set to `false`. While functionally equivalent for the entry case, the default value of `complete` is `false` (Go zero value), meaning a freshly constructed `SearchResult{}` (e.g., via `new(SearchResult)`) will report `IsComplete() == false` even if no decode has occurred. In Java, the base `isComplete()` is not overridden and would need explicit behavior. However, since the Go `SEARCH_RESULT_DONE` branch sets `complete: true` and the `SEARCH_RESULT_ENTRY` branch sets `complete: false`, this is functionally equivalent for the decoded cases. **This is actually fine — no bug here.**
+- [ ] **Java uses an anonymous class override for `isComplete()` returning `false` on entry, not a stored field**: In the Java `SEARCH_RESULT_ENTRY` branch, the returned `SearchResult` is an anonymous subclass that overrides `isComplete()` to always return `false`. The Go code uses a `complete` bool field set to `false`. While functionally equivalent for the entry case, the default value of `complete` is `false` (Go zero value), meaning a freshly constructed `SearchResult{}` (e.g., via `new(SearchResult)`) will report `IsComplete() == false` even if no decode has occurred. In Java, the base `isComplete()` is not overridden and would need explicit behavior. However, since the Go `SEARCH_RESULT_DONE` branch sets `complete: true` and the `SEARCH_RESULT_ENTRY` branch sets `complete: false`, this is functionally equivalent for the decoded cases. **This is actually fine — no bug here.**
 
 # NotificationLoggingManager.java
 *Checked methods: log(SimpleTurmsNotification notification, int notificationBytes, int recipientCount, int onlineRecipientCount)*
@@ -8779,11 +8779,11 @@ Now I have a clear picture. Let me verify one more detail — the Java `TurmsReq
 
 ## Log
 
-- [x] **Bug: `relayedRequestType` logged as numeric integer instead of enum name string.** In Java, `notification.relayedRequestType().name()` outputs the **enum name** (e.g., `"CREATE_SESSION_REQUEST"`, `"KIND_NOT_SET"`). The Go code formats it as a decimal integer via `fmt.Sprintf("%d", n.RelayedRequestType)` (e.g., `"3"`). This produces different log output — the Java log would contain the human-readable enum name like `CREATE_MESSAGE_REQUEST`, while the Go log contains the raw protobuf field number like `5`.
+- [ ] **Bug: `relayedRequestType` logged as numeric integer instead of enum name string.** In Java, `notification.relayedRequestType().name()` outputs the **enum name** (e.g., `"CREATE_SESSION_REQUEST"`, `"KIND_NOT_SET"`). The Go code formats it as a decimal integer via `fmt.Sprintf("%d", n.RelayedRequestType)` (e.g., `"3"`). This produces different log output — the Java log would contain the human-readable enum name like `CREATE_MESSAGE_REQUEST`, while the Go log contains the raw protobuf field number like `5`.
 
-- [x] **Bug: `relayedRequestType` is never logged as `"null"` in Java.** In Java, `TurmsRequest.KindCase` is an enum, and `KIND_NOT_SET` (the default/unset case) has `.name()` returning `"KIND_NOT_SET"`. The Go code checks `if n.RelayedRequestType != 0` and substitutes `"null"` when zero. But in Java, `KIND_NOT_SET` would be logged as the literal string `"KIND_NOT_SET"`, not `"null"`. This is a behavioral difference — the Go code will log `"null"` where Java would log `"KIND_NOT_SET"`.
+- [ ] **Bug: `relayedRequestType` is never logged as `"null"` in Java.** In Java, `TurmsRequest.KindCase` is an enum, and `KIND_NOT_SET` (the default/unset case) has `.name()` returning `"KIND_NOT_SET"`. The Go code checks `if n.RelayedRequestType != 0` and substitutes `"null"` when zero. But in Java, `KIND_NOT_SET` would be logged as the literal string `"KIND_NOT_SET"`, not `"null"`. This is a behavioral difference — the Go code will log `"null"` where Java would log `"KIND_NOT_SET"`.
 
-- [x] **Bug: `closeStatus` is formatted as a string, losing `ByteBufUtil.join` integer rendering parity.** In Java, `closeStatus` is passed as an `Integer` object to `ByteBufUtil.join`, which renders it as its numeric character bytes. The Go code formats it as `fmt.Sprintf("%d", *n.CloseStatus)` and then passes the resulting string through `joinFields`, which calls `fmt.Sprintf("%v", f)` on it again. While the double-formatting of a string is a no-op (string → `"%v"` → same string), this means `closeStatus` is always rendered as a string like `"200"` rather than being rendered as a raw integer by the join. This is functionally correct but represents a type inconsistency in the `joinFields` call (mixing pre-formatted strings with raw values).
+- [ ] **Bug: `closeStatus` is formatted as a string, losing `ByteBufUtil.join` integer rendering parity.** In Java, `closeStatus` is passed as an `Integer` object to `ByteBufUtil.join`, which renders it as its numeric character bytes. The Go code formats it as `fmt.Sprintf("%d", *n.CloseStatus)` and then passes the resulting string through `joinFields`, which calls `fmt.Sprintf("%v", f)` on it again. While the double-formatting of a string is a no-op (string → `"%v"` → same string), this means `closeStatus` is always rendered as a string like `"200"` rather than being rendered as a raw integer by the join. This is functionally correct but represents a type inconsistency in the `joinFields` call (mixing pre-formatted strings with raw values).
 
 # SimpleTurmsRequest.java
 *Checked methods: SimpleTurmsRequest(long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest), toString()*
@@ -8857,36 +8857,36 @@ Both of these are real behavioral differences from the Java version.
 
 ## toString()
 
-- [x] `createSessionRequest` is formatted using the raw protobuf `String()` method instead of a `ProtoFormatter.toLogString()` equivalent, meaning sensitive data (strings, bytes, repeated fields) is not masked with `'*'` as in Java.
-- [x] When `createSessionRequest` is `nil`, the Go version outputs `<nil>` instead of `null` (Java's `ProtoFormatter.toLogString(null)` returns `null`).
+- [ ] `createSessionRequest` is formatted using the raw protobuf `String()` method instead of a `ProtoFormatter.toLogString()` equivalent, meaning sensitive data (strings, bytes, repeated fields) is not masked with `'*'` as in Java.
+- [ ] When `createSessionRequest` is `nil`, the Go version outputs `<nil>` instead of `null` (Java's `ProtoFormatter.toLogString(null)` returns `null`).
 
 # TurmsNotificationParser.java
 *Checked methods: parseSimpleNotification(CodedInputStream turmsRequestInputStream)*
 
 ## ParseSimpleNotification
 
-- [x] **Error message for unknown request type omits the type value**: The Java code includes the `type` value in the error message: `"Unknown request type: " + type`, while the Go code at line 251 uses just `"Not a valid notification: Unknown request type"` without appending the `kindCase` value. This is a behavioral difference in the error message content.
-- [x] **Bounds check missing when skipping length-delimited fields**: In the `default` branch at line 236, when skipping a length-delimited field (`wireTypeLenDelimited`), the Go code does `pos = np + int(length)` without checking that `np + int(length) <= len(data)`. This could cause an out-of-bounds panic on corrupted/malformed data. The Java `CodedInputStream.skipField()` handles this internally, but the Go manual implementation does not guard against it.
-- [x] **Bounds check missing when skipping fixed-size fields**: Similarly, at lines 238-239, the fixed 64-bit (`pos += 8`) and 32-bit (`pos += 4`) skip operations do not verify that `pos` won't exceed `len(data)`, which could cause subsequent reads to access out-of-bounds memory or silently read wrong data.
+- [ ] **Error message for unknown request type omits the type value**: The Java code includes the `type` value in the error message: `"Unknown request type: " + type`, while the Go code at line 251 uses just `"Not a valid notification: Unknown request type"` without appending the `kindCase` value. This is a behavioral difference in the error message content.
+- [ ] **Bounds check missing when skipping length-delimited fields**: In the `default` branch at line 236, when skipping a length-delimited field (`wireTypeLenDelimited`), the Go code does `pos = np + int(length)` without checking that `np + int(length) <= len(data)`. This could cause an out-of-bounds panic on corrupted/malformed data. The Java `CodedInputStream.skipField()` handles this internally, but the Go manual implementation does not guard against it.
+- [ ] **Bounds check missing when skipping fixed-size fields**: Similarly, at lines 238-239, the fixed 64-bit (`pos += 8`) and 32-bit (`pos += 4`) skip operations do not verify that `pos` won't exceed `len(data)`, which could cause subsequent reads to access out-of-bounds memory or silently read wrong data.
 
 # TurmsServiceApplication.java
 *Checked methods: main(String[] args)*
 
 ## main(String[] args)
 
-- [x] **Missing static initializer logic**: The Java `BaseTurmsApplication` has a static block that sets critical system properties: `TimeZone.setDefault(TimeZoneConst.ZONE)` (the Go code sets `time.Local = time.UTC` which is roughly equivalent), but it also sets Netty properties (`io.netty.maxDirectMemory=0`), Spring banner mode (`spring.main.banner-mode=off`), and Spring web application type (`spring.main.web-application-type=none`). The Go code does not set any equivalent Netty or configuration properties.
+- [ ] **Missing static initializer logic**: The Java `BaseTurmsApplication` has a static block that sets critical system properties: `TimeZone.setDefault(TimeZoneConst.ZONE)` (the Go code sets `time.Local = time.UTC` which is roughly equivalent), but it also sets Netty properties (`io.netty.maxDirectMemory=0`), Spring banner mode (`spring.main.banner-mode=off`), and Spring web application type (`spring.main.web-application-type=none`). The Go code does not set any equivalent Netty or configuration properties.
 
-- [x] **Missing SpringApplication.run equivalent**: The Java `main` calls `bootstrap(TurmsServiceApplication.class, args)` which calls `SpringApplication.run(applicationClass, args)` to actually start the application. The Go code has no equivalent — it only logs "Starting Turms Gateway..." and immediately waits for a shutdown signal, meaning no actual application initialization or service startup occurs.
+- [ ] **Missing SpringApplication.run equivalent**: The Java `main` calls `bootstrap(TurmsServiceApplication.class, args)` which calls `SpringApplication.run(applicationClass, args)` to actually start the application. The Go code has no equivalent — it only logs "Starting Turms Gateway..." and immediately waits for a shutdown signal, meaning no actual application initialization or service startup occurs.
 
-- [x] **Wrong application type**: The Java file is `TurmsServiceApplication` with `@Application(nodeType = NodeType.SERVICE)`, but the Go code at `cmd/turms-gateway/main.go` has comments referencing `NodeType.GATEWAY`. The user asked to compare the Go port of the gateway's main, but the Java reference file is the *service* application, not the gateway. The core bootstrap logic is the same (inherited from `BaseTurmsApplication`), but the application class and node type differ.
+- [ ] **Wrong application type**: The Java file is `TurmsServiceApplication` with `@Application(nodeType = NodeType.SERVICE)`, but the Go code at `cmd/turms-gateway/main.go` has comments referencing `NodeType.GATEWAY`. The user asked to compare the Go port of the gateway's main, but the Java reference file is the *service* application, not the gateway. The core bootstrap logic is the same (inherited from `BaseTurmsApplication`), but the application class and node type differ.
 
-- [x] **Missing LoggerFactory graceful shutdown**: In the Java `bootstrap` catch block, if `LoggerFactory.isInitialized()`, it calls `LoggerFactory.close(Duration.ofSeconds(50)).block(DurationConst.ONE_MINUTE)` to ensure all logs are flushed. The Go code's recover handler uses `time.Sleep(1 * time.Second)` as a mock comment, which is not equivalent to the Java's structured logger flush with proper timeouts.
+- [ ] **Missing LoggerFactory graceful shutdown**: In the Java `bootstrap` catch block, if `LoggerFactory.isInitialized()`, it calls `LoggerFactory.close(Duration.ofSeconds(50)).block(DurationConst.ONE_MINUTE)` to ensure all logs are flushed. The Go code's recover handler uses `time.Sleep(1 * time.Second)` as a mock comment, which is not equivalent to the Java's structured logger flush with proper timeouts.
 
-- [x] **Missing System.exit(1) on failure**: The Java `bootstrap` method explicitly calls `System.exit(1)` in the catch block to ensure the process terminates even if non-daemon threads are running. The Go code does `os.Exit(1)` inside the recover handler, which is present, but the Java exit is in the `catch` block (not a panic/recover pattern) — the Go code will only hit `os.Exit(1)` if something panics, whereas Java's catch handles all `Exception` types including checked exceptions.
+- [ ] **Missing System.exit(1) on failure**: The Java `bootstrap` method explicitly calls `System.exit(1)` in the catch block to ensure the process terminates even if non-daemon threads are running. The Go code does `os.Exit(1)` inside the recover handler, which is present, but the Java exit is in the `catch` block (not a panic/recover pattern) — the Go code will only hit `os.Exit(1)` if something panics, whereas Java's catch handles all `Exception` types including checked exceptions.
 
-- [x] **Missing validateEnv logic**: The Java `validateEnv()` loads specific utility classes (`CollectionUtil`, `ClassUtil`, `StringUtil`) to trigger their static validation. The Go `validateEnv()` only checks `runtime.Version() == ""` which will never be true in practice and is not equivalent to the Java environment validation.
+- [ ] **Missing validateEnv logic**: The Java `validateEnv()` loads specific utility classes (`CollectionUtil`, `ClassUtil`, `StringUtil`) to trigger their static validation. The Go `validateEnv()` only checks `runtime.Version() == ""` which will never be true in practice and is not equivalent to the Java environment validation.
 
-- [x] **Missing Spring component scanning**: The Java `@SpringBootApplication(scanBasePackages = {PackageConst.SERVICE, PackageConst.SERVER_COMMON})` annotation configures component scanning for dependency injection. The Go code has no equivalent dependency injection or component wiring — it has a TODO comment acknowledging this gap.
+- [ ] **Missing Spring component scanning**: The Java `@SpringBootApplication(scanBasePackages = {PackageConst.SERVICE, PackageConst.SERVER_COMMON})` annotation configures component scanning for dependency injection. The Go code has no equivalent dependency injection or component wiring — it has a TODO comment acknowledging this gap.
 
 # ServiceRequestDispatcher.java
 *Checked methods: dispatch(TracingContext context, ServiceRequest serviceRequest)*
@@ -8917,27 +8917,27 @@ The actual closer port of the Java `dispatch` method is `ClientRequestDispatcher
 
 ## Dispatch
 
-- [x] **Missing pending request count management**: Java `dispatch()` increments `pendingRequestCount` at entry and decrements it in `doFinally` (via `onPendingRequestHandled()`). Go `Dispatch()` has no pending request count tracking at all. This is critical for graceful shutdown — the Java version uses it to wait for all in-flight requests before shutting down.
-- [x] **Missing request buffer lifecycle management**: Java `dispatch()` explicitly touches the `requestBuffer` for leak detection (`requestBuffer.touch(serviceRequest)`), retains it before async processing, and releases it in the `finally` block. Go `Dispatch()` passes raw `[]byte` (no reference counting needed in Go, but no equivalent lifecycle concern is addressed).
-- [x] **Missing user ID validation**: Java `dispatch0()` validates that `userId != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no user identity validation.
-- [x] **Missing device type validation**: Java `dispatch0()` validates that `deviceType != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no device type validation.
-- [x] **Missing service availability check**: Java `dispatch0()` calls `serverStatusManager.getServiceAvailability()` and returns `SERVER_UNAVAILABLE` if the service is not available. Go `Dispatch()` has no availability check.
-- [x] **Missing protobuf request parsing**: Java `dispatch0()` parses the raw `ByteBuf` into a `TurmsRequest` using `ProtoDecoder.newInputStream()` and handles `IOException` from corrupted data. Go `Dispatch()` takes a pre-decoded `RpcFrame` and passes raw payload to the handler without any request parsing.
-- [x] **Missing blocklist handling for corrupted requests**: Java `dispatch0()` calls `blocklistService.tryBlockIpForCorruptedRequest()` and `blocklistService.tryBlockUserIdForCorruptedRequest()` when proto parsing fails. Go `Dispatch()` has no blocklist integration.
-- [x] **Missing plugin/extension point support**: Java `dispatch0()` checks for running `ClientRequestTransformer` extensions and applies them via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no plugin system integration.
-- [x] **Missing handler lookup by request type**: Java `dispatch0()` routes requests by `TurmsRequest.KindCase` using `requestTypeToHandler.get(requestType)`. Go `Dispatch()` routes by `CodecID` (a uint16), which is a different routing mechanism entirely — it's an RPC codec ID, not a TurmsRequest type.
-- [x] **Missing KIND_NOT_SET validation**: Java `dispatch0()` checks if `requestType == KIND_NOT_SET` and returns `ILLEGAL_ARGUMENT`. Go `Dispatch()` has no equivalent validation.
-- [x] **Missing unsupported request type response**: Java `dispatch0()` returns `ILLEGAL_ARGUMENT` with "The request type is unsupported" when no handler is found. Go `Dispatch()` returns a generic `ErrHandlerNotFound` error without a proper service response.
-- [x] **Missing metrics recording**: Java `dispatch0()` uses `.name(TURMS_CLIENT_REQUEST).tag(TURMS_CLIENT_REQUEST_TAG_TYPE, requestType.name()).metrics()` for request metrics. Go `Dispatch()` has no metrics recording.
-- [x] **Missing notification of related users**: Java `dispatch0()` calls `notifyRelatedUsersOfAction()` to forward notifications to recipients and the requester's other online sessions, including plugin `beforeNotify` and `afterNotify` hooks. Go `Dispatch()` has no notification logic.
-- [x] **Missing request logging**: Java `dispatch0()` calls `ClientApiLogging.log()` for server errors and when `apiLoggingContext.shouldLogRequest()` returns true. Go `Dispatch()` has no request logging.
-- [x] **Missing error transformation to ServiceResponse**: Java `dispatch()` catches all exceptions and maps them to `ServiceResponse` instances with appropriate status codes (never returns MonoError). Go `Dispatch()` returns raw errors without wrapping them in a service response structure.
-- [x] **Missing turmsRequestBuffer retain before async processing**: Java `dispatch0()` explicitly retains the buffer before async processing (`turmsRequestBuffer.retain()`) because `NioByteString` instances reference the buffer. Go `Dispatch()` has no such concern.
-- [x] **Missing request size tracking**: Java `dispatch0()` tracks `requestSize = turmsRequestBuffer.readableBytes()` and passes it to logging. Go `Dispatch()` does not track request size.
-- [x] **Missing request timing**: Java `dispatch0()` records `requestTime = System.currentTimeMillis()` and `startTime = System.nanoTime()` for latency measurement in logs. Go `Dispatch()` has no timing.
-- [x] **Missing plugin-based request handling override**: Java `dispatch0()` invokes `ClientRequestHandler` extension points that can override the default handler behavior via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no extension point for handler override.
-- [x] **Missing error logging for internal server errors**: Java `dispatch0()` logs internal server errors with full request context using `LOGGER.error()` and `context.updateThreadContext()`. Go `Dispatch()` has no error logging beyond the basic handler error return.
-- [x] **Missing graceful shutdown hook**: Java constructor registers a shutdown hook via `applicationContext.addShutdownHook()` that waits for `pendingRequestCount` to reach zero. Go `Dispatch()` has no shutdown coordination mechanism.
+- [ ] **Missing pending request count management**: Java `dispatch()` increments `pendingRequestCount` at entry and decrements it in `doFinally` (via `onPendingRequestHandled()`). Go `Dispatch()` has no pending request count tracking at all. This is critical for graceful shutdown — the Java version uses it to wait for all in-flight requests before shutting down.
+- [ ] **Missing request buffer lifecycle management**: Java `dispatch()` explicitly touches the `requestBuffer` for leak detection (`requestBuffer.touch(serviceRequest)`), retains it before async processing, and releases it in the `finally` block. Go `Dispatch()` passes raw `[]byte` (no reference counting needed in Go, but no equivalent lifecycle concern is addressed).
+- [ ] **Missing user ID validation**: Java `dispatch0()` validates that `userId != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no user identity validation.
+- [ ] **Missing device type validation**: Java `dispatch0()` validates that `deviceType != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no device type validation.
+- [ ] **Missing service availability check**: Java `dispatch0()` calls `serverStatusManager.getServiceAvailability()` and returns `SERVER_UNAVAILABLE` if the service is not available. Go `Dispatch()` has no availability check.
+- [ ] **Missing protobuf request parsing**: Java `dispatch0()` parses the raw `ByteBuf` into a `TurmsRequest` using `ProtoDecoder.newInputStream()` and handles `IOException` from corrupted data. Go `Dispatch()` takes a pre-decoded `RpcFrame` and passes raw payload to the handler without any request parsing.
+- [ ] **Missing blocklist handling for corrupted requests**: Java `dispatch0()` calls `blocklistService.tryBlockIpForCorruptedRequest()` and `blocklistService.tryBlockUserIdForCorruptedRequest()` when proto parsing fails. Go `Dispatch()` has no blocklist integration.
+- [ ] **Missing plugin/extension point support**: Java `dispatch0()` checks for running `ClientRequestTransformer` extensions and applies them via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no plugin system integration.
+- [ ] **Missing handler lookup by request type**: Java `dispatch0()` routes requests by `TurmsRequest.KindCase` using `requestTypeToHandler.get(requestType)`. Go `Dispatch()` routes by `CodecID` (a uint16), which is a different routing mechanism entirely — it's an RPC codec ID, not a TurmsRequest type.
+- [ ] **Missing KIND_NOT_SET validation**: Java `dispatch0()` checks if `requestType == KIND_NOT_SET` and returns `ILLEGAL_ARGUMENT`. Go `Dispatch()` has no equivalent validation.
+- [ ] **Missing unsupported request type response**: Java `dispatch0()` returns `ILLEGAL_ARGUMENT` with "The request type is unsupported" when no handler is found. Go `Dispatch()` returns a generic `ErrHandlerNotFound` error without a proper service response.
+- [ ] **Missing metrics recording**: Java `dispatch0()` uses `.name(TURMS_CLIENT_REQUEST).tag(TURMS_CLIENT_REQUEST_TAG_TYPE, requestType.name()).metrics()` for request metrics. Go `Dispatch()` has no metrics recording.
+- [ ] **Missing notification of related users**: Java `dispatch0()` calls `notifyRelatedUsersOfAction()` to forward notifications to recipients and the requester's other online sessions, including plugin `beforeNotify` and `afterNotify` hooks. Go `Dispatch()` has no notification logic.
+- [ ] **Missing request logging**: Java `dispatch0()` calls `ClientApiLogging.log()` for server errors and when `apiLoggingContext.shouldLogRequest()` returns true. Go `Dispatch()` has no request logging.
+- [ ] **Missing error transformation to ServiceResponse**: Java `dispatch()` catches all exceptions and maps them to `ServiceResponse` instances with appropriate status codes (never returns MonoError). Go `Dispatch()` returns raw errors without wrapping them in a service response structure.
+- [ ] **Missing turmsRequestBuffer retain before async processing**: Java `dispatch0()` explicitly retains the buffer before async processing (`turmsRequestBuffer.retain()`) because `NioByteString` instances reference the buffer. Go `Dispatch()` has no such concern.
+- [ ] **Missing request size tracking**: Java `dispatch0()` tracks `requestSize = turmsRequestBuffer.readableBytes()` and passes it to logging. Go `Dispatch()` does not track request size.
+- [ ] **Missing request timing**: Java `dispatch0()` records `requestTime = System.currentTimeMillis()` and `startTime = System.nanoTime()` for latency measurement in logs. Go `Dispatch()` has no timing.
+- [ ] **Missing plugin-based request handling override**: Java `dispatch0()` invokes `ClientRequestHandler` extension points that can override the default handler behavior via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no extension point for handler override.
+- [ ] **Missing error logging for internal server errors**: Java `dispatch0()` logs internal server errors with full request context using `LOGGER.error()` and `context.updateThreadContext()`. Go `Dispatch()` has no error logging beyond the basic handler error return.
+- [ ] **Missing graceful shutdown hook**: Java constructor registers a shutdown hook via `applicationContext.addShutdownHook()` that waits for `pendingRequestCount` to reach zero. Go `Dispatch()` has no shutdown coordination mechanism.
 
 # ClientRequest.java
 *Checked methods: toString(), turmsRequest(), userId(), deviceType(), clientIp(), requestId(), equals(Object obj), hashCode()*
@@ -8975,20 +8975,20 @@ Now let me also check the `bytesEq` helper — it doesn't handle both-nil correc
 
 ## toString
 
-- [x] `clientIp` formatting: Java uses `Arrays.toString(clientIp)` producing comma-separated output like `[10, 0, 0, 1]`, but Go uses `fmt.Sprintf("%v", c.clientIp)` producing space-separated output like `[10 0 0 1]`. The format differs from Java's output.
+- [ ] `clientIp` formatting: Java uses `Arrays.toString(clientIp)` producing comma-separated output like `[10, 0, 0, 1]`, but Go uses `fmt.Sprintf("%v", c.clientIp)` producing space-separated output like `[10 0 0 1]`. The format differs from Java's output.
 
 ## turmsRequest
 
-- [x] Java lazily builds `turmsRequest` from `turmsRequestBuilder` on first access. Go simply returns the stored pointer. This is an acceptable design difference since Go protobuf doesn't use builders, but if `turmsRequest` were ever nil, Go returns nil while Java would build it from the builder.
+- [ ] Java lazily builds `turmsRequest` from `turmsRequestBuilder` on first access. Go simply returns the stored pointer. This is an acceptable design difference since Go protobuf doesn't use builders, but if `turmsRequest` were ever nil, Go returns nil while Java would build it from the builder.
 
 ## equals
 
-- [x] `turmsRequest` comparison uses Go pointer identity (`c.turmsRequest == other.turmsRequest`) instead of value equality. Java uses `Objects.equals()` which calls `.equals()` on the protobuf message for deep equality. Two protobuf messages with identical content at different addresses would incorrectly be reported as unequal in Go.
-- [x] `bytesEq` helper treats `nil` and empty `[]byte{}` as equal (since `len(nil) == len([]byte{}) == 0`), whereas Java's `Arrays.equals(null, new byte[0])` returns `false`. This causes `Equals` to produce different results than Java when one side has a nil `clientIp` and the other has an empty byte slice.
+- [ ] `turmsRequest` comparison uses Go pointer identity (`c.turmsRequest == other.turmsRequest`) instead of value equality. Java uses `Objects.equals()` which calls `.equals()` on the protobuf message for deep equality. Two protobuf messages with identical content at different addresses would incorrectly be reported as unequal in Go.
+- [ ] `bytesEq` helper treats `nil` and empty `[]byte{}` as equal (since `len(nil) == len([]byte{}) == 0`), whereas Java's `Arrays.equals(null, new byte[0])` returns `false`. This causes `Equals` to produce different results than Java when one side has a nil `clientIp` and the other has an empty byte slice.
 
 ## hashCode
 
-- [x] Uses a completely different hashing algorithm (FNV-32a) than Java's `31 * Objects.hash(...) + Arrays.hashCode(...)`. While hash codes don't need to match across languages, the Go implementation doesn't include `turmsRequest` in the hash at all, violating the `hashCode`/`equals` contract: two objects that are `Equals()` could have different `HashCode()` values since `Equals` considers `turmsRequest` but `HashCode` does not.
+- [ ] Uses a completely different hashing algorithm (FNV-32a) than Java's `31 * Objects.hash(...) + Arrays.hashCode(...)`. While hash codes don't need to match across languages, the Go implementation doesn't include `turmsRequest` in the hash at all, violating the `hashCode`/`equals` contract: two objects that are `Equals()` could have different `HashCode()` values since `Equals` considers `turmsRequest` but `HashCode` does not.
 
 # AdminController.java
 *Checked methods: checkLoginNameAndPassword(), addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO), queryAdmins(@QueryParam(required = false), queryAdmins(@QueryParam(required = false), updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO), deleteAdmins(RequestContext requestContext, Set<Long> ids)*
@@ -9079,11 +9079,11 @@ Let me finalize:
 
 ## UpdateAdmins
 
-- [x] **Wrong JSON field for display name in UpdateAdminDTO**: The Go `UpdateAdminDTO.Name` has JSON tag `"name"`, but the Java `UpdateAdminDTO.displayName` serializes as `"displayName"`. Clients using the original API sending `{"displayName": "foo"}` will not have the field parsed. The Go controller's `updateAdminDTO.Name` will always be nil when called through the standard API, so display name updates will silently be ignored.
+- [ ] **Wrong JSON field for display name in UpdateAdminDTO**: The Go `UpdateAdminDTO.Name` has JSON tag `"name"`, but the Java `UpdateAdminDTO.displayName` serializes as `"displayName"`. Clients using the original API sending `{"displayName": "foo"}` will not have the field parsed. The Go controller's `updateAdminDTO.Name` will always be nil when called through the standard API, so display name updates will silently be ignored.
 
 ## AddAdmin
 
-- [x] **DisplayName nil converted to empty string instead of being preserved as nil/null**: When `addAdminDTO.DisplayName` is nil (not provided by client), the Go controller converts it to `""` (empty string) before passing to the service. In Java, `null` is passed directly, preserving the null semantics. This means Go will store an empty string in the database where Java would store null.
+- [ ] **DisplayName nil converted to empty string instead of being preserved as nil/null**: When `addAdminDTO.DisplayName` is nil (not provided by client), the Go controller converts it to `""` (empty string) before passing to the service. In Java, `null` is passed directly, preserving the null semantics. This means Go will store an empty string in the database where Java would store null.
 
 These are the two bugs I've identified in the controller methods.
 
@@ -9109,11 +9109,11 @@ Here is the final result:
 
 ## AddAdmin
 
-- [x] **Nil DisplayName converted to empty string**: When `addAdminDTO.DisplayName` is `nil` (client didn't provide it), the Go controller converts it to `""` (empty string) at line 35-38. The Java version passes `addAdminDTO.displayName()` directly which preserves `null`. This means Go stores empty string in the database where Java stores null, causing a behavioral difference in data persistence.
+- [ ] **Nil DisplayName converted to empty string**: When `addAdminDTO.DisplayName` is `nil` (client didn't provide it), the Go controller converts it to `""` (empty string) at line 35-38. The Java version passes `addAdminDTO.displayName()` directly which preserves `null`. This means Go stores empty string in the database where Java stores null, causing a behavioral difference in data persistence.
 
 ## UpdateAdmins
 
-- [x] **UpdateAdminDTO uses wrong JSON field name for display name**: The Go `UpdateAdminDTO` struct uses field `Name` with JSON tag `"name"`, but the Java `UpdateAdminDTO` record field is `displayName` (which serializes as `"displayName"` in JSON). This means clients sending `{"displayName": "New Name"}` per the original API contract will not have the field deserialized in Go, causing display name updates to be silently ignored.
+- [ ] **UpdateAdminDTO uses wrong JSON field name for display name**: The Go `UpdateAdminDTO` struct uses field `Name` with JSON tag `"name"`, but the Java `UpdateAdminDTO` record field is `displayName` (which serializes as `"displayName"` in JSON). This means clients sending `{"displayName": "New Name"}` per the original API contract will not have the field deserialized in Go, causing display name updates to be silently ignored.
 
 # AdminPermissionController.java
 *Checked methods: queryAdminPermissions()*
@@ -9138,9 +9138,9 @@ These are clear bugs in the `Group()` method logic.
 
 ## QueryAdminPermissions
 
-- [x] **Bug: `Group()` method returns wrong group for `SHUTDOWN` permission** — The Go `Group()` method returns `"SHUTDOWN"` (the full string, since no verb suffix matches), but Java explicitly maps `SHUTDOWN` to group `"LIFECYCLE"` via `Groups.LIFECYCLE`.
+- [ ] **Bug: `Group()` method returns wrong group for `SHUTDOWN` permission** — The Go `Group()` method returns `"SHUTDOWN"` (the full string, since no verb suffix matches), but Java explicitly maps `SHUTDOWN` to group `"LIFECYCLE"` via `Groups.LIFECYCLE`.
 
-- [x] **Bug: `Group()` method returns wrong group for `STATISTICS_*` permissions** — The Go `Group()` method strips only the trailing verb suffix, so `STATISTICS_USER_QUERY` → `"STATISTICS_USER"`, `STATISTICS_GROUP_QUERY` → `"STATISTICS_GROUP"`, `STATISTICS_MESSAGE_QUERY` → `"STATISTICS_MESSAGE"`. Java explicitly maps all three to group `"STATISTICS"` via `Groups.STATISTICS`.
+- [ ] **Bug: `Group()` method returns wrong group for `STATISTICS_*` permissions** — The Go `Group()` method strips only the trailing verb suffix, so `STATISTICS_USER_QUERY` → `"STATISTICS_USER"`, `STATISTICS_GROUP_QUERY` → `"STATISTICS_GROUP"`, `STATISTICS_MESSAGE_QUERY` → `"STATISTICS_MESSAGE"`. Java explicitly maps all three to group `"STATISTICS"` via `Groups.STATISTICS`.
 
 # AdminRoleController.java
 *Checked methods: addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO), queryAdminRoles(@QueryParam(required = false), queryAdminRoles(@QueryParam(required = false), updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO), deleteAdminRoles(RequestContext requestContext, Set<Long> ids)*
@@ -9165,15 +9165,15 @@ Let me also verify if there's anything else about the `includedPermissions` quer
 
 ## addAdminRole
 
-- [x] Missing `matchPermissions` call: Java converts `Set<String>` permission patterns (e.g., `"USER_*"`) to `Set<AdminPermission>` using `AdminPermission.matchPermissions()` with wildcard pattern matching. The Go version accepts `[]AdminPermission` directly, losing wildcard/pattern matching support entirely.
+- [ ] Missing `matchPermissions` call: Java converts `Set<String>` permission patterns (e.g., `"USER_*"`) to `Set<AdminPermission>` using `AdminPermission.matchPermissions()` with wildcard pattern matching. The Go version accepts `[]AdminPermission` directly, losing wildcard/pattern matching support entirely.
 
-- [x] When `Rank` is nil in the DTO, Go passes `0` as the rank value to the service. In Java, a null `rank` would trigger `@NotNull` validation and reject the request. The Go version silently uses `0`, which may create roles with an unintended rank.
+- [ ] When `Rank` is nil in the DTO, Go passes `0` as the rank value to the service. In Java, a null `rank` would trigger `@NotNull` validation and reject the request. The Go version silently uses `0`, which may create roles with an unintended rank.
 
-- [x] When `Name` is nil in the DTO, Go passes `""` (empty string) to the service. In Java, a null `name` would trigger `@NotNull` validation and reject the request. The Go version passes an empty string, which may bypass validation.
+- [ ] When `Name` is nil in the DTO, Go passes `""` (empty string) to the service. In Java, a null `name` would trigger `@NotNull` validation and reject the request. The Go version passes an empty string, which may bypass validation.
 
 ## updateAdminRole
 
-- [x] Missing `matchPermissions` call: Same as `addAdminRole` — Java converts `Set<String>` permission patterns to `Set<AdminPermission>` using `AdminPermission.matchPermissions()`. The Go version passes `[]AdminPermission` directly, losing wildcard/pattern matching support.
+- [ ] Missing `matchPermissions` call: Same as `addAdminRole` — Java converts `Set<String>` permission patterns to `Set<AdminPermission>` using `AdminPermission.matchPermissions()`. The Go version passes `[]AdminPermission` directly, losing wildcard/pattern matching support.
 
 ## queryAdminRoles
 
@@ -9204,19 +9204,19 @@ This is a real bug — the `AddAdminDTO` in Go will serialize the password to JS
 
 ## AddAdminDTO (password serialization)
 
-- [x] **Missing `MarshalJSON` to prevent password serialization**: The Java `AddAdminDTO` uses `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` on the `password` field, which is handled by a global Jackson `AnnotationIntrospector` (`JsonCodecPool`) that prevents the field from being **serialized** (because `value != ALLOW_SERIALIZATION`) while still allowing **deserialization** (because `value == ALLOW_DESERIALIZATION`). The Go `AddAdminDTO` has no custom `MarshalJSON`, so the `Password` field will be serialized in JSON responses via the default `encoding/json` behavior. The `UpdateAdminDTO` correctly implements a custom `MarshalJSON` to strip the password, but `AddAdminDTO` is missing the same protection.
+- [ ] **Missing `MarshalJSON` to prevent password serialization**: The Java `AddAdminDTO` uses `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` on the `password` field, which is handled by a global Jackson `AnnotationIntrospector` (`JsonCodecPool`) that prevents the field from being **serialized** (because `value != ALLOW_SERIALIZATION`) while still allowing **deserialization** (because `value == ALLOW_DESERIALIZATION`). The Go `AddAdminDTO` has no custom `MarshalJSON`, so the `Password` field will be serialized in JSON responses via the default `encoding/json` behavior. The `UpdateAdminDTO` correctly implements a custom `MarshalJSON` to strip the password, but `AddAdminDTO` is missing the same protection.
 
 # UpdateAdminDTO.java
 *Checked methods: UpdateAdminDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
 
 ## UpdateAdminDTO Constructor / @SensitiveProperty(ALLOW_DESERIALIZATION)
 
-- [x] **Wrong field name**: The Java `UpdateAdminDTO` has a field named `displayName`, but the Go version uses `Name` (with JSON tag `"name"`). The Java record field is `displayName`, and the JSON tag should be `"displayName"` to maintain API compatibility with the Java server. Using `"name"` means clients that send `"displayName"` (as they would with the Java server) will not have that field populated.
+- [ ] **Wrong field name**: The Java `UpdateAdminDTO` has a field named `displayName`, but the Go version uses `Name` (with JSON tag `"name"`). The Java record field is `displayName`, and the JSON tag should be `"displayName"` to maintain API compatibility with the Java server. Using `"name"` means clients that send `"displayName"` (as they would with the Java server) will not have that field populated.
 
 ## toString()
 
-- [x] **Mismatched field name in output**: The Java `toString()` outputs `displayName=<value>`, but the Go `String()` outputs `name=<value>`. This is a behavioral difference from the Java version — the string representation should use the same field name `displayName`.
-- [x] **Password masking differs for null**: The Java `toString()` always prints `password=<SENSITIVE_VALUE>` (a constant) regardless of whether password is null or not, because Java records hold the raw field value and the `toString` hardcodes `SecurityValueConst.SENSITIVE_VALUE`. In Go, when `Password` is nil, the string outputs `password=null`, but when non-nil it outputs `password=***`. The Java version does not distinguish between null and non-null — it always shows the same masked value. This is a behavioral difference.
+- [ ] **Mismatched field name in output**: The Java `toString()` outputs `displayName=<value>`, but the Go `String()` outputs `name=<value>`. This is a behavioral difference from the Java version — the string representation should use the same field name `displayName`.
+- [ ] **Password masking differs for null**: The Java `toString()` always prints `password=<SENSITIVE_VALUE>` (a constant) regardless of whether password is null or not, because Java records hold the raw field value and the `toString` hardcodes `SecurityValueConst.SENSITIVE_VALUE`. In Go, when `Password` is nil, the string outputs `password=null`, but when non-nil it outputs `password=***`. The Java version does not distinguish between null and non-null — it always shows the same masked value. This is a behavioral difference.
 
 # AdminRoleService.java
 *Checked methods: authAndAddAdminRole(@NotNull Long requesterId, @NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), addAdminRole(@NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), authAndDeleteAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds), deleteAdminRoles(@NotEmpty Set<Long> roleIds), authAndUpdateAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), updateAdminRole(@NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), queryAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size), queryAndCacheRolesByRoleIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @NotNull Integer rankGreaterThan), countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks), queryHighestRankByAdminId(@NotNull Long adminId), queryHighestRankByRoleIds(@NotNull Set<Long> roleIds), isAdminRankHigherThanRank(@NotNull Long adminId, @NotNull Integer rank), queryPermissions(@NotNull Long adminId)*
@@ -9225,79 +9225,79 @@ Now I have a complete picture. Let me carefully analyze each method.
 
 ## AuthAndAddAdminRole
 
-- [x] **Bug: Missing "requester does not exist" handling when `isAdminRankHigherThanRank` returns empty** — In Java, `isAdminRankHigherThanRank(requesterId, rank).switchIfEmpty(adminService.errorRequesterNotExist())` returns an error if the admin doesn't exist (empty Mono). In Go, `IsAdminRankHigherThanRank` returns `(false, nil)` when `highest == nil`, so a non-existent requester silently returns "permission denied" instead of "requester does not exist".
-- [x] **Bug: Missing "requester does not exist" handling when `queryPermissions` returns empty** — In Java, `queryPermissions(requesterId).switchIfEmpty(adminService.errorRequesterNotExist())`. In Go, if `QueryPermissions` returns an empty slice, the code proceeds and the permission check passes if the requested permissions list is also empty, instead of returning a "requester does not exist" error.
-- [x] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")` in both `authAndAddAdminRole` and `addAdminRole`. Go does not check for empty permissions.
-- [x] **Bug: Missing validation for name whitespace** — Java validates `Validator.noWhitespace(name, "name")`. Go only checks for empty string, not for whitespace-only strings.
-- [x] **Bug: Missing validation for name length limit** — Java validates `Validator.length(name, "name", MIN_ROLE_NAME_LIMIT, MAX_ROLE_NAME_LIMIT)` (max 32). Go does not enforce a max name length.
-- [x] **Bug: Missing validation for `roleId` not-null** — Java validates `Validator.notNull(roleId, "roleId")` with an explicit check. In Go, `roleId` is a pointer and nil is allowed (falls back to ID generation), which diverges from Java's contract where `roleId` is `@NotNull`.
+- [ ] **Bug: Missing "requester does not exist" handling when `isAdminRankHigherThanRank` returns empty** — In Java, `isAdminRankHigherThanRank(requesterId, rank).switchIfEmpty(adminService.errorRequesterNotExist())` returns an error if the admin doesn't exist (empty Mono). In Go, `IsAdminRankHigherThanRank` returns `(false, nil)` when `highest == nil`, so a non-existent requester silently returns "permission denied" instead of "requester does not exist".
+- [ ] **Bug: Missing "requester does not exist" handling when `queryPermissions` returns empty** — In Java, `queryPermissions(requesterId).switchIfEmpty(adminService.errorRequesterNotExist())`. In Go, if `QueryPermissions` returns an empty slice, the code proceeds and the permission check passes if the requested permissions list is also empty, instead of returning a "requester does not exist" error.
+- [ ] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")` in both `authAndAddAdminRole` and `addAdminRole`. Go does not check for empty permissions.
+- [ ] **Bug: Missing validation for name whitespace** — Java validates `Validator.noWhitespace(name, "name")`. Go only checks for empty string, not for whitespace-only strings.
+- [ ] **Bug: Missing validation for name length limit** — Java validates `Validator.length(name, "name", MIN_ROLE_NAME_LIMIT, MAX_ROLE_NAME_LIMIT)` (max 32). Go does not enforce a max name length.
+- [ ] **Bug: Missing validation for `roleId` not-null** — Java validates `Validator.notNull(roleId, "roleId")` with an explicit check. In Go, `roleId` is a pointer and nil is allowed (falls back to ID generation), which diverges from Java's contract where `roleId` is `@NotNull`.
 
 ## AddAdminRole
 
-- [x] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (zero value if omitted), no validation.
-- [x] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")`. Go does not check.
-- [x] **Bug: Missing validation for name whitespace and max length** — Same as authAndAddAdminRole, Go doesn't check for whitespace or max length of 32.
-- [x] **Bug: Error message differs from Java** — Java says "The new role ID cannot be the root role ID"; Go says "the root role already exists". Different semantic meaning (Java prevents creating with root ID, Go implies root already exists).
+- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (zero value if omitted), no validation.
+- [ ] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")`. Go does not check.
+- [ ] **Bug: Missing validation for name whitespace and max length** — Same as authAndAddAdminRole, Go doesn't check for whitespace or max length of 32.
+- [ ] **Bug: Error message differs from Java** — Java says "The new role ID cannot be the root role ID"; Go says "the root role already exists". Different semantic meaning (Java prevents creating with root ID, Go implies root already exists).
 
 ## AuthAndDeleteAdminRoles
 
-- [x] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which queries each target role individually and checks if the requester's rank is higher than **each** target role's rank. Go uses a simplified approach: queries the highest rank among target roles and checks if the requester is higher than that single rank. These behave differently when there are mixed target role ranks.
-- [x] **Bug: Root role ID check is done here in Go but belongs in `deleteAdminRoles`** — In Java, the root role check is in `deleteAdminRoles`. In Go, it's done in `authAndDeleteAdminRoles` but NOT in `DeleteAdminRoles`. So `DeleteAdminRoles` can be called directly with root role ID without protection.
-- [x] **Bug: Returns `(0, nil)` when no target roles found** — Java's `checkIfAllowedToManageRoles` returns `ACKNOWLEDGED_DELETE_RESULT` (a successful no-op with `deletedCount=0`), which is the same end result but the Go version returns `(0, nil)` from `QueryHighestRankByRoleIds` returning nil before calling `DeleteAdminRoles`. The Java version calls `deleteAdminRoles` even when no roles match (though it still returns a no-op result). This is functionally similar but the control flow is different.
+- [ ] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which queries each target role individually and checks if the requester's rank is higher than **each** target role's rank. Go uses a simplified approach: queries the highest rank among target roles and checks if the requester is higher than that single rank. These behave differently when there are mixed target role ranks.
+- [ ] **Bug: Root role ID check is done here in Go but belongs in `deleteAdminRoles`** — In Java, the root role check is in `deleteAdminRoles`. In Go, it's done in `authAndDeleteAdminRoles` but NOT in `DeleteAdminRoles`. So `DeleteAdminRoles` can be called directly with root role ID without protection.
+- [ ] **Bug: Returns `(0, nil)` when no target roles found** — Java's `checkIfAllowedToManageRoles` returns `ACKNOWLEDGED_DELETE_RESULT` (a successful no-op with `deletedCount=0`), which is the same end result but the Go version returns `(0, nil)` from `QueryHighestRankByRoleIds` returning nil before calling `DeleteAdminRoles`. The Java version calls `deleteAdminRoles` even when no roles match (though it still returns a no-op result). This is functionally similar but the control flow is different.
 
 ## DeleteAdminRoles
 
-- [x] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be deleted")`. Go does not check for root role ID in `DeleteAdminRoles`.
-- [x] **Bug: Missing validation for roleIds not-empty** — Java validates `Validator.notEmpty(roleIds, "roleIds")`. Go does not validate empty roleIds at this level (relies on repository returning 0).
+- [ ] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be deleted")`. Go does not check for root role ID in `DeleteAdminRoles`.
+- [ ] **Bug: Missing validation for roleIds not-empty** — Java validates `Validator.notEmpty(roleIds, "roleIds")`. Go does not validate empty roleIds at this level (relies on repository returning 0).
 
 ## AuthAndUpdateAdminRoles
 
-- [x] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which does a unified rank check (requester rank vs each target role rank), and THEN separately checks permissions if `permissions` is non-null. Go splits this into: (1) check rank against the new `rank` param, (2) check rank against target roles' highest rank. The Java version checks target roles in a single `checkIfAllowedToManageRoles` call, while Go queries target roles differently.
-- [x] **Bug: Missing permissions authorization check** — Java checks that `requesterPermissions.containsAll(permissions)` before allowing the update with new permissions. Go's `AuthAndUpdateAdminRoles` does not verify the requester has the permissions being assigned.
-- [x] **Bug: Missing "requester does not exist" error** — Java uses `adminService.errorRequesterNotExist()` when queries return empty. Go returns `(0, nil)` or generic permission denied.
-- [x] **Bug: Root role check location** — Go checks root role in `AuthAndUpdateAdminRoles` but not in `UpdateAdminRole`. Java checks it in `UpdateAdminRole`. Calling `UpdateAdminRole` directly in Go allows updating the root role.
+- [ ] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which does a unified rank check (requester rank vs each target role rank), and THEN separately checks permissions if `permissions` is non-null. Go splits this into: (1) check rank against the new `rank` param, (2) check rank against target roles' highest rank. The Java version checks target roles in a single `checkIfAllowedToManageRoles` call, while Go queries target roles differently.
+- [ ] **Bug: Missing permissions authorization check** — Java checks that `requesterPermissions.containsAll(permissions)` before allowing the update with new permissions. Go's `AuthAndUpdateAdminRoles` does not verify the requester has the permissions being assigned.
+- [ ] **Bug: Missing "requester does not exist" error** — Java uses `adminService.errorRequesterNotExist()` when queries return empty. Go returns `(0, nil)` or generic permission denied.
+- [ ] **Bug: Root role check location** — Go checks root role in `AuthAndUpdateAdminRoles` but not in `UpdateAdminRole`. Java checks it in `UpdateAdminRole`. Calling `UpdateAdminRole` directly in Go allows updating the root role.
 
 ## UpdateAdminRole
 
-- [x] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be updated")`. Go does not check.
-- [x] **Bug: Missing all-falsy/no-op early return** — Java checks `Validator.areAllFalsy(newName, permissions, rank)` and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately. Go passes everything to the repo, which checks `len(set) == 0` for a similar effect, but the semantics differ slightly.
-- [x] **Bug: Missing validation for newName whitespace and length** — Java validates `noWhitespace` and `length` on newName. Go does not.
-- [x] **Bug: Cache invalidation condition differs** — Java invalidates cache in `doOnNext` (only on successful update results), Go invalidates on `modified > 0`. Functionally similar but Go uses modified count while Java uses the update result acknowledgment.
+- [ ] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be updated")`. Go does not check.
+- [ ] **Bug: Missing all-falsy/no-op early return** — Java checks `Validator.areAllFalsy(newName, permissions, rank)` and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately. Go passes everything to the repo, which checks `len(set) == 0` for a similar effect, but the semantics differ slightly.
+- [ ] **Bug: Missing validation for newName whitespace and length** — Java validates `noWhitespace` and `length` on newName. Go does not.
+- [ ] **Bug: Cache invalidation condition differs** — Java invalidates cache in `doOnNext` (only on successful update results), Go invalidates on `modified > 0`. Functionally similar but Go uses modified count while Java uses the update result acknowledgment.
 
 ## QueryAdminRoles
 
-- [x] **Bug: Missing root role inclusion logic** — Java checks `isRootRoleQualified(ids, names, includedPermissions, ranks)` and if true, prepends the root role to the results via `startWith(getRootRole())`. Go simply queries the database and does not include the root role. The root role is an in-memory constant, not stored in the DB, so it will be missing from Go query results.
-- [x] **Bug: `includedPermissions` filter semantics differ** — Java uses `$in` to find roles that have any of the specified permissions. But the Go repo uses `$in` on the `perm` array field, which matches roles whose permissions array contains at least one of the specified values. Java's semantics for "includedPermissions" in `isRootRoleQualified` checks `containsAll(rootRole.getPermissions())` meaning the filter permissions must be a subset of root's permissions. The Go DB query uses `$in` which is "matches any", not "contains all".
+- [ ] **Bug: Missing root role inclusion logic** — Java checks `isRootRoleQualified(ids, names, includedPermissions, ranks)` and if true, prepends the root role to the results via `startWith(getRootRole())`. Go simply queries the database and does not include the root role. The root role is an in-memory constant, not stored in the DB, so it will be missing from Go query results.
+- [ ] **Bug: `includedPermissions` filter semantics differ** — Java uses `$in` to find roles that have any of the specified permissions. But the Go repo uses `$in` on the `perm` array field, which matches roles whose permissions array contains at least one of the specified values. Java's semantics for "includedPermissions" in `isRootRoleQualified` checks `containsAll(rootRole.getPermissions())` meaning the filter permissions must be a subset of root's permissions. The Go DB query uses `$in` which is "matches any", not "contains all".
 
 ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan
 
-- [x] **Bug: Missing root role handling** — Java checks if `roleIds` contains `ADMIN_ROLE_ROOT_ID`. If so, it separates the root role, queries the DB for the remaining IDs, and prepends the root role if its rank is greater than `rankGreaterThan`. If roleIds is just the root ID, it returns the root role or empty based on rank. Go does none of this root role handling.
-- [x] **Bug: Missing empty roleIds check** — Java returns `Flux.empty()` if `roleIds.isEmpty()`. Go relies on the repository's empty check.
-- [x] **Bug: Missing cache update (`doOnNext` to update `idToRole`)** — Java caches each fetched role via `.doOnNext(role -> idToRole.put(role.getId(), role))`. Go does not update `idToRole` cache in this method.
-- [x] **Bug: Missing roleIds immutability protection** — Java creates a copy (`new UnifiedSet<>(roleIds)`) before removing `ADMIN_ROLE_ROOT_ID` to avoid mutating the caller's collection. Go passes the original slice (though Go slices are reference types, the repository doesn't mutate them, so this is minor).
+- [ ] **Bug: Missing root role handling** — Java checks if `roleIds` contains `ADMIN_ROLE_ROOT_ID`. If so, it separates the root role, queries the DB for the remaining IDs, and prepends the root role if its rank is greater than `rankGreaterThan`. If roleIds is just the root ID, it returns the root role or empty based on rank. Go does none of this root role handling.
+- [ ] **Bug: Missing empty roleIds check** — Java returns `Flux.empty()` if `roleIds.isEmpty()`. Go relies on the repository's empty check.
+- [ ] **Bug: Missing cache update (`doOnNext` to update `idToRole`)** — Java caches each fetched role via `.doOnNext(role -> idToRole.put(role.getId(), role))`. Go does not update `idToRole` cache in this method.
+- [ ] **Bug: Missing roleIds immutability protection** — Java creates a copy (`new UnifiedSet<>(roleIds)`) before removing `ADMIN_ROLE_ROOT_ID` to avoid mutating the caller's collection. Go passes the original slice (though Go slices are reference types, the repository doesn't mutate them, so this is minor).
 
 ## CountAdminRoles
 
-- [x] **Bug: Missing +1 for the root role** — Java adds 1 to the count: `.map(number -> number + 1)` because the root role is built-in and not in the database. Go returns the raw count from the repository without adding 1.
+- [ ] **Bug: Missing +1 for the root role** — Java adds 1 to the count: `.map(number -> number + 1)` because the root role is built-in and not in the database. Go returns the raw count from the repository without adding 1.
 
 ## QueryHighestRankByAdminId
 
-- [x] **Bug: Missing validation for `adminId` not-null** — Java validates `Validator.notNull(adminId, "adminId")`. Go takes `adminId int64` (primitive, can't be nil in Go, so this is acceptable but noted).
-- [x] **Bug: When admin has no roles, `QueryRoleIdsByAdminIds` returns nil/empty** — Java's `adminService.queryRoleIdsByAdminId` returns role IDs and then `queryHighestRankByRoleIds` handles empty. In Go, `QueryRoleIdsByAdminIds` returns a nil/empty slice, then `QueryHighestRankByRoleIds` returns nil. This is functionally equivalent.
+- [ ] **Bug: Missing validation for `adminId` not-null** — Java validates `Validator.notNull(adminId, "adminId")`. Go takes `adminId int64` (primitive, can't be nil in Go, so this is acceptable but noted).
+- [ ] **Bug: When admin has no roles, `QueryRoleIdsByAdminIds` returns nil/empty** — Java's `adminService.queryRoleIdsByAdminId` returns role IDs and then `queryHighestRankByRoleIds` handles empty. In Go, `QueryRoleIdsByAdminIds` returns a nil/empty slice, then `QueryHighestRankByRoleIds` returns nil. This is functionally equivalent.
 
 ## QueryHighestRankByRoleIds
 
-- [x] **Bug: Missing root role handling** — Java checks `roleIds.contains(ADMIN_ROLE_ROOT_ID)` and if true, returns `Mono.just(getRootRole().getRank())` (which is `Integer.MAX_VALUE`). Go's `FindHighestRankByRoleIds` only queries the database, so it will never return the root role's rank (`Integer.MAX_VALUE`), potentially returning a lower rank or nil.
+- [ ] **Bug: Missing root role handling** — Java checks `roleIds.contains(ADMIN_ROLE_ROOT_ID)` and if true, returns `Mono.just(getRootRole().getRank())` (which is `Integer.MAX_VALUE`). Go's `FindHighestRankByRoleIds` only queries the database, so it will never return the root role's rank (`Integer.MAX_VALUE`), potentially returning a lower rank or nil.
 
 ## IsAdminRankHigherThanRank
 
-- [x] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (primitive).
-- [x] **Bug: Returns `(false, nil)` when admin has no roles** — Java returns an empty Mono, which in the reactive chain triggers `switchIfEmpty(adminService.errorRequesterNotExist())`. Go returns `(false, nil)`, meaning a non-existent admin silently returns "not higher" instead of an error.
+- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (primitive).
+- [ ] **Bug: Returns `(false, nil)` when admin has no roles** — Java returns an empty Mono, which in the reactive chain triggers `switchIfEmpty(adminService.errorRequesterNotExist())`. Go returns `(false, nil)`, meaning a non-existent admin silently returns "not higher" instead of an error.
 
 ## QueryPermissions
 
-- [x] **Bug: Uses database query instead of in-memory cache** — Java's `BaseAdminRoleService.queryPermissions(Set<Long> roleIds)` uses the in-memory `idToRole` cache to look up permissions for cached roles, only querying the DB for uncached roles. Go always queries the database via `FindAdminRoles`, bypassing the `idToRole` cache entirely.
-- [x] **Bug: Missing root role permissions** — Java's `queryAndCacheRolesByRoleIds` includes the root role when its ID is in the roleIds set, so `queryPermissions` includes root permissions (ALL permissions). Go's `FindAdminRoles` queries the database and won't find the root role (it's not stored in DB), so root role permissions are never included.
+- [ ] **Bug: Uses database query instead of in-memory cache** — Java's `BaseAdminRoleService.queryPermissions(Set<Long> roleIds)` uses the in-memory `idToRole` cache to look up permissions for cached roles, only querying the DB for uncached roles. Go always queries the database via `FindAdminRoles`, bypassing the `idToRole` cache entirely.
+- [ ] **Bug: Missing root role permissions** — Java's `queryAndCacheRolesByRoleIds` includes the root role when its ID is in the roleIds set, so `queryPermissions` includes root permissions (ALL permissions). Go's `FindAdminRoles` queries the database and won't find the root role (it's not stored in DB), so root role permissions are never included.
 
 # AdminService.java
 *Checked methods: queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds), authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size), authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds), authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds), errorRequesterNotExist()*
@@ -9391,43 +9391,43 @@ Both are straightforward delegation. Looks correct.
 
 ## queryRoleIdsByAdminIds
 
-- [x] Missing in-memory cache (`idToAdmin`) lookup before falling back to repository query. Java first checks the local cache and only queries the DB if any admin ID is not cached.
-- [x] Missing deduplication of role IDs. Java uses a `Set` which auto-deduplicates; Go appends all role IDs to a slice, producing duplicates when multiple admins share roles.
+- [ ] Missing in-memory cache (`idToAdmin`) lookup before falling back to repository query. Java first checks the local cache and only queries the DB if any admin ID is not cached.
+- [ ] Missing deduplication of role IDs. Java uses a `Set` which auto-deduplicates; Go appends all role IDs to a slice, producing duplicates when multiple admins share roles.
 
 ## authAndAddAdmin
 
-- [x] Missing validation that `roleIds` does not contain `ADMIN_ROLE_ROOT_ID` (Java checks `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, ...)`).
-- [x] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester has no rank; Go silently proceeds when `QueryHighestRankByRoleIds` returns nil.
-- [x] Missing validation that all requested role IDs actually exist. Java's `checkIfAllowedToAddRolesToAdmins` fetches roles by ID and errors if any are missing; Go only checks rank.
-- [x] Missing `upsert` parameter and logic. Java's `authAndAddAdmin` takes a `boolean upsert` and passes it through to `addAdmin`, which chooses between `upsert` and `insert`.
+- [ ] Missing validation that `roleIds` does not contain `ADMIN_ROLE_ROOT_ID` (Java checks `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, ...)`).
+- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester has no rank; Go silently proceeds when `QueryHighestRankByRoleIds` returns nil.
+- [ ] Missing validation that all requested role IDs actually exist. Java's `checkIfAllowedToAddRolesToAdmins` fetches roles by ID and errors if any are missing; Go only checks rank.
+- [ ] Missing `upsert` parameter and logic. Java's `authAndAddAdmin` takes a `boolean upsert` and passes it through to `addAdmin`, which chooses between `upsert` and `insert`.
 
 ## addAdmin
 
-- [x] Missing default generation for empty/null `loginName`. Java generates `RandomStringUtils.randomAlphabetic(16)` when loginName is null; Go does not.
-- [x] Missing default generation for empty/null `rawPassword`. Java generates `RandomStringUtils.randomAlphabetic(10)` and encodes it when rawPassword is null/empty; Go does not handle this case.
-- [x] Missing default for null `displayName`. Java defaults to `loginName` when displayName is null/empty; Go does not.
-- [x] Missing `upsert` parameter. Java's `addAdmin` supports both insert and upsert modes via the `upsert` boolean; Go always inserts.
-- [x] Missing in-memory cache update (`idToAdmin`). Java stores the new admin in `idToAdmin` after successful DB write; Go does not maintain this cache.
-- [x] Missing `registrationDate` parameter. Java accepts an explicit registration date and only defaults to `new Date()` when null; Go always uses `time.Now()`, ignoring any caller-provided value.
+- [ ] Missing default generation for empty/null `loginName`. Java generates `RandomStringUtils.randomAlphabetic(16)` when loginName is null; Go does not.
+- [ ] Missing default generation for empty/null `rawPassword`. Java generates `RandomStringUtils.randomAlphabetic(10)` and encodes it when rawPassword is null/empty; Go does not handle this case.
+- [ ] Missing default for null `displayName`. Java defaults to `loginName` when displayName is null/empty; Go does not.
+- [ ] Missing `upsert` parameter. Java's `addAdmin` supports both insert and upsert modes via the `upsert` boolean; Go always inserts.
+- [ ] Missing in-memory cache update (`idToAdmin`). Java stores the new admin in `idToAdmin` after successful DB write; Go does not maintain this cache.
+- [ ] Missing `registrationDate` parameter. Java accepts an explicit registration date and only defaults to `new Date()` when null; Go always uses `time.Now()`, ignoring any caller-provided value.
 
 ## authAndDeleteAdmins
 
-- [x] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester doesn't exist; Go silently proceeds when `targetHighest` is nil, potentially allowing deletion by a non-existent requester or when target admins have no roles.
-- [x] Missing validation that `adminIds` is non-empty. Java validates `Validator.notEmpty(adminIds, "adminIds")`.
-- [x] Missing validation that `requesterId` is provided. Java validates `Validator.notNull(requesterId, "requesterId")`.
+- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester doesn't exist; Go silently proceeds when `targetHighest` is nil, potentially allowing deletion by a non-existent requester or when target admins have no roles.
+- [ ] Missing validation that `adminIds` is non-empty. Java validates `Validator.notEmpty(adminIds, "adminIds")`.
+- [ ] Missing validation that `requesterId` is provided. Java validates `Validator.notNull(requesterId, "requesterId")`.
 
 ## authAndUpdateAdmins
 
-- [x] Missing check for requester updating their own role IDs. Java returns an explicit error `MONO_ERROR_UPDATE_ONE_OWN_ROLE_ID` when `targetAdminIds.contains(requesterId)` and roleIds are present; Go has no such check.
-- [x] Missing early return when all update parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately when `rawPassword`, `displayName`, and `roleIds` are all null; Go still performs authorization checks and a no-op update.
-- [x] Missing requester-not-exist handling. Same issue as other auth methods.
-- [x] Missing validation that requested `roleIds` actually exist. Java's `checkIfAllowedToAddRolesToAdmins` validates all role IDs exist; Go only checks rank.
-- [x] When roleIds are present, Java passes `null` roleIds to `updateAdmins` (effectively not persisting role changes through that path), while Go passes `roleIds` directly to `UpdateAdmins`. This is a behavioral difference — the Go version will persist role changes that the Java version intentionally skips.
+- [ ] Missing check for requester updating their own role IDs. Java returns an explicit error `MONO_ERROR_UPDATE_ONE_OWN_ROLE_ID` when `targetAdminIds.contains(requesterId)` and roleIds are present; Go has no such check.
+- [ ] Missing early return when all update parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately when `rawPassword`, `displayName`, and `roleIds` are all null; Go still performs authorization checks and a no-op update.
+- [ ] Missing requester-not-exist handling. Same issue as other auth methods.
+- [ ] Missing validation that requested `roleIds` actually exist. Java's `checkIfAllowedToAddRolesToAdmins` validates all role IDs exist; Go only checks rank.
+- [ ] When roleIds are present, Java passes `null` roleIds to `updateAdmins` (effectively not persisting role changes through that path), while Go passes `roleIds` directly to `UpdateAdmins`. This is a behavioral difference — the Go version will persist role changes that the Java version intentionally skips.
 
 ## updateAdmins
 
-- [x] Missing early return when all parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` when `rawPassword`, `displayName`, and `roleIds` are all null; Go still calls the repository with nil values.
-- [x] Missing in-memory cache invalidation. Java removes all target admin IDs from `idToAdmin` on successful update; Go has no cache invalidation.
+- [ ] Missing early return when all parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` when `rawPassword`, `displayName`, and `roleIds` are all null; Go still calls the repository with nil values.
+- [ ] Missing in-memory cache invalidation. Java removes all target admin IDs from `idToAdmin` on successful update; Go has no cache invalidation.
 
 ## countAdmins
 
@@ -9435,7 +9435,7 @@ No bugs found.
 
 ## errorRequesterNotExist
 
-- [x] Missing `UNAUTHORIZED` status code. Java returns `ResponseException` with `ResponseStatusCode.UNAUTHORIZED` and a descriptive message; Go returns a plain `errors.New("requester does not exist")` without any status code, losing error classification information.
+- [ ] Missing `UNAUTHORIZED` status code. Java returns `ResponseException` with `ResponseStatusCode.UNAUTHORIZED` and a descriptive message; Go returns a plain `errors.New("requester does not exist")` without any status code, losing error classification information.
 
 # IpBlocklistController.java
 *Checked methods: addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO), queryBlockedIps(Set<String> ids), queryBlockedIps(int page, @QueryParam(required = false), deleteBlockedIps(@QueryParam(required = false)*
@@ -9444,11 +9444,11 @@ Now I have all the context needed. Let me analyze the differences.
 
 ## queryBlockedIps (page)
 
-- [x] **Missing `countBlockIps()` call**: The Java version calls `blocklistService.countBlockIps()` to get the total count and returns it via `HttpHandlerResult.page(blockedIpCount, clients2ips(blockedIps))`. The Go version's `QueryBlockedIpsByPage` only returns `[]dto.BlockedIpDTO` and does not call a count method at all. The method signature returns just the DTO slice, with no pagination metadata (total count), making it impossible for the caller to return proper paginated responses as the Java version does.
+- [ ] **Missing `countBlockIps()` call**: The Java version calls `blocklistService.countBlockIps()` to get the total count and returns it via `HttpHandlerResult.page(blockedIpCount, clients2ips(blockedIps))`. The Go version's `QueryBlockedIpsByPage` only returns `[]dto.BlockedIpDTO` and does not call a count method at all. The method signature returns just the DTO slice, with no pagination metadata (total count), making it impossible for the caller to return proper paginated responses as the Java version does.
 
 ## deleteBlockedIps
 
-- [x] **Missing empty-ids guard**: The Java version checks `!CollectionUtils.isEmpty(ids)` before calling `unblockIpStrings(ids)`, meaning if `deleteAll` is false and `ids` is null/empty, it does nothing (returns `Mono.empty()`). The Go version unconditionally calls `c.blocklistService.UnblockIpStrings(ids)` when `deleteAll` is false, even when `ids` is nil or empty, which differs from the Java behavior.
+- [ ] **Missing empty-ids guard**: The Java version checks `!CollectionUtils.isEmpty(ids)` before calling `unblockIpStrings(ids)`, meaning if `deleteAll` is false and `ids` is null/empty, it does nothing (returns `Mono.empty()`). The Go version unconditionally calls `c.blocklistService.UnblockIpStrings(ids)` when `deleteAll` is false, even when `ids` is nil or empty, which differs from the Java behavior.
 
 # UserBlocklistController.java
 *Checked methods: addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO), queryBlockedUsers(Set<Long> ids), queryBlockedUsers(int page, @QueryParam(required = false), deleteBlockedUserIds(@QueryParam(required = false)*
@@ -9511,11 +9511,11 @@ The Go version has a behavioral difference: when `deleteAll` is false **and** `i
 
 ## queryBlockedUsers(int page, @QueryParam(required = false) Integer size)
 
-- [x] **Missing total count**: The Go `QueryBlockedUserIdsByPage` method does not call a `CountBlockUsers()` equivalent. The Java version calls `blocklistService.countBlockUsers()` and passes `blockUserCount` to `HttpHandlerResult.page()`. The Go version only returns `[]dto.BlockedUserDTO` without any pagination metadata (total count), making it impossible for clients to know the total number of blocked users. Furthermore, `BlocklistService` in Go has no `CountBlockUsers` method at all.
+- [ ] **Missing total count**: The Go `QueryBlockedUserIdsByPage` method does not call a `CountBlockUsers()` equivalent. The Java version calls `blocklistService.countBlockUsers()` and passes `blockUserCount` to `HttpHandlerResult.page()`. The Go version only returns `[]dto.BlockedUserDTO` without any pagination metadata (total count), making it impossible for clients to know the total number of blocked users. Furthermore, `BlocklistService` in Go has no `CountBlockUsers` method at all.
 
 ## deleteBlockedUserIds(@QueryParam(required = false) Set<Long> ids, boolean deleteAll)
 
-- [x] **Missing empty-ids guard**: When `deleteAll` is `false` and `ids` is empty/nil, the Java code skips the `unblockUserIds` call entirely (due to `!CollectionUtils.isEmpty(ids)` check), resulting in a no-op. The Go version unconditionally calls `UnblockUserIds(ids)` when `deleteAll` is false, even with an empty slice, which could cause unintended behavior or errors depending on the service implementation.
+- [ ] **Missing empty-ids guard**: When `deleteAll` is `false` and `ids` is empty/nil, the Java code skips the `unblockUserIds` call entirely (due to `!CollectionUtils.isEmpty(ids)` check), resulting in a no-op. The Go version unconditionally calls `UnblockUserIds(ids)` when `deleteAll` is false, even with an empty slice, which could cause unintended behavior or errors depending on the service implementation.
 
 # BlockedClientSerializer.java
 *Checked methods: serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)*
@@ -9530,7 +9530,7 @@ Given the strict instruction format, here is the assessment:
 
 ## serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)
 
-- [x] The entire method is **missing** from the Go code. The Go file `elasticsearch_model.go` contains no `BlockedClient` type, no custom JSON marshaling for it, and no equivalent of: (1) writing an `id` field that is either a `Long` userId (written as a number) or an IP byte array (converted to string via `InetAddressUtil.ipBytesToString`), and (2) writing a `blockEndTime` field formatted via `DateTimeUtil.toStr(value.blockEndTimeMillis())`.
+- [ ] The entire method is **missing** from the Go code. The Go file `elasticsearch_model.go` contains no `BlockedClient` type, no custom JSON marshaling for it, and no equivalent of: (1) writing an `id` field that is either a `Long` userId (written as a number) or an IP byte array (converted to string via `InetAddressUtil.ipBytesToString`), and (2) writing a `blockEndTime` field formatted via `DateTimeUtil.toStr(value.blockEndTimeMillis())`.
 
 # MemberController.java
 *Checked methods: queryMembers(), removeMembers(List<String> ids), addMember(@RequestBody AddMemberDTO addMemberDTO), updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO), queryLeader(), electNewLeader(@QueryParam(required = false)*
@@ -9539,7 +9539,7 @@ Now I have a complete picture of both implementations. Let me compile the findin
 
 ## addMember
 
-- [x] **Missing fields in Member construction**: The Java code constructs a `Member` with 18 fields including `version` (via `NodeVersion.parse`), `registrationDate`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, and `isActive`/`isHealthy` from the DTO. The Go code only sets: `ClusterID`, `NodeID`, `Zone`, `Name`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`, and conditionally `NodeType`. The following fields from `AddMemberDTO` are **not assigned** in the Go code:
+- [ ] **Missing fields in Member construction**: The Java code constructs a `Member` with 18 fields including `version` (via `NodeVersion.parse`), `registrationDate`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, and `isActive`/`isHealthy` from the DTO. The Go code only sets: `ClusterID`, `NodeID`, `Zone`, `Name`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`, and conditionally `NodeType`. The following fields from `AddMemberDTO` are **not assigned** in the Go code:
   - `Version` (Java: `NodeVersion.parse(addMemberDTO.version())`)
   - `RegistrationDate`
   - `MemberPort`
@@ -9547,26 +9547,26 @@ Now I have a complete picture of both implementations. Let me compile the findin
   - `WsAddress`
   - `TcpAddress`
   - `UdpAddress`
-- [x] **`IsActive` and `IsHealthy` hardcoded to `false`**: The Java code passes `addMemberDTO.isActive()` and `addMemberDTO.isHealthy()` from the request DTO. The Go code hardcodes both to `false` on lines 78-79, ignoring whatever the client sent.
-- [x] **`ClusterID` sourced incorrectly**: Java gets the cluster ID via `discoveryService.getLocalMember().getClusterId()`. Go uses `c.discoveryService.GetLocalNodeID()` which returns the **node** ID, not the cluster ID. These are different values.
-- [x] **Go `AddMemberDTO` is missing fields compared to Java**: The Java `AddMemberDTO` has 17 fields (`nodeId`, `zone`, `name`, `nodeType`, `version`, `isSeed`, `isLeaderEligible`, `registrationDate`, `priority`, `memberHost`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, `isActive`, `isHealthy`). The Go `AddMemberDTO` only has 9 fields (`NodeID`, `Zone`, `Name`, `NodeType`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`). Missing DTO fields: `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, `IsHealthy`, `Version`, `RegistrationDate`.
+- [ ] **`IsActive` and `IsHealthy` hardcoded to `false`**: The Java code passes `addMemberDTO.isActive()` and `addMemberDTO.isHealthy()` from the request DTO. The Go code hardcodes both to `false` on lines 78-79, ignoring whatever the client sent.
+- [ ] **`ClusterID` sourced incorrectly**: Java gets the cluster ID via `discoveryService.getLocalMember().getClusterId()`. Go uses `c.discoveryService.GetLocalNodeID()` which returns the **node** ID, not the cluster ID. These are different values.
+- [ ] **Go `AddMemberDTO` is missing fields compared to Java**: The Java `AddMemberDTO` has 17 fields (`nodeId`, `zone`, `name`, `nodeType`, `version`, `isSeed`, `isLeaderEligible`, `registrationDate`, `priority`, `memberHost`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, `isActive`, `isHealthy`). The Go `AddMemberDTO` only has 9 fields (`NodeID`, `Zone`, `Name`, `NodeType`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`). Missing DTO fields: `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, `IsHealthy`, `Version`, `RegistrationDate`.
 
 ## queryMembers
 
-- [x] **Returns different data structure**: Java returns `Collection<Member>` (the raw Member objects with all fields including `ClusterID`, `LastHeartbeat`, etc.). Go returns `[]MemberDTO` which is a transformed DTO with an additional computed `IsLeader` field. While this could be intentional for the Go API design, the Java version returns the raw `Member` entity directly, not a DTO.
+- [ ] **Returns different data structure**: Java returns `Collection<Member>` (the raw Member objects with all fields including `ClusterID`, `LastHeartbeat`, etc.). Go returns `[]MemberDTO` which is a transformed DTO with an additional computed `IsLeader` field. While this could be intentional for the Go API design, the Java version returns the raw `Member` entity directly, not a DTO.
 
 ## queryLeader
 
-- [x] **Error handling differs**: Java throws `ResponseException.get(ResponseStatusCode.NO_CONTENT)` when leader is null (HTTP 204). Go returns `fmt.Errorf("NO_CONTENT")` which is a generic error, not a proper HTTP 204 response — it would likely result in an HTTP 500 internal error instead of the intended 204 No Content.
-- [x] **Same error handling issue for null member lookup**: When `discoveryService.getAllKnownMembers().get(nodeId)` returns null in Java, it passes null to `HttpHandlerResult.okIfTruthy()` which handles it. In Go, `GetMember(leaderID)` returning nil is handled with the same generic `fmt.Errorf("NO_CONTENT")` rather than the proper HTTP response code.
+- [ ] **Error handling differs**: Java throws `ResponseException.get(ResponseStatusCode.NO_CONTENT)` when leader is null (HTTP 204). Go returns `fmt.Errorf("NO_CONTENT")` which is a generic error, not a proper HTTP 204 response — it would likely result in an HTTP 500 internal error instead of the intended 204 No Content.
+- [ ] **Same error handling issue for null member lookup**: When `discoveryService.getAllKnownMembers().get(nodeId)` returns null in Java, it passes null to `HttpHandlerResult.okIfTruthy()` which handles it. In Go, `GetMember(leaderID)` returning nil is handled with the same generic `fmt.Errorf("NO_CONTENT")` rather than the proper HTTP response code.
 
 ## electNewLeader
 
-- [x] **Missing return value**: Java returns `Mono<HttpHandlerResult<ResponseDTO<Member>>>` — it returns the newly elected leader `Member` object in the response. Go returns only `error` with no member data, so the caller gets no information about who was elected leader.
+- [ ] **Missing return value**: Java returns `Mono<HttpHandlerResult<ResponseDTO<Member>>>` — it returns the newly elected leader `Member` object in the response. Go returns only `error` with no member data, so the caller gets no information about who was elected leader.
 
 ## removeMembers
 
-- [x] **Missing deleted count in response**: Java returns `HttpHandlerResult<DeleteResultDTO>` which includes the count of deleted members (`unregisterMembers` count). Go returns only `error` with no count information.
+- [ ] **Missing deleted count in response**: Java returns `HttpHandlerResult<DeleteResultDTO>` which includes the count of deleted members (`unregisterMembers` count). Go returns only `error` with no count information.
 
 # SettingController.java
 *Checked methods: queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable), updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false), queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)*
@@ -9592,37 +9592,37 @@ Now I have a comprehensive understanding of both implementations. Let me compare
 
 ## queryClusterSettings
 
-- [x] **Missing `convertPropertiesToValueMap` logic**: The retrieved `props` is discarded with `_ = props`. The `onlyMutable` parameter is completely ignored. The Java version calls `convertPropertiesToValueMap(properties, onlyMutable)` which filters/converts properties to a map respecting the mutable-only flag. The Go version returns an empty `settings` map instead.
-- [x] **Hardcoded schema version**: `"1.0"` is hardcoded instead of using the `TurmsProperties.SCHEMA_VERSION` constant that the Java version references.
+- [ ] **Missing `convertPropertiesToValueMap` logic**: The retrieved `props` is discarded with `_ = props`. The `onlyMutable` parameter is completely ignored. The Java version calls `convertPropertiesToValueMap(properties, onlyMutable)` which filters/converts properties to a map respecting the mutable-only flag. The Go version returns an empty `settings` map instead.
+- [ ] **Hardcoded schema version**: `"1.0"` is hardcoded instead of using the `TurmsProperties.SCHEMA_VERSION` constant that the Java version references.
 
 ## updateClusterSettings
 
-- [x] **`UpdateGlobalProperties` return type mismatch**: In Java, `updateGlobalProperties` returns a `Mono<Void>` (asynchronous/reactive), and the result is chained with `.thenReturn(RESPONSE_OK)`. In Go, `UpdateGlobalProperties` is a synchronous stub returning `error`. While the branching logic matches, the async nature of the global update is lost. (This may be an acceptable design adaptation for Go, but it means the global properties update doesn't actually perform the distributed update that the Java version does.)
-- [x] **Missing response wrapping**: Java returns `HttpHandlerResult<ResponseDTO<Void>>` (a proper HTTP response wrapper), while Go returns bare `error`. The success path returns `nil` error with no response body information, losing the `RESPONSE_OK` semantics.
+- [ ] **`UpdateGlobalProperties` return type mismatch**: In Java, `updateGlobalProperties` returns a `Mono<Void>` (asynchronous/reactive), and the result is chained with `.thenReturn(RESPONSE_OK)`. In Go, `UpdateGlobalProperties` is a synchronous stub returning `error`. While the branching logic matches, the async nature of the global update is lost. (This may be an acceptable design adaptation for Go, but it means the global properties update doesn't actually perform the distributed update that the Java version does.)
+- [ ] **Missing response wrapping**: Java returns `HttpHandlerResult<ResponseDTO<Void>>` (a proper HTTP response wrapper), while Go returns bare `error`. The success path returns `nil` error with no response body information, losing the `RESPONSE_OK` semantics.
 
 ## queryClusterConfigMetadata
 
-- [x] **Missing `TurmsPropertiesInspector` equivalent entirely**: No `ONLY_MUTABLE_METADATA` or `METADATA` lookup exists. The `onlyMutable` parameter is ignored. The Go code creates an empty map instead of looking up the appropriate metadata.
-- [x] **Missing `mergeMetadataWithPropertyValue` logic**: When `withValue` is true, Java merges metadata with actual property values (from local or global properties based on `queryLocalSettings`). The Go code completely ignores `withValue` and `queryLocalSettings`.
-- [x] **All three parameters are dead code**: `queryLocalSettings`, `onlyMutable`, and `withValue` are all accepted but never used in the function body.
-- [x] **Hardcoded schema version**: Same as `queryClusterSettings` — `"1.0"` is hardcoded instead of referencing `TurmsProperties.SCHEMA_VERSION`.
+- [ ] **Missing `TurmsPropertiesInspector` equivalent entirely**: No `ONLY_MUTABLE_METADATA` or `METADATA` lookup exists. The `onlyMutable` parameter is ignored. The Go code creates an empty map instead of looking up the appropriate metadata.
+- [ ] **Missing `mergeMetadataWithPropertyValue` logic**: When `withValue` is true, Java merges metadata with actual property values (from local or global properties based on `queryLocalSettings`). The Go code completely ignores `withValue` and `queryLocalSettings`.
+- [ ] **All three parameters are dead code**: `queryLocalSettings`, `onlyMutable`, and `withValue` are all accepted but never used in the function body.
+- [ ] **Hardcoded schema version**: Same as `queryClusterSettings` — `"1.0"` is hardcoded instead of referencing `TurmsProperties.SCHEMA_VERSION`.
 
 # AddMemberDTO.java
 *Checked methods: AddMemberDTO(String nodeId, String zone, String name, NodeType nodeType, String version, boolean isSeed, boolean isLeaderEligible, Date registrationDate, int priority, String memberHost, int memberPort, String adminApiAddress, String wsAddress, String tcpAddress, String udpAddress, boolean isActive, boolean isHealthy)*
 
 ## AddMemberDTO
 
-- [x] **Missing fields**: The Java `AddMemberDTO` has fields `version` (String), `registrationDate` (Date), `memberPort` (int), `adminApiAddress` (String), `wsAddress` (String), `tcpAddress` (String), `udpAddress` (String), `isActive` (boolean), and `isHealthy` (boolean). The Go `AddMemberDTO` is missing all of these: `Version`, `RegistrationDate`, `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, and `IsHealthy`.
+- [ ] **Missing fields**: The Java `AddMemberDTO` has fields `version` (String), `registrationDate` (Date), `memberPort` (int), `adminApiAddress` (String), `wsAddress` (String), `tcpAddress` (String), `udpAddress` (String), `isActive` (boolean), and `isHealthy` (boolean). The Go `AddMemberDTO` is missing all of these: `Version`, `RegistrationDate`, `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, and `IsHealthy`.
 
-- [x] **Incorrect field types**: In Java, `isLeaderEligible` is a primitive `boolean`, but in Go it is `*bool` (pointer). In Java, `memberHost` is a `String`, but in Go it is `*string` (pointer). In Java, `nodeType` is `NodeType` (value type), but in Go it is `*discovery.NodeType` (pointer). While pointer types may be intentional for optional/nullable semantics in Go APIs, these differ from the Java record which uses plain value types for these fields.
+- [ ] **Incorrect field types**: In Java, `isLeaderEligible` is a primitive `boolean`, but in Go it is `*bool` (pointer). In Java, `memberHost` is a `String`, but in Go it is `*string` (pointer). In Java, `nodeType` is `NodeType` (value type), but in Go it is `*discovery.NodeType` (pointer). While pointer types may be intentional for optional/nullable semantics in Go APIs, these differ from the Java record which uses plain value types for these fields.
 
 # SettingsDTO.java
 *Checked methods: SettingsDTO(int schemaVersion, Map<String, Object> settings)*
 
 ## SettingsDTO
 
-- [x] `SchemaVersion` field is typed as `string` in Go but the Java record uses `int`. The field should be `int` (or a Go numeric type like `int32`) to match the Java signature `int schemaVersion`.
-- [x] The JSON tag for `SchemaVersion` is `json:"schema_version"` (snake_case), but the Java record field is `schemaVersion` which would serialize as `schemaVersion` (camelCase) by default in most Java JSON libraries, creating a serialization mismatch.
+- [ ] `SchemaVersion` field is typed as `string` in Go but the Java record uses `int`. The field should be `int` (or a Go numeric type like `int32`) to match the Java signature `int schemaVersion`.
+- [ ] The JSON tag for `SchemaVersion` is `json:"schema_version"` (snake_case), but the Java record field is `schemaVersion` which would serialize as `schemaVersion` (camelCase) by default in most Java JSON libraries, creating a serialization mismatch.
 
 # BaseController.java
 *Checked methods: getPageSize(@Nullable Integer size), queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages), queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function), checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages), checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)*
@@ -9714,11 +9714,11 @@ No bugs found.
 
 ## queryBetweenDate (Function3 overload)
 
-- [x] Missing result sorting: Java explicitly sorts results by date via `collectSortedList` with a date comparator in `mergeStaticsRecords`. The Go version appends results in loop iteration order without sorting, relying on `DivideDuration` returning chronologically ordered pairs.
+- [ ] Missing result sorting: Java explicitly sorts results by date via `collectSortedList` with a date comparator in `mergeStaticsRecords`. The Go version appends results in loop iteration order without sorting, relying on `DivideDuration` returning chronologically ordered pairs.
 
 ## queryBetweenDate (Function overload)
 
-- [x] Missing result sorting: Same as the Function3 overload — Java's `mergeStaticsRecords` sorts results by date, but Go returns them in iteration order.
+- [ ] Missing result sorting: Same as the Function3 overload — Java's `mergeStaticsRecords` sorts results by date, but Go returns them in iteration order.
 
 ## checkAndQueryBetweenDate (Function3 overload)
 
@@ -9730,7 +9730,7 @@ No bugs beyond those inherited from `queryBetweenDate`.
 
 ## IsDurationNotGreaterThanMax / CalculateDuration
 
-- [x] Month calculation uses a slightly different constant: Go uses `24 * 30.4375 = 730.5` hours, while Java uses `2629746000L` milliseconds = `730.485` hours. This can cause different ceiling results for durations near month boundaries.
+- [ ] Month calculation uses a slightly different constant: Go uses `24 * 30.4375 = 730.5` hours, while Java uses `2629746000L` milliseconds = `730.485` hours. This can cause different ceiling results for durations near month boundaries.
 
 Wait, I should organize by the exact method names requested. The user asked about these specific methods:
 1. getPageSize
@@ -9747,97 +9747,97 @@ No bugs.
 
 ## queryBetweenDate (Function3 overload)
 
-- [x] Missing result sorting: Java uses `Flux.merge(recordMonos).collectSortedList(...)` which sorts the final results by date. The Go version returns results in the order they're appended in the loop, without any explicit sorting.
+- [ ] Missing result sorting: Java uses `Flux.merge(recordMonos).collectSortedList(...)` which sorts the final results by date. The Go version returns results in the order they're appended in the loop, without any explicit sorting.
 
 ## queryBetweenDate (Function overload)
 
-- [x] Missing result sorting: Same as the Function3 overload — no explicit sort by date as Java's `mergeStaticsRecords` does.
+- [ ] Missing result sorting: Same as the Function3 overload — no explicit sort by date as Java's `mergeStaticsRecords` does.
 
 ## checkAndQueryBetweenDate (Function3 overload)
 
-- [x] Month duration calculation precision differs from Java: Go's `CalculateDuration` uses `diff.Hours() / (24 * 30.4375)` (= 730.5 hours per month), while Java uses `2629746000L` milliseconds (= 730.485 hours per month). This can cause `IsDurationNotGreaterThanMax` to accept or reject slightly different date ranges for MONTH divide-by compared to Java.
+- [ ] Month duration calculation precision differs from Java: Go's `CalculateDuration` uses `diff.Hours() / (24 * 30.4375)` (= 730.5 hours per month), while Java uses `2629746000L` milliseconds (= 730.485 hours per month). This can cause `IsDurationNotGreaterThanMax` to accept or reject slightly different date ranges for MONTH divide-by compared to Java.
 
 ## checkAndQueryBetweenDate (Function overload)
 
-- [x] Same month duration calculation precision issue as the Function3 overload, inherited from the shared `IsDurationNotGreaterThanMax`/`CalculateDuration` helpers.
+- [ ] Same month duration calculation precision issue as the Function3 overload, inherited from the shared `IsDurationNotGreaterThanMax`/`CalculateDuration` helpers.
 
 # ServicePermission.java
 *Checked methods: ServicePermission(ResponseStatusCode code, String reason), get(ResponseStatusCode code), get(ResponseStatusCode code, String reason)*
 
 ## NewServicePermission
 
-- [x] **Reason for OK constant uses `""` instead of `nil`/empty distinction**: In Java, `OK` is defined as `new ServicePermission(ResponseStatusCode.OK, null)`. The Go version defines `OK` as `NewServicePermission(constant.ResponseStatusCode_OK, "")`. In Java, `reason` is `null`; in Go, `reason` is `""` (empty string). While Go doesn't have nullable strings, this is a semantic difference — downstream code checking `reason == nil` vs `reason == ""` would behave differently. This is an inherent language limitation and may be acceptable, but is a behavioral difference.
+- [ ] **Reason for OK constant uses `""` instead of `nil`/empty distinction**: In Java, `OK` is defined as `new ServicePermission(ResponseStatusCode.OK, null)`. The Go version defines `OK` as `NewServicePermission(constant.ResponseStatusCode_OK, "")`. In Java, `reason` is `null`; in Go, `reason` is `""` (empty string). While Go doesn't have nullable strings, this is a semantic difference — downstream code checking `reason == nil` vs `reason == ""` would behave differently. This is an inherent language limitation and may be acceptable, but is a behavioral difference.
 
 ## Get (single-parameter)
 
-- [x] **Missing `get(ResponseStatusCode code, String reason)` overload**: The Java code has two `get` methods: `get(ResponseStatusCode code)` and `get(ResponseStatusCode code, String reason)`. The Go file only ports the single-parameter `Get` method. The two-parameter `GetWithReason` (or equivalent) is missing from `service_permission.go`.
+- [ ] **Missing `get(ResponseStatusCode code, String reason)` overload**: The Java code has two `get` methods: `get(ResponseStatusCode code)` and `get(ResponseStatusCode code, String reason)`. The Go file only ports the single-parameter `Get` method. The two-parameter `GetWithReason` (or equivalent) is missing from `service_permission.go`.
 
 ## Get (single-parameter) — optimization deviation
 
-- [x] **Added optimization not present in Java**: The Java `get(ResponseStatusCode code)` always returns `new ServicePermission(code, null)` — a fresh instance every time, even for `OK`. The Go version adds an `if code == constant.ResponseStatusCode_OK { return OK }` check that returns a shared singleton. This is a behavioral difference: in Java, `get(OK) != OK` (different object reference), while in Go `Get(OK)` returns the same `OK` pointer. If any caller mutates the returned struct, this would cause shared-state bugs that don't exist in Java. The Java version intentionally creates new instances.
+- [ ] **Added optimization not present in Java**: The Java `get(ResponseStatusCode code)` always returns `new ServicePermission(code, null)` — a fresh instance every time, even for `OK`. The Go version adds an `if code == constant.ResponseStatusCode_OK { return OK }` check that returns a shared singleton. This is a behavioral difference: in Java, `get(OK) != OK` (different object reference), while in Go `Get(OK)` returns the same `OK` pointer. If any caller mutates the returned struct, this would cause shared-state bugs that don't exist in Java. The Java version intentionally creates new instances.
 
 ## Get (single-parameter) — reason mismatch
 
-- [x] **Passes `""` instead of `nil`/zero-value**: Java's `get(ResponseStatusCode code)` passes `null` for reason. Go's `Get` passes `""` for reason. Same issue as the constructor — Java uses `null`, Go uses empty string.
+- [ ] **Passes `""` instead of `nil`/zero-value**: Java's `get(ResponseStatusCode code)` passes `null` for reason. Go's `Get` passes `""` for reason. Same issue as the constructor — Java uses `null`, Go uses empty string.
 
 ## get(ResponseStatusCode code, String reason)
 
-- [x] **Method is entirely missing**: The Java two-parameter `get(ResponseStatusCode code, String reason)` method is not implemented in the Go `service_permission.go` file. This method simply delegates to `new ServicePermission(code, reason)` but it is a public API method that should be ported.
+- [ ] **Method is entirely missing**: The Java two-parameter `get(ResponseStatusCode code, String reason)` method is not implemented in the Go `service_permission.go` file. This method simply delegates to `new ServicePermission(code, reason)` but it is a public API method that should be ported.
 
 # UserDefinedAttributesService.java
 *Checked methods: updateGlobalProperties(UserDefinedAttributesProperties properties), parseAttributesForUpsert(Map<String, Value> userDefinedAttributes)*
 
 ## UpdateGlobalProperties
 
-- [x] **Mutates the input `attr` object directly instead of creating a copy with the defaulted `storedName`.** In Java (lines 82-85), when `storedName` is empty, a *new* `UserDefinedAttributeProperties` object is built via `.toBuilder().storedName(sourceName).build()` — the original is never modified. The Go code (line 75) directly mutates `attr.StoredName = sourceName`, which modifies the caller's input slice element in place. This is a side-effect bug if the properties object is shared or reused.
+- [ ] **Mutates the input `attr` object directly instead of creating a copy with the defaulted `storedName`.** In Java (lines 82-85), when `storedName` is empty, a *new* `UserDefinedAttributeProperties` object is built via `.toBuilder().storedName(sourceName).build()` — the original is never modified. The Go code (line 75) directly mutates `attr.StoredName = sourceName`, which modifies the caller's input slice element in place. This is a side-effect bug if the properties object is shared or reused.
 
-- [x] **Key used for the `sourceNameToAttributeProperties` map differs from Java when `storedName` is empty.** In Java (lines 82-85), when `storedName` is empty, the key is `sourceName` (not `storedName`). In Go (line 79), when `storedName` is empty, the key is also `sourceName` — this is correct. However, when `storedName` is *not* empty, Java (lines 89-90) keys by `storedName`, and Go (line 84) also keys by `storedName` — correct. **No bug here on second look, but the mutation issue above remains.**
+- [ ] **Key used for the `sourceNameToAttributeProperties` map differs from Java when `storedName` is empty.** In Java (lines 82-85), when `storedName` is empty, the key is `sourceName` (not `storedName`). In Go (line 79), when `storedName` is empty, the key is also `sourceName` — this is correct. However, when `storedName` is *not* empty, Java (lines 89-90) keys by `storedName`, and Go (line 84) also keys by `storedName` — correct. **No bug here on second look, but the mutation issue above remains.**
 
-- [x] **Java sorts the unknown attribute names in error messages using `TreeSet`; Go does not sort.** In `parseAttributes`, the Java code (lines 124, 161-166) wraps unknown attribute names in a `TreeSet` for deterministic sorted output in error messages. The Go version (lines 118-122, 140-146) appends keys in random map iteration order. This is a minor behavioral difference but could cause non-deterministic error messages.
+- [ ] **Java sorts the unknown attribute names in error messages using `TreeSet`; Go does not sort.** In `parseAttributes`, the Java code (lines 124, 161-166) wraps unknown attribute names in a `TreeSet` for deterministic sorted output in error messages. The Go version (lines 118-122, 140-146) appends keys in random map iteration order. This is a minor behavioral difference but could cause non-deterministic error messages.
 
 ## ParseAttributesForUpsert
 
-- [x] **Conflict detection logic is inverted compared to Java.** In Java (lines 221-222), `finalImmutableAttributesForUpsert.removeIf(settingName -> !existingAttributes.contains(settingName))` — this *removes* attributes that do NOT exist in the DB, keeping only those that DO exist (i.e., the conflicted ones). If the remaining set is non-empty, it throws. In Go (lines 203-208), the code builds a `conflicted` list of attributes that ARE in `existingMap`, and throws if non-empty. The final behavioral outcome is the same (throw if any immutable attribute already exists in DB), so the logic is functionally equivalent. **No bug here on closer inspection.**
+- [ ] **Conflict detection logic is inverted compared to Java.** In Java (lines 221-222), `finalImmutableAttributesForUpsert.removeIf(settingName -> !existingAttributes.contains(settingName))` — this *removes* attributes that do NOT exist in the DB, keeping only those that DO exist (i.e., the conflicted ones). If the remaining set is non-empty, it throws. In Go (lines 203-208), the code builds a `conflicted` list of attributes that ARE in `existingMap`, and throws if non-empty. The final behavioral outcome is the same (throw if any immutable attribute already exists in DB), so the logic is functionally equivalent. **No bug here on closer inspection.**
 
-- [x] **Java sorts the conflicted attributes list before including it in the error message; Go does not.** Java (lines 226-228) sorts `sortedConflictedAttributes` with `sort(null)` (natural ordering) before constructing the error string. Go (line 211) passes the unsorted `conflicted` slice to `fmt.Errorf`. This produces non-deterministic error message content.
+- [ ] **Java sorts the conflicted attributes list before including it in the error message; Go does not.** Java (lines 226-228) sorts `sortedConflictedAttributes` with `sort(null)` (natural ordering) before constructing the error string. Go (line 211) passes the unsorted `conflicted` slice to `fmt.Errorf`. This produces non-deterministic error message content.
 
-- [x] **Java validates `userDefinedAttributes` for `null` via `Validator.notNull` with the label `"userDefinedAttributes"` (lowercase 'u'); Go returns `"userDefinedAttributes must not be null"`.** The Java error message would be `"userDefinedAttributes must not be null"` (from `Validator.notNull`), which matches Go's message. **No bug.**
+- [ ] **Java validates `userDefinedAttributes` for `null` via `Validator.notNull` with the label `"userDefinedAttributes"` (lowercase 'u'); Go returns `"userDefinedAttributes must not be null"`.** The Java error message would be `"userDefinedAttributes must not be null"` (from `Validator.notNull`), which matches Go's message. **No bug.**
 
 # DataValidator.java
 *Checked methods: validRequestStatus(RequestStatus status), validResponseAction(ResponseAction action), validDeviceType(DeviceType deviceType), validProfileAccess(ProfileAccessStrategy value), validRelationshipKey(UserRelationship.Key key), validRelationshipGroupKey(UserRelationshipGroup.Key key), validGroupMemberKey(GroupMember.Key key), validGroupMemberRole(GroupMemberRole role), validGroupBlockedUserKey(GroupBlockedUser.Key key), validNewGroupQuestion(NewGroupQuestion question), validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)*
 
 ## ValidRequestStatus
-- [x] The Go version always returns `nil` (no validation) and accepts `interface{}` instead of a concrete enum type. The Java version checks `status == RequestStatus.UNRECOGNIZED` and throws `ILLEGAL_ARGUMENT` if true. The Go version performs zero validation.
+- [ ] The Go version always returns `nil` (no validation) and accepts `interface{}` instead of a concrete enum type. The Java version checks `status == RequestStatus.UNRECOGNIZED` and throws `ILLEGAL_ARGUMENT` if true. The Go version performs zero validation.
 
 ## ValidResponseAction
-- [x] The Go version always returns `nil` (no validation). The Java version checks `action == ResponseAction.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
+- [ ] The Go version always returns `nil` (no validation). The Java version checks `action == ResponseAction.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
 
 ## ValidDeviceType
-- [x] The Go version always returns `nil` (no validation). The Java version checks `deviceType == DeviceType.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
+- [ ] The Go version always returns `nil` (no validation). The Java version checks `deviceType == DeviceType.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
 
 ## ValidProfileAccess
-- [x] The Go version always returns `nil` (no validation). The Java version checks `value == ProfileAccessStrategy.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
+- [ ] The Go version always returns `nil` (no validation). The Java version checks `value == ProfileAccessStrategy.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
 
 ## ValidRelationshipKey
-- [x] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getOwnerId() == null` and `key.getRelatedUserId() == null`, returning an error if either field is null.
+- [ ] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getOwnerId() == null` and `key.getRelatedUserId() == null`, returning an error if either field is null.
 
 ## ValidRelationshipGroupKey
-- [x] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getOwnerId() == null` and `key.getGroupIndex() == null`, returning an error if either field is null.
+- [ ] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getOwnerId() == null` and `key.getGroupIndex() == null`, returning an error if either field is null.
 
 ## ValidGroupMemberKey
-- [x] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getGroupId() == null` and `key.getUserId() == null`, returning an error if either field is null.
+- [ ] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getGroupId() == null` and `key.getUserId() == null`, returning an error if either field is null.
 
 ## ValidGroupMemberRole
-- [x] The Go version always returns `nil` (no validation). The Java version checks `role == GroupMemberRole.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
+- [ ] The Go version always returns `nil` (no validation). The Java version checks `role == GroupMemberRole.UNRECOGNIZED` and throws if true. The Go version performs zero validation.
 
 ## ValidGroupBlockedUserKey
-- [x] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getGroupId() == null` and `key.getUserId() == null`, returning an error if either field is null.
+- [ ] The Go version only checks if `key == nil`. The Java version additionally checks that `key.getGroupId() == null` and `key.getUserId() == null`, returning an error if either field is null.
 
 ## ValidNewGroupQuestion
-- [x] The Go version only checks if `question == nil`. The Java version checks whether `question.answers()` is empty (throwing if so) and whether `question.score()` is null or less than 0 (throwing if so). The Go version is missing both the empty-answers check and the score validation.
+- [ ] The Go version only checks if `question == nil`. The Java version checks whether `question.answers()` is empty (throwing if so) and whether `question.score()` is null or less than 0 (throwing if so). The Go version is missing both the empty-answers check and the score validation.
 
 ## ValidGroupQuestionIdAndAnswer
-- [x] The Go version only checks if `questionIdAndAnswer == nil`. The Java version additionally checks that `questionIdAndAnswer.getKey() == null` and `questionIdAndAnswer.getValue() == null`, returning an error if either is null.
+- [ ] The Go version only checks if `questionIdAndAnswer == nil`. The Java version additionally checks that `questionIdAndAnswer.getKey() == null` and `questionIdAndAnswer.getValue() == null`, returning an error if either is null.
 
 # ConferenceServiceController.java
 *Checked methods: handleCreateMeetingRequest(), handleDeleteMeetingRequest(), handleUpdateMeetingRequest(), handleQueryMeetingsRequest(), handleUpdateMeetingInvitationRequest()*
@@ -9873,23 +9873,23 @@ Now I can compile the definitive bug list:
 
 ## HandleDeleteMeetingRequest
 
-- [x] **Returns nil on unsuccessful cancel instead of OK response**: When `!result.Success`, Go returns `nil, nil` (line 86). Java returns `RequestHandlerResult.OK` — a valid OK notification back to the client. The Go code silently drops the response.
+- [ ] **Returns nil on unsuccessful cancel instead of OK response**: When `!result.Success`, Go returns `nil, nil` (line 86). Java returns `RequestHandlerResult.OK` — a valid OK notification back to the client. The Go code silently drops the response.
 
-- [x] **Missing notification to requester's other online sessions**: Java uses `RequestHandlerResult.of(true, participantIds, clientRequest.turmsRequest())` which both notifies participants AND forwards to the requester's other online sessions (the `true` boolean flag). Go only sends to `filteredIds` (participants minus requester) via `ForwardNotificationToMultiple`. The requester's other sessions are never notified.
+- [ ] **Missing notification to requester's other online sessions**: Java uses `RequestHandlerResult.of(true, participantIds, clientRequest.turmsRequest())` which both notifies participants AND forwards to the requester's other online sessions (the `true` boolean flag). Go only sends to `filteredIds` (participants minus requester) via `ForwardNotificationToMultiple`. The requester's other sessions are never notified.
 
 ## HandleUpdateMeetingRequest
 
-- [x] **Missing notification to requester's other online sessions when participants exist with password**: Java's `RequestHandlerResult.of(participantIds, modifiedRequest, originalRequest)` sends the password-cleared request to participants AND the original request (with password) to the requester's other online sessions. Go only sends the password-cleared request to participants. The requester's other sessions never get the original request.
+- [ ] **Missing notification to requester's other online sessions when participants exist with password**: Java's `RequestHandlerResult.of(participantIds, modifiedRequest, originalRequest)` sends the password-cleared request to participants AND the original request (with password) to the requester's other online sessions. Go only sends the password-cleared request to participants. The requester's other sessions never get the original request.
 
-- [x] **Missing notification to requester's other online sessions when no participants or no password**: When `participantIds` is empty after filtering or no password is present, Java returns `RequestHandlerResult.of(true, clientRequest.turmsRequest())` which forwards the original request to the requester's other online sessions. Go never does this — the `else if` branch at line 231 handles this case for the non-participant-notification path, but within the participant-notification path (lines 212-230), Go only sends to participants, never to requester's other sessions.
+- [ ] **Missing notification to requester's other online sessions when no participants or no password**: When `participantIds` is empty after filtering or no password is present, Java returns `RequestHandlerResult.of(true, clientRequest.turmsRequest())` which forwards the original request to the requester's other online sessions. Go never does this — the `else if` branch at line 231 handles this case for the non-participant-notification path, but within the participant-notification path (lines 212-230), Go only sends to participants, never to requester's other sessions.
 
 ## HandleUpdateMeetingInvitationRequest
 
-- [x] **Missing notification to requester's other online sessions in the participant notification path**: Java uses `RequestHandlerResult.of(response, true, participantIds, notification)` which forwards to both participants and requester's other sessions. Go only sends to participants. The requester's other sessions are never notified in this branch.
+- [ ] **Missing notification to requester's other online sessions in the participant notification path**: Java uses `RequestHandlerResult.of(response, true, participantIds, notification)` which forwards to both participants and requester's other sessions. Go only sends to participants. The requester's other sessions are never notified in this branch.
 
-- [x] **Missing response data (access token) in the requester-other-sessions-only branch**: When `notifyRequesterOtherOnlineSessions` is true (but not `notifyMeetingParticipants`), Java at lines 338-344 creates a response with the access token (if ACCEPT action) AND forwards to the requester's other sessions via `RequestHandlerResult.of(data, true, Collections.emptySet(), clientRequest.turmsRequest())`. Go at lines 289-295 only forwards the raw request to requester's other sessions without including the response data with the access token in the forwarded notification. The access token IS correctly returned in the main response at line 299, but in Java, the forwarded notification to other sessions also carries context about the response.
+- [ ] **Missing response data (access token) in the requester-other-sessions-only branch**: When `notifyRequesterOtherOnlineSessions` is true (but not `notifyMeetingParticipants`), Java at lines 338-344 creates a response with the access token (if ACCEPT action) AND forwards to the requester's other sessions via `RequestHandlerResult.of(data, true, Collections.emptySet(), clientRequest.turmsRequest())`. Go at lines 289-295 only forwards the raw request to requester's other sessions without including the response data with the access token in the forwarded notification. The access token IS correctly returned in the main response at line 299, but in Java, the forwarded notification to other sessions also carries context about the response.
 
-- [x] **Unconditionally clears password in notification to participants**: Go always clears the password when notifying participants (lines 281-282). Java only clears the password when `request.hasPassword()` is true (line 319: `if (participantIds.isEmpty() || !request.hasPassword())`). When there is no password in the request, Java sends the original request as-is to participants. Go unnecessarily clones and clears a non-existent password field. This is functionally equivalent if the password field was already nil, but represents a deviation from the Java logic.
+- [ ] **Unconditionally clears password in notification to participants**: Go always clears the password when notifying participants (lines 281-282). Java only clears the password when `request.hasPassword()` is true (line 319: `if (participantIds.isEmpty() || !request.hasPassword())`). When there is no password in the request, Java sends the original request as-is to participants. Go unnecessarily clones and clears a non-existent password field. This is functionally equivalent if the password field was already nil, but represents a deviation from the Java logic.
 
 # MeetingRepository.java
 *Checked methods: updateEndDate(Long meetingId, Date endDate), updateCancelDateIfNotCanceled(Long meetingId, Date cancelDate), updateMeeting(Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password), find(@Nullable Collection<Long> ids, @Nullable Collection<Long> creatorIds, @Nullable Collection<Long> userIds, @Nullable Collection<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit), find(@Nullable Collection<Long> ids, @NotNull Long creatorId, @NotNull Long userId, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)*
@@ -9943,11 +9943,11 @@ Actually wait, let me re-examine. In MongoDB, `eq(field, null)` matches both `{f
 Here is my final assessment:
 
 ## UpdateCancelDateIfNotCanceled
-- [x] **Wrong MongoDB field name for cancelDate**: Java uses field name `"ccd"` (from `Meeting.Fields.CANCEL_DATE = "ccd"`), but the Go code and Go model use `"cad"`. The filter `{"cad": bson.M{"$exists": false}}` queries/updates a different field than the Java code's `eq("ccd", null)`.
-- [x] **`$exists: false` vs null check semantics**: Java uses `.eq(Meeting.Fields.CANCEL_DATE, null)` which in MongoDB matches documents where the field is either absent OR explicitly set to `null`. The Go code uses `{"$exists": false}` which only matches documents where the field is absent entirely, missing documents where the field exists but is `null`.
+- [ ] **Wrong MongoDB field name for cancelDate**: Java uses field name `"ccd"` (from `Meeting.Fields.CANCEL_DATE = "ccd"`), but the Go code and Go model use `"cad"`. The filter `{"cad": bson.M{"$exists": false}}` queries/updates a different field than the Java code's `eq("ccd", null)`.
+- [ ] **`$exists: false` vs null check semantics**: Java uses `.eq(Meeting.Fields.CANCEL_DATE, null)` which in MongoDB matches documents where the field is either absent OR explicitly set to `null`. The Go code uses `{"$exists": false}` which only matches documents where the field is absent entirely, missing documents where the field exists but is `null`.
 
 ## FindByCreatorAndUser
-- [x] **Incorrect OR logic — should be AND inside OR clause**: The Java code uses `.or(Filter.newBuilder(2).eq(CREATOR_ID, creatorId).eq(USER_ID, userId))` which creates a single `$or` element requiring **both** `creatorId` AND `userId` to match simultaneously on the same document. The Go code `$or: [{cid: creatorID}, {uid: userID}]` uses two separate `$or` conditions, matching documents where **either** `creatorId` matches **or** `userId` matches, which is fundamentally different behavior. The Go code should instead not use `$or` at all and simply add both `cid` and `uid` as top-level equality filters (since the Java `.or()` with a single group is equivalent to an AND of both conditions at the top level).
+- [ ] **Incorrect OR logic — should be AND inside OR clause**: The Java code uses `.or(Filter.newBuilder(2).eq(CREATOR_ID, creatorId).eq(USER_ID, userId))` which creates a single `$or` element requiring **both** `creatorId` AND `userId` to match simultaneously on the same document. The Go code `$or: [{cid: creatorID}, {uid: userID}]` uses two separate `$or` conditions, matching documents where **either** `creatorId` matches **or** `userId` matches, which is fundamentally different behavior. The Go code should instead not use `$or` at all and simply add both `cid` and `uid` as top-level equality filters (since the Java `.or()` with a single group is equivalent to an AND of both conditions at the top level).
 
 # ConferenceService.java
 *Checked methods: onExtensionStarted(ConferenceServiceProvider extension), authAndCancelMeeting(@NotNull Long requesterId, @NotNull Long meetingId), queryMeetingParticipants(@Nullable Long userId, @Nullable Long groupId), authAndUpdateMeeting(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String name, @Nullable String intro, @Nullable String password), authAndUpdateMeetingInvitation(@NotNull Long requesterId, @NotNull Long meetingId, @Nullable String password, @NotNull ResponseAction responseAction), authAndQueryMeetings(@NotNull Long requesterId, @Nullable Set<Long> ids, @Nullable Set<Long> creatorIds, @Nullable Set<Long> userIds, @Nullable Set<Long> groupIds, @Nullable Date creationDateStart, @Nullable Date creationDateEnd, @Nullable Integer skip, @Nullable Integer limit)*
@@ -10000,35 +10000,35 @@ This one looks correct.
 
 ## onExtensionStarted
 
-- [x] Missing: The entire method body is empty (just a TODO comment). Java registers a `MeetingEndedEvent` listener on the extension via `extension.addMeetingEndedEventListener(ConferenceService.this::handleMeetingEndedEvent)` which calls `meetingRepository.updateEndDate(meetingId, timestamp)` to persist meeting end dates when conferences end.
+- [ ] Missing: The entire method body is empty (just a TODO comment). Java registers a `MeetingEndedEvent` listener on the extension via `extension.addMeetingEndedEventListener(ConferenceService.this::handleMeetingEndedEvent)` which calls `meetingRepository.updateEndDate(meetingId, timestamp)` to persist meeting end dates when conferences end.
 
 ## authAndCancelMeeting
 
-- [x] Missing `hasConferenceServiceProvider()` check: Java first checks `!hasConferenceServiceProvider()` and returns `CONFERENCE_NOT_IMPLEMENTED` if no conference service provider is registered. Go omits this check entirely.
-- [x] Missing `isAllowedToViewMeetingInfo` authorization distinction: When the requester is not the creator, Java calls `isAllowedToViewMeetingInfo(requesterId, meeting)` to decide between returning `NOT_CREATOR_TO_CANCEL_MEETING` (if the requester is a participant/group member and can view the info) vs. `CANCEL_NONEXISTENT_MEETING` (if not). Go always returns `NOT_CREATOR_TO_CANCEL_MEETING` for non-creators, leaking meeting existence to unauthorized users.
-- [x] Missing transaction wrapper: Java wraps the cancel operation in `meetingRepository.inTransaction(clientSession -> ...)`. Go calls `UpdateCancelDateIfNotCanceled` without a transaction.
-- [x] Missing plugin extension point call: Java calls `pluginManager.invokeFirstExtensionPoint(..., extensionPoint -> extensionPoint.cancelMeeting(requesterId, meetingId))` after updating the cancel date. Go omits this entirely.
-- [x] Wrong error code for already-canceled meeting: When `success == false` (meeting already canceled), Go returns `ACCEPT_MEETING_INVITATION_OF_CANCELED_MEETING` error code. Java returns `CancelMeetingResult.FAILED` (a result, not an error), and only returns that specific error code in the invitation acceptance path.
+- [ ] Missing `hasConferenceServiceProvider()` check: Java first checks `!hasConferenceServiceProvider()` and returns `CONFERENCE_NOT_IMPLEMENTED` if no conference service provider is registered. Go omits this check entirely.
+- [ ] Missing `isAllowedToViewMeetingInfo` authorization distinction: When the requester is not the creator, Java calls `isAllowedToViewMeetingInfo(requesterId, meeting)` to decide between returning `NOT_CREATOR_TO_CANCEL_MEETING` (if the requester is a participant/group member and can view the info) vs. `CANCEL_NONEXISTENT_MEETING` (if not). Go always returns `NOT_CREATOR_TO_CANCEL_MEETING` for non-creators, leaking meeting existence to unauthorized users.
+- [ ] Missing transaction wrapper: Java wraps the cancel operation in `meetingRepository.inTransaction(clientSession -> ...)`. Go calls `UpdateCancelDateIfNotCanceled` without a transaction.
+- [ ] Missing plugin extension point call: Java calls `pluginManager.invokeFirstExtensionPoint(..., extensionPoint -> extensionPoint.cancelMeeting(requesterId, meetingId))` after updating the cancel date. Go omits this entirely.
+- [ ] Wrong error code for already-canceled meeting: When `success == false` (meeting already canceled), Go returns `ACCEPT_MEETING_INVITATION_OF_CANCELED_MEETING` error code. Java returns `CancelMeetingResult.FAILED` (a result, not an error), and only returns that specific error code in the invitation acceptance path.
 
 ## authAndUpdateMeeting
 
-- [x] Missing input validation: Java validates `name` length (`nameMinLength`..`nameMaxLength`), `intro` length (`introMinLength`..`introMaxLength`), and calls `validatePassword(password)` which enforces the configured `passwordPolicy` (e.g. `SYSTEM_GENERATED` passwords cannot be updated by users, `PROHIBITED` rejects the request). Go performs no such validation.
-- [x] Authorization logic differs from Java's `isAllowedToViewMeetingInfo`: Java uses a single `isAllowedToViewMeetingInfo(requesterId, meeting)` method that returns `TRUE` if: (a) requester is the creator, OR (b) requester equals `meeting.getUserId()`, OR (c) `meeting.getGroupId() == null`. Go's permission check only handles the case where the requester is NOT the creator and separately checks group membership or user ID match. Critically, Go does not allow a non-creator, non-group-member requester who matches `meeting.UserId` when `GroupID` is also set — Java does allow this (it checks `requesterId.equals(meeting.getUserId())` first, which covers all cases). Also, Go's non-password path uses a different error code path for the unauthorized case.
-- [x] Missing `modifiedCount` check on update result: Java checks `updateResult.getModifiedCount() > 0` and returns `UpdateMeetingResult.FAILED` if 0 rows were modified. Go does not check the update result at all and always returns success.
+- [ ] Missing input validation: Java validates `name` length (`nameMinLength`..`nameMaxLength`), `intro` length (`introMinLength`..`introMaxLength`), and calls `validatePassword(password)` which enforces the configured `passwordPolicy` (e.g. `SYSTEM_GENERATED` passwords cannot be updated by users, `PROHIBITED` rejects the request). Go performs no such validation.
+- [ ] Authorization logic differs from Java's `isAllowedToViewMeetingInfo`: Java uses a single `isAllowedToViewMeetingInfo(requesterId, meeting)` method that returns `TRUE` if: (a) requester is the creator, OR (b) requester equals `meeting.getUserId()`, OR (c) `meeting.getGroupId() == null`. Go's permission check only handles the case where the requester is NOT the creator and separately checks group membership or user ID match. Critically, Go does not allow a non-creator, non-group-member requester who matches `meeting.UserId` when `GroupID` is also set — Java does allow this (it checks `requesterId.equals(meeting.getUserId())` first, which covers all cases). Also, Go's non-password path uses a different error code path for the unauthorized case.
+- [ ] Missing `modifiedCount` check on update result: Java checks `updateResult.getModifiedCount() > 0` and returns `UpdateMeetingResult.FAILED` if 0 rows were modified. Go does not check the update result at all and always returns success.
 
 ## authAndUpdateMeetingInvitation
 
-- [x] Missing `hasConferenceServiceProvider()` check: Java returns `CONFERENCE_NOT_IMPLEMENTED` if no conference service provider is running. Go omits this check.
-- [x] Missing `UNRECOGNIZED` response action handling: Java treats `ResponseAction.UNRECOGNIZED` the same as `IGNORE` (returns `UpdateMeetingInvitationResult(false, null, null)`). Go only checks for `IGNORE`.
-- [x] Password matching logic is different: Java uses `isPasswordMatched(password, meeting.getPassword())` which returns `true` if `actualPassword` is null/empty (no password set on meeting) AND the provided password is also null/empty, OR if `actualPassword.equals(password)`. Go's logic `password != nil && (meeting.Password != nil && *password != *meeting.Password)` only rejects when both are non-nil and don't match, but doesn't handle the case where the meeting has no password and the user provides a non-empty password (Java would accept this, Go would also accept but via different logic path), and more importantly doesn't match Java's exact null/empty equivalence logic.
-- [x] Missing expiration check for meetings with null `startDate`: Java checks if `startDate == null` and calculates an idle timeout (`CREATE_MEETING_OPTIONS_FOR_PRIVATE_MEETING.idleTimeoutMillis()` or `CREATE_MEETING_OPTIONS_FOR_GROUP_MEETING.idleTimeoutMillis()`) from the creation date. If expired, returns `EXCEPTION_ACCEPT_MEETING_INVITATION_OF_EXPIRED_MEETING`. Go has no expiration check at all.
-- [x] Missing plugin extension point `acceptMeetingInvitation` call: Java calls `extensionPoint.acceptMeetingInvitation(requesterId, meeting.getId())` which returns an access token included in the result. Go has only a TODO comment and never sets the `AccessToken` field.
-- [x] Missing `switchIfEmpty` fallback: Java has `.switchIfEmpty(EXCEPTION_ACCEPT_NONEXISTENT_MEETING_INVITATION)` to handle the case where `findById` returns empty (meeting not found). Go returns an error inline when `meeting == nil`, which is functionally similar but uses a different code path structure.
-- [x] Missing case where both `userId` and `groupId` are null on the meeting: Java falls through to `return check` directly when both are null, allowing any requester to proceed. Go's permission check skips all authorization when both are nil (the `if/else if` chain falls through without returning an error), which is functionally equivalent but structurally different.
+- [ ] Missing `hasConferenceServiceProvider()` check: Java returns `CONFERENCE_NOT_IMPLEMENTED` if no conference service provider is running. Go omits this check.
+- [ ] Missing `UNRECOGNIZED` response action handling: Java treats `ResponseAction.UNRECOGNIZED` the same as `IGNORE` (returns `UpdateMeetingInvitationResult(false, null, null)`). Go only checks for `IGNORE`.
+- [ ] Password matching logic is different: Java uses `isPasswordMatched(password, meeting.getPassword())` which returns `true` if `actualPassword` is null/empty (no password set on meeting) AND the provided password is also null/empty, OR if `actualPassword.equals(password)`. Go's logic `password != nil && (meeting.Password != nil && *password != *meeting.Password)` only rejects when both are non-nil and don't match, but doesn't handle the case where the meeting has no password and the user provides a non-empty password (Java would accept this, Go would also accept but via different logic path), and more importantly doesn't match Java's exact null/empty equivalence logic.
+- [ ] Missing expiration check for meetings with null `startDate`: Java checks if `startDate == null` and calculates an idle timeout (`CREATE_MEETING_OPTIONS_FOR_PRIVATE_MEETING.idleTimeoutMillis()` or `CREATE_MEETING_OPTIONS_FOR_GROUP_MEETING.idleTimeoutMillis()`) from the creation date. If expired, returns `EXCEPTION_ACCEPT_MEETING_INVITATION_OF_EXPIRED_MEETING`. Go has no expiration check at all.
+- [ ] Missing plugin extension point `acceptMeetingInvitation` call: Java calls `extensionPoint.acceptMeetingInvitation(requesterId, meeting.getId())` which returns an access token included in the result. Go has only a TODO comment and never sets the `AccessToken` field.
+- [ ] Missing `switchIfEmpty` fallback: Java has `.switchIfEmpty(EXCEPTION_ACCEPT_NONEXISTENT_MEETING_INVITATION)` to handle the case where `findById` returns empty (meeting not found). Go returns an error inline when `meeting == nil`, which is functionally similar but uses a different code path structure.
+- [ ] Missing case where both `userId` and `groupId` are null on the meeting: Java falls through to `return check` directly when both are null, allowing any requester to proceed. Go's permission check skips all authorization when both are nil (the `if/else if` chain falls through without returning an error), which is functionally equivalent but structurally different.
 
 ## authAndQueryMeetings
 
-- [x] Group meeting query behavior differs: When querying group meetings, Java fetches all joined group IDs of the requester via `queryUserJoinedGroupIds`, then passes those joined group IDs directly to `meetingRepository.find(...)` as the `groupIds` parameter — meaning it queries ALL meetings in any group the user has joined, regardless of what `groupIds` were requested. Go intersects the requested `groupIDs` with the user's joined groups, only querying meetings in groups that were both requested and joined. These are semantically different: Java returns meetings from all joined groups (ignoring the requested groupIds filter), Go only returns meetings from the intersection of requested and joined groups.
+- [ ] Group meeting query behavior differs: When querying group meetings, Java fetches all joined group IDs of the requester via `queryUserJoinedGroupIds`, then passes those joined group IDs directly to `meetingRepository.find(...)` as the `groupIds` parameter — meaning it queries ALL meetings in any group the user has joined, regardless of what `groupIds` were requested. Go intersects the requested `groupIDs` with the user's joined groups, only querying meetings in groups that were both requested and joined. These are semantically different: Java returns meetings from all joined groups (ignoring the requested groupIds filter), Go only returns meetings from the intersection of requested and joined groups.
 
 # ConversationServiceController.java
 *Checked methods: handleQueryConversationsRequest(), handleUpdateTypingStatusRequest(), handleUpdateConversationRequest()*
@@ -10230,9 +10230,9 @@ This method appears to be correctly ported.
 ## handleUpdateTypingStatusRequest
 
 ## handleQueryConversationsRequest
-- [x] **Bug 1: Wrong status code when both lists are empty** — Java returns `NO_CONTENT` (`RequestHandlerResult.NO_CONTENT`), Go returns `ResponseStatusCode_OK` (`dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK)`). The Java semantic is "no data to return" while Go signals "success with no data".
-- [x] **Bug 2: Private conversation key construction has OwnerID and TargetID swapped** — In Java, `queryPrivateConversations(targetIds, clientRequest.userId())` creates keys as `Key(ownerId=requestTargetId, targetId=currentUserId)`. In Go, the keys are constructed as `PrivateConversationKey{OwnerID: request.UserId, TargetID: targetID}` which is `Key(OwnerID=currentUserId, TargetID=requestTargetId)` — the two fields are reversed, meaning Go queries for different database records than Java.
-- [x] **Bug 3: Go queries both private and group conversations simultaneously, Java is either-or** — When both `targetIDs` and `groupIDs` are non-empty, Java only queries private conversations (the `else` branch on line 117). Go queries both independently and returns a combined result. The Java design intentionally prioritizes private conversations and ignores `groupIds` when `targetIds` is present.
+- [ ] **Bug 1: Wrong status code when both lists are empty** — Java returns `NO_CONTENT` (`RequestHandlerResult.NO_CONTENT`), Go returns `ResponseStatusCode_OK` (`dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK)`). The Java semantic is "no data to return" while Go signals "success with no data".
+- [ ] **Bug 2: Private conversation key construction has OwnerID and TargetID swapped** — In Java, `queryPrivateConversations(targetIds, clientRequest.userId())` creates keys as `Key(ownerId=requestTargetId, targetId=currentUserId)`. In Go, the keys are constructed as `PrivateConversationKey{OwnerID: request.UserId, TargetID: targetID}` which is `Key(OwnerID=currentUserId, TargetID=requestTargetId)` — the two fields are reversed, meaning Go queries for different database records than Java.
+- [ ] **Bug 3: Go queries both private and group conversations simultaneously, Java is either-or** — When both `targetIDs` and `groupIDs` are non-empty, Java only queries private conversations (the `else` branch on line 117). Go queries both independently and returns a combined result. The Java design intentionally prioritizes private conversations and ignores `groupIds` when `targetIds` is present.
 
 ## handleUpdateConversationRequest
 - [ ] **Bug 4: Go incorrectly rejects request when both targetID and groupID are present** — The Go code (lines 118-120) returns `ILLEGAL_ARGUMENT` when both `targetID != nil && groupID != nil`. Java has no such check; when both fields are present, it takes the private conversation path because `hasUserId` is true. The Go code is stricter than the Java original.
@@ -10486,23 +10486,23 @@ Here is the complete bug report:
 
 ## UpsertSettings
 
-- [x] **Early return when settings map is empty**: The Go version returns `(false, nil)` when `len(settings) == 0` (line 31-33). The Java version does NOT have this early return — it proceeds with the upsert regardless, which would still set `lastUpdatedDate`. This changes behavior when called with an empty settings map.
+- [ ] **Early return when settings map is empty**: The Go version returns `(false, nil)` when `len(settings) == 0` (line 31-33). The Java version does NOT have this early return — it proceeds with the upsert regardless, which would still set `lastUpdatedDate`. This changes behavior when called with an empty settings map.
 
 ## UnsetSettings
 
-- [x] **Missing `$set` for `lastUpdatedDate`**: The Java version includes both a `$set` for `LAST_UPDATED_DATE` (to `new Date()`) AND the `$unset` operations in the same update (lines 88-89). The Go version (lines 55-64) only performs `$unset` and never sets `lastUpdatedDate`. This means the `lastUpdatedDate` is not updated when settings are unset, which diverges from the Java behavior.
+- [ ] **Missing `$set` for `lastUpdatedDate`**: The Java version includes both a `$set` for `LAST_UPDATED_DATE` (to `new Date()`) AND the `$unset` operations in the same update (lines 88-89). The Go version (lines 55-64) only performs `$unset` and never sets `lastUpdatedDate`. This means the `lastUpdatedDate` is not updated when settings are unset, which diverges from the Java behavior.
 
 ## FindByKey (findByIdAndSettingNames by ownerId)
 
-- [x] **Wrong query filter — queries by composite key instead of ownerId only**: The Java `findByIdAndSettingNames(Long ownerId, ...)` filters by `ID_OWNER_ID` (i.e., `_id.oid`) which matches ALL conversation settings for that owner across all target IDs, returning multiple results. The Go `FindByKey` (line 94-121) filters by the full composite key `_id` (ownerId + targetId) and returns a single document. These are completely different queries with different semantics.
+- [ ] **Wrong query filter — queries by composite key instead of ownerId only**: The Java `findByIdAndSettingNames(Long ownerId, ...)` filters by `ID_OWNER_ID` (i.e., `_id.oid`) which matches ALL conversation settings for that owner across all target IDs, returning multiple results. The Go `FindByKey` (line 94-121) filters by the full composite key `_id` (ownerId + targetId) and returns a single document. These are completely different queries with different semantics.
 
 ## FindSettingFields
 
-- [x] **Fundamentally different return semantics — returns values map instead of field names**: The Java `findSettingFields` uses `findObjectFields` which returns `Flux<String>` — the **names of fields** that exist in the settings object and match the `includedFields` filter (via aggregation pipeline with `$objectToArray`, `$map`, `$getField`). The Go version (lines 197-213) returns `map[string]any` — the actual **values** of those settings fields. The return types and semantics are entirely different: Java returns which setting keys exist, Go returns the setting key-value pairs.
+- [ ] **Fundamentally different return semantics — returns values map instead of field names**: The Java `findSettingFields` uses `findObjectFields` which returns `Flux<String>` — the **names of fields** that exist in the settings object and match the `includedFields` filter (via aggregation pipeline with `$objectToArray`, `$map`, `$getField`). The Go version (lines 197-213) returns `map[string]any` — the actual **values** of those settings fields. The return types and semantics are entirely different: Java returns which setting keys exist, Go returns the setting key-value pairs.
 
 ## DeleteByOwnerIds
 
-- [x] **Missing ClientSession parameter for transactional support**: The Java version accepts `@Nullable ClientSession clientSession` and passes it to `mongoClient.deleteMany(clientSession, entityClass, filter)` (lines 156-160). The Go version (lines 216-226) does not accept or use a session, which means it cannot participate in multi-document MongoDB transactions as the Java version can.
+- [ ] **Missing ClientSession parameter for transactional support**: The Java version accepts `@Nullable ClientSession clientSession` and passes it to `mongoClient.deleteMany(clientSession, entityClass, filter)` (lines 156-160). The Go version (lines 216-226) does not accept or use a session, which means it cannot participate in multi-document MongoDB transactions as the Java version can.
 
 # PrivateConversationRepository.java
 *Checked methods: upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward), deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session), findConversations(Collection<Long> ownerIds)*
@@ -10523,7 +10523,7 @@ However, the Go implementation's `$or` uses `$exists: false` instead of checking
 
 ## Upsert
 
-- [x] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
+- [ ] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
 
 ## DeleteConversationsByOwnerIds
 
@@ -10535,7 +10535,7 @@ No bugs found. The field name `_id.oid` matches Java's `PrivateConversation.Fiel
 
 ## Upsert
 
-- [x] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
+- [ ] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
 
 ## DeleteConversationsByOwnerIds
 
@@ -10888,17 +10888,17 @@ Let me finalize. The key bugs are:
 - [ ] Fails fast on first error instead of running all operations and collecting errors (Java: `Mono.whenDelayError`)
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null readDate handling — delegates to UpsertPrivateConversationsReadDate with `&readDate` which is always non-nil, so zero-value `time.Time` won't be replaced with `time.Now()`
+- [ ] Missing null readDate handling — delegates to UpsertPrivateConversationsReadDate with `&readDate` which is always non-nil, so zero-value `time.Time` won't be replaced with `time.Now()`
 
 ## upsertPrivateConversationsReadDate
-- [x] Same DuplicateKey handling issue — always returns error, Java swallows when readDate was null
+- [ ] Same DuplicateKey handling issue — always returns error, Java swallows when readDate was null
 
 ## queryPrivateConversations
-- [x] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)`
+- [ ] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)`
 
 ## authAndUpdateTypingStatus
-- [x] `FindGroupMemberIDs` missing "active only" filter flag — Java passes `true` for active-only, Go may return inactive/banned members
-- [x] `IsGroupMember` in `authAndUpsertGroupConversationReadDate` also missing the active-only flag present in Java
+- [ ] `FindGroupMemberIDs` missing "active only" filter flag — Java passes `true` for active-only, Go may return inactive/banned members
+- [ ] `IsGroupMember` in `authAndUpsertGroupConversationReadDate` also missing the active-only flag present in Java
 
 Wait, the IsGroupMember flag issue is in `authAndUpsertGroupConversationReadDate`, not `authAndUpdateTypingStatus`. Let me re-check.
 
@@ -10933,27 +10933,27 @@ OK, I think the flag issue is really an implementation detail of the Go `GroupMe
 Let me now write up the final bug report.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember` call missing the active-only boolean parameter present in Java (`isGroupMember(groupId, memberId, true)`). If Go's implementation doesn't default to active-only, inactive/banned members could update read dates.
+- [ ] `IsGroupMember` call missing the active-only boolean parameter present in Java (`isGroupMember(groupId, memberId, true)`). If Go's implementation doesn't default to active-only, inactive/banned members could update read dates.
 
 ## upsertGroupConversationReadDate
-- [x] Java defaults null `readDate` to `new Date()`; Go uses `time.Time` value type so there's no null concept — a zero-value `time.Time` (0001-01-01) would be used instead of current time if called directly with zero value.
-- [x] Java swallows `DuplicateKeyException` when original `readDate` was null (meaning server-generated time couldn't move forward); Go always converts DuplicateKeyException to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error regardless.
+- [ ] Java defaults null `readDate` to `new Date()`; Go uses `time.Time` value type so there's no null concept — a zero-value `time.Time` (0001-01-01) would be used instead of current time if called directly with zero value.
+- [ ] Java swallows `DuplicateKeyException` when original `readDate` was null (meaning server-generated time couldn't move forward); Go always converts DuplicateKeyException to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error regardless.
 
 ## upsertGroupConversationsReadDate
-- [x] Go fails fast on first error (`return err`); Java uses `Mono.whenDelayError` to execute all upserts and aggregate errors.
+- [ ] Go fails fast on first error (`return err`); Java uses `Mono.whenDelayError` to execute all upserts and aggregate errors.
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null readDate defaulting: Java passes null to `upsertPrivateConversationsReadDate` which defaults it to `new Date()`. Go passes `&readDate` (always non-nil pointer), so a zero-value `time.Time` would be used as-is instead of being replaced with current time.
+- [ ] Missing null readDate defaulting: Java passes null to `upsertPrivateConversationsReadDate` which defaults it to `new Date()`. Go passes `&readDate` (always non-nil pointer), so a zero-value `time.Time` would be used as-is instead of being replaced with current time.
 
 ## upsertPrivateConversationsReadDate
 - [ ] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
 
 ## queryPrivateConversations
-- [x] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds PrivateConversationKey list from owner IDs paired with a common target ID.
+- [ ] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds PrivateConversationKey list from owner IDs paired with a common target ID.
 
 ## authAndUpdateTypingStatus
-- [x] `FindGroupMemberIDs` call missing the active-only filter flag. Java calls `queryGroupMemberIds(toId, true)` to get only active members; Go may return inactive/banned members.
-- [x] `IsGroupMember` call missing the active-only filter flag. Java calls `isGroupMember(toId, requesterId, true)`; Go doesn't pass this flag.
+- [ ] `FindGroupMemberIDs` call missing the active-only filter flag. Java calls `queryGroupMemberIds(toId, true)` to get only active members; Go may return inactive/banned members.
+- [ ] `IsGroupMember` call missing the active-only filter flag. Java calls `isGroupMember(toId, requesterId, true)`; Go doesn't pass this flag.
 
 Actually wait, I should re-examine the `deleteGroupConversations` method more carefully.
 
@@ -11009,13 +11009,13 @@ Also no session.
 So all delete methods lost transactional session support. This is a significant behavioral difference.
 
 ## deletePrivateConversations (by userIds)
-- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to repository for transactional deletes.
+- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to repository for transactional deletes.
 
 ## deleteGroupConversations
-- [x] Missing `ClientSession` parameter for MongoDB transaction support.
+- [ ] Missing `ClientSession` parameter for MongoDB transaction support.
 
 ## deleteGroupMemberConversations
-- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`.
+- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`.
 
 OK, now I have the complete list. Let me present it cleanly.
 
@@ -11027,10 +11027,10 @@ OK, now I have the complete list. Let me present it cleanly.
 - [ ] Java swallows `DuplicateKeyException` when original `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all operations and aggregate errors.
+- [ ] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all operations and aggregate errors.
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null `readDate` defaulting to current time. Go passes `&readDate` (non-nil) to `UpsertPrivateConversationsReadDate`, so zero-value `time.Time` won't be replaced with `time.Now()`.
+- [ ] Missing null `readDate` defaulting to current time. Go passes `&readDate` (non-nil) to `UpsertPrivateConversationsReadDate`, so zero-value `time.Time` won't be replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
 - [ ] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
@@ -11039,17 +11039,17 @@ OK, now I have the complete list. Let me present it cleanly.
 - [ ] Missing overload that takes `(Collection<Long> ownerIds, Long targetId)` and builds keys internally.
 
 ## deletePrivateConversations (by userIds)
-- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to repository.
+- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to repository.
 
 ## deleteGroupConversations
-- [x] Missing `ClientSession` parameter for MongoDB transaction support.
+- [ ] Missing `ClientSession` parameter for MongoDB transaction support.
 
 ## deleteGroupMemberConversations
-- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to `deleteMemberConversations`.
+- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to `deleteMemberConversations`.
 
 ## authAndUpdateTypingStatus
-- [x] `FindGroupMemberIDs` missing active-only filter flag. Java calls `queryGroupMemberIds(toId, true)`.
-- [x] `IsGroupMember` missing active-only filter flag. Java calls `isGroupMember(toId, requesterId, true)`.
+- [ ] `FindGroupMemberIDs` missing active-only filter flag. Java calls `queryGroupMemberIds(toId, true)`.
+- [ ] `IsGroupMember` missing active-only filter flag. Java calls `isGroupMember(toId, requesterId, true)`.
 
 ## authAndUpsertGroupConversationReadDate
 - [ ] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
@@ -11057,17 +11057,17 @@ OK, now I have the complete list. Let me present it cleanly.
 Let me now write the final report.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
+- [ ] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
 
 ## upsertGroupConversationReadDate
-- [x] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
-- [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
+- [ ] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
+- [ ] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
 - [ ] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
@@ -11354,19 +11354,19 @@ Here is my final analysis:
 
 ## UpsertPrivateConversationSettings
 
-- [x] **Wrong relationship check**: Java calls `hasOneSidedRelationship(ownerId, userId)` which checks for a one-sided relationship (either direction) without considering block status. Go calls `HasRelationshipAndNotBlocked(ctx, ownerId, userId)` which requires a relationship that is not blocked. These are semantically different checks. The Java code specifically uses the "one-sided" variant which doesn't check blocked status, while the Go code uses a stricter check that also filters on blocked status.
-- [x] **Missing immutable settings validation**: Java builds a set of immutable settings being upserted, queries the database for their existing values, and returns an error with code `ILLEGAL_ARGUMENT` if any immutable settings already exist. The Go code skips this entire validation logic.
-- [x] **Missing `parseSettings` call**: Java calls `parseSettings(ignoreUnknownSettingsOnUpsert, settings)` to validate setting names against allowed settings, map source names to stored names, and parse/convert Value types. The Go code passes the raw settings map directly to the repository without any validation or transformation.
+- [ ] **Wrong relationship check**: Java calls `hasOneSidedRelationship(ownerId, userId)` which checks for a one-sided relationship (either direction) without considering block status. Go calls `HasRelationshipAndNotBlocked(ctx, ownerId, userId)` which requires a relationship that is not blocked. These are semantically different checks. The Java code specifically uses the "one-sided" variant which doesn't check blocked status, while the Go code uses a stricter check that also filters on blocked status.
+- [ ] **Missing immutable settings validation**: Java builds a set of immutable settings being upserted, queries the database for their existing values, and returns an error with code `ILLEGAL_ARGUMENT` if any immutable settings already exist. The Go code skips this entire validation logic.
+- [ ] **Missing `parseSettings` call**: Java calls `parseSettings(ignoreUnknownSettingsOnUpsert, settings)` to validate setting names against allowed settings, map source names to stored names, and parse/convert Value types. The Go code passes the raw settings map directly to the repository without any validation or transformation.
 
 ## UpsertGroupConversationSettings
 
-- [x] **Missing immutable settings validation**: Same as the private variant — the Go code skips the immutable settings check that queries existing values and rejects updates to already-set immutable settings.
-- [x] **Missing `parseSettings` call**: Same as the private variant — the Go code passes raw settings to the repository without validation or name mapping.
+- [ ] **Missing immutable settings validation**: Same as the private variant — the Go code skips the immutable settings check that queries existing values and rejects updates to already-set immutable settings.
+- [ ] **Missing `parseSettings` call**: Same as the private variant — the Go code passes raw settings to the repository without validation or name mapping.
 
 ## UnsetSettings
 
-- [x] **Missing `settingNames == null/empty` with `deletableSettings` fallback**: When `settingNames` is null/empty in Java, the method checks if `deletableSettings` is non-empty, and if so, unsets only those deletable settings. If `deletableSettings` is empty, it returns `FALSE`. In Go, when `settingNames` is empty, the empty slice is passed directly to the repository, which unsets ALL settings (`$unset: {"s": ""}`). This means Go deletes all settings when `settingNames` is empty, whereas Java would either delete only `deletableSettings` or return false.
-- [x] **Missing validation of non-deletable and unknown settings**: Java iterates through `settingNames` checking `settingToDeletable` and produces specific errors for: (1) non-deletable settings (`ILLEGAL_ARGUMENT` with sorted names), (2) unknown settings when `ignoreUnknownSettingsOnDelete` is false. The Go code performs no such validation — it passes setting names directly to the repository.
+- [ ] **Missing `settingNames == null/empty` with `deletableSettings` fallback**: When `settingNames` is null/empty in Java, the method checks if `deletableSettings` is non-empty, and if so, unsets only those deletable settings. If `deletableSettings` is empty, it returns `FALSE`. In Go, when `settingNames` is empty, the empty slice is passed directly to the repository, which unsets ALL settings (`$unset: {"s": ""}`). This means Go deletes all settings when `settingNames` is empty, whereas Java would either delete only `deletableSettings` or return false.
+- [ ] **Missing validation of non-deletable and unknown settings**: Java iterates through `settingNames` checking `settingToDeletable` and produces specific errors for: (1) non-deletable settings (`ILLEGAL_ARGUMENT` with sorted names), (2) unknown settings when `ignoreUnknownSettingsOnDelete` is false. The Go code performs no such validation — it passes setting names directly to the repository.
 
 ## DeleteSettings
 
@@ -11512,14 +11512,14 @@ Bugs: Same as update — Java deduplicates keys to a `Set`, Go passes the raw sl
 
 ## addGroupBlockedUser
 
-- [x] Missing nil-check on `addGroupBlockedUserDTO.GroupId`, `addGroupBlockedUserDTO.UserId`, `addGroupBlockedUserDTO.RequesterId` before dereferencing with `*`. The Java version validates these are not null via `Validator.notNull()` in the service layer, returning a proper error response. The Go code will panic on nil pointer dereference.
-- [x] Discards the returned `GroupBlockedUser` from `AddBlockedUser` (uses `_`). Java returns the created entity in the response body via `HttpHandlerResult.okIfTruthy(createMono)`.
-- [x] Returns an empty `RequestHandlerResult{}` instead of wrapping the created entity in the response, inconsistent with Java's `HttpHandlerResult.okIfTruthy`.
+- [ ] Missing nil-check on `addGroupBlockedUserDTO.GroupId`, `addGroupBlockedUserDTO.UserId`, `addGroupBlockedUserDTO.RequesterId` before dereferencing with `*`. The Java version validates these are not null via `Validator.notNull()` in the service layer, returning a proper error response. The Go code will panic on nil pointer dereference.
+- [ ] Discards the returned `GroupBlockedUser` from `AddBlockedUser` (uses `_`). Java returns the created entity in the response body via `HttpHandlerResult.okIfTruthy(createMono)`.
+- [ ] Returns an empty `RequestHandlerResult{}` instead of wrapping the created entity in the response, inconsistent with Java's `HttpHandlerResult.okIfTruthy`.
 
 ## queryGroupBlockedUsers (non-paginated @GetMapping)
 
 - [ ] Missing all filter parameters: `groupIds`, `userIds`, `blockDateStart`, `blockDateEnd`, `requesterIds`. The Java endpoint accepts these as optional query parameters and passes them to the service call. The Go method signature only has `page` and `size`.
-- [x] Discards the queried results (uses `_`). Java returns the collection of `GroupBlockedUser` in the response.
+- [ ] Discards the queried results (uses `_`). Java returns the collection of `GroupBlockedUser` in the response.
 - [ ] Java explicitly passes `0` as the page parameter for the non-paginated query (hardcoded first page), while Go accepts a `page` parameter, changing the semantics.
 - [ ] Missing `getPageSize(size)` equivalent — Java normalizes the `size` parameter via `getPageSize()` before passing to the service.
 
@@ -12043,96 +12043,96 @@ Here are the bugs:
 - [ ] Wrong response for empty results: Go returns code `204` (hardcoded) while Java lets the framework handle empty results by returning the data normally
 
 ## handleQueryJoinedGroupIdsRequest
-- [x] `lastUpdatedDate` is not passed to the service: Java calls `queryJoinedGroupIdsWithVersion(userId, lastUpdatedDate)`, Go calls `QueryUserJoinedGroupIds(ctx, s.UserID)` ignoring the parsed `lastUpdatedDate`
-- [x] Wrong service used: Java delegates to `groupService.queryJoinedGroupIdsWithVersion`, Go uses `groupMemberService.QueryUserJoinedGroupIds`
-- [x] Dead code: The `if lastUpdatedDate != nil && c.groupService != nil` block (lines 202-205) is a no-op comment with no actual version checking logic
+- [ ] `lastUpdatedDate` is not passed to the service: Java calls `queryJoinedGroupIdsWithVersion(userId, lastUpdatedDate)`, Go calls `QueryUserJoinedGroupIds(ctx, s.UserID)` ignoring the parsed `lastUpdatedDate`
+- [ ] Wrong service used: Java delegates to `groupService.queryJoinedGroupIdsWithVersion`, Go uses `groupMemberService.QueryUserJoinedGroupIds`
+- [ ] Dead code: The `if lastUpdatedDate != nil && c.groupService != nil` block (lines 202-205) is a no-op comment with no actual version checking logic
 
 ## handleQueryJoinedGroupsRequest
-- [x] Fundamentally different implementation approach: Java calls `groupService.queryJoinedGroupsWithVersion(userId, lastUpdatedDate)` as a single call that handles version checking internally, while Go manually queries group IDs first then queries groups separately — this misses the version comparison optimization
-- [x] Missing version in response: Java returns `GroupsWithVersion` which includes a `lastUpdatedDate` version field; Go's response never populates `LastUpdatedDate` on `GroupsWithVersion`
+- [ ] Fundamentally different implementation approach: Java calls `groupService.queryJoinedGroupsWithVersion(userId, lastUpdatedDate)` as a single call that handles version checking internally, while Go manually queries group IDs first then queries groups separately — this misses the version comparison optimization
+- [ ] Missing version in response: Java returns `GroupsWithVersion` which includes a `lastUpdatedDate` version field; Go's response never populates `LastUpdatedDate` on `GroupsWithVersion`
 
 ## handleUpdateGroupRequest
-- [x] Missing ownership transfer branch: Java has a critical branch where if `successorId != null`, it calls `authAndTransferGroupOwnership(userId, groupId, successorId, quitAfterTransfer, null)` instead of the regular update — Go only has the regular update path
-- [x] Missing `muteEndDate` field: Java extracts `request.getMuteEndDate()` and passes it to `authAndUpdateGroupInformation`, Go has a TODO comment but does not pass it
-- [x] Missing `userDefinedAttributes` field: Java passes `request.getUserDefinedAttributesMap()`, Go does not
-- [x] Missing `announcement` field: Go passes `updateReq.Announcement` but does not convert nil/empty properly as Java does with the `hasAnnouncement()` check
-- [x] Missing notification logic: Java conditionally notifies group members or requester's other sessions, Go has none
+- [ ] Missing ownership transfer branch: Java has a critical branch where if `successorId != null`, it calls `authAndTransferGroupOwnership(userId, groupId, successorId, quitAfterTransfer, null)` instead of the regular update — Go only has the regular update path
+- [ ] Missing `muteEndDate` field: Java extracts `request.getMuteEndDate()` and passes it to `authAndUpdateGroupInformation`, Go has a TODO comment but does not pass it
+- [ ] Missing `userDefinedAttributes` field: Java passes `request.getUserDefinedAttributesMap()`, Go does not
+- [ ] Missing `announcement` field: Go passes `updateReq.Announcement` but does not convert nil/empty properly as Java does with the `hasAnnouncement()` check
+- [ ] Missing notification logic: Java conditionally notifies group members or requester's other sessions, Go has none
 
 ## handleCreateGroupBlockedUserRequest
-- [x] Parameter order differs from Java: Java calls `authAndBlockUser(userId, groupId, userIdToBlock, null)`, Go calls `BlockUser(ctx, groupId, userId, s.UserID)` — the requester vs blocked-user ordering may be swapped depending on the Go service signature
-- [x] Missing notification logic: Java dispatches notifications to group members, blocked user, and requester's other sessions, Go has none
+- [ ] Parameter order differs from Java: Java calls `authAndBlockUser(userId, groupId, userIdToBlock, null)`, Go calls `BlockUser(ctx, groupId, userId, s.UserID)` — the requester vs blocked-user ordering may be swapped depending on the Go service signature
+- [ ] Missing notification logic: Java dispatches notifications to group members, blocked user, and requester's other sessions, Go has none
 
 ## handleDeleteGroupBlockedUserRequest
-- [x] Missing `wasBlocked` check: Java checks `if (!wasBlocked) { return RequestHandlerResult.OK; }`, Go does not check this
-- [x] Missing notification logic: Java dispatches notifications to group members, unblocked user, and requester's other sessions, Go has none
-- [x] Missing requester ID parameter: Java calls `unblockUser(userId, groupId, userIdToUnblock, null, true)` passing the requester for auth, Go calls `UnblockUser(ctx, groupId, userId)` without the requester
+- [ ] Missing `wasBlocked` check: Java checks `if (!wasBlocked) { return RequestHandlerResult.OK; }`, Go does not check this
+- [ ] Missing notification logic: Java dispatches notifications to group members, unblocked user, and requester's other sessions, Go has none
+- [ ] Missing requester ID parameter: Java calls `unblockUser(userId, groupId, userIdToUnblock, null, true)` passing the requester for auth, Go calls `UnblockUser(ctx, groupId, userId)` without the requester
 
 ## handleQueryGroupBlockedUserIdsRequest
-- [x] Extra auth check not in Java: Java calls `queryGroupBlockedUserIdsWithVersion(groupId, lastUpdatedDate)` without a userId auth check, Go calls `AuthAndQueryGroupBlockedUserIds` with `s.UserID` — this may cause authorization failures if Java intentionally allows unauthenticated queries here
+- [ ] Extra auth check not in Java: Java calls `queryGroupBlockedUserIdsWithVersion(groupId, lastUpdatedDate)` without a userId auth check, Go calls `AuthAndQueryGroupBlockedUserIds` with `s.UserID` — this may cause authorization failures if Java intentionally allows unauthenticated queries here
 
 ## handleQueryGroupBlockedUsersInfosRequest
-- [x] Incomplete UserInfo construction: Java lets the service return full `UserInfosWithVersion` protos (which likely include user details), Go manually constructs `UserInfo` with only `Id` field set, losing other user info fields
-- [x] Extra auth check not in Java: Same as handleQueryGroupBlockedUserIdsRequest — Go adds auth that Java doesn't have
+- [ ] Incomplete UserInfo construction: Java lets the service return full `UserInfosWithVersion` protos (which likely include user details), Go manually constructs `UserInfo` with only `Id` field set, losing other user info fields
+- [ ] Extra auth check not in Java: Same as handleQueryGroupBlockedUserIdsRequest — Go adds auth that Java doesn't have
 
 ## handleCheckGroupQuestionAnswerRequest
-- [x] Missing `joined`, `questionIds`, `score` fields in response: Java constructs `GroupJoinQuestionsAnswerResult` with `setJoined(joined)`, `addAllQuestionIds(questionIds)`, `setScore(answerResult.score())`, Go returns whatever `CheckGroupJoinQuestionsAnswersAndJoin` returns directly without mapping these fields
-- [x] Missing notification logic when `joined` is true: Java creates a `CreateGroupMembersRequest` notification and dispatches it to group members or the added member, Go has none
+- [ ] Missing `joined`, `questionIds`, `score` fields in response: Java constructs `GroupJoinQuestionsAnswerResult` with `setJoined(joined)`, `addAllQuestionIds(questionIds)`, `setScore(answerResult.score())`, Go returns whatever `CheckGroupJoinQuestionsAnswersAndJoin` returns directly without mapping these fields
+- [ ] Missing notification logic when `joined` is true: Java creates a `CreateGroupMembersRequest` notification and dispatches it to group members or the added member, Go has none
 
 ## handleCreateGroupInvitationRequestRequest
-- [x] Missing auth prefix: Java calls `authAndCreateGroupInvitation`, Go calls `CreateInvitation` — missing the auth check
-- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
+- [ ] Missing auth prefix: Java calls `authAndCreateGroupInvitation`, Go calls `CreateInvitation` — missing the auth check
+- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
 
 ## handleCreateGroupJoinRequestRequest
-- [x] Missing auth prefix: Java calls `authAndCreateGroupJoinRequest`, Go calls `CreateJoinRequest` — missing the auth check
-- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
+- [ ] Missing auth prefix: Java calls `authAndCreateGroupJoinRequest`, Go calls `CreateJoinRequest` — missing the auth check
+- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
 
 ## handleCreateGroupQuestionsRequest
-- [x] Non-batched creation: Java calls `authAndCreateGroupJoinQuestions(userId, groupId, questions)` in a single batch call, Go iterates and calls `CreateJoinQuestion` individually — this is not atomic and could leave partial state
-- [x] Missing auth check: Java calls `authAnd...`, Go calls `CreateJoinQuestion` without auth
-- [x] Wrong response format: Java returns `RequestHandlerResult.ofDataLongs(questionIds)` (a `LongsWithVersion` with just longs), Go wraps in `LongsWithVersion` which adds a version field not present in Java's response
+- [ ] Non-batched creation: Java calls `authAndCreateGroupJoinQuestions(userId, groupId, questions)` in a single batch call, Go iterates and calls `CreateJoinQuestion` individually — this is not atomic and could leave partial state
+- [ ] Missing auth check: Java calls `authAnd...`, Go calls `CreateJoinQuestion` without auth
+- [ ] Wrong response format: Java returns `RequestHandlerResult.ofDataLongs(questionIds)` (a `LongsWithVersion` with just longs), Go wraps in `LongsWithVersion` which adds a version field not present in Java's response
 
 ## handleDeleteGroupInvitationRequest
-- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
+- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
 
 ## handleUpdateGroupInvitationRequest
-- [x] Missing `reason` parameter: Java passes `request.getReason()` to `authAndHandleInvitation`, Go does not pass it
-- [x] Missing auth prefix: Java calls `authAndHandleInvitation`, Go calls `ReplyToInvitation` — missing auth
-- [x] Missing complex multi-notification logic: Java has extremely complex logic that sends separate notifications for invitation updates AND member additions (when invitation is accepted and requester joins), including querying group member IDs, owner/manager IDs — Go has none of this
+- [ ] Missing `reason` parameter: Java passes `request.getReason()` to `authAndHandleInvitation`, Go does not pass it
+- [ ] Missing auth prefix: Java calls `authAndHandleInvitation`, Go calls `ReplyToInvitation` — missing auth
+- [ ] Missing complex multi-notification logic: Java has extremely complex logic that sends separate notifications for invitation updates AND member additions (when invitation is accepted and requester joins), including querying group member IDs, owner/manager IDs — Go has none of this
 
 ## handleDeleteGroupJoinRequestRequest
-- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
+- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
 
 ## handleUpdateGroupJoinRequestRequest
-- [x] Missing `reason` parameter: Java passes `request.getReason()`, Go does not
-- [x] Missing auth prefix: Java calls `authAndHandleJoinRequest`, Go calls `ReplyToJoinRequest` — missing auth
-- [x] Missing complex multi-notification logic: Java handles requester-added-as-new-member notifications, querying group members, and sending separate join-request-updated and member-added notifications, Go has none
+- [ ] Missing `reason` parameter: Java passes `request.getReason()`, Go does not
+- [ ] Missing auth prefix: Java calls `authAndHandleJoinRequest`, Go calls `ReplyToJoinRequest` — missing auth
+- [ ] Missing complex multi-notification logic: Java handles requester-added-as-new-member notifications, querying group members, and sending separate join-request-updated and member-added notifications, Go has none
 
 ## handleDeleteGroupJoinQuestionsRequest
-- [x] Non-batched deletion: Java calls `authAndDeleteGroupJoinQuestions(userId, groupId, questionIdsSet)` as a single batch call, Go iterates and calls `DeleteJoinQuestion` individually — not atomic
-- [x] Missing auth check: Java calls `authAnd...`, Go calls `DeleteJoinQuestion` without auth
-- [x] Missing `groupId` parameter: Java passes `groupId` for authorization, Go does not pass it
+- [ ] Non-batched deletion: Java calls `authAndDeleteGroupJoinQuestions(userId, groupId, questionIdsSet)` as a single batch call, Go iterates and calls `DeleteJoinQuestion` individually — not atomic
+- [ ] Missing auth check: Java calls `authAnd...`, Go calls `DeleteJoinQuestion` without auth
+- [ ] Missing `groupId` parameter: Java passes `groupId` for authorization, Go does not pass it
 
 ## handleQueryGroupJoinRequestsRequest
-- [x] Different branching logic: Java calls `authAndQueryGroupJoinRequestsWithVersion(userId, groupId, lastUpdatedDate)` with a single method regardless of whether `groupId` is null, Go branches into two different methods — this may produce different behavior when `groupId` is null
+- [ ] Different branching logic: Java calls `authAndQueryGroupJoinRequestsWithVersion(userId, groupId, lastUpdatedDate)` with a single method regardless of whether `groupId` is null, Go branches into two different methods — this may produce different behavior when `groupId` is null
 
 ## handleUpdateGroupJoinQuestionRequest
-- [x] Hardcoded `groupId=0`: Go passes `0` as the second argument to `UpdateJoinQuestion`, Java passes `request.getQuestionId()` to `authAndUpdateGroupJoinQuestion` which uses the question's own groupId internally for auth — the `0` is likely wrong
-- [x] Missing auth check: Java calls `authAnd...`, Go calls `UpdateJoinQuestion` without auth
+- [ ] Hardcoded `groupId=0`: Go passes `0` as the second argument to `UpdateJoinQuestion`, Java passes `request.getQuestionId()` to `authAndUpdateGroupJoinQuestion` which uses the question's own groupId internally for auth — the `0` is likely wrong
+- [ ] Missing auth check: Java calls `authAnd...`, Go calls `UpdateJoinQuestion` without auth
 
 ## handleCreateGroupMembersRequest
-- [x] Missing `name` parameter: Java passes `request.getName()` (or null), Go does not pass it
-- [x] Missing notification logic: Java conditionally notifies other group members, added members, and requester's other sessions, Go has none
+- [ ] Missing `name` parameter: Java passes `request.getName()` (or null), Go does not pass it
+- [ ] Missing notification logic: Java conditionally notifies other group members, added members, and requester's other sessions, Go has none
 
 ## handleDeleteGroupMembersRequest
-- [x] Missing empty-deletion check: Java checks `if (deletedUserIds.isEmpty()) { return RequestHandlerResult.OK; }`, Go does not
-- [x] Missing notification logic: Java conditionally notifies other group members, removed members, and requester's other sessions, Go has none
+- [ ] Missing empty-deletion check: Java checks `if (deletedUserIds.isEmpty()) { return RequestHandlerResult.OK; }`, Go does not
+- [ ] Missing notification logic: Java conditionally notifies other group members, removed members, and requester's other sessions, Go has none
 
 ## handleQueryGroupMembersRequest
-- [x] Missing `memberIds`-based query branch: Java has two paths — if `memberIdsCount > 0`, calls `authAndQueryGroupMembers(userId, groupId, memberIds, withStatus)`; otherwise calls `authAndQueryGroupMembersWithVersion(userId, groupId, lastUpdatedDate, withStatus)`. Go only has the versioned path
-- [x] Missing `withStatus` parameter: Java extracts `request.getWithStatus()` and passes it, Go does not extract or pass it
+- [ ] Missing `memberIds`-based query branch: Java has two paths — if `memberIdsCount > 0`, calls `authAndQueryGroupMembers(userId, groupId, memberIds, withStatus)`; otherwise calls `authAndQueryGroupMembersWithVersion(userId, groupId, lastUpdatedDate, withStatus)`. Go only has the versioned path
+- [ ] Missing `withStatus` parameter: Java extracts `request.getWithStatus()` and passes it, Go does not extract or pass it
 
 ## handleUpdateGroupMemberRequest
-- [x] Missing notification logic: Java conditionally notifies other group members, updated member, and requester's other sessions, Go has none
+- [ ] Missing notification logic: Java conditionally notifies other group members, updated member, and requester's other sessions, Go has none
 
 # NewGroupQuestion.java
 *Checked methods: NewGroupQuestion(String question, LinkedHashSet<String> answers, Integer score)*
@@ -12150,9 +12150,9 @@ Now I have the complete picture. Let me compare the Java and Go implementations.
 **Go `ValidNewGroupQuestion`**: Only checks if the input is nil. Missing the core validation logic from Java.
 
 ## ValidNewGroupQuestion
-- [x] Missing validation that `Answers` slice is not empty. The Java version throws `EMPTY_GROUP_QUESTION_ANSWERS` ("The answers of a new group question should not be empty") when `question.answers().isEmpty()`. The Go version only checks for nil input and does not validate the answers field at all.
-- [x] Missing validation that `Score` is not nil and is >= 0. The Java version throws `ILLEGAL_GROUP_QUESTION_SCORE` ("The score of a new group question should not be null and must be greater than or equal to 0") when `score` is null or negative. The Go version does not validate the score field at all.
-- [x] The function accepts `interface{}` instead of `*dto.NewGroupQuestion`, which means it cannot access typed fields and perform the actual field-level validations that the Java version performs.
+- [ ] Missing validation that `Answers` slice is not empty. The Java version throws `EMPTY_GROUP_QUESTION_ANSWERS` ("The answers of a new group question should not be empty") when `question.answers().isEmpty()`. The Go version only checks for nil input and does not validate the answers field at all.
+- [ ] Missing validation that `Score` is not nil and is >= 0. The Java version throws `ILLEGAL_GROUP_QUESTION_SCORE` ("The score of a new group question should not be null and must be greater than or equal to 0") when `score` is null or negative. The Go version does not validate the score field at all.
+- [ ] The function accepts `interface{}` instead of `*dto.NewGroupQuestion`, which means it cannot access typed fields and perform the actual field-level validations that the Java version performs.
 
 # GroupInvitationRepository.java
 *Checked methods: getEntityExpireAfterSeconds(), updateStatusIfPending(Long invitationId, RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session), updateInvitations(Set<Long> invitationIds, @Nullable Long inviterId, @Nullable Long inviteeId, @Nullable String content, @Nullable RequestStatus status, @Nullable Date creationDate, @Nullable Date responseDate), count(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange), findGroupIdAndInviteeIdAndStatus(Long invitationId), findGroupIdAndInviterIdAndInviteeIdAndStatus(Long invitationId), findInvitationsByInviteeId(Long inviteeId), findInvitationsByInviterId(Long inviterId), findInvitationsByGroupId(Long groupId), findInviteeIdAndGroupIdAndCreationDateAndStatus(Long invitationId), findInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)*
@@ -12160,49 +12160,49 @@ Now I have the complete picture. Let me compare the Java and Go implementations.
 Now I have all the context needed for a thorough comparison. Here are my findings:
 
 ## getEntityExpireAfterSeconds()
-- [x] The Go `GroupInvitationRepository` does not implement `getEntityExpireAfterSeconds()`. The Java version returns a configurable `expireAfterSeconds` value from properties, while the Go version has no such method or property at all. The `user_friend_request_repository.go` has `GetEntityExpireAfterSeconds()` but hardcodes it to `0`, which is also incorrect — it should read from configuration like the Java version.
+- [ ] The Go `GroupInvitationRepository` does not implement `getEntityExpireAfterSeconds()`. The Java version returns a configurable `expireAfterSeconds` value from properties, while the Go version has no such method or property at all. The `user_friend_request_repository.go` has `GetEntityExpireAfterSeconds()` but hardcodes it to `0`, which is also incorrect — it should read from configuration like the Java version.
 
 ## updateStatusIfPending()
-- [x] The Java version includes an expiration check in the filter via `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())`, which ensures the update only applies to non-expired invitations. The Go version omits this expiration check entirely — the filter only checks `_id` and `stat`.
-- [x] The Java version uses `setIfNotNull` for the response date, meaning if `new Date()` were null it wouldn't be set. However, since `new Date()` is never null in Java, this is a no-op guard. The Go version always sets `rd` to the provided `responseDate` parameter. This is functionally acceptable but differs in that the Java version dynamically generates the date internally (`new Date()`), while the Go version requires it as a parameter — meaning the caller must pass the current time. This is a design difference rather than a bug per se.
+- [ ] The Java version includes an expiration check in the filter via `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())`, which ensures the update only applies to non-expired invitations. The Go version omits this expiration check entirely — the filter only checks `_id` and `stat`.
+- [ ] The Java version uses `setIfNotNull` for the response date, meaning if `new Date()` were null it wouldn't be set. However, since `new Date()` is never null in Java, this is a no-op guard. The Go version always sets `rd` to the provided `responseDate` parameter. This is functionally acceptable but differs in that the Java version dynamically generates the date internally (`new Date()`), while the Go version requires it as a parameter — meaning the caller must pass the current time. This is a design difference rather than a bug per se.
 
 ## updateInvitations()
-- [x] The Java version calls `updateResponseDateBasedOnStatus` which sets/unsets the response date based on whether the status is processed by a responder (ACCEPTED, DECLINED, IGNORED). If the status is one of these, it sets the response date (to `responseDate` or `new Date()` if null). If the status is anything else (e.g., PENDING), it **unsets** the response date field. The Go version completely omits this logic — it only sets `rd` if `responseDate` is non-nil, with no status-based logic.
+- [ ] The Java version calls `updateResponseDateBasedOnStatus` which sets/unsets the response date based on whether the status is processed by a responder (ACCEPTED, DECLINED, IGNORED). If the status is one of these, it sets the response date (to `responseDate` or `new Date()` if null). If the status is anything else (e.g., PENDING), it **unsets** the response date field. The Go version completely omits this logic — it only sets `rd` if `responseDate` is non-nil, with no status-based logic.
 
 ## count()
-- [x] The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> inviterIds`, `Set<Long> inviteeIds` (sets for filtering multiple values), but the Go version only accepts `*int64` (single values) for `groupID`, `inviterID`, `inviteeID`. This means the Go version cannot filter by multiple IDs as the Java version can.
-- [x] The Java version accepts `Set<RequestStatus> statuses` (a set of statuses), while the Go version only accepts `*po.RequestStatus` (a single status). This prevents filtering by multiple statuses.
-- [x] The Java version uses `DateRange` parameters for creation, response, and expiration date filtering, with `getCreationDateRange` that combines the creation date range with the expiration date range (adjusting expiration by `expireAfterSeconds` and intersecting). The Go version only has a single `lastUpdatedDate *time.Time` parameter and uses a simple `$gt` comparison, completely losing the date range filtering semantics.
-- [x] The Java version uses `isExpiredOrNot` on the filter, which conditionally adds expiration-based filtering depending on whether the `statuses` set contains `EXPIRED` or `PENDING`. The Go version completely omits this expiration-aware filtering.
-- [x] The Java version has no `ids` parameter omission in the Go version — the Go `CountInvitations` method does not accept or filter by `ids` at all.
+- [ ] The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> inviterIds`, `Set<Long> inviteeIds` (sets for filtering multiple values), but the Go version only accepts `*int64` (single values) for `groupID`, `inviterID`, `inviteeID`. This means the Go version cannot filter by multiple IDs as the Java version can.
+- [ ] The Java version accepts `Set<RequestStatus> statuses` (a set of statuses), while the Go version only accepts `*po.RequestStatus` (a single status). This prevents filtering by multiple statuses.
+- [ ] The Java version uses `DateRange` parameters for creation, response, and expiration date filtering, with `getCreationDateRange` that combines the creation date range with the expiration date range (adjusting expiration by `expireAfterSeconds` and intersecting). The Go version only has a single `lastUpdatedDate *time.Time` parameter and uses a simple `$gt` comparison, completely losing the date range filtering semantics.
+- [ ] The Java version uses `isExpiredOrNot` on the filter, which conditionally adds expiration-based filtering depending on whether the `statuses` set contains `EXPIRED` or `PENDING`. The Go version completely omits this expiration-aware filtering.
+- [ ] The Java version has no `ids` parameter omission in the Go version — the Go `CountInvitations` method does not accept or filter by `ids` at all.
 
 ## findGroupIdAndInviteeIdAndStatus()
-- [x] The Java version includes `CREATION_DATE` in the projection explicitly (commented as "Required by findExpirableDoc") and then calls `findExpirableDoc`, which applies `transformExpiredRequest` to change the status to `EXPIRED` if the request is pending and expired. The Go version does not include the creation date in its projection and does not perform any expiration transformation — so if an invitation is pending but expired, the Go version will return `PENDING` while the Java version returns `EXPIRED`.
+- [ ] The Java version includes `CREATION_DATE` in the projection explicitly (commented as "Required by findExpirableDoc") and then calls `findExpirableDoc`, which applies `transformExpiredRequest` to change the status to `EXPIRED` if the request is pending and expired. The Go version does not include the creation date in its projection and does not perform any expiration transformation — so if an invitation is pending but expired, the Go version will return `PENDING` while the Java version returns `EXPIRED`.
 
 ## findGroupIdAndInviterIdAndInviteeIdAndStatus()
-- [x] Same bug as `findGroupIdAndInviteeIdAndStatus`: the Java version includes `CREATION_DATE` in the projection and calls `findExpirableDoc` for expiration transformation, but the Go version omits the creation date from the projection and does not transform expired pending requests to `EXPIRED` status.
+- [ ] Same bug as `findGroupIdAndInviteeIdAndStatus`: the Java version includes `CREATION_DATE` in the projection and calls `findExpirableDoc` for expiration transformation, but the Go version omits the creation date from the projection and does not transform expired pending requests to `EXPIRED` status.
 
 ## findInvitationsByInviteeId()
-- [x] The Java version calls `findExpirableDocs(filter)` which applies `transformExpiredRequest` on each result to change pending-and-expired requests to `EXPIRED` status. The Go version does not perform this expiration transformation.
-- [x] The Java version does not specify any sort order, while the Go version adds `SetSort(bson.M{"cd": -1})` (descending by creation date). This is an extra behavior not present in the Java version.
+- [ ] The Java version calls `findExpirableDocs(filter)` which applies `transformExpiredRequest` on each result to change pending-and-expired requests to `EXPIRED` status. The Go version does not perform this expiration transformation.
+- [ ] The Java version does not specify any sort order, while the Go version adds `SetSort(bson.M{"cd": -1})` (descending by creation date). This is an extra behavior not present in the Java version.
 
 ## findInvitationsByInviterId()
-- [x] The Go implementation is a stub that returns `nil, nil` — it does not query the database at all.
+- [ ] The Go implementation is a stub that returns `nil, nil` — it does not query the database at all.
 
 ## findInvitationsByGroupId()
-- [x] The Java version calls `findExpirableDocs(filter)` which applies expiration transformation. The Go version does not transform expired pending requests to `EXPIRED` status.
-- [x] The Java version does not specify a sort order, while the Go version adds `SetSort(bson.M{"cd": -1})`.
+- [ ] The Java version calls `findExpirableDocs(filter)` which applies expiration transformation. The Go version does not transform expired pending requests to `EXPIRED` status.
+- [ ] The Java version does not specify a sort order, while the Go version adds `SetSort(bson.M{"cd": -1})`.
 
 ## findInviteeIdAndGroupIdAndCreationDateAndStatus()
-- [x] The Java version calls `mongoClient.findOne(entityClass, filter, options)` directly (not `findExpirableDoc`), so it does **not** apply expiration transformation. The Go version also does not apply it. However, the Java version still includes `CREATION_DATE` in the projection. The Go version also includes `cd` in its projection. This method appears to be correctly ported.
+- [ ] The Java version calls `mongoClient.findOne(entityClass, filter, options)` directly (not `findExpirableDoc`), so it does **not** apply expiration transformation. The Go version also does not apply it. However, the Java version still includes `CREATION_DATE` in the projection. The Go version also includes `cd` in its projection. This method appears to be correctly ported.
 
 ## findInvitations()
-- [x] The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> inviterIds`, `Set<Long> inviteeIds`, `Set<RequestStatus> statuses` (all sets for multi-value filtering), but the Go version only accepts single `*int64` / `*po.RequestStatus` values. This prevents filtering by multiple IDs and statuses.
-- [x] The Java version uses `DateRange` parameters for creation, response, and expiration date filtering, with `getCreationDateRange` combining creation and expiration ranges. The Go version replaces all three date ranges with a single `lastUpdatedDate *time.Time` using `$gt`, losing all the range filtering semantics.
-- [x] The Java version uses `isExpiredOrNot` for expiration-aware filtering based on statuses. The Go version completely omits this.
-- [x] The Java version applies `findExpirableDocs` with `transformExpiredRequest` to transform pending-expired results to `EXPIRED` status. The Go version does not perform this transformation.
-- [x] The Java version does not specify a sort order, while the Go version adds `SetSort(bson.M{"cd": -1})`.
-- [x] The Go version always applies pagination (skip/limit) even when `page` and `size` are zero (which would skip 0 and limit 0, returning no results). The Java version uses `paginateIfNotNull` which likely only applies pagination when page/size are non-null.
+- [ ] The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> inviterIds`, `Set<Long> inviteeIds`, `Set<RequestStatus> statuses` (all sets for multi-value filtering), but the Go version only accepts single `*int64` / `*po.RequestStatus` values. This prevents filtering by multiple IDs and statuses.
+- [ ] The Java version uses `DateRange` parameters for creation, response, and expiration date filtering, with `getCreationDateRange` combining creation and expiration ranges. The Go version replaces all three date ranges with a single `lastUpdatedDate *time.Time` using `$gt`, losing all the range filtering semantics.
+- [ ] The Java version uses `isExpiredOrNot` for expiration-aware filtering based on statuses. The Go version completely omits this.
+- [ ] The Java version applies `findExpirableDocs` with `transformExpiredRequest` to transform pending-expired results to `EXPIRED` status. The Go version does not perform this transformation.
+- [ ] The Java version does not specify a sort order, while the Go version adds `SetSort(bson.M{"cd": -1})`.
+- [ ] The Go version always applies pagination (skip/limit) even when `page` and `size` are zero (which would skip 0 and limit 0, returning no results). The Java version uses `paginateIfNotNull` which likely only applies pagination when page/size are non-null.
 
 # GroupJoinRequestRepository.java
 *Checked methods: getEntityExpireAfterSeconds(), updateStatusIfPending(Long requestId, RequestStatus status, Long responderId, @Nullable String reason, @Nullable ClientSession session), updateRequests(Set<Long> requestIds, @Nullable Long requesterId, @Nullable Long responderId, @Nullable String content, @Nullable RequestStatus status, @Nullable Date creationDate, @Nullable Date responseDate), countRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange), findGroupId(Long requestId), findRequesterIdAndStatusAndGroupId(Long requestId), findRequestsByGroupId(Long groupId), findRequestsByRequesterId(Long requesterId), findRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)*
@@ -12245,46 +12245,46 @@ Here is the final bug report:
 
 ## getEntityExpireAfterSeconds
 
-- [x] Go `group_join_request_repository.go` has no `GetEntityExpireAfterSeconds()` method at all. The Java version reads `expireAfterSeconds` from `propertiesManager` and returns it. This value is used by all expiration-aware methods (`countRequests`, `findRequests`, `findRequestsByGroupId`, `findRequestsByRequesterId`, `findRequesterIdAndStatusAndGroupId`).
+- [ ] Go `group_join_request_repository.go` has no `GetEntityExpireAfterSeconds()` method at all. The Java version reads `expireAfterSeconds` from `propertiesManager` and returns it. This value is used by all expiration-aware methods (`countRequests`, `findRequests`, `findRequestsByGroupId`, `findRequestsByRequesterId`, `findRequesterIdAndStatusAndGroupId`).
 
 ## updateStatusIfPending
 
-- [x] Go `group_invitation_repository.go` `UpdateStatusIfPending` is missing the `isNotExpired` filter condition that the Java version applies. The Java code has `.isNotExpired(GroupInvitation.Fields.CREATION_DATE, getEntityExpirationDate())` in the filter, meaning it only updates if the request has NOT expired. The Go code has no expiration check, so it will update expired pending requests that the Java code would skip.
-- [x] Go `group_invitation_repository.go` `UpdateStatusIfPending` does not set `RESPONSE_DATE` conditionally — the Java uses `setIfNotNull` for responseDate with `new Date()`, but actually `new Date()` is never null, so it always sets it. The Go code always sets `rd` from the parameter. This is functionally acceptable if callers pass the correct time, but the Java code generates the date internally.
+- [ ] Go `group_invitation_repository.go` `UpdateStatusIfPending` is missing the `isNotExpired` filter condition that the Java version applies. The Java code has `.isNotExpired(GroupInvitation.Fields.CREATION_DATE, getEntityExpirationDate())` in the filter, meaning it only updates if the request has NOT expired. The Go code has no expiration check, so it will update expired pending requests that the Java code would skip.
+- [ ] Go `group_invitation_repository.go` `UpdateStatusIfPending` does not set `RESPONSE_DATE` conditionally — the Java uses `setIfNotNull` for responseDate with `new Date()`, but actually `new Date()` is never null, so it always sets it. The Go code always sets `rd` from the parameter. This is functionally acceptable if callers pass the correct time, but the Java code generates the date internally.
 
 ## updateRequests
 
-- [x] Go `group_join_request_repository.go` `UpdateRequests` does not implement the `updateResponseDateBasedOnStatus` logic. In Java, when `status` is ACCEPTED/DECLINED/IGNORED (processed by responder), it sets `responseDate` (defaulting to `new Date()` if null). When `status` is any other value (e.g., CANCELED/PENDING), it `$unset`s `responseDate`. The Go code simply sets `rd` only if `responseDate` is non-nil, and never unsets it.
-- [x] Go `group_invitation_repository.go` `UpdateInvitations` has the same missing `updateResponseDateBasedOnStatus` logic — it never unsets `responseDate` for non-responder-processed statuses.
+- [ ] Go `group_join_request_repository.go` `UpdateRequests` does not implement the `updateResponseDateBasedOnStatus` logic. In Java, when `status` is ACCEPTED/DECLINED/IGNORED (processed by responder), it sets `responseDate` (defaulting to `new Date()` if null). When `status` is any other value (e.g., CANCELED/PENDING), it `$unset`s `responseDate`. The Go code simply sets `rd` only if `responseDate` is non-nil, and never unsets it.
+- [ ] Go `group_invitation_repository.go` `UpdateInvitations` has the same missing `updateResponseDateBasedOnStatus` logic — it never unsets `responseDate` for non-responder-processed statuses.
 
 ## countRequests
 
-- [x] Go `group_join_request_repository.go` `CountRequests` does not call `getEntityExpirationDate()` or apply `isExpiredOrNot(statuses, creationDateFieldName, expirationDate)` filter logic. The Java code filters expired/non-expired documents based on `statuses` containing EXPIRED or PENDING, adding `$lt` or `$gteOrNull` conditions on the creation date. The Go code has none of this.
-- [x] Go `group_join_request_repository.go` `CountRequests` does not call `getCreationDateRange(creationDateRange, expirationDateRange)` to convert the expiration date range into a creation date range offset. The Java code intersects the creation date range with the shifted expiration date range. The Go code applies `expirationDateRange.ToBson()` directly to the `"ed"` field, but `"ed"` does not exist in the `GroupJoinRequest` Go struct — this field will never match any documents.
+- [ ] Go `group_join_request_repository.go` `CountRequests` does not call `getEntityExpirationDate()` or apply `isExpiredOrNot(statuses, creationDateFieldName, expirationDate)` filter logic. The Java code filters expired/non-expired documents based on `statuses` containing EXPIRED or PENDING, adding `$lt` or `$gteOrNull` conditions on the creation date. The Go code has none of this.
+- [ ] Go `group_join_request_repository.go` `CountRequests` does not call `getCreationDateRange(creationDateRange, expirationDateRange)` to convert the expiration date range into a creation date range offset. The Java code intersects the creation date range with the shifted expiration date range. The Go code applies `expirationDateRange.ToBson()` directly to the `"ed"` field, but `"ed"` does not exist in the `GroupJoinRequest` Go struct — this field will never match any documents.
 
 ## findGroupId
 
-- [x] No significant bug — the Go implementation correctly queries by `_id`, projects only `gid`, and returns the group ID.
+- [ ] No significant bug — the Go implementation correctly queries by `_id`, projects only `gid`, and returns the group ID.
 
 ## findRequesterIdAndStatusAndGroupId
 
-- [x] Go `group_join_request_repository.go` `FindRequesterIdAndStatusAndGroupId` does NOT include `cd` (creationDate) in the projection. The Java version explicitly includes `GroupJoinRequest.Fields.CREATION_DATE` in the projection with the comment "Required by findExpirableDoc".
-- [x] Go `group_join_request_repository.go` `FindRequesterIdAndStatusAndGroupId` does NOT apply the expiration transformation (`transformExpiredRequest`). The Java version uses `findExpirableDoc` which checks if a PENDING request has expired (creationDate + expireAfterSeconds < now) and sets its status to EXPIRED in the result. The Go code returns the raw status from the database, so an expired PENDING request will still appear as PENDING.
+- [ ] Go `group_join_request_repository.go` `FindRequesterIdAndStatusAndGroupId` does NOT include `cd` (creationDate) in the projection. The Java version explicitly includes `GroupJoinRequest.Fields.CREATION_DATE` in the projection with the comment "Required by findExpirableDoc".
+- [ ] Go `group_join_request_repository.go` `FindRequesterIdAndStatusAndGroupId` does NOT apply the expiration transformation (`transformExpiredRequest`). The Java version uses `findExpirableDoc` which checks if a PENDING request has expired (creationDate + expireAfterSeconds < now) and sets its status to EXPIRED in the result. The Go code returns the raw status from the database, so an expired PENDING request will still appear as PENDING.
 
 ## findRequestsByGroupId
 
-- [x] Go `group_join_request_repository.go` `FindRequestsByGroupID` does NOT apply expiration transformation. The Java version uses `findExpirableDocs(filter)` which calls `transformExpiredRequest` on each result — changing PENDING status to EXPIRED for requests whose `creationDate + expireAfterSeconds < now`. The Go code returns raw database results, so expired pending requests will show as PENDING instead of EXPIRED.
+- [ ] Go `group_join_request_repository.go` `FindRequestsByGroupID` does NOT apply expiration transformation. The Java version uses `findExpirableDocs(filter)` which calls `transformExpiredRequest` on each result — changing PENDING status to EXPIRED for requests whose `creationDate + expireAfterSeconds < now`. The Go code returns raw database results, so expired pending requests will show as PENDING instead of EXPIRED.
 
 ## findRequestsByRequesterId
 
-- [x] Go `group_join_request_repository.go` `FindRequestsByRequesterID` does NOT apply expiration transformation. Same issue as `findRequestsByGroupId` — the Java version uses `findExpirableDocs(filter)` which transforms expired PENDING requests to EXPIRED status, but the Go code returns raw statuses.
+- [ ] Go `group_join_request_repository.go` `FindRequestsByRequesterID` does NOT apply expiration transformation. Same issue as `findRequestsByGroupId` — the Java version uses `findExpirableDocs(filter)` which transforms expired PENDING requests to EXPIRED status, but the Go code returns raw statuses.
 
 ## findRequests
 
-- [x] Go `group_join_request_repository.go` `FindRequests` does not apply any expiration-related filtering or transformation. The Java version uses `getEntityExpirationDate()`, `isExpiredOrNot(statuses, ...)`, `getCreationDateRange(creationDateRange, expirationDateRange)`, and `findExpirableDocs(filter, options)` which together: (1) filter expired/non-expired documents based on the `statuses` parameter, (2) convert expiration date range to creation date range, (3) transform expired PENDING results to EXPIRED status. The Go code has none of this.
-- [x] Go `group_join_request_repository.go` `FindRequests` takes single `*int64` / `*po.RequestStatus` parameters instead of `[]int64` / `[]po.RequestStatus` (sets). The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> requesterIds`, `Set<Long> responderIds`, `Set<RequestStatus> statuses` — allowing multi-value filters with `$in`. The Go code only supports filtering by a single value per field with `$eq`.
-- [x] Go `group_join_request_repository.go` `FindRequests` uses `*time.Time` for date parameters with `$gte`/`$lt` comparisons, while the Java version uses `DateRange` objects with `$gte`+`$lte` range queries via `addBetweenIfNotNull`. The Go code cannot express a proper date range (both start and end) for a single field.
-- [x] Go `group_join_request_repository.go` `FindRequests` does not handle nullable `page`/`size`. The Java version uses `@Nullable Integer page` and `@Nullable Integer size` with `paginateIfNotNull`, meaning pagination is optional. The Go code always applies pagination (skip/limit) with non-pointer `int` parameters, defaulting to 0 — when `page=0, size=0`, this results in `SetLimit(0)` which means no limit in MongoDB driver, but `SetSkip(0)` is applied unconditionally.
+- [ ] Go `group_join_request_repository.go` `FindRequests` does not apply any expiration-related filtering or transformation. The Java version uses `getEntityExpirationDate()`, `isExpiredOrNot(statuses, ...)`, `getCreationDateRange(creationDateRange, expirationDateRange)`, and `findExpirableDocs(filter, options)` which together: (1) filter expired/non-expired documents based on the `statuses` parameter, (2) convert expiration date range to creation date range, (3) transform expired PENDING results to EXPIRED status. The Go code has none of this.
+- [ ] Go `group_join_request_repository.go` `FindRequests` takes single `*int64` / `*po.RequestStatus` parameters instead of `[]int64` / `[]po.RequestStatus` (sets). The Java version accepts `Set<Long> ids`, `Set<Long> groupIds`, `Set<Long> requesterIds`, `Set<Long> responderIds`, `Set<RequestStatus> statuses` — allowing multi-value filters with `$in`. The Go code only supports filtering by a single value per field with `$eq`.
+- [ ] Go `group_join_request_repository.go` `FindRequests` uses `*time.Time` for date parameters with `$gte`/`$lt` comparisons, while the Java version uses `DateRange` objects with `$gte`+`$lte` range queries via `addBetweenIfNotNull`. The Go code cannot express a proper date range (both start and end) for a single field.
+- [ ] Go `group_join_request_repository.go` `FindRequests` does not handle nullable `page`/`size`. The Java version uses `@Nullable Integer page` and `@Nullable Integer size` with `paginateIfNotNull`, meaning pagination is optional. The Go code always applies pagination (skip/limit) with non-pointer `int` parameters, defaulting to 0 — when `page=0, size=0`, this results in `SetLimit(0)` which means no limit in MongoDB driver, but `SetSkip(0)` is applied unconditionally.
 
 # GroupMemberRepository.java
 *Checked methods: deleteAllGroupMembers(@Nullable Set<Long> groupIds, @Nullable ClientSession session), updateGroupMembers(Set<GroupMember.Key> keys, @Nullable String name, @Nullable GroupMemberRole role, @Nullable Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session), countMembers(Long groupId), countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange), findGroupManagersAndOwnerId(Long groupId), findGroupMembers(Long groupId), findGroupMembers(Long groupId, Set<Long> memberIds), findGroupsMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<@ValidGroupMemberRole GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size), findGroupMemberIds(Long groupId), findGroupMemberIds(Set<Long> groupIds), findGroupMemberKeyAndRoleParis(Set<Long> userIds, Long groupId), findGroupMemberRole(Long userId, Long groupId), findMemberIdsByGroupId(Long groupId), findUserJoinedGroupIds(Long userId), findUsersJoinedGroupIds(@Nullable Set<Long> groupIds, @NotEmpty Set<Long> userIds, @Nullable Integer page, @Nullable Integer size), isMemberMuted(Long groupId, Long userId)*
@@ -12415,19 +12415,19 @@ Now let me compile the final findings:
 
 ## deleteAllGroupMembers
 
-- [x] **Behavioral difference with null/empty groupIds**: In Java, when `groupIds` is `null`, the `inIfNotNull` method does NOT add any filter condition, which means **all group members across all groups are deleted**. In Go, when `groupIDs` is empty (`len(groupIDs) == 0`), the method returns immediately without deleting anything. The Java behavior for `null` groupIds (delete everything) is not supported in Go.
+- [ ] **Behavioral difference with null/empty groupIds**: In Java, when `groupIds` is `null`, the `inIfNotNull` method does NOT add any filter condition, which means **all group members across all groups are deleted**. In Go, when `groupIDs` is empty (`len(groupIDs) == 0`), the method returns immediately without deleting anything. The Java behavior for `null` groupIds (delete everything) is not supported in Go.
 
 ## countMembers (multi-parameter version)
 
-- [x] **Missing method**: The Java `countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)` has no equivalent Go implementation. The Go `CountMembers` only supports the single-groupID overload.
+- [ ] **Missing method**: The Java `countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)` has no equivalent Go implementation. The Go `CountMembers` only supports the single-groupID overload.
 
 ## findGroupsMembers
 
-- [x] **Difference in handling null vs empty sets for groupIds/userIds**: Java's `inIfNotNull` only skips the filter when the parameter is `null`. If passed an empty `Set`, Java adds `$in: []` which matches nothing in MongoDB. Go's `len(groupIDs) > 0` check skips the filter for both `nil` and empty slices, which matches everything instead of nothing. This causes a behavioral divergence: passing an empty slice in Go returns all records, while passing an empty set in Java returns no records.
+- [ ] **Difference in handling null vs empty sets for groupIds/userIds**: Java's `inIfNotNull` only skips the filter when the parameter is `null`. If passed an empty `Set`, Java adds `$in: []` which matches nothing in MongoDB. Go's `len(groupIDs) > 0` check skips the filter for both `nil` and empty slices, which matches everything instead of nothing. This causes a behavioral divergence: passing an empty slice in Go returns all records, while passing an empty set in Java returns no records.
 
 ## findUsersJoinedGroupIds
 
-- [x] **Missing pagination**: The Go `FindUsersJoinedGroupIds` accepts `page` and `size` parameters but does not apply them to the query options. The Java version calls `paginateIfNotNull(page, size)` which sets skip/limit. The Go code has a comment acknowledging this ("Pagination logic can be added if needed") but it is not implemented, so pagination is silently ignored.
+- [ ] **Missing pagination**: The Go `FindUsersJoinedGroupIds` accepts `page` and `size` parameters but does not apply them to the query options. The Java version calls `paginateIfNotNull(page, size)` which sets skip/limit. The Go code has a comment acknowledging this ("Pagination logic can be added if needed") but it is not implemented, so pagination is silently ignored.
 
 # GroupQuestionRepository.java
 *Checked methods: updateQuestion(Long questionId, @Nullable String question, @Nullable Set<String> answers, @Nullable Integer score), updateQuestions(Set<Long> ids, @Nullable Long groupId, @Nullable String question, @Nullable Set<String> answers, @Nullable Integer score), countQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds), checkQuestionAnswerAndGetScore(Long questionId, String answer, @Nullable Long groupId), findGroupId(Long questionId), findQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Integer page, @Nullable Integer size, boolean withAnswers)*
@@ -12529,8 +12529,8 @@ Also, in Java, if `size` is null, no pagination is applied at all (skip AND limi
 
 ## findQuestions
 
-- [x] **Pagination calculation bug:** Go uses `page` directly as the skip value (`SetSkip(int64(*page))`), but Java computes `skip = size * page`. For example, with `page=2, size=10`, Java correctly skips 20 documents while Go only skips 2.
-- [x] **Missing size-null guard:** In Java, if `size` is null, no pagination (skip or limit) is applied at all. In Go, if `page != nil` but `size == nil`, the skip is still applied without a limit, which can silently return fewer results than expected.
+- [ ] **Pagination calculation bug:** Go uses `page` directly as the skip value (`SetSkip(int64(*page))`), but Java computes `skip = size * page`. For example, with `page=2, size=10`, Java correctly skips 20 documents while Go only skips 2.
+- [ ] **Missing size-null guard:** In Java, if `size` is null, no pagination (skip or limit) is applied at all. In Go, if `page != nil` but `size == nil`, the skip is still applied without a limit, which can silently return fewer results than expected.
 
 ## checkQuestionAnswerAndGetScore
 
@@ -12569,8 +12569,8 @@ The only confirmed bug is in `findQuestions` with the pagination logic.
 
 ## findQuestions
 
-- [x] **Pagination calculation is wrong.** Java's `paginateIfNotNull(page, size)` computes `skip = size * page`, but the Go repository's `FindQuestions` uses `SetSkip(int64(*page))` directly, treating `page` as the raw skip offset instead of computing `skip = page * size`. This causes incorrect result sets for any page > 0.
-- [x] **Missing size-null guard for pagination.** Java only applies pagination when `size` is not null (if `size` is null, neither skip nor limit is applied). Go applies `page` as skip independently of whether `size` is set, meaning a non-nil `page` with nil `size` will incorrectly skip records without limiting.
+- [ ] **Pagination calculation is wrong.** Java's `paginateIfNotNull(page, size)` computes `skip = size * page`, but the Go repository's `FindQuestions` uses `SetSkip(int64(*page))` directly, treating `page` as the raw skip offset instead of computing `skip = page * size`. This causes incorrect result sets for any page > 0.
+- [ ] **Missing size-null guard for pagination.** Java only applies pagination when `size` is not null (if `size` is null, neither skip nor limit is applied). Go applies `page` as skip independently of whether `size` is set, meaning a non-nil `page` with nil `size` will incorrectly skip records without limiting.
 
 # GroupRepository.java
 *Checked methods: updateGroupsDeletionDate(@Nullable Collection<Long> groupIds, @Nullable ClientSession session), updateGroups(Set<Long> groupIds, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable Integer minimumScore, @Nullable Boolean isActive, @Nullable Date creationDate, @Nullable Date deletionDate, @Nullable Date muteEndDate, @Nullable Date lastUpdatedDate, @Nullable Map<String, Object> userDefinedAttributes, @Nullable ClientSession session), countCreatedGroups(@Nullable DateRange dateRange), countDeletedGroups(@Nullable DateRange dateRange), countGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange), countOwnedGroups(Long ownerId), countOwnedGroups(Long ownerId, Long groupTypeId), findGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size), findNotDeletedGroups(Collection<Long> ids, @Nullable Date lastUpdatedDate), findAllNames(), findTypeId(Long groupId), findTypeIdAndGroupId(Collection<Long> groupIds), findTypeIdIfActiveAndNotDeleted(Long groupId), findMinimumScore(Long groupId), findOwnerId(Long groupId), isGroupMuted(Long groupId, Date muteEndDate), isGroupActiveAndNotDeleted(Long groupId)*
@@ -12682,20 +12682,20 @@ Now I have all the information needed. Let me analyze each method systematically
 Here is the full bug report:
 
 ## updateGroupsDeletionDate
-- [x] **Behavioral difference - always sets deletion date vs. conditional set/unset**: The Java version always sets `DELETION_DATE` to `new Date()` (a `$set` operation). The Go version conditionally does `$unset` when `deletionDate` is nil or `$set` when non-nil, which is incorrect behavior for this method's intended purpose.
-- [x] **Missing nullable groupIds handling**: The Java version uses `inIfNotNull(DomainFieldName.ID, groupIds)` which handles the case where `groupIds` is null (no filter on ID). The Go version always requires `groupIDs` and always applies the `$in` filter unconditionally.
+- [ ] **Behavioral difference - always sets deletion date vs. conditional set/unset**: The Java version always sets `DELETION_DATE` to `new Date()` (a `$set` operation). The Go version conditionally does `$unset` when `deletionDate` is nil or `$set` when non-nil, which is incorrect behavior for this method's intended purpose.
+- [ ] **Missing nullable groupIds handling**: The Java version uses `inIfNotNull(DomainFieldName.ID, groupIds)` which handles the case where `groupIds` is null (no filter on ID). The Go version always requires `groupIDs` and always applies the `$in` filter unconditionally.
 
 ## updateGroups
-- [x] **Method not ported**: There is no `updateGroups` method in Go that matches the Java signature accepting `Set<Long> groupIds` with all nullable update fields (typeId, creatorId, ownerId, name, intro, announcement, minimumScore, isActive, creationDate, deletionDate, muteEndDate, lastUpdatedDate, userDefinedAttributes) and a `ClientSession`. The Go code only has a simple `UpdateGroup(ctx, groupID int64, update bson.M)` for single-group updates with a raw BSON map, and no multi-group update equivalent.
+- [ ] **Method not ported**: There is no `updateGroups` method in Go that matches the Java signature accepting `Set<Long> groupIds` with all nullable update fields (typeId, creatorId, ownerId, name, intro, announcement, minimumScore, isActive, creationDate, deletionDate, muteEndDate, lastUpdatedDate, userDefinedAttributes) and a `ClientSession`. The Go code only has a simple `UpdateGroup(ctx, groupID int64, update bson.M)` for single-group updates with a raw BSON map, and no multi-group update equivalent.
 
 ## countCreatedGroups
-- [x] **Missing `DELETION_DATE == null` filter**: The Java version includes `.eq(Group.Fields.DELETION_DATE, null)` to only count non-deleted groups. The Go version (`CountCreatedGroups` at line 164) is missing this filter entirely, so it counts both deleted and non-deleted groups.
+- [ ] **Missing `DELETION_DATE == null` filter**: The Java version includes `.eq(Group.Fields.DELETION_DATE, null)` to only count non-deleted groups. The Go version (`CountCreatedGroups` at line 164) is missing this filter entirely, so it counts both deleted and non-deleted groups.
 
 ## countDeletedGroups
-- [x] **Incorrect null check - uses `$exists: true` instead of field match**: The Java version only applies the date range filter on `DELETION_DATE` and relies on the presence of a non-null value in the date range. The Go version uses `"dd": bson.M{"$exists": true}` as a default filter, then potentially overwrites it with the date range. While functionally similar when a date range is provided, when `dateRange` is nil, the Go version returns all documents with a `dd` field (including those with `dd: null`), whereas Java would count all documents (no filter).
+- [ ] **Incorrect null check - uses `$exists: true` instead of field match**: The Java version only applies the date range filter on `DELETION_DATE` and relies on the presence of a non-null value in the date range. The Go version uses `"dd": bson.M{"$exists": true}` as a default filter, then potentially overwrites it with the date range. While functionally similar when a date range is provided, when `dateRange` is nil, the Go version returns all documents with a `dd` field (including those with `dd: null`), whereas Java would count all documents (no filter).
 
 ## countGroups
-- [x] **Method not fully ported**: The Java `countGroups` takes 9 nullable filter parameters (ids, typeIds, creatorIds, ownerIds, isActive, creationDateRange, deletionDateRange, lastUpdatedDateRange, muteEndDateRange). The Go `CountGroups` at line 207 simply delegates to `CountCreatedGroups`, which is a completely different method. The full multi-parameter count method is missing.
+- [ ] **Method not fully ported**: The Java `countGroups` takes 9 nullable filter parameters (ids, typeIds, creatorIds, ownerIds, isActive, creationDateRange, deletionDateRange, lastUpdatedDateRange, muteEndDateRange). The Go `CountGroups` at line 207 simply delegates to `CountCreatedGroups`, which is a completely different method. The full multi-parameter count method is missing.
 
 ## countOwnedGroups(Long ownerId)
 - [ ] **Incorrect additional deletion date filter**: The Java version only filters by `eq(Group.Fields.OWNER_ID, ownerId)` with no deletion date check. The Go version at line 133 adds `"dd": bson.M{"$exists": false}`, filtering out deleted groups, which does not match the Java behavior.
