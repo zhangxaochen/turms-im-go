@@ -8384,33 +8384,33 @@ Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
 
 ## resolveConflicts / closeSessionsWithConflictedDeviceTypes
 
-- [ ] Java uses `SessionCloseStatus.DISCONNECTED_BY_CLIENT` to close conflicted sessions. Go uses `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`, which is a different close status code.
-- [ ] Java builds `nodeIdToDeviceTypes` by adding `deviceType` (the logging-in device type) to each node's set (line 817: `.add(deviceType)`). Go adds `conflictedDT` (the conflicted device type) to the node mapping. This means Java tells remote nodes to disconnect the logging-in device type, while Go tells them to disconnect the conflicted device types — fundamentally different conflict resolution behavior.
+- [x] Java uses `SessionCloseStatus.DISCONNECTED_BY_CLIENT` to close conflicted sessions. Go uses `SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`, which is a different close status code.
+- [x] Java builds `nodeIdToDeviceTypes` by adding `deviceType` (the logging-in device type) to each node's set (line 817: `.add(deviceType)`). Go adds `conflictedDT` (the conflicted device type) to the node mapping. This means Java tells remote nodes to disconnect the logging-in device type, while Go tells them to disconnect the conflicted device types — fundamentally different conflict resolution behavior.
 
 ## tryRegisterOnlineUser
 
-- [ ] Java has a step (lines 656-676) that closes local sessions for device types that are already registered on Redis by other nodes. This handles edge cases like Redis crashes/restarts or lost connections to Redis. Go's `resolveConflicts` does not include this step — it only handles conflicted device types, not stale local sessions registered by other nodes.
-- [ ] Java has a session recovery path (lines 695-734) where if the session exists locally and its connection is closed, it returns the existing session for connection replacement (UDP-to-TCP/WebSocket recovery). This entire recovery branch is missing from Go.
+- [x] Java has a step (lines 656-676) that closes local sessions for device types that are already registered on Redis by other nodes. This handles edge cases like Redis crashes/restarts or lost connections to Redis. Go's `resolveConflicts` does not include this step — it only handles conflicted device types, not stale local sessions registered by other nodes.
+- [x] Java has a session recovery path (lines 695-734) where if the session exists locally and its connection is closed, it returns the existing session for connection replacement (UDP-to-TCP/WebSocket recovery). This entire recovery branch is missing from Go.
 - [x] Java calls `addOnlineDeviceIfAbsent` with `closeIdleSessionAfterSeconds`, `expectedNodeId`, and `expectedDeviceTimestamp` parameters for optimistic concurrency control. Go calls `AddOnlineDevice` without these parameters, losing the CAS-style protection against race conditions.
-- [ ] Java filters `deviceDetails` through `deviceDetailsItemPropertiesList` configuration before storing. Go passes `deviceDetails` directly without filtering.
-- [ ] Go calls `s.InvokeGoOnlineHandlers(ctx, nil, session)` passing `nil` as the `userSessionsManager`. Java calls `invokeGoOnlineHandlers(userSessionsManager, userSession)` with the actual non-null manager retrieved from `userIdToSessionsManager.computeIfAbsent`.
+- [x] Java filters `deviceDetails` through `deviceDetailsItemPropertiesList` configuration before storing. Go passes `deviceDetails` directly without filtering.
+- [x] Go calls `s.InvokeGoOnlineHandlers(ctx, nil, session)` passing `nil` as the `userSessionsManager`. Java calls `invokeGoOnlineHandlers(userSessionsManager, userSession)` with the actual non-null manager retrieved from `userIdToSessionsManager.computeIfAbsent`.
 
 ## onSessionEstablished
 
-- [ ] Java increments the `loggedInUsersCounter` metric. Go has an empty stub with a TODO comment.
-- [ ] Java conditionally pushes a session notification to the client via `userSessionsManager.pushSessionNotification(deviceType, serverId)` when `notifyClientsOfSessionInfoAfterConnected` is enabled. Go has an empty stub with no notification logic.
+- [x] Java increments the `loggedInUsersCounter` metric. Go has an empty stub with a TODO comment.
+- [x] Java conditionally pushes a session notification to the client via `userSessionsManager.pushSessionNotification(deviceType, serverId)` when `notifyClientsOfSessionInfoAfterConnected` is enabled. Go has an empty stub with no notification logic.
 
 ## invokeGoOnlineHandlers
 
-- [ ] Java invokes the `UserOnlineStatusChangeHandler.goOnline` plugin extension point via `pluginManager.invokeExtensionPointsSimultaneously`. Go has an empty stub with a TODO and does not invoke any plugin.
+- [x] Java invokes the `UserOnlineStatusChangeHandler.goOnline` plugin extension point via `pluginManager.invokeExtensionPointsSimultaneously`. Go has an empty stub with a TODO and does not invoke any plugin.
 
 ## authAndUpdateHeartbeatTimestamp
 
-- [ ] Java validates `deviceType` with `Validator.notNull` and `DeviceTypeUtil.validDeviceType`. Go does not validate the `deviceType` parameter at all.
+- [x] Java validates `deviceType` with `Validator.notNull` and `DeviceTypeUtil.validDeviceType`. Go does not validate the `deviceType` parameter at all.
 
 ## notifySessionClosedListeners
 
-- [ ] Java wraps each listener invocation in a try-catch block to prevent one failing listener from affecting others. Go calls listeners without any panic recovery, so a panic in one listener will propagate and abort the remaining listeners.
+- [x] Java wraps each listener invocation in a try-catch block to prevent one failing listener from affecting others. Go calls listeners without any panic recovery, so a panic in one listener will propagate and abort the remaining listeners.
 
 # ServiceAddressManager.java
 *Checked methods: getWsAddress(), getTcpAddress(), getUdpAddress()*
@@ -8419,15 +8419,15 @@ Now I have the full picture. Let me compare the three getter methods and the `up
 
 ## getWsAddress()
 
-- [ ] **Missing null/empty check when WS is disabled**: In Java, `wsAddress` is only updated inside `if (webSocketProperties.isEnabled())`, so it retains its previous value (initially `null`) when WS is disabled. In Go, `UpdateCustomAddresses` always unconditionally sets `m.wsAddress` regardless of whether WS is enabled or not. There is no `wsEnabled` parameter or check. The Go code always resolves and assigns the WS address even when it shouldn't.
+- [x] **Missing null/empty check when WS is disabled**: In Java, `wsAddress` is only updated inside `if (webSocketProperties.isEnabled())`, so it retains its previous value (initially `null`) when WS is disabled. In Go, `UpdateCustomAddresses` always unconditionally sets `m.wsAddress` regardless of whether WS is enabled or not. There is no `wsEnabled` parameter or check. The Go code always resolves and assigns the WS address even when it shouldn't.
 
 ## getTcpAddress()
 
-- [ ] **Missing enabled check when TCP is disabled**: Same issue as WS. Java only updates `tcpAddress` inside `if (tcpProperties.isEnabled())`. Go unconditionally sets `m.tcpAddress` every time `UpdateCustomAddresses` is called. There is no `tcpEnabled` parameter or conditional guard.
+- [x] **Missing enabled check when TCP is disabled**: Same issue as WS. Java only updates `tcpAddress` inside `if (tcpProperties.isEnabled())`. Go unconditionally sets `m.tcpAddress` every time `UpdateCustomAddresses` is called. There is no `tcpEnabled` parameter or conditional guard.
 
 ## getUdpAddress()
 
-- [ ] **Missing enabled check when UDP is disabled**: Same issue as WS/TCP. Java only updates `udpAddress` inside `if (udpProperties.isEnabled())`. Go unconditionally sets `m.udpAddress`. There is no `udpEnabled` parameter or conditional guard.
+- [x] **Missing enabled check when UDP is disabled**: Same issue as WS/TCP. Java only updates `udpAddress` inside `if (udpProperties.isEnabled())`. Go unconditionally sets `m.udpAddress`. There is no `udpEnabled` parameter or conditional guard.
 
 ## queryHost() (supporting method for all three)
 
@@ -8506,86 +8506,86 @@ The `ttl_cache.go` file is not related to `BerBuffer` — it's a separate utilit
 
 ## readLength()
 
-- [ ] **Missing error handling for indefinite length (numBytes == 0)**: Java throws `DecodeException("Indefinite length is not supported")`, Go silently returns 0. This will cause the caller to misinterpret the structure.
-- [ ] **Missing validation for numBytes > 4**: Java throws `DecodeException("The length (...) is too long")`, Go silently proceeds with any numBytes value, potentially reading far beyond valid data.
-- [ ] **Missing insufficient data check**: Java checks `buffer.isReadable(lengthBytes)` before reading the length bytes and throws `DecodeException("Insufficient data")`. Go silently breaks out of the loop with a partial/truncated length value instead of throwing an error.
-- [ ] **Missing negative length check**: Java checks `if (length < 0)` after computation and throws `DecodeException("Invalid length bytes")`. Go returns the potentially corrupted length without validation.
+- [x] **Missing error handling for indefinite length (numBytes == 0)**: Java throws `DecodeException("Indefinite length is not supported")`, Go silently returns 0. This will cause the caller to misinterpret the structure.
+- [x] **Missing validation for numBytes > 4**: Java throws `DecodeException("The length (...) is too long")`, Go silently proceeds with any numBytes value, potentially reading far beyond valid data.
+- [x] **Missing insufficient data check**: Java checks `buffer.isReadable(lengthBytes)` before reading the length bytes and throws `DecodeException("Insufficient data")`. Go silently breaks out of the loop with a partial/truncated length value instead of throwing an error.
+- [x] **Missing negative length check**: Java checks `if (length < 0)` after computation and throws `DecodeException("Invalid length bytes")`. Go returns the potentially corrupted length without validation.
 
 ## tryReadLengthIfReadable()
 
-- [ ] **Delegates to ReadLength() which has different error behavior**: Java's `tryReadLengthIfReadable` has its own full logic that returns -1 when there isn't enough data for the multi-byte length (line 155-157 in Java). The Go version simply delegates to `ReadLength()` which can silently return a truncated/incorrect value instead of -1 when multi-byte length data is partially available.
-- [ ] **Missing indefinite length error**: Java throws `DecodeException("Indefinite length is not supported")` when numBytes == 0, but Go's `ReadLength()` returns 0 silently.
-- [ ] **Missing numBytes > 4 error**: Java throws an exception, Go proceeds silently.
-- [ ] **Missing negative length check**: Java validates `length < 0`, Go does not.
+- [x] **Delegates to ReadLength() which has different error behavior**: Java's `tryReadLengthIfReadable` has its own full logic that returns -1 when there isn't enough data for the multi-byte length (line 155-157 in Java). The Go version simply delegates to `ReadLength()` which can silently return a truncated/incorrect value instead of -1 when multi-byte length data is partially available.
+- [x] **Missing indefinite length error**: Java throws `DecodeException("Indefinite length is not supported")` when numBytes == 0, but Go's `ReadLength()` returns 0 silently.
+- [x] **Missing numBytes > 4 error**: Java throws an exception, Go proceeds silently.
+- [x] **Missing negative length check**: Java validates `length < 0`, Go does not.
 
 ## readBoolean()
 
-- [ ] **Missing tag validation**: Java reads the tag and verifies it equals `TAG_BOOLEAN`, throwing `DecodeException` on mismatch. Go calls `SkipTagAndLength()` which blindly skips the tag without validating it.
-- [ ] **Missing length validation**: Java checks `length > 1` and throws `DecodeException("The boolean is too large")`, and checks `isReadable(length)`. Go skips the length without any validation.
-- [ ] **Returns false on insufficient data instead of throwing**: Java throws `DecodeException("Insufficient data")`. Go returns `false`, which is incorrect behavior — the caller cannot distinguish between "read a false boolean" and "failed to read".
+- [x] **Missing tag validation**: Java reads the tag and verifies it equals `TAG_BOOLEAN`, throwing `DecodeException` on mismatch. Go calls `SkipTagAndLength()` which blindly skips the tag without validating it.
+- [x] **Missing length validation**: Java checks `length > 1` and throws `DecodeException("The boolean is too large")`, and checks `isReadable(length)`. Go skips the length without any validation.
+- [x] **Returns false on insufficient data instead of throwing**: Java throws `DecodeException("Insufficient data")`. Go returns `false`, which is incorrect behavior — the caller cannot distinguish between "read a false boolean" and "failed to read".
 
 ## readIntWithTag(int tag)
 
-- [ ] **Returns 0 instead of throwing on tag mismatch**: Java throws `DecodeException` with tag mismatch details. Go silently returns 0, hiding protocol errors.
-- [ ] **Returns 0 instead of throwing when length > 4**: Java throws `DecodeException("The integer is too long")`. Go silently returns 0.
-- [ ] **Returns 0 instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")`. Go returns 0.
-- [ ] **Incorrect negative value decoding logic**: Java extracts bits 0-6 of the first byte (`firstByte & 0x7F`) and then negates (`-value`). Go reads all bytes including the sign bit, then applies a sign-extension mask (`val |= ^((1 << (length * 8)) - 1)`). These produce different results for negative integers. For example, a 2-byte encoding of -129 (0xFF, 0x7F): Java computes `value = 0x7F = 127`, then `value = -127`. Go computes `val = 0xFF7F = 65407`, then `val |= ^0xFFFF = val | 0xFFFF0000 = 0xFFFFFF7F = -129`. The results differ (-127 vs -129).
-- [ ] **Returns 0 when length == 0**: Java would proceed to read a byte with `buffer.readByte()` and potentially throw. Go returns 0 silently.
+- [x] **Returns 0 instead of throwing on tag mismatch**: Java throws `DecodeException` with tag mismatch details. Go silently returns 0, hiding protocol errors.
+- [x] **Returns 0 instead of throwing when length > 4**: Java throws `DecodeException("The integer is too long")`. Go silently returns 0.
+- [x] **Returns 0 instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")`. Go returns 0.
+- [x] **Incorrect negative value decoding logic**: Java extracts bits 0-6 of the first byte (`firstByte & 0x7F`) and then negates (`-value`). Go reads all bytes including the sign bit, then applies a sign-extension mask (`val |= ^((1 << (length * 8)) - 1)`). These produce different results for negative integers. For example, a 2-byte encoding of -129 (0xFF, 0x7F): Java computes `value = 0x7F = 127`, then `value = -127`. Go computes `val = 0xFF7F = 65407`, then `val |= ^0xFFFF = val | 0xFFFF0000 = 0xFFFFFF7F = -129`. The results differ (-127 vs -129).
+- [x] **Returns 0 when length == 0**: Java would proceed to read a byte with `buffer.readByte()` and potentially throw. Go returns 0 silently.
 
 ## writeInteger(int tag, int value)
 
-- [ ] **Incorrect encoding for negative values**: Java's encoding uses bitmasks to determine the minimal encoding size for negative numbers (e.g., `(value & 0xFFFF_FF80) == 0xFFFF_FF80` checks if the value fits in 1 byte with sign extension). Go uses range checks (`value >= -128 && value <= 127`). While the range checks happen to produce the same byte count for negative values, the Go version writes different byte values. For example, for `value = -1`: Java writes `byte(value & 0xFF) = 0xFF`. Go writes `byte(-1) = 0xFF` — same in this case. But for `value = -129`: Java's 2-byte path writes `byte((value >> 8) & 0xFF) = 0xFF` and `byte(value & 0xFF) = 0x7F`. Go writes `byte(-129 >> 8) = 0xFF` and `byte(-129) = 0x7F`. These match. However, **the positive-value encoding differs**: Java masks the high byte with `& 0x7F` (e.g., `buffer.writeByte((value >> 8) & 0x7F)` for 2-byte positive values), while Go does not mask with `0x7F`. For positive values in the range 128-255, Java's 1-byte branch writes `value & 0x7F` (stripping bit 7), but Go's range check puts values > 127 into the 2-byte branch, so the behavior diverges. For value=200: Java's `(value & 0x0000_007F) == value` is `200 & 0x7F = 72 != 200`, so it falls to 2-byte: writes `byte((200 >> 8) & 0x7F) = 0` and `byte(200 & 0xFF) = 0xC8`. Go's `value >= -128 && value <= 127` is false for 200, so 2-byte: writes `byte(200 >> 8) = 0` and `byte(200) = 0xC8`. Same in this case. But for value=128: Java 2-byte path writes `byte((128>>8) & 0x7F) = 0` and `byte(128 & 0xFF) = 0x80`. Go writes same. So the positive paths are actually equivalent since Go's range boundaries align with Java's bitmask-based boundaries. This is correct.
+- [x] **Incorrect encoding for negative values**: Java's encoding uses bitmasks to determine the minimal encoding size for negative numbers (e.g., `(value & 0xFFFF_FF80) == 0xFFFF_FF80` checks if the value fits in 1 byte with sign extension). Go uses range checks (`value >= -128 && value <= 127`). While the range checks happen to produce the same byte count for negative values, the Go version writes different byte values. For example, for `value = -1`: Java writes `byte(value & 0xFF) = 0xFF`. Go writes `byte(-1) = 0xFF` — same in this case. But for `value = -129`: Java's 2-byte path writes `byte((value >> 8) & 0xFF) = 0xFF` and `byte(value & 0xFF) = 0x7F`. Go writes `byte(-129 >> 8) = 0xFF` and `byte(-129) = 0x7F`. These match. However, **the positive-value encoding differs**: Java masks the high byte with `& 0x7F` (e.g., `buffer.writeByte((value >> 8) & 0x7F)` for 2-byte positive values), while Go does not mask with `0x7F`. For positive values in the range 128-255, Java's 1-byte branch writes `value & 0x7F` (stripping bit 7), but Go's range check puts values > 127 into the 2-byte branch, so the behavior diverges. For value=200: Java's `(value & 0x0000_007F) == value` is `200 & 0x7F = 72 != 200`, so it falls to 2-byte: writes `byte((200 >> 8) & 0x7F) = 0` and `byte(200 & 0xFF) = 0xC8`. Go's `value >= -128 && value <= 127` is false for 200, so 2-byte: writes `byte(200 >> 8) = 0` and `byte(200) = 0xC8`. Same in this case. But for value=128: Java 2-byte path writes `byte((128>>8) & 0x7F) = 0` and `byte(128 & 0xFF) = 0x80`. Go writes same. So the positive paths are actually equivalent since Go's range boundaries align with Java's bitmask-based boundaries. This is correct.
 
 ## writeOctetString(int tag, String value)
 
-- [ ] **Missing length pre-reservation / backpatching logic**: Java reserves 3 bytes for the length (0x82 + 2 bytes), writes the UTF-8 string, then backpatches the actual length. Go writes the length immediately with `WriteLength(len(value))`, which uses `len(value)` (byte count of the Go string, which is already UTF-8). However, the critical difference is that Java always writes a 3-byte length (0x82 + 2 bytes) regardless of actual string length, while Go's `WriteLength` uses a variable-length encoding (1 byte for lengths <= 127, etc.). This means the wire format differs for short strings: Java produces 3 bytes of length overhead for all strings, Go produces 1 byte for strings <= 127 bytes. This is actually a more compact encoding, but it is not byte-compatible with the Java version. Whether this is a "bug" depends on whether wire-compatibility is required; for an LDAP client it may work fine since servers should handle both forms.
+- [x] **Missing length pre-reservation / backpatching logic**: Java reserves 3 bytes for the length (0x82 + 2 bytes), writes the UTF-8 string, then backpatches the actual length. Go writes the length immediately with `WriteLength(len(value))`, which uses `len(value)` (byte count of the Go string, which is already UTF-8). However, the critical difference is that Java always writes a 3-byte length (0x82 + 2 bytes) regardless of actual string length, while Go's `WriteLength` uses a variable-length encoding (1 byte for lengths <= 127, etc.). This means the wire format differs for short strings: Java produces 3 bytes of length overhead for all strings, Go produces 1 byte for strings <= 127 bytes. This is actually a more compact encoding, but it is not byte-compatible with the Java version. Whether this is a "bug" depends on whether wire-compatibility is required; for an LDAP client it may work fine since servers should handle both forms.
 
 ## readOctetStringWithTag(int tag)
 
-- [ ] **Returns empty string instead of throwing on tag mismatch**: Java throws `DecodeException` with tag details. Go silently returns `""`.
-- [ ] **Returns empty string instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")` when `!buffer.isReadable(length)`. Go's `ReadOctetStringWithLength` returns `""` silently.
+- [x] **Returns empty string instead of throwing on tag mismatch**: Java throws `DecodeException` with tag details. Go silently returns `""`.
+- [x] **Returns empty string instead of throwing on insufficient data**: Java throws `DecodeException("Insufficient data")` when `!buffer.isReadable(length)`. Go's `ReadOctetStringWithLength` returns `""` silently.
 
 ## readOctetStringWithLength(int length)
 
-- [ ] **Returns empty string instead of throwing on insufficient data**: Java reads with `buffer.readCharSequence(length, UTF_8)` which would throw if insufficient data (Netty's ByteBuf does bounds checking). Go silently returns `""` when `b.readerIdx+length > len(b.buf)`.
+- [x] **Returns empty string instead of throwing on insufficient data**: Java reads with `buffer.readCharSequence(length, UTF_8)` which would throw if insufficient data (Netty's ByteBuf does bounds checking). Go silently returns `""` when `b.readerIdx+length > len(b.buf)`.
 
 ## beginSequence(int tag)
 
-- [ ] **Different initialization of sequenceLengthWriterIndexes**: Java pre-allocates with `new int[8]` (fixed-size array with length 8) and tracks usage via `currentSequenceLengthIndex`. Go uses `append` to a dynamically grown slice starting from capacity 8 but length 0. This works but the slice index semantics differ — Go uses `append` which is fine.
-- [ ] **Missing overflow/growth check**: Java explicitly checks `currentSequenceLengthIndex >= writerIndexCount` and grows the array. Go relies on `append` to handle growth automatically. This is functionally equivalent.
+- [x] **Different initialization of sequenceLengthWriterIndexes**: Java pre-allocates with `new int[8]` (fixed-size array with length 8) and tracks usage via `currentSequenceLengthIndex`. Go uses `append` to a dynamically grown slice starting from capacity 8 but length 0. This works but the slice index semantics differ — Go uses `append` which is fine.
+- [x] **Missing overflow/growth check**: Java explicitly checks `currentSequenceLengthIndex >= writerIndexCount` and grows the array. Go relies on `append` to handle growth automatically. This is functionally equivalent.
 
 ## endSequence()
 
-- [ ] **Missing "Unbalanced sequences" validation**: Java throws `IllegalStateException("Unbalanced sequences")` when `--currentSequenceLengthIndex < 0`. Go silently does nothing (the `if b.currentSequenceLengthIndex > 0` check just skips).
-- [ ] **Missing exception for length > 65535**: Java throws `DecodeException`. Go uses `panic`, which is a different error mechanism (not recoverable in normal Go flow without recover()).
+- [x] **Missing "Unbalanced sequences" validation**: Java throws `IllegalStateException("Unbalanced sequences")` when `--currentSequenceLengthIndex < 0`. Go silently does nothing (the `if b.currentSequenceLengthIndex > 0` check just skips).
+- [x] **Missing exception for length > 65535**: Java throws `DecodeException`. Go uses `panic`, which is a different error mechanism (not recoverable in normal Go flow without recover()).
 
 ## peekAndCheckTag(int tag)
 
-- [ ] **Minor difference — functionally equivalent but uses different comparison**: Java compares `buffer.getByte(buffer.readerIndex()) == tag` where `tag` is an `int` and `getByte` returns a `byte`. Go compares `int(b.buf[b.readerIdx]) == tag`. Both work correctly since Go's byte-to-int conversion matches Java's byte-to-int implicit widening (both produce unsigned 0-255 values). No bug here.
+- [x] **Minor difference — functionally equivalent but uses different comparison**: Java compares `buffer.getByte(buffer.readerIndex()) == tag` where `tag` is an `int` and `getByte` returns a `byte`. Go compares `int(b.buf[b.readerIdx]) == tag`. Both work correctly since Go's byte-to-int conversion matches Java's byte-to-int implicit widening (both produce unsigned 0-255 values). No bug here.
 
 ## writeOctetString(String value)
 
-- [ ] **Delegates to WriteOctetStringWithTag which uses different length encoding**: Same issue as `writeOctetString(int tag, String value)` — variable-length vs fixed 3-byte length encoding.
+- [x] **Delegates to WriteOctetStringWithTag which uses different length encoding**: Same issue as `writeOctetString(int tag, String value)` — variable-length vs fixed 3-byte length encoding.
 
 ## readTag()
 
-- [ ] **Returns 0 on buffer underflow instead of throwing/panic**: Java's `buffer.readByte()` would throw `IndexOutOfBoundsException` if no bytes are readable. Go returns 0. This could be misinterpreted as a valid tag by callers.
+- [x] **Returns 0 on buffer underflow instead of throwing/panic**: Java's `buffer.readByte()` would throw `IndexOutOfBoundsException` if no bytes are readable. Go returns 0. This could be misinterpreted as a valid tag by callers.
 
 ## skipTagAndLengthAndValue()
 
-- [ ] **Functionally equivalent**: Correct.
+- [x] **Functionally equivalent**: Correct.
 
 ## skipLengthAndValue()
 
-- [ ] **Functionally equivalent** (given ReadLength differences propagate).
+- [x] **Functionally equivalent** (given ReadLength differences propagate).
 
 ## isReadableWithEnd(int end)
 
-- [ ] **Extra bounds check not present in Java**: Java's `isReadableWithEnd` only checks `buffer.readerIndex() < end`. Go adds `&& b.readerIdx < len(b.buf)`. The additional check means Go may return false when Java would return true (if `readerIndex < end` but `readerIdx >= len(buf)`). In practice this could cause early termination of parsing loops that rely on the Java semantics.
+- [x] **Extra bounds check not present in Java**: Java's `isReadableWithEnd` only checks `buffer.readerIndex() < end`. Go adds `&& b.readerIdx < len(b.buf)`. The additional check means Go may return false when Java would return true (if `readerIndex < end` but `readerIdx >= len(buf)`). In practice this could cause early termination of parsing loops that rely on the Java semantics.
 
 ## readBoolean() (second look)
 
-- [ ] **Reads only 1 byte of value, ignoring length field**: Java reads the length via `readLength()` and validates it, but then reads exactly 1 byte. Go calls `SkipTagAndLength()` which consumes the tag byte and length bytes, then reads 1 byte. If the length indicated more than 1 byte of content, Go would leave the reader index misaligned compared to Java which also only reads 1 byte but validates the length first. The Java code validates `length > 1` and throws an error; Go silently ignores extra bytes.
+- [x] **Reads only 1 byte of value, ignoring length field**: Java reads the length via `readLength()` and validates it, but then reads exactly 1 byte. Go calls `SkipTagAndLength()` which consumes the tag byte and length bytes, then reads 1 byte. If the length indicated more than 1 byte of content, Go would leave the reader index misaligned compared to Java which also only reads 1 byte but validates the length first. The Java code validates `length > 1` and throws an error; Go silently ignores extra bytes.
 
 ---
 
@@ -8593,59 +8593,59 @@ Here is the consolidated bug list:
 
 ## readLength
 
-- [ ] Silently returns 0 for indefinite length (numBytes == 0) instead of throwing an error like Java's `DecodeException("Indefinite length is not supported")`
-- [ ] Missing validation that numBytes <= 4; Java throws `DecodeException` for lengths > 4, Go silently reads up to any number of bytes
-- [ ] Silently breaks with a truncated/partial length when insufficient bytes are available instead of throwing `DecodeException("Insufficient data")`
-- [ ] Missing negative length validation; Java checks `length < 0` and throws `DecodeException("Invalid length bytes")`, Go does not
+- [x] Silently returns 0 for indefinite length (numBytes == 0) instead of throwing an error like Java's `DecodeException("Indefinite length is not supported")`
+- [x] Missing validation that numBytes <= 4; Java throws `DecodeException` for lengths > 4, Go silently reads up to any number of bytes
+- [x] Silently breaks with a truncated/partial length when insufficient bytes are available instead of throwing `DecodeException("Insufficient data")`
+- [x] Missing negative length validation; Java checks `length < 0` and throws `DecodeException("Invalid length bytes")`, Go does not
 
 ## tryReadLengthIfReadable
 
-- [ ] Delegates to `ReadLength()` instead of having independent logic; when multi-byte length data is partially readable, Go returns a truncated value instead of -1 as Java does
-- [ ] Missing indefinite length error (numBytes == 0); Java throws, Go returns 0 via `ReadLength()`
-- [ ] Missing numBytes > 4 error; Java throws, Go proceeds silently via `ReadLength()`
+- [x] Delegates to `ReadLength()` instead of having independent logic; when multi-byte length data is partially readable, Go returns a truncated value instead of -1 as Java does
+- [x] Missing indefinite length error (numBytes == 0); Java throws, Go returns 0 via `ReadLength()`
+- [x] Missing numBytes > 4 error; Java throws, Go proceeds silently via `ReadLength()`
 
 ## readBoolean
 
-- [ ] Missing tag validation against `TAG_BOOLEAN`; Java throws `DecodeException` on mismatch, Go calls `SkipTagAndLength()` which skips blindly
-- [ ] Missing length validation (`length > 1` check); Java throws `DecodeException("The boolean is too large")`, Go skips the length without checking
-- [ ] Returns `false` on insufficient data instead of throwing `DecodeException("Insufficient data")`, conflating a read failure with a legitimate false value
+- [x] Missing tag validation against `TAG_BOOLEAN`; Java throws `DecodeException` on mismatch, Go calls `SkipTagAndLength()` which skips blindly
+- [x] Missing length validation (`length > 1` check); Java throws `DecodeException("The boolean is too large")`, Go skips the length without checking
+- [x] Returns `false` on insufficient data instead of throwing `DecodeException("Insufficient data")`, conflating a read failure with a legitimate false value
 
 ## readIntWithTag
 
-- [ ] Returns 0 on tag mismatch instead of throwing `DecodeException` with tag details
-- [ ] Returns 0 when length > 4 instead of throwing `DecodeException("The integer is too long")`
-- [ ] Returns 0 on insufficient data instead of throwing `DecodeException("Insufficient data")`
-- [ ] Incorrect negative value decoding: Java computes `value = firstByte & 0x7F` then accumulates remaining bytes and negates with `-value`. Go reads all bytes including the sign bit into `val` then applies a sign-extension mask. These produce different results for many negative values (e.g., 2-byte encoding of -129: Java gives -127, Go gives -129)
-- [ ] Returns 0 when length == 0 instead of reading and processing the first byte as Java does
+- [x] Returns 0 on tag mismatch instead of throwing `DecodeException` with tag details
+- [x] Returns 0 when length > 4 instead of throwing `DecodeException("The integer is too long")`
+- [x] Returns 0 on insufficient data instead of throwing `DecodeException("Insufficient data")`
+- [x] Incorrect negative value decoding: Java computes `value = firstByte & 0x7F` then accumulates remaining bytes and negates with `-value`. Go reads all bytes including the sign bit into `val` then applies a sign-extension mask. These produce different results for many negative values (e.g., 2-byte encoding of -129: Java gives -127, Go gives -129)
+- [x] Returns 0 when length == 0 instead of reading and processing the first byte as Java does
 
 ## writeOctetString(int tag, String value)
 
-- [ ] Uses variable-length encoding via `WriteLength()` instead of Java's fixed 3-byte length encoding (0x82 + 2 bytes). This produces different wire format for strings <= 127 bytes, breaking byte-level compatibility with the Java version.
+- [x] Uses variable-length encoding via `WriteLength()` instead of Java's fixed 3-byte length encoding (0x82 + 2 bytes). This produces different wire format for strings <= 127 bytes, breaking byte-level compatibility with the Java version.
 
 ## readOctetStringWithTag
 
-- [ ] Returns empty string on tag mismatch instead of throwing `DecodeException` with tag details
-- [ ] Returns empty string on insufficient data instead of throwing `DecodeException("Insufficient data")`
+- [x] Returns empty string on tag mismatch instead of throwing `DecodeException` with tag details
+- [x] Returns empty string on insufficient data instead of throwing `DecodeException("Insufficient data")`
 
 ## readOctetStringWithLength
 
-- [ ] Returns empty string on insufficient data instead of letting the read fail as Java does via Netty's bounds checking
+- [x] Returns empty string on insufficient data instead of letting the read fail as Java does via Netty's bounds checking
 
 ## endSequence
 
-- [ ] Silently does nothing on unbalanced sequences instead of throwing `IllegalStateException("Unbalanced sequences")` as Java does when `currentSequenceLengthIndex` is already 0
+- [x] Silently does nothing on unbalanced sequences instead of throwing `IllegalStateException("Unbalanced sequences")` as Java does when `currentSequenceLengthIndex` is already 0
 
 ## isReadableWithEnd
 
-- [ ] Adds an extra `b.readerIdx < len(b.buf)` check not present in Java; Java only checks `readerIndex() < end`. This can cause early termination of parsing loops that depend on the Java semantics
+- [x] Adds an extra `b.readerIdx < len(b.buf)` check not present in Java; Java only checks `readerIndex() < end`. This can cause early termination of parsing loops that depend on the Java semantics
 
 ## readTag
 
-- [ ] Returns 0 on buffer underflow instead of throwing/panicking as Java does (via Netty's `IndexOutOfBoundsException`). Callers may misinterpret 0 as a valid tag.
+- [x] Returns 0 on buffer underflow instead of throwing/panicking as Java does (via Netty's `IndexOutOfBoundsException`). Callers may misinterpret 0 as a valid tag.
 
 ## writeOctetString(String value)
 
-- [ ] Inherits the wire-format difference from `WriteOctetStringWithTag` — variable-length vs fixed 3-byte length encoding, same as `writeOctetString(int tag, String value)`
+- [x] Inherits the wire-format difference from `WriteOctetStringWithTag` — variable-length vs fixed 3-byte length encoding, same as `writeOctetString(int tag, String value)`
 
 # LdapMessage.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
