@@ -53,6 +53,12 @@ const { execSync, spawn } = require('child_process');
                 bugList.push(currentBug.join('\n'));
             }
             currentBug = [line]; // 严格复制整行，不额外拼接 Context 等前缀，防止 sync 脚本报错或混淆
+        } else if (line.trim().match(/^- \[[xX]\]/)) {
+            // 遇见已完成的任务，将其作为边界，把之前的未完成任务存入，并清空当前块（丢弃已完成的任务及其附带说明内容）
+            if (currentBug.length > 0) {
+                bugList.push(currentBug.join('\n'));
+                currentBug = [];
+            }
         } else if (currentBug.length > 0 && line.trim() !== '') {
             currentBug.push(line);
         }
@@ -139,17 +145,29 @@ const { execSync, spawn } = require('child_process');
         // 4. 生成包含自动重试策略的 Shell 脚本
         const runnerPath = path.join(worktreePath, 'run_agent.sh');
         const runnerContent = `#!/bin/bash
-MAX_RETRIES=15
-DELAY=60
+MAX_RETRIES=100
 count=0
 
 echo "Starting Claude Sub-agent..."
 while [ $count -lt $MAX_RETRIES ]; do
     echo "[$(date)] Attempt $((count+1)) / $MAX_RETRIES"
     
-    # 执行 claude 命令
-    claude -p --dangerously-skip-permissions "$(cat claude_prompt.txt)"
-    EXIT_CODE=$?
+    # 强制检查 temp_task.md 是否已经全部打钩了
+    if ! grep -q "\\- \\[ \\]" temp_task.md; then
+        echo "[$(date)] All tasks in temp_task.md are checked off! Skipping claude execution."
+        EXIT_CODE=0
+    else
+        # 执行 claude 命令
+        claude -p --dangerously-skip-permissions "$(cat claude_prompt.txt)"
+        
+        if grep -q "\\- \\[ \\]" temp_task.md; then
+            echo "[!] temp_task.md still has unfinished tasks (- [ ]). Claude agent did not complete everything!"
+            EXIT_CODE=1
+        else
+            echo "[Success] All tasks in temp_task.md are checked off."
+            EXIT_CODE=0
+        fi
+    fi
     
     if [ $EXIT_CODE -eq 0 ]; then
         echo "[$(date)] Agent finished successfully. Attempting to commit and merge..."
@@ -227,7 +245,13 @@ Do NOT attempt to run standard git merge. Finish the rebase process. Keep your t
         exit 0
     fi
     
-    echo "[$(date)] Agent failed with exit code $EXIT_CODE. Retrying in $DELAY seconds..."
+    # Delay strategy: 1min - 2min - 1min - 2min ... (count % 2)
+    if [ $((count % 2)) -eq 0 ]; then
+        DELAY=60
+    else
+        DELAY=120
+    fi
+    echo "[$(date)] Pipeline did not complete. Retrying in $((DELAY / 60)) minute(s)..."
     count=$((count+1))
     sleep $DELAY
 done
