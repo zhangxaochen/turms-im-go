@@ -332,19 +332,15 @@ func (s *GroupService) DeleteGroupsAndGroupMembers(ctx context.Context, groupIDs
 		return nil
 	}
 
-	// 1. Delete groups physically/logically
-	// Normally handled by groupRepo.DeleteByIds, here we loop delete for simplicity based on repo
-	for _, groupID := range groupIDs {
-		// Assuming hard delete conceptually, turms-orig toggles logic via props.
-		// For now we use the existing DeleteGroup
-		err := s.groupRepo.DeleteGroup(ctx, groupID)
-		if err != nil {
-			return err
-		}
+	// BUG FIX: Java always soft-deletes by setting DELETION_DATE to new Date()
+	deletionDate := time.Now()
+	err := s.groupRepo.UpdateGroupsDeletionDate(ctx, groupIDs, deletionDate, session)
+	if err != nil {
+		return err
 	}
 
 	// 2. Cascading delete all group members
-	err := s.groupMemberService.DeleteAllGroupMembers(ctx, groupIDs, session, false)
+	err = s.groupMemberService.DeleteAllGroupMembers(ctx, groupIDs, session, false)
 	if err != nil {
 		return err
 	}

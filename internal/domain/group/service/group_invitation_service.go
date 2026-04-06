@@ -10,6 +10,7 @@ import (
 	"im.turms/server/internal/domain/group/repository"
 	user_service "im.turms/server/internal/domain/user/service"
 	"im.turms/server/internal/infra/exception"
+	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/codes"
 	"im.turms/server/pkg/protocol"
 )
@@ -231,7 +232,26 @@ func (s *GroupInvitationService) AuthAndHandleInvitation(
 
 // @MappedFrom queryInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (s *GroupInvitationService) QueryInvitations(ctx context.Context, groupID *int64, inviterID *int64, inviteeID *int64, status *po.RequestStatus, lastUpdatedDate *time.Time, page int, size int) ([]*po.GroupInvitation, error) {
-	return s.invRepo.FindInvitations(ctx, groupID, inviterID, inviteeID, status, lastUpdatedDate, page, size)
+	var groupIds, inviterIds, inviteeIds []int64
+	var statuses []po.RequestStatus
+	if groupID != nil {
+		groupIds = []int64{*groupID}
+	}
+	if inviterID != nil {
+		inviterIds = []int64{*inviterID}
+	}
+	if inviteeID != nil {
+		inviteeIds = []int64{*inviteeID}
+	}
+	if status != nil {
+		statuses = []po.RequestStatus{*status}
+	}
+	var creationDateRange *turmsmongo.DateRange
+	if lastUpdatedDate != nil {
+		creationDateRange = &turmsmongo.DateRange{Start: lastUpdatedDate}
+	}
+	p, sz := page, size
+	return s.invRepo.FindInvitations(ctx, nil, groupIds, inviterIds, inviteeIds, statuses, creationDateRange, nil, nil, &p, &sz)
 }
 
 func (s *GroupInvitationService) QueryInvitationsWithPagination(ctx context.Context, page, size *int) ([]*po.GroupInvitation, error) {
@@ -246,8 +266,23 @@ func (s *GroupInvitationService) QueryInvitationsWithFilter(ctx context.Context,
 	if size != nil {
 		sz = *size
 	}
-	// We map the complex filter to the simple repository query directly, as done consistently in this migration phase
-	return s.invRepo.FindInvitations(ctx, nil, nil, nil, nil, nil, p, sz)
+	// Build DateRange filters from start/end time pairs
+	var creationDateRange, responseDateRange, expirationDateRange *turmsmongo.DateRange
+	if creationDateStart != nil || creationDateEnd != nil {
+		creationDateRange = &turmsmongo.DateRange{Start: creationDateStart, End: creationDateEnd}
+	}
+	if responseDateStart != nil || responseDateEnd != nil {
+		responseDateRange = &turmsmongo.DateRange{Start: responseDateStart, End: responseDateEnd}
+	}
+	if expirationDateStart != nil || expirationDateEnd != nil {
+		expirationDateRange = &turmsmongo.DateRange{Start: expirationDateStart, End: expirationDateEnd}
+	}
+	// Convert int statuses to po.RequestStatus
+	var reqStatuses []po.RequestStatus
+	for _, s := range statuses {
+		reqStatuses = append(reqStatuses, po.RequestStatus(s))
+	}
+	return s.invRepo.FindInvitations(ctx, ids, groupIds, inviterIds, inviteeIds, reqStatuses, creationDateRange, responseDateRange, expirationDateRange, &p, &sz)
 }
 
 // @MappedFrom queryUserGroupInvitationsWithVersion(@NotNull Long userId, boolean areSentByUser, @Nullable Date lastUpdatedDate)
@@ -267,9 +302,9 @@ func (s *GroupInvitationService) QueryUserGroupInvitationsWithVersion(ctx contex
 	}
 	var invs []*po.GroupInvitation
 	if areSentInvitations {
-		invs, err = s.invRepo.FindInvitations(ctx, nil, &userID, nil, nil, nil, 0, 1000)
+		invs, err = s.invRepo.FindInvitations(ctx, nil, []int64{userID}, nil, nil, nil, nil, nil, nil, nil, nil)
 	} else {
-		invs, err = s.invRepo.FindInvitations(ctx, nil, nil, &userID, nil, nil, 0, 1000)
+		invs, err = s.invRepo.FindInvitations(ctx, nil, nil, nil, []int64{userID}, nil, nil, nil, nil, nil, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -296,7 +331,8 @@ func (s *GroupInvitationService) AuthAndQueryGroupInvitationsWithVersion(ctx con
 	if lastUpdatedDate != nil && version != nil && !version.After(*lastUpdatedDate) {
 		return nil, exception.NewTurmsError(codes.AlreadyUpToDate, "Invitations are already up to date")
 	}
-	invs, err := s.invRepo.FindInvitations(ctx, &groupID, nil, nil, nil, nil, 0, 1000)
+	invGroupIDs := []int64{groupID}
+	invs, err := s.invRepo.FindInvitations(ctx, nil, invGroupIDs, nil, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +343,25 @@ func (s *GroupInvitationService) AuthAndQueryGroupInvitationsWithVersion(ctx con
 }
 
 func (s *GroupInvitationService) CountInvitations(ctx context.Context, groupID, inviterID, inviteeID *int64, status *po.RequestStatus, lastUpdatedDate *time.Time) (int64, error) {
-	return s.invRepo.CountInvitations(ctx, groupID, inviterID, inviteeID, status, lastUpdatedDate)
+	var groupIds, inviterIds, inviteeIds []int64
+	var statuses []po.RequestStatus
+	if groupID != nil {
+		groupIds = []int64{*groupID}
+	}
+	if inviterID != nil {
+		inviterIds = []int64{*inviterID}
+	}
+	if inviteeID != nil {
+		inviteeIds = []int64{*inviteeID}
+	}
+	if status != nil {
+		statuses = []po.RequestStatus{*status}
+	}
+	var creationDateRange *turmsmongo.DateRange
+	if lastUpdatedDate != nil {
+		creationDateRange = &turmsmongo.DateRange{Start: lastUpdatedDate}
+	}
+	return s.invRepo.CountInvitations(ctx, nil, groupIds, inviterIds, inviteeIds, statuses, creationDateRange, nil, nil)
 }
 
 func (s *GroupInvitationService) DeleteInvitations(ctx context.Context, ids []int64) (int64, error) {
@@ -331,17 +385,11 @@ func (s *GroupInvitationService) QueryGroupInvitationsByInviteeId(ctx context.Co
 }
 
 // Java implementation queryGroupInvitationsByInviterId does the exact same thing
+// @MappedFrom queryGroupInvitationsByInviterId(Long inviterId)
 func (s *GroupInvitationService) QueryGroupInvitationsByInviterId(ctx context.Context, inviterID int64) ([]po.GroupInvitation, error) {
-	// The repo method is not fully implemented but defined in interface. So we will defer to the generic FindInvitations.
-	invs, err := s.invRepo.FindInvitations(ctx, nil, &inviterID, nil, nil, nil, 0, 1000)
-	if err != nil {
-		return nil, err
-	}
-	var res []po.GroupInvitation
-	for _, v := range invs {
-		res = append(res, *v)
-	}
-	return res, nil
+	// BUG FIX: Use FindInvitationsByInviterId which filters by "irid" (inviter ID).
+	// Previously was passing inviterID as groupIds parameter (wrong field).
+	return s.invRepo.FindInvitationsByInviterId(ctx, inviterID)
 }
 
 func (s *GroupInvitationService) QueryGroupInvitationsByGroupId(ctx context.Context, groupID int64) ([]po.GroupInvitation, error) {
