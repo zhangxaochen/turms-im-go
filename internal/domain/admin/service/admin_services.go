@@ -416,11 +416,11 @@ func isRootRoleQualified(ids []int64, names []string, includedPermissions []perm
 			}
 		}
 	}
-	// If ranks is specified, check if root rank (0) is in the list
+	// If ranks is specified, check if root role's rank (rootRoleRank) is in the list
 	if len(ranks) > 0 {
 		found := false
 		for _, r := range ranks {
-			if r == 0 {
+			if r == rootRoleRank {
 				found = true
 				break
 			}

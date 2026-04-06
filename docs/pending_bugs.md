@@ -9165,15 +9165,15 @@ Let me also verify if there's anything else about the `includedPermissions` quer
 
 ## addAdminRole
 
-- [ ] Missing `matchPermissions` call: Java converts `Set<String>` permission patterns (e.g., `"USER_*"`) to `Set<AdminPermission>` using `AdminPermission.matchPermissions()` with wildcard pattern matching. The Go version accepts `[]AdminPermission` directly, losing wildcard/pattern matching support entirely.
+- [x] Missing `matchPermissions` call: Java converts `Set<String>` permission patterns (e.g., `"USER_*"`) to `Set<AdminPermission>` using `AdminPermission.matchPermissions()` with wildcard pattern matching. The Go version accepts `[]AdminPermission` directly, losing wildcard/pattern matching support entirely.
 
-- [ ] When `Rank` is nil in the DTO, Go passes `0` as the rank value to the service. In Java, a null `rank` would trigger `@NotNull` validation and reject the request. The Go version silently uses `0`, which may create roles with an unintended rank.
+- [x] When `Rank` is nil in the DTO, Go passes `0` as the rank value to the service. In Java, a null `rank` would trigger `@NotNull` validation and reject the request. The Go version silently uses `0`, which may create roles with an unintended rank.
 
-- [ ] When `Name` is nil in the DTO, Go passes `""` (empty string) to the service. In Java, a null `name` would trigger `@NotNull` validation and reject the request. The Go version passes an empty string, which may bypass validation.
+- [x] When `Name` is nil in the DTO, Go passes `""` (empty string) to the service. In Java, a null `name` would trigger `@NotNull` validation and reject the request. The Go version passes an empty string, which may bypass validation.
 
 ## updateAdminRole
 
-- [ ] Missing `matchPermissions` call: Same as `addAdminRole` — Java converts `Set<String>` permission patterns to `Set<AdminPermission>` using `AdminPermission.matchPermissions()`. The Go version passes `[]AdminPermission` directly, losing wildcard/pattern matching support.
+- [x] Missing `matchPermissions` call: Same as `addAdminRole` — Java converts `Set<String>` permission patterns to `Set<AdminPermission>` using `AdminPermission.matchPermissions()`. The Go version passes `[]AdminPermission` directly, losing wildcard/pattern matching support.
 
 ## queryAdminRoles
 
@@ -9204,19 +9204,19 @@ This is a real bug — the `AddAdminDTO` in Go will serialize the password to JS
 
 ## AddAdminDTO (password serialization)
 
-- [ ] **Missing `MarshalJSON` to prevent password serialization**: The Java `AddAdminDTO` uses `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` on the `password` field, which is handled by a global Jackson `AnnotationIntrospector` (`JsonCodecPool`) that prevents the field from being **serialized** (because `value != ALLOW_SERIALIZATION`) while still allowing **deserialization** (because `value == ALLOW_DESERIALIZATION`). The Go `AddAdminDTO` has no custom `MarshalJSON`, so the `Password` field will be serialized in JSON responses via the default `encoding/json` behavior. The `UpdateAdminDTO` correctly implements a custom `MarshalJSON` to strip the password, but `AddAdminDTO` is missing the same protection.
+- [x] **Missing `MarshalJSON` to prevent password serialization**: The Java `AddAdminDTO` uses `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)` on the `password` field, which is handled by a global Jackson `AnnotationIntrospector` (`JsonCodecPool`) that prevents the field from being **serialized** (because `value != ALLOW_SERIALIZATION`) while still allowing **deserialization** (because `value == ALLOW_DESERIALIZATION`). The Go `AddAdminDTO` has no custom `MarshalJSON`, so the `Password` field will be serialized in JSON responses via the default `encoding/json` behavior. The `UpdateAdminDTO` correctly implements a custom `MarshalJSON` to strip the password, but `AddAdminDTO` is missing the same protection.
 
 # UpdateAdminDTO.java
 *Checked methods: UpdateAdminDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
 
 ## UpdateAdminDTO Constructor / @SensitiveProperty(ALLOW_DESERIALIZATION)
 
-- [ ] **Wrong field name**: The Java `UpdateAdminDTO` has a field named `displayName`, but the Go version uses `Name` (with JSON tag `"name"`). The Java record field is `displayName`, and the JSON tag should be `"displayName"` to maintain API compatibility with the Java server. Using `"name"` means clients that send `"displayName"` (as they would with the Java server) will not have that field populated.
+- [x] **Wrong field name**: The Java `UpdateAdminDTO` has a field named `displayName`, but the Go version uses `Name` (with JSON tag `"name"`). The Java record field is `displayName`, and the JSON tag should be `"displayName"` to maintain API compatibility with the Java server. Using `"name"` means clients that send `"displayName"` (as they would with the Java server) will not have that field populated.
 
 ## toString()
 
-- [ ] **Mismatched field name in output**: The Java `toString()` outputs `displayName=<value>`, but the Go `String()` outputs `name=<value>`. This is a behavioral difference from the Java version — the string representation should use the same field name `displayName`.
-- [ ] **Password masking differs for null**: The Java `toString()` always prints `password=<SENSITIVE_VALUE>` (a constant) regardless of whether password is null or not, because Java records hold the raw field value and the `toString` hardcodes `SecurityValueConst.SENSITIVE_VALUE`. In Go, when `Password` is nil, the string outputs `password=null`, but when non-nil it outputs `password=***`. The Java version does not distinguish between null and non-null — it always shows the same masked value. This is a behavioral difference.
+- [x] **Mismatched field name in output**: The Java `toString()` outputs `displayName=<value>`, but the Go `String()` outputs `name=<value>`. This is a behavioral difference from the Java version — the string representation should use the same field name `displayName`.
+- [x] **Password masking differs for null**: The Java `toString()` always prints `password=<SENSITIVE_VALUE>` (a constant) regardless of whether password is null or not, because Java records hold the raw field value and the `toString` hardcodes `SecurityValueConst.SENSITIVE_VALUE`. In Go, when `Password` is nil, the string outputs `password=null`, but when non-nil it outputs `password=***`. The Java version does not distinguish between null and non-null — it always shows the same masked value. This is a behavioral difference.
 
 # AdminRoleService.java
 *Checked methods: authAndAddAdminRole(@NotNull Long requesterId, @NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), addAdminRole(@NotNull Long roleId, @NotNull @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), authAndDeleteAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds), deleteAdminRoles(@NotEmpty Set<Long> roleIds), authAndUpdateAdminRoles(@NotNull Long requesterId, @NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), updateAdminRole(@NotEmpty Set<Long> roleIds, @Nullable @NoWhitespace @Size( min = MIN_ROLE_NAME_LIMIT, max = MAX_ROLE_NAME_LIMIT), queryAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks, @Nullable Integer page, @Nullable Integer size), queryAndCacheRolesByRoleIdsAndRankGreaterThan(@NotNull Collection<Long> roleIds, @NotNull Integer rankGreaterThan), countAdminRoles(@Nullable Set<Long> ids, @Nullable Set<String> names, @Nullable Set<AdminPermission> includedPermissions, @Nullable Set<Integer> ranks), queryHighestRankByAdminId(@NotNull Long adminId), queryHighestRankByRoleIds(@NotNull Set<Long> roleIds), isAdminRankHigherThanRank(@NotNull Long adminId, @NotNull Integer rank), queryPermissions(@NotNull Long adminId)*
@@ -9225,79 +9225,79 @@ Now I have a complete picture. Let me carefully analyze each method.
 
 ## AuthAndAddAdminRole
 
-- [ ] **Bug: Missing "requester does not exist" handling when `isAdminRankHigherThanRank` returns empty** — In Java, `isAdminRankHigherThanRank(requesterId, rank).switchIfEmpty(adminService.errorRequesterNotExist())` returns an error if the admin doesn't exist (empty Mono). In Go, `IsAdminRankHigherThanRank` returns `(false, nil)` when `highest == nil`, so a non-existent requester silently returns "permission denied" instead of "requester does not exist".
-- [ ] **Bug: Missing "requester does not exist" handling when `queryPermissions` returns empty** — In Java, `queryPermissions(requesterId).switchIfEmpty(adminService.errorRequesterNotExist())`. In Go, if `QueryPermissions` returns an empty slice, the code proceeds and the permission check passes if the requested permissions list is also empty, instead of returning a "requester does not exist" error.
-- [ ] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")` in both `authAndAddAdminRole` and `addAdminRole`. Go does not check for empty permissions.
-- [ ] **Bug: Missing validation for name whitespace** — Java validates `Validator.noWhitespace(name, "name")`. Go only checks for empty string, not for whitespace-only strings.
-- [ ] **Bug: Missing validation for name length limit** — Java validates `Validator.length(name, "name", MIN_ROLE_NAME_LIMIT, MAX_ROLE_NAME_LIMIT)` (max 32). Go does not enforce a max name length.
-- [ ] **Bug: Missing validation for `roleId` not-null** — Java validates `Validator.notNull(roleId, "roleId")` with an explicit check. In Go, `roleId` is a pointer and nil is allowed (falls back to ID generation), which diverges from Java's contract where `roleId` is `@NotNull`.
+- [x] **Bug: Missing "requester does not exist" handling when `isAdminRankHigherThanRank` returns empty** — In Java, `isAdminRankHigherThanRank(requesterId, rank).switchIfEmpty(adminService.errorRequesterNotExist())` returns an error if the admin doesn't exist (empty Mono). In Go, `IsAdminRankHigherThanRank` returns `(false, nil)` when `highest == nil`, so a non-existent requester silently returns "permission denied" instead of "requester does not exist".
+- [x] **Bug: Missing "requester does not exist" handling when `queryPermissions` returns empty** — In Java, `queryPermissions(requesterId).switchIfEmpty(adminService.errorRequesterNotExist())`. In Go, if `QueryPermissions` returns an empty slice, the code proceeds and the permission check passes if the requested permissions list is also empty, instead of returning a "requester does not exist" error.
+- [x] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")` in both `authAndAddAdminRole` and `addAdminRole`. Go does not check for empty permissions.
+- [x] **Bug: Missing validation for name whitespace** — Java validates `Validator.noWhitespace(name, "name")`. Go only checks for empty string, not for whitespace-only strings.
+- [x] **Bug: Missing validation for name length limit** — Java validates `Validator.length(name, "name", MIN_ROLE_NAME_LIMIT, MAX_ROLE_NAME_LIMIT)` (max 32). Go does not enforce a max name length.
+- [x] **Bug: Missing validation for `roleId` not-null** — Java validates `Validator.notNull(roleId, "roleId")` with an explicit check. In Go, `roleId` is a pointer and nil is allowed (falls back to ID generation), which diverges from Java's contract where `roleId` is `@NotNull`.
 
 ## AddAdminRole
 
-- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (zero value if omitted), no validation.
-- [ ] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")`. Go does not check.
-- [ ] **Bug: Missing validation for name whitespace and max length** — Same as authAndAddAdminRole, Go doesn't check for whitespace or max length of 32.
-- [ ] **Bug: Error message differs from Java** — Java says "The new role ID cannot be the root role ID"; Go says "the root role already exists". Different semantic meaning (Java prevents creating with root ID, Go implies root already exists).
+- [x] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (zero value if omitted), no validation.
+- [x] **Bug: Missing validation for `permissions` not-empty** — Java validates `Validator.notEmpty(permissions, "permissions")`. Go does not check.
+- [x] **Bug: Missing validation for name whitespace and max length** — Same as authAndAddAdminRole, Go doesn't check for whitespace or max length of 32.
+- [x] **Bug: Error message differs from Java** — Java says "The new role ID cannot be the root role ID"; Go says "the root role already exists". Different semantic meaning (Java prevents creating with root ID, Go implies root already exists).
 
 ## AuthAndDeleteAdminRoles
 
-- [ ] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which queries each target role individually and checks if the requester's rank is higher than **each** target role's rank. Go uses a simplified approach: queries the highest rank among target roles and checks if the requester is higher than that single rank. These behave differently when there are mixed target role ranks.
-- [ ] **Bug: Root role ID check is done here in Go but belongs in `deleteAdminRoles`** — In Java, the root role check is in `deleteAdminRoles`. In Go, it's done in `authAndDeleteAdminRoles` but NOT in `DeleteAdminRoles`. So `DeleteAdminRoles` can be called directly with root role ID without protection.
-- [ ] **Bug: Returns `(0, nil)` when no target roles found** — Java's `checkIfAllowedToManageRoles` returns `ACKNOWLEDGED_DELETE_RESULT` (a successful no-op with `deletedCount=0`), which is the same end result but the Go version returns `(0, nil)` from `QueryHighestRankByRoleIds` returning nil before calling `DeleteAdminRoles`. The Java version calls `deleteAdminRoles` even when no roles match (though it still returns a no-op result). This is functionally similar but the control flow is different.
+- [x] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which queries each target role individually and checks if the requester's rank is higher than **each** target role's rank. Go uses a simplified approach: queries the highest rank among target roles and checks if the requester is higher than that single rank. These behave differently when there are mixed target role ranks.
+- [x] **Bug: Root role ID check is done here in Go but belongs in `deleteAdminRoles`** — In Java, the root role check is in `deleteAdminRoles`. In Go, it's done in `authAndDeleteAdminRoles` but NOT in `DeleteAdminRoles`. So `DeleteAdminRoles` can be called directly with root role ID without protection.
+- [x] **Bug: Returns `(0, nil)` when no target roles found** — Java's `checkIfAllowedToManageRoles` returns `ACKNOWLEDGED_DELETE_RESULT` (a successful no-op with `deletedCount=0`), which is the same end result but the Go version returns `(0, nil)` from `QueryHighestRankByRoleIds` returning nil before calling `DeleteAdminRoles`. The Java version calls `deleteAdminRoles` even when no roles match (though it still returns a no-op result). This is functionally similar but the control flow is different.
 
 ## DeleteAdminRoles
 
-- [ ] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be deleted")`. Go does not check for root role ID in `DeleteAdminRoles`.
-- [ ] **Bug: Missing validation for roleIds not-empty** — Java validates `Validator.notEmpty(roleIds, "roleIds")`. Go does not validate empty roleIds at this level (relies on repository returning 0).
+- [x] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be deleted")`. Go does not check for root role ID in `DeleteAdminRoles`.
+- [x] **Bug: Missing validation for roleIds not-empty** — Java validates `Validator.notEmpty(roleIds, "roleIds")`. Go does not validate empty roleIds at this level (relies on repository returning 0).
 
 ## AuthAndUpdateAdminRoles
 
-- [ ] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which does a unified rank check (requester rank vs each target role rank), and THEN separately checks permissions if `permissions` is non-null. Go splits this into: (1) check rank against the new `rank` param, (2) check rank against target roles' highest rank. The Java version checks target roles in a single `checkIfAllowedToManageRoles` call, while Go queries target roles differently.
-- [ ] **Bug: Missing permissions authorization check** — Java checks that `requesterPermissions.containsAll(permissions)` before allowing the update with new permissions. Go's `AuthAndUpdateAdminRoles` does not verify the requester has the permissions being assigned.
-- [ ] **Bug: Missing "requester does not exist" error** — Java uses `adminService.errorRequesterNotExist()` when queries return empty. Go returns `(0, nil)` or generic permission denied.
-- [ ] **Bug: Root role check location** — Go checks root role in `AuthAndUpdateAdminRoles` but not in `UpdateAdminRole`. Java checks it in `UpdateAdminRole`. Calling `UpdateAdminRole` directly in Go allows updating the root role.
+- [x] **Bug: Completely different authorization logic** — Java uses `checkIfAllowedToManageRoles` which does a unified rank check (requester rank vs each target role rank), and THEN separately checks permissions if `permissions` is non-null. Go splits this into: (1) check rank against the new `rank` param, (2) check rank against target roles' highest rank. The Java version checks target roles in a single `checkIfAllowedToManageRoles` call, while Go queries target roles differently.
+- [x] **Bug: Missing permissions authorization check** — Java checks that `requesterPermissions.containsAll(permissions)` before allowing the update with new permissions. Go's `AuthAndUpdateAdminRoles` does not verify the requester has the permissions being assigned.
+- [x] **Bug: Missing "requester does not exist" error** — Java uses `adminService.errorRequesterNotExist()` when queries return empty. Go returns `(0, nil)` or generic permission denied.
+- [x] **Bug: Root role check location** — Go checks root role in `AuthAndUpdateAdminRoles` but not in `UpdateAdminRole`. Java checks it in `UpdateAdminRole`. Calling `UpdateAdminRole` directly in Go allows updating the root role.
 
 ## UpdateAdminRole
 
-- [ ] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be updated")`. Go does not check.
-- [ ] **Bug: Missing all-falsy/no-op early return** — Java checks `Validator.areAllFalsy(newName, permissions, rank)` and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately. Go passes everything to the repo, which checks `len(set) == 0` for a similar effect, but the semantics differ slightly.
-- [ ] **Bug: Missing validation for newName whitespace and length** — Java validates `noWhitespace` and `length` on newName. Go does not.
-- [ ] **Bug: Cache invalidation condition differs** — Java invalidates cache in `doOnNext` (only on successful update results), Go invalidates on `modified > 0`. Functionally similar but Go uses modified count while Java uses the update result acknowledgment.
+- [x] **Bug: Missing root role ID validation** — Java validates `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, "The root admin is reserved and cannot be updated")`. Go does not check.
+- [x] **Bug: Missing all-falsy/no-op early return** — Java checks `Validator.areAllFalsy(newName, permissions, rank)` and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately. Go passes everything to the repo, which checks `len(set) == 0` for a similar effect, but the semantics differ slightly.
+- [x] **Bug: Missing validation for newName whitespace and length** — Java validates `noWhitespace` and `length` on newName. Go does not.
+- [x] **Bug: Cache invalidation condition differs** — Java invalidates cache in `doOnNext` (only on successful update results), Go invalidates on `modified > 0`. Functionally similar but Go uses modified count while Java uses the update result acknowledgment.
 
 ## QueryAdminRoles
 
-- [ ] **Bug: Missing root role inclusion logic** — Java checks `isRootRoleQualified(ids, names, includedPermissions, ranks)` and if true, prepends the root role to the results via `startWith(getRootRole())`. Go simply queries the database and does not include the root role. The root role is an in-memory constant, not stored in the DB, so it will be missing from Go query results.
-- [ ] **Bug: `includedPermissions` filter semantics differ** — Java uses `$in` to find roles that have any of the specified permissions. But the Go repo uses `$in` on the `perm` array field, which matches roles whose permissions array contains at least one of the specified values. Java's semantics for "includedPermissions" in `isRootRoleQualified` checks `containsAll(rootRole.getPermissions())` meaning the filter permissions must be a subset of root's permissions. The Go DB query uses `$in` which is "matches any", not "contains all".
+- [x] **Bug: Missing root role inclusion logic** — Java checks `isRootRoleQualified(ids, names, includedPermissions, ranks)` and if true, prepends the root role to the results via `startWith(getRootRole())`. Go simply queries the database and does not include the root role. The root role is an in-memory constant, not stored in the DB, so it will be missing from Go query results.
+- [x] **Bug: `includedPermissions` filter semantics differ** — Java uses `$in` to find roles that have any of the specified permissions. But the Go repo uses `$in` on the `perm` array field, which matches roles whose permissions array contains at least one of the specified values. Java's semantics for "includedPermissions" in `isRootRoleQualified` checks `containsAll(rootRole.getPermissions())` meaning the filter permissions must be a subset of root's permissions. The Go DB query uses `$in` which is "matches any", not "contains all".
 
 ## QueryAndCacheRolesByRoleIdsAndRankGreaterThan
 
-- [ ] **Bug: Missing root role handling** — Java checks if `roleIds` contains `ADMIN_ROLE_ROOT_ID`. If so, it separates the root role, queries the DB for the remaining IDs, and prepends the root role if its rank is greater than `rankGreaterThan`. If roleIds is just the root ID, it returns the root role or empty based on rank. Go does none of this root role handling.
-- [ ] **Bug: Missing empty roleIds check** — Java returns `Flux.empty()` if `roleIds.isEmpty()`. Go relies on the repository's empty check.
-- [ ] **Bug: Missing cache update (`doOnNext` to update `idToRole`)** — Java caches each fetched role via `.doOnNext(role -> idToRole.put(role.getId(), role))`. Go does not update `idToRole` cache in this method.
-- [ ] **Bug: Missing roleIds immutability protection** — Java creates a copy (`new UnifiedSet<>(roleIds)`) before removing `ADMIN_ROLE_ROOT_ID` to avoid mutating the caller's collection. Go passes the original slice (though Go slices are reference types, the repository doesn't mutate them, so this is minor).
+- [x] **Bug: Missing root role handling** — Java checks if `roleIds` contains `ADMIN_ROLE_ROOT_ID`. If so, it separates the root role, queries the DB for the remaining IDs, and prepends the root role if its rank is greater than `rankGreaterThan`. If roleIds is just the root ID, it returns the root role or empty based on rank. Go does none of this root role handling.
+- [x] **Bug: Missing empty roleIds check** — Java returns `Flux.empty()` if `roleIds.isEmpty()`. Go relies on the repository's empty check.
+- [x] **Bug: Missing cache update (`doOnNext` to update `idToRole`)** — Java caches each fetched role via `.doOnNext(role -> idToRole.put(role.getId(), role))`. Go does not update `idToRole` cache in this method.
+- [x] **Bug: Missing roleIds immutability protection** — Java creates a copy (`new UnifiedSet<>(roleIds)`) before removing `ADMIN_ROLE_ROOT_ID` to avoid mutating the caller's collection. Go passes the original slice (though Go slices are reference types, the repository doesn't mutate them, so this is minor).
 
 ## CountAdminRoles
 
-- [ ] **Bug: Missing +1 for the root role** — Java adds 1 to the count: `.map(number -> number + 1)` because the root role is built-in and not in the database. Go returns the raw count from the repository without adding 1.
+- [x] **Bug: Missing +1 for the root role** — Java adds 1 to the count: `.map(number -> number + 1)` because the root role is built-in and not in the database. Go returns the raw count from the repository without adding 1.
 
 ## QueryHighestRankByAdminId
 
-- [ ] **Bug: Missing validation for `adminId` not-null** — Java validates `Validator.notNull(adminId, "adminId")`. Go takes `adminId int64` (primitive, can't be nil in Go, so this is acceptable but noted).
-- [ ] **Bug: When admin has no roles, `QueryRoleIdsByAdminIds` returns nil/empty** — Java's `adminService.queryRoleIdsByAdminId` returns role IDs and then `queryHighestRankByRoleIds` handles empty. In Go, `QueryRoleIdsByAdminIds` returns a nil/empty slice, then `QueryHighestRankByRoleIds` returns nil. This is functionally equivalent.
+- [x] **Bug: Missing validation for `adminId` not-null** — Java validates `Validator.notNull(adminId, "adminId")`. Go takes `adminId int64` (primitive, can't be nil in Go, so this is acceptable but noted).
+- [x] **Bug: When admin has no roles, `QueryRoleIdsByAdminIds` returns nil/empty** — Java's `adminService.queryRoleIdsByAdminId` returns role IDs and then `queryHighestRankByRoleIds` handles empty. In Go, `QueryRoleIdsByAdminIds` returns a nil/empty slice, then `QueryHighestRankByRoleIds` returns nil. This is functionally equivalent.
 
 ## QueryHighestRankByRoleIds
 
-- [ ] **Bug: Missing root role handling** — Java checks `roleIds.contains(ADMIN_ROLE_ROOT_ID)` and if true, returns `Mono.just(getRootRole().getRank())` (which is `Integer.MAX_VALUE`). Go's `FindHighestRankByRoleIds` only queries the database, so it will never return the root role's rank (`Integer.MAX_VALUE`), potentially returning a lower rank or nil.
+- [x] **Bug: Missing root role handling** — Java checks `roleIds.contains(ADMIN_ROLE_ROOT_ID)` and if true, returns `Mono.just(getRootRole().getRank())` (which is `Integer.MAX_VALUE`). Go's `FindHighestRankByRoleIds` only queries the database, so it will never return the root role's rank (`Integer.MAX_VALUE`), potentially returning a lower rank or nil.
 
 ## IsAdminRankHigherThanRank
 
-- [ ] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (primitive).
-- [ ] **Bug: Returns `(false, nil)` when admin has no roles** — Java returns an empty Mono, which in the reactive chain triggers `switchIfEmpty(adminService.errorRequesterNotExist())`. Go returns `(false, nil)`, meaning a non-existent admin silently returns "not higher" instead of an error.
+- [x] **Bug: Missing validation for `rank` not-null** — Java validates `Validator.notNull(rank, "rank")`. Go takes `rank int` (primitive).
+- [x] **Bug: Returns `(false, nil)` when admin has no roles** — Java returns an empty Mono, which in the reactive chain triggers `switchIfEmpty(adminService.errorRequesterNotExist())`. Go returns `(false, nil)`, meaning a non-existent admin silently returns "not higher" instead of an error.
 
 ## QueryPermissions
 
-- [ ] **Bug: Uses database query instead of in-memory cache** — Java's `BaseAdminRoleService.queryPermissions(Set<Long> roleIds)` uses the in-memory `idToRole` cache to look up permissions for cached roles, only querying the DB for uncached roles. Go always queries the database via `FindAdminRoles`, bypassing the `idToRole` cache entirely.
-- [ ] **Bug: Missing root role permissions** — Java's `queryAndCacheRolesByRoleIds` includes the root role when its ID is in the roleIds set, so `queryPermissions` includes root permissions (ALL permissions). Go's `FindAdminRoles` queries the database and won't find the root role (it's not stored in DB), so root role permissions are never included.
+- [x] **Bug: Uses database query instead of in-memory cache** — Java's `BaseAdminRoleService.queryPermissions(Set<Long> roleIds)` uses the in-memory `idToRole` cache to look up permissions for cached roles, only querying the DB for uncached roles. Go always queries the database via `FindAdminRoles`, bypassing the `idToRole` cache entirely.
+- [x] **Bug: Missing root role permissions** — Java's `queryAndCacheRolesByRoleIds` includes the root role when its ID is in the roleIds set, so `queryPermissions` includes root permissions (ALL permissions). Go's `FindAdminRoles` queries the database and won't find the root role (it's not stored in DB), so root role permissions are never included.
 
 # AdminService.java
 *Checked methods: queryRoleIdsByAdminIds(@NotEmpty Set<Long> adminIds), authAndAddAdmin(@NotNull Long requesterId, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), addAdmin(@Nullable Long id, @Nullable @NoWhitespace @Size( min = MIN_LOGIN_NAME_LIMIT, max = MAX_LOGIN_NAME_LIMIT), queryAdmins(@Nullable Collection<Long> ids, @Nullable Collection<String> loginNames, @Nullable Collection<Long> roleIds, @Nullable Integer page, @Nullable Integer size), authAndDeleteAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> adminIds), authAndUpdateAdmins(@NotNull Long requesterId, @NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), updateAdmins(@NotEmpty Set<Long> targetAdminIds, @Nullable @NoWhitespace @Size( min = MIN_PASSWORD_LIMIT, max = MAX_PASSWORD_LIMIT), countAdmins(@Nullable Set<Long> ids, @Nullable Set<Long> roleIds), errorRequesterNotExist()*
