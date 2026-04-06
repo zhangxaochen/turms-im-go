@@ -120,8 +120,8 @@ const { execSync, spawn } = require('child_process');
         // 4. 生成包含自动重试策略的 Shell 脚本
         const runnerPath = path.join(worktreePath, 'run_agent.sh');
         const runnerContent = `#!/bin/bash
-MAX_RETRIES=5
-DELAY=15
+MAX_RETRIES=15
+DELAY=60
 count=0
 
 echo "Starting Claude Sub-agent..."
@@ -142,21 +142,22 @@ while [ $count -lt $MAX_RETRIES ]; do
         while true; do
             cd "${projectRoot}"
             
-            # 使用 flock 排队尝试 Merge
-            (
-                flock -x 200
-                echo "[$(date)] Attempting merge for feature/fix-batch-${i} into main..."
-                if git merge "feature/fix-batch-${i}" --no-edit -m "Merge auto-fix batch ${i} into main"; then
-                    echo "SUCCESS" > .git/merge_result_batch_${i}
-                else
-                    echo "[!] Conflict detected. Aborting merge."
-                    git merge --abort
-                    echo "CONFLICT" > .git/merge_result_batch_${i}
-                fi
-            ) 200>.git/merge_lock.lock
+            # 使用 mkdir 实现全平台(特别是 macOS)兼容的原子锁排队
+            while ! mkdir .git/merge_lock_dir 2>/dev/null; do
+                sleep 2
+            done
             
-            MERGE_RESULT=$(cat .git/merge_result_batch_${i})
-            rm -f .git/merge_result_batch_${i}
+            echo "[$(date)] Attempting merge for feature/fix-batch-${i} into main..."
+            if git merge "feature/fix-batch-${i}" --no-edit -m "Merge auto-fix batch ${i} into main"; then
+                MERGE_RESULT="SUCCESS"
+            else
+                echo "[!] Conflict detected. Aborting merge."
+                git merge --abort
+                MERGE_RESULT="CONFLICT"
+            fi
+            
+            # 取出结果后立刻放行排队
+            rmdir .git/merge_lock_dir
             
             if [ "$MERGE_RESULT" = "SUCCESS" ]; then
                 echo "[$(date)] Successfully merged batch ${i} into main."
