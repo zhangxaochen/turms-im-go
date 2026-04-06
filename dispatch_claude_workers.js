@@ -107,17 +107,31 @@ const { execSync, spawn } = require('child_process');
             execSync(`ln -sf ${mainModelsPath} ${targetModelsPath}`);
         }
 
+        // 2.5 Generate Local Scratchpad (temp_task.md)
+        const tempTaskPath = path.join(worktreePath, 'temp_task.md');
+        if (!fs.existsSync(tempTaskPath)) {
+            const taskContent = "# Local Progress Tracker for Batch " + i + "\n\n" + batchBugs.join('\n\n---\n\n');
+            fs.writeFileSync(tempTaskPath, taskContent);
+        }
+
+        const gitignorePath = path.join(worktreePath, '.gitignore');
+        if (fs.existsSync(gitignorePath)) {
+            const ignores = fs.readFileSync(gitignorePath, 'utf8');
+            if (!ignores.includes('temp_task.md')) {
+                fs.appendFileSync(gitignorePath, '\ntemp_task.md\n');
+            }
+        }
+
         // 3. Setup prompt instructions for Claude
         const promptPath = path.join(worktreePath, `claude_prompt.txt`);
-        const promptText = `You are a specialized coding sub-agent. Your task is to resolve exactly ${batchBugs.length} pending bugs in the turms-go codebase.\n`
+        const promptText = `You are a specialized coding sub-agent resolving bugs in the turms-go codebase.\n`
             + `CRITICAL RULES:\n`
-            + `1. Be extremely concise in your output and thoughts. Minimize conversational filler.\n`
-            + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first. You might be resuming an interrupted job where some bugs are already partially fixed, staged, or committed in this worktree.\n`
-            + `3. As you finish resolving bugs, YOU MUST check them off by changing '- [ ]' to '- [x]' in docs/pending_bugs.md for your specific assigned bugs.\n`
-            + `4. Test the implementations, and YOU MUST automatically commit your final changes with a descriptive commit message.\n\n`
-            + `BUGS TO FIX:\n====================\n\n`
-            + batchBugs.join('\n\n---\n\n')
-            + `\n\n====================\nRemember: Always mark completed tasks in docs/pending_bugs.md, and ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.`;
+            + `1. Your specific assigned bugs are listed securely in the file 'temp_task.md' located in the root of your workspace. Read 'temp_task.md' immediately to figure out what you need to do.\n`
+            + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first! You might be resuming an interrupted execution where some bugs are already fixed or partially staged.\n`
+            + `3. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
+            + `4. Very Important: Before wrapping up, you MUST also find those exact same resolved bugs in 'docs/pending_bugs.md' and check them off ('- [x]') there as well, so that the main tracked documentation sees your progress.\n`
+            + `5. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. At that point, test the code, use 'git add .', and 'git commit' with a neat descriptive message.\n`
+            + `KEEP LOGS CONCISE. Stop and commit when all tasks in the scratchpad are fully resolved.`;
 
         fs.writeFileSync(promptPath, promptText);
 
