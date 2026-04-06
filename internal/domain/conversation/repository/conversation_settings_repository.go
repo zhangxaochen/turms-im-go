@@ -52,15 +52,23 @@ func (r *ConversationSettingsRepository) UnsetSettings(ctx context.Context, owne
 		filter["_id.tid"] = bson.M{"$in": targetIds}
 	}
 
+	// Bug fix: Java parity — Java includes both $set for lastUpdatedDate AND $unset
+	// in the same update operation. Previously Go only performed $unset.
 	var update bson.M
 	if len(settingNames) > 0 {
 		unset := bson.M{}
 		for _, name := range settingNames {
 			unset[po.ConversationSettingsFieldSettings+"."+name] = ""
 		}
-		update = bson.M{"$unset": unset}
+		update = bson.M{
+			"$unset": unset,
+			"$set":   bson.M{po.ConversationSettingsFieldLastUpdatedDate: time.Now()},
+		}
 	} else {
-		update = bson.M{"$unset": bson.M{po.ConversationSettingsFieldSettings: ""}}
+		update = bson.M{
+			"$unset": bson.M{po.ConversationSettingsFieldSettings: ""},
+			"$set":   bson.M{po.ConversationSettingsFieldLastUpdatedDate: time.Now()},
+		}
 	}
 
 	res, err := r.col.UpdateMany(ctx, filter, update)

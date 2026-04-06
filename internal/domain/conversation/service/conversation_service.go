@@ -24,7 +24,7 @@ type GroupService interface {
 }
 
 type GroupMemberService interface {
-	IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error)
+	IsGroupMember(ctx context.Context, groupID int64, userID int64, activeOnly ...bool) (bool, error)
 	IsGroupMemberActiveOnly(ctx context.Context, groupID int64, userID int64) (bool, error)
 	FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error)
 	FindActiveGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error)
