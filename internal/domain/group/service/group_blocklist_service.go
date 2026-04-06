@@ -32,8 +32,7 @@ func (s *GroupBlocklistService) SetGroupMemberService(groupMemberService *GroupM
 	s.groupMemberService = groupMemberService
 }
 
-func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, userID int64, requesterID int64) error {
-	now := time.Now()
+func (s *GroupBlocklistService) AuthAndUnblockUser(ctx context.Context, requesterID int64, groupID int64, userID int64) error {	now := time.Now()
 	blockedUser := &po.GroupBlockedUser{
 		ID: po.GroupBlockedUserKey{
 			GroupID: groupID,
