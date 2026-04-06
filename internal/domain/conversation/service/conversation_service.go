@@ -325,7 +325,7 @@ func (s *ConversationService) AuthAndUpdateTypingStatus(ctx context.Context, req
 	}
 
 	if isGroupMessage {
-		isMember, err := s.groupMemberSvc.IsGroupMemberActiveOnly(ctx, toID, requesterID)
+		isMember, err := s.groupMemberSvc.IsGroupMember(ctx, toID, requesterID, true)
 		if err != nil {
 			return nil, err
 		}
