@@ -12043,96 +12043,96 @@ Here are the bugs:
 - [ ] Wrong response for empty results: Go returns code `204` (hardcoded) while Java lets the framework handle empty results by returning the data normally
 
 ## handleQueryJoinedGroupIdsRequest
-- [ ] `lastUpdatedDate` is not passed to the service: Java calls `queryJoinedGroupIdsWithVersion(userId, lastUpdatedDate)`, Go calls `QueryUserJoinedGroupIds(ctx, s.UserID)` ignoring the parsed `lastUpdatedDate`
-- [ ] Wrong service used: Java delegates to `groupService.queryJoinedGroupIdsWithVersion`, Go uses `groupMemberService.QueryUserJoinedGroupIds`
-- [ ] Dead code: The `if lastUpdatedDate != nil && c.groupService != nil` block (lines 202-205) is a no-op comment with no actual version checking logic
+- [x] `lastUpdatedDate` is not passed to the service: Java calls `queryJoinedGroupIdsWithVersion(userId, lastUpdatedDate)`, Go calls `QueryUserJoinedGroupIds(ctx, s.UserID)` ignoring the parsed `lastUpdatedDate`
+- [x] Wrong service used: Java delegates to `groupService.queryJoinedGroupIdsWithVersion`, Go uses `groupMemberService.QueryUserJoinedGroupIds`
+- [x] Dead code: The `if lastUpdatedDate != nil && c.groupService != nil` block (lines 202-205) is a no-op comment with no actual version checking logic
 
 ## handleQueryJoinedGroupsRequest
-- [ ] Fundamentally different implementation approach: Java calls `groupService.queryJoinedGroupsWithVersion(userId, lastUpdatedDate)` as a single call that handles version checking internally, while Go manually queries group IDs first then queries groups separately — this misses the version comparison optimization
-- [ ] Missing version in response: Java returns `GroupsWithVersion` which includes a `lastUpdatedDate` version field; Go's response never populates `LastUpdatedDate` on `GroupsWithVersion`
+- [x] Fundamentally different implementation approach: Java calls `groupService.queryJoinedGroupsWithVersion(userId, lastUpdatedDate)` as a single call that handles version checking internally, while Go manually queries group IDs first then queries groups separately — this misses the version comparison optimization
+- [x] Missing version in response: Java returns `GroupsWithVersion` which includes a `lastUpdatedDate` version field; Go's response never populates `LastUpdatedDate` on `GroupsWithVersion`
 
 ## handleUpdateGroupRequest
-- [ ] Missing ownership transfer branch: Java has a critical branch where if `successorId != null`, it calls `authAndTransferGroupOwnership(userId, groupId, successorId, quitAfterTransfer, null)` instead of the regular update — Go only has the regular update path
-- [ ] Missing `muteEndDate` field: Java extracts `request.getMuteEndDate()` and passes it to `authAndUpdateGroupInformation`, Go has a TODO comment but does not pass it
-- [ ] Missing `userDefinedAttributes` field: Java passes `request.getUserDefinedAttributesMap()`, Go does not
-- [ ] Missing `announcement` field: Go passes `updateReq.Announcement` but does not convert nil/empty properly as Java does with the `hasAnnouncement()` check
-- [ ] Missing notification logic: Java conditionally notifies group members or requester's other sessions, Go has none
+- [x] Missing ownership transfer branch: Java has a critical branch where if `successorId != null`, it calls `authAndTransferGroupOwnership(userId, groupId, successorId, quitAfterTransfer, null)` instead of the regular update — Go only has the regular update path
+- [x] Missing `muteEndDate` field: Java extracts `request.getMuteEndDate()` and passes it to `authAndUpdateGroupInformation`, Go has a TODO comment but does not pass it
+- [x] Missing `userDefinedAttributes` field: Java passes `request.getUserDefinedAttributesMap()`, Go does not
+- [x] Missing `announcement` field: Go passes `updateReq.Announcement` but does not convert nil/empty properly as Java does with the `hasAnnouncement()` check
+- [x] Missing notification logic: Java conditionally notifies group members or requester's other sessions, Go has none
 
 ## handleCreateGroupBlockedUserRequest
-- [ ] Parameter order differs from Java: Java calls `authAndBlockUser(userId, groupId, userIdToBlock, null)`, Go calls `BlockUser(ctx, groupId, userId, s.UserID)` — the requester vs blocked-user ordering may be swapped depending on the Go service signature
-- [ ] Missing notification logic: Java dispatches notifications to group members, blocked user, and requester's other sessions, Go has none
+- [x] Parameter order differs from Java: Java calls `authAndBlockUser(userId, groupId, userIdToBlock, null)`, Go calls `BlockUser(ctx, groupId, userId, s.UserID)` — the requester vs blocked-user ordering may be swapped depending on the Go service signature
+- [x] Missing notification logic: Java dispatches notifications to group members, blocked user, and requester's other sessions, Go has none
 
 ## handleDeleteGroupBlockedUserRequest
-- [ ] Missing `wasBlocked` check: Java checks `if (!wasBlocked) { return RequestHandlerResult.OK; }`, Go does not check this
-- [ ] Missing notification logic: Java dispatches notifications to group members, unblocked user, and requester's other sessions, Go has none
-- [ ] Missing requester ID parameter: Java calls `unblockUser(userId, groupId, userIdToUnblock, null, true)` passing the requester for auth, Go calls `UnblockUser(ctx, groupId, userId)` without the requester
+- [x] Missing `wasBlocked` check: Java checks `if (!wasBlocked) { return RequestHandlerResult.OK; }`, Go does not check this
+- [x] Missing notification logic: Java dispatches notifications to group members, unblocked user, and requester's other sessions, Go has none
+- [x] Missing requester ID parameter: Java calls `unblockUser(userId, groupId, userIdToUnblock, null, true)` passing the requester for auth, Go calls `UnblockUser(ctx, groupId, userId)` without the requester
 
 ## handleQueryGroupBlockedUserIdsRequest
-- [ ] Extra auth check not in Java: Java calls `queryGroupBlockedUserIdsWithVersion(groupId, lastUpdatedDate)` without a userId auth check, Go calls `AuthAndQueryGroupBlockedUserIds` with `s.UserID` — this may cause authorization failures if Java intentionally allows unauthenticated queries here
+- [x] Extra auth check not in Java: Java calls `queryGroupBlockedUserIdsWithVersion(groupId, lastUpdatedDate)` without a userId auth check, Go calls `AuthAndQueryGroupBlockedUserIds` with `s.UserID` — this may cause authorization failures if Java intentionally allows unauthenticated queries here
 
 ## handleQueryGroupBlockedUsersInfosRequest
-- [ ] Incomplete UserInfo construction: Java lets the service return full `UserInfosWithVersion` protos (which likely include user details), Go manually constructs `UserInfo` with only `Id` field set, losing other user info fields
-- [ ] Extra auth check not in Java: Same as handleQueryGroupBlockedUserIdsRequest — Go adds auth that Java doesn't have
+- [x] Incomplete UserInfo construction: Java lets the service return full `UserInfosWithVersion` protos (which likely include user details), Go manually constructs `UserInfo` with only `Id` field set, losing other user info fields
+- [x] Extra auth check not in Java: Same as handleQueryGroupBlockedUserIdsRequest — Go adds auth that Java doesn't have
 
 ## handleCheckGroupQuestionAnswerRequest
-- [ ] Missing `joined`, `questionIds`, `score` fields in response: Java constructs `GroupJoinQuestionsAnswerResult` with `setJoined(joined)`, `addAllQuestionIds(questionIds)`, `setScore(answerResult.score())`, Go returns whatever `CheckGroupJoinQuestionsAnswersAndJoin` returns directly without mapping these fields
-- [ ] Missing notification logic when `joined` is true: Java creates a `CreateGroupMembersRequest` notification and dispatches it to group members or the added member, Go has none
+- [x] Missing `joined`, `questionIds`, `score` fields in response: Java constructs `GroupJoinQuestionsAnswerResult` with `setJoined(joined)`, `addAllQuestionIds(questionIds)`, `setScore(answerResult.score())`, Go returns whatever `CheckGroupJoinQuestionsAnswersAndJoin` returns directly without mapping these fields
+- [x] Missing notification logic when `joined` is true: Java creates a `CreateGroupMembersRequest` notification and dispatches it to group members or the added member, Go has none
 
 ## handleCreateGroupInvitationRequestRequest
-- [ ] Missing auth prefix: Java calls `authAndCreateGroupInvitation`, Go calls `CreateInvitation` — missing the auth check
-- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
+- [x] Missing auth prefix: Java calls `authAndCreateGroupInvitation`, Go calls `CreateInvitation` — missing the auth check
+- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
 
 ## handleCreateGroupJoinRequestRequest
-- [ ] Missing auth prefix: Java calls `authAndCreateGroupJoinRequest`, Go calls `CreateJoinRequest` — missing the auth check
-- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
+- [x] Missing auth prefix: Java calls `authAndCreateGroupJoinRequest`, Go calls `CreateJoinRequest` — missing the auth check
+- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
 
 ## handleCreateGroupQuestionsRequest
-- [ ] Non-batched creation: Java calls `authAndCreateGroupJoinQuestions(userId, groupId, questions)` in a single batch call, Go iterates and calls `CreateJoinQuestion` individually — this is not atomic and could leave partial state
-- [ ] Missing auth check: Java calls `authAnd...`, Go calls `CreateJoinQuestion` without auth
-- [ ] Wrong response format: Java returns `RequestHandlerResult.ofDataLongs(questionIds)` (a `LongsWithVersion` with just longs), Go wraps in `LongsWithVersion` which adds a version field not present in Java's response
+- [x] Non-batched creation: Java calls `authAndCreateGroupJoinQuestions(userId, groupId, questions)` in a single batch call, Go iterates and calls `CreateJoinQuestion` individually — this is not atomic and could leave partial state
+- [x] Missing auth check: Java calls `authAnd...`, Go calls `CreateJoinQuestion` without auth
+- [x] Wrong response format: Java returns `RequestHandlerResult.ofDataLongs(questionIds)` (a `LongsWithVersion` with just longs), Go wraps in `LongsWithVersion` which adds a version field not present in Java's response
 
 ## handleDeleteGroupInvitationRequest
-- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
+- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, invitee, and requester's other sessions, Go has none
 
 ## handleUpdateGroupInvitationRequest
-- [ ] Missing `reason` parameter: Java passes `request.getReason()` to `authAndHandleInvitation`, Go does not pass it
-- [ ] Missing auth prefix: Java calls `authAndHandleInvitation`, Go calls `ReplyToInvitation` — missing auth
-- [ ] Missing complex multi-notification logic: Java has extremely complex logic that sends separate notifications for invitation updates AND member additions (when invitation is accepted and requester joins), including querying group member IDs, owner/manager IDs — Go has none of this
+- [x] Missing `reason` parameter: Java passes `request.getReason()` to `authAndHandleInvitation`, Go does not pass it
+- [x] Missing auth prefix: Java calls `authAndHandleInvitation`, Go calls `ReplyToInvitation` — missing auth
+- [x] Missing complex multi-notification logic: Java has extremely complex logic that sends separate notifications for invitation updates AND member additions (when invitation is accepted and requester joins), including querying group member IDs, owner/manager IDs — Go has none of this
 
 ## handleDeleteGroupJoinRequestRequest
-- [ ] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
+- [x] Missing notification logic: Java dispatches notifications to group members, owner/managers, and requester's other sessions, Go has none
 
 ## handleUpdateGroupJoinRequestRequest
-- [ ] Missing `reason` parameter: Java passes `request.getReason()`, Go does not
-- [ ] Missing auth prefix: Java calls `authAndHandleJoinRequest`, Go calls `ReplyToJoinRequest` — missing auth
-- [ ] Missing complex multi-notification logic: Java handles requester-added-as-new-member notifications, querying group members, and sending separate join-request-updated and member-added notifications, Go has none
+- [x] Missing `reason` parameter: Java passes `request.getReason()`, Go does not
+- [x] Missing auth prefix: Java calls `authAndHandleJoinRequest`, Go calls `ReplyToJoinRequest` — missing auth
+- [x] Missing complex multi-notification logic: Java handles requester-added-as-new-member notifications, querying group members, and sending separate join-request-updated and member-added notifications, Go has none
 
 ## handleDeleteGroupJoinQuestionsRequest
-- [ ] Non-batched deletion: Java calls `authAndDeleteGroupJoinQuestions(userId, groupId, questionIdsSet)` as a single batch call, Go iterates and calls `DeleteJoinQuestion` individually — not atomic
-- [ ] Missing auth check: Java calls `authAnd...`, Go calls `DeleteJoinQuestion` without auth
-- [ ] Missing `groupId` parameter: Java passes `groupId` for authorization, Go does not pass it
+- [x] Non-batched deletion: Java calls `authAndDeleteGroupJoinQuestions(userId, groupId, questionIdsSet)` as a single batch call, Go iterates and calls `DeleteJoinQuestion` individually — not atomic
+- [x] Missing auth check: Java calls `authAnd...`, Go calls `DeleteJoinQuestion` without auth
+- [x] Missing `groupId` parameter: Java passes `groupId` for authorization, Go does not pass it
 
 ## handleQueryGroupJoinRequestsRequest
-- [ ] Different branching logic: Java calls `authAndQueryGroupJoinRequestsWithVersion(userId, groupId, lastUpdatedDate)` with a single method regardless of whether `groupId` is null, Go branches into two different methods — this may produce different behavior when `groupId` is null
+- [x] Different branching logic: Java calls `authAndQueryGroupJoinRequestsWithVersion(userId, groupId, lastUpdatedDate)` with a single method regardless of whether `groupId` is null, Go branches into two different methods — this may produce different behavior when `groupId` is null
 
 ## handleUpdateGroupJoinQuestionRequest
-- [ ] Hardcoded `groupId=0`: Go passes `0` as the second argument to `UpdateJoinQuestion`, Java passes `request.getQuestionId()` to `authAndUpdateGroupJoinQuestion` which uses the question's own groupId internally for auth — the `0` is likely wrong
-- [ ] Missing auth check: Java calls `authAnd...`, Go calls `UpdateJoinQuestion` without auth
+- [x] Hardcoded `groupId=0`: Go passes `0` as the second argument to `UpdateJoinQuestion`, Java passes `request.getQuestionId()` to `authAndUpdateGroupJoinQuestion` which uses the question's own groupId internally for auth — the `0` is likely wrong
+- [x] Missing auth check: Java calls `authAnd...`, Go calls `UpdateJoinQuestion` without auth
 
 ## handleCreateGroupMembersRequest
-- [ ] Missing `name` parameter: Java passes `request.getName()` (or null), Go does not pass it
-- [ ] Missing notification logic: Java conditionally notifies other group members, added members, and requester's other sessions, Go has none
+- [x] Missing `name` parameter: Java passes `request.getName()` (or null), Go does not pass it
+- [x] Missing notification logic: Java conditionally notifies other group members, added members, and requester's other sessions, Go has none
 
 ## handleDeleteGroupMembersRequest
-- [ ] Missing empty-deletion check: Java checks `if (deletedUserIds.isEmpty()) { return RequestHandlerResult.OK; }`, Go does not
-- [ ] Missing notification logic: Java conditionally notifies other group members, removed members, and requester's other sessions, Go has none
+- [x] Missing empty-deletion check: Java checks `if (deletedUserIds.isEmpty()) { return RequestHandlerResult.OK; }`, Go does not
+- [x] Missing notification logic: Java conditionally notifies other group members, removed members, and requester's other sessions, Go has none
 
 ## handleQueryGroupMembersRequest
-- [ ] Missing `memberIds`-based query branch: Java has two paths — if `memberIdsCount > 0`, calls `authAndQueryGroupMembers(userId, groupId, memberIds, withStatus)`; otherwise calls `authAndQueryGroupMembersWithVersion(userId, groupId, lastUpdatedDate, withStatus)`. Go only has the versioned path
-- [ ] Missing `withStatus` parameter: Java extracts `request.getWithStatus()` and passes it, Go does not extract or pass it
+- [x] Missing `memberIds`-based query branch: Java has two paths — if `memberIdsCount > 0`, calls `authAndQueryGroupMembers(userId, groupId, memberIds, withStatus)`; otherwise calls `authAndQueryGroupMembersWithVersion(userId, groupId, lastUpdatedDate, withStatus)`. Go only has the versioned path
+- [x] Missing `withStatus` parameter: Java extracts `request.getWithStatus()` and passes it, Go does not extract or pass it
 
 ## handleUpdateGroupMemberRequest
-- [ ] Missing notification logic: Java conditionally notifies other group members, updated member, and requester's other sessions, Go has none
+- [x] Missing notification logic: Java conditionally notifies other group members, updated member, and requester's other sessions, Go has none
 
 # NewGroupQuestion.java
 *Checked methods: NewGroupQuestion(String question, LinkedHashSet<String> answers, Integer score)*

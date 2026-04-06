@@ -32,7 +32,8 @@ func (s *GroupBlocklistService) SetGroupMemberService(groupMemberService *GroupM
 	s.groupMemberService = groupMemberService
 }
 
-// BlockUser creates a blocked user record.
+// BlockUser blocks a user from a group.
+// @MappedFrom blockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToBlock, @Nullable ClientSession session)
 func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, userID int64, requesterID int64) error {
 	now := time.Now()
 	blockedUser := &po.GroupBlockedUser{
@@ -89,28 +90,39 @@ func (s *GroupBlocklistService) AuthAndBlockUser(
 }
 
 // AuthAndUnblockUser unblocks a user from a group after performing authorization checks.
+// @MappedFrom authAndUnblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion)
+// Returns (wasBlocked, error) - wasBlocked indicates whether the user was actually blocked before unblocking.
 func (s *GroupBlocklistService) AuthAndUnblockUser(
 	ctx context.Context,
 	requesterID int64,
 	groupID int64,
 	userID int64,
-) error {
-	// 1. Authorization check
+) (bool, error) {
+	// 1. Check if user was actually blocked (for wasBlocked return value)
+	wasBlocked, err := s.IsBlocked(ctx, groupID, userID)
+	if err != nil {
+		return false, err
+	}
+	if !wasBlocked {
+		return false, nil
+	}
+
+	// 2. Authorization check
 	requesterRole, err := s.groupMemberService.FindGroupMemberRole(ctx, requesterID, groupID)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if requesterRole == nil || (*requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER) {
-		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_BLOCKED_USER), "Only owner or manager can unblock users")
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_BLOCKED_USER), "Only owner or manager can unblock users")
 	}
 
-	// 2. Unblock
+	// 3. Unblock
 	err = s.UnblockUser(ctx, groupID, userID)
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	return s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
+	return true, s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
 }
 
 // @MappedFrom unblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion)
