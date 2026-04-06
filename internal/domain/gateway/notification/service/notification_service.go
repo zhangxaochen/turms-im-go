@@ -96,35 +96,28 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 
 		for _, userSession := range targetSessions {
 			// Bug 8026: TryNotifyClientToRecover is called immediately/unconditionally in Java,
-			// before the async send result is even evaluated.
-			if userSession.Conn != nil {
-				userSession.Conn.TryNotifyClientToRecover()
-			} else {
+			// before the async send result is even evaluated (in the for-loop body, outside the mono).
+			// Only call once, synchronously, matching Java's timing.
+			if userSession.Conn == nil {
 				mu.Lock()
 				offlineRecipientIdsSet[recipientID] = struct{}{}
 				mu.Unlock()
 				continue
 			}
+			userSession.Conn.TryNotifyClientToRecover()
+
+			// Copy notificationData per goroutine to avoid shared buffer mutation across goroutines.
+			// Java's ByteBuf.retain() ensures the buffer stays alive until each downstream consumer is done.
+			dataCopy := make([]byte, len(notificationData))
+			copy(dataCopy, notificationData)
 
 			wg.Add(1)
-			go func(rid int64, sess *session.UserSession) {
+			go func(rid int64, sess *session.UserSession, data []byte) {
 				defer wg.Done()
 
-				if sess.Conn == nil {
-					// Java parity: onErrorResume immediately adds to offlineRecipientIds
-					mu.Lock()
-					offlineSet[rid] = struct{}{}
-					mu.Unlock()
-					return
-				}
-
-				// Java calls tryNotifyClientToRecover() unconditionally BEFORE the send,
-				// in the for-loop body, not inside the send mono's error handler.
-				sess.Conn.TryNotifyClientToRecover()
-
-				err := sess.Conn.SendWithContext(ctx, notificationData)
+				err := sess.Conn.SendWithContext(ctx, data)
 				if err != nil {
-					// Bug 8028: In Java, any error directly means the recipient is marked offline.
+					// In Java, any session send error immediately marks the recipient as offline.
 					mu.Lock()
 					offlineRecipientIdsSet[rid] = struct{}{}
 					mu.Unlock()
@@ -136,28 +129,23 @@ func (s *NotificationService) SendNotificationToLocalClients(ctx context.Context
 						log.Printf("Failed to send notification to session: user_id=%d, device_type=%s, error=%v", rid, sess.DeviceType, err)
 					}
 				}
-			}(recipientID, userSession)
+			}(recipientID, userSession, dataCopy)
 		}
 	}
 
 	wg.Wait()
 
+	// Convert offline set to slice (Java uses Set<Long> ensuring no duplicates)
 	offlineRecipientIds := make([]int64, 0, len(offlineRecipientIdsSet))
 	for id := range offlineRecipientIdsSet {
 		offlineRecipientIds = append(offlineRecipientIds, id)
 	}
 
-	// Bug 8030: Missing logging of aggregated errors
+	// Bug 8030: Missing logging of aggregated errors (matching Java's Mono.whenDelayError + doOnEach)
 	var finalErr error
 	if len(sendErrors) > 0 {
 		finalErr = errors.Join(sendErrors...)
 		log.Printf("Caught an error while sending a notification to user sessions: %v", finalErr)
-	}
-
-	// Convert offlineSet to slice
-	offlineRecipientIds := make([]int64, 0, len(offlineSet))
-	for id := range offlineSet {
-		offlineRecipientIds = append(offlineRecipientIds, id)
 	}
 
 	// Invoke NotificationHandler extension points

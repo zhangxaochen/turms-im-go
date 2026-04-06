@@ -252,13 +252,24 @@ func (f *TcpServerFactory) Create(
 		pL := &proxyproto.Listener{Listener: l}
 		blSvc := blocklistService // Capture for closure
 		if props.ProxyProtocolMode == common.ProxyProtocolMode_REQUIRED {
+			// REQUIRED mode: always expect a PROXY header on every connection
+			// Java adds PROXY protocol handlers unconditionally.
+			// Also check blocklist for the direct (upstream) IP during proxy protocol
+			// detection to match Java's doOnChannelInit callback behavior.
 			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
+				if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
+					if blSvc.IsIpBlocked(tcpAddr.IP.To4()) {
+						return proxyproto.REJECT, nil
+					}
+				}
 				return proxyproto.REQUIRE, nil
 			}
 		} else {
+			// OPTIONAL mode: auto-detect whether a PROXY header is present
+			// Java adds a PROXY protocol detector handler.
+			// Check blocklist for the direct (upstream) IP during proxy protocol detection
+			// to match Java's doOnChannelInit callback behavior.
 			pL.Policy = func(upstream net.Addr) (proxyproto.Policy, error) {
-				// Check blocklist for the direct (upstream) IP during proxy protocol detection
-				// to match Java's behavior of checking in doOnChannelInit callback
 				if tcpAddr, ok := upstream.(*net.TCPAddr); ok {
 					if blSvc.IsIpBlocked(tcpAddr.IP.To4()) {
 						return proxyproto.REJECT, nil
@@ -267,7 +278,6 @@ func (f *TcpServerFactory) Create(
 				return proxyproto.USE, nil
 			}
 		}
-		pL.Policy = policyFunc
 		l = pL
 	}
 

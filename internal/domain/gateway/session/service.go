@@ -572,16 +572,16 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	}
 
 	if checkIPs {
-		// Fix: Close ALL sessions matching the IP regardless of userIdSet.
-		// Java has completely separate methods for userIds and IPs, always closing
-		// all sessions for each IP. The userIdSet filtering was a logic bug.
+		// Fix: When closing sessions by IP, Java calls closeLocalSession(userId, ALL_AVAILABLE_DEVICE_TYPES_SET, closeReason)
+		// which closes ALL device types for users found by IP — not just the matching session's device type.
+		// Collect unique user IDs from IP-matched sessions, then close all device types for those users.
+		ipUserSet := make(map[int64]struct{})
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
-					s.CloseLocalSession(ctx, sess.UserID, []protocol.DeviceType{sess.DeviceType}, closeReason)
-					totalCount++
+					ipUserSet[sess.UserID] = struct{}{}
 					return true
 				})
 			}
@@ -755,6 +755,8 @@ func (s *SessionService) GetLocalUserSessionsInfo(ctx context.Context, userIds [
 				loc = &sessionbo.UserLocation{
 					Longitude: sess.Location.Longitude,
 					Latitude:  sess.Location.Latitude,
+					Timestamp: sess.Location.Timestamp,
+					Details:   sess.Location.Details,
 				}
 			}
 			sessionInfos = append(sessionInfos, sessionbo.UserSessionInfo{

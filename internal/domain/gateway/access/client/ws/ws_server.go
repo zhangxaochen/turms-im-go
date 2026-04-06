@@ -20,8 +20,6 @@ import (
 	"im.turms/server/internal/domain/gateway/access/client/udp"
 	sessionbo "im.turms/server/internal/domain/gateway/session/bo"
 	"im.turms/server/internal/infra/exception"
-
-	"github.com/pires/go-proxyproto"
 )
 
 // @MappedFrom HttpForwardedHeaderHandler
@@ -327,6 +325,11 @@ func (f *WebSocketServerFactory) Create(
 		if tcpConn, ok := conn.UnderlyingConn().(*net.TCPConn); ok {
 			_ = tcpConn.SetNoDelay(true)    // TCP_NODELAY (Java: .childOption(TCP_NODELAY, true))
 			_ = tcpConn.SetLinger(0)         // SO_LINGER=0 (Java: .childOption(SO_LINGER, 0)) - RST on close
+			// Connect timeout: apply initial deadline matching Java's CONNECT_TIMEOUT_MILLIS
+			if props.ConnectTimeoutMillis > 0 {
+				deadline := time.Now().Add(time.Duration(props.ConnectTimeoutMillis) * time.Millisecond)
+				_ = tcpConn.SetDeadline(deadline)
+			}
 		}
 
 		// Remote address resolution
