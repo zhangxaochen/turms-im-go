@@ -1,50 +1,51 @@
 #!/bin/bash
-MAX_RETRIES=5
-DELAY=15
+MAX_RETRIES=15
+DELAY=60
 count=0
 
 echo "Starting Claude Sub-agent..."
 while [ $count -lt $MAX_RETRIES ]; do
     echo "[$(date)] Attempt $((count+1)) / $MAX_RETRIES"
-
+    
     # 执行 claude 命令
     claude -p --dangerously-skip-permissions "$(cat claude_prompt.txt)"
     EXIT_CODE=$?
-
+    
     if [ $EXIT_CODE -eq 0 ]; then
         echo "[$(date)] Agent finished successfully. Attempting to commit and merge..."
         # 1. 兜底提交（防止 Claude 忘了主动跑 Commit 命令）
         git add .
         git commit -m "fix(automation): resolve parity bugs for batch 1" || true
-
+        
         # 2. 回到主分支执行安全的合并。遇到冲突则让 AI 进行 Rebase + Self-Heal 自动修复
         while true; do
             cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-go"
-
-            # 使用 flock 排队尝试 Merge
-            (
-                flock -x 200
-                echo "[$(date)] Attempting merge for feature/fix-batch-1 into main..."
-                if git merge "feature/fix-batch-1" --no-edit -m "Merge auto-fix batch 1 into main"; then
-                    echo "SUCCESS" > .git/merge_result_batch_1
-                else
-                    echo "[!] Conflict detected. Aborting merge."
-                    git merge --abort
-                    echo "CONFLICT" > .git/merge_result_batch_1
-                fi
-            ) 200>.git/merge_lock.lock
-
-            MERGE_RESULT=$(cat .git/merge_result_batch_1)
-            rm -f .git/merge_result_batch_1
-
+            
+            # 使用 mkdir 实现全平台(特别是 macOS)兼容的原子锁排队
+            while ! mkdir .git/merge_lock_dir 2>/dev/null; do
+                sleep 2
+            done
+            
+            echo "[$(date)] Attempting merge for feature/fix-batch-1 into main..."
+            if git merge "feature/fix-batch-1" --no-edit -m "Merge auto-fix batch 1 into main"; then
+                MERGE_RESULT="SUCCESS"
+            else
+                echo "[!] Conflict detected. Aborting merge."
+                git merge --abort
+                MERGE_RESULT="CONFLICT"
+            fi
+            
+            # 取出结果后立刻放行排队
+            rmdir .git/merge_lock_dir
+            
             if [ "$MERGE_RESULT" = "SUCCESS" ]; then
                 echo "[$(date)] Successfully merged batch 1 into main."
                 break
             fi
-
+            
             echo "[$(date)] Merge conflict! Initiating Sub-Agent Self-Heal Rebase..."
             cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-1"
-
+            
             # 开始 Rebase main
             git rebase main || {
                 # 触发大模型自动修复冲突
@@ -62,7 +63,7 @@ You MUST:
 3. Run 'git add .' to stage the resolved files.
 4. Run 'git rebase --continue' to finalize the conflict resolution.
 Do NOT attempt to run standard git merge. Finish the rebase process. Keep your thoughts and logs concise."
-
+                
                 # 检查大模型是否成功继续了 rebase
                 if git rebase --show-current-patch >/dev/null 2>&1 || [ -d "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-1/.git/rebase-merge" ]; then
                     echo "[!] Claude failed to finish the rebase. Aborting pipeline."
@@ -70,14 +71,14 @@ Do NOT attempt to run standard git merge. Finish the rebase process. Keep your t
                     exit 1
                 fi
             }
-
+            
             echo "[$(date)] Self-Heal Rebase complete. Loop will retry the merge."
         done
-
+        
         echo "[$(date)] Pipeline for batch 1 complete."
         exit 0
     fi
-
+    
     echo "[$(date)] Agent failed with exit code $EXIT_CODE. Retrying in $DELAY seconds..."
     count=$((count+1))
     sleep $DELAY

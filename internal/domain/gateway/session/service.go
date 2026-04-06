@@ -576,19 +576,24 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	if checkIPs {
 		// Java parity: Close ALL sessions matching each IP.
 		// Java has completely separate methods for userIds and IPs, always closing
-		// all sessions for each IP.
-		ipUserSet := make(map[int64]struct{})
+		// all sessions for each IP without skipping users already in userIdSet.
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
 				sessionMap := v.(*sync.Map)
+				// Collect all user sessions for this IP and close them
+				var sessionsToClose []*UserSession
 				sessionMap.Range(func(key, value any) bool {
 					sess := key.(*UserSession)
-					ipUserSet[sess.UserID] = struct{}{}
+					sessionsToClose = append(sessionsToClose, sess)
 					return true
 				})
+				for _, sess := range sessionsToClose {
+					// Close each session for this user. Use nil deviceTypes to close ALL device types.
+					n, _ := s.CloseLocalSession(ctx, sess.UserID, nil, closeReason)
+					totalCount += n
+				}
 			}
 		}
-	}
 
 	return totalCount, nil
 }
