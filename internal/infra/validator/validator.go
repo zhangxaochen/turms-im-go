@@ -8,6 +8,7 @@ import (
 	"im.turms/server/internal/domain/group/dto"
 	"im.turms/server/internal/infra/exception"
 	"im.turms/server/pkg/codes"
+	"im.turms/server/pkg/protocol"
 )
 
 // NotNull returns an IllegalArgument error if value is nil
@@ -78,65 +79,176 @@ func PastOrPresent(date *time.Time, name string) error {
 	return nil
 }
 
-// ValidRequestStatus
+// isValidEnum checks if a protobuf enum value is recognized (not UNRECOGNIZED).
+// In Go protobuf, there is no UNRECOGNIZED constant; instead we check if the value
+// exists in the enum's name map.
+func isValidEnum(val int32, nameMap map[int32]string) bool {
+	_, ok := nameMap[val]
+	return ok
+}
+
+// ValidRequestStatus validates that the RequestStatus is recognized.
+// Bug fix: Java checks status == RequestStatus.UNRECOGNIZED and throws ILLEGAL_ARGUMENT.
+// Go protobuf doesn't have UNRECOGNIZED constant; check via enum map instead.
 // @MappedFrom validRequestStatus(RequestStatus status)
-func ValidRequestStatus(status interface{}, name string) error {
-	// Simple stub for missing PB logic
+func ValidRequestStatus(status protocol.RequestStatus, name string) error {
+	if !isValidEnum(int32(status), protocol.RequestStatus_name) {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), name+" must be a valid RequestStatus")
+	}
 	return nil
 }
 
+// ValidResponseAction validates that the ResponseAction is recognized.
+// Bug fix: Java checks action == ResponseAction.UNRECOGNIZED and throws.
 // @MappedFrom validResponseAction(ResponseAction action)
-func ValidResponseAction(action interface{}) error {
+func ValidResponseAction(action protocol.ResponseAction) error {
+	if !isValidEnum(int32(action), protocol.ResponseAction_name) {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "ResponseAction must be a valid ResponseAction")
+	}
 	return nil
 }
 
+// ValidDeviceType validates that the DeviceType is recognized.
+// Bug fix: Java checks deviceType == DeviceType.UNRECOGNIZED and throws.
 // @MappedFrom validDeviceType(DeviceType deviceType)
-func ValidDeviceType(deviceType interface{}) error {
+func ValidDeviceType(deviceType protocol.DeviceType) error {
+	if !isValidEnum(int32(deviceType), protocol.DeviceType_name) {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "DeviceType must be a valid DeviceType")
+	}
 	return nil
 }
 
+// ValidProfileAccess validates that the ProfileAccessStrategy is recognized.
+// Bug fix: Java checks value == ProfileAccessStrategy.UNRECOGNIZED and throws.
 // @MappedFrom validProfileAccess(ProfileAccessStrategy value)
-func ValidProfileAccess(value interface{}) error {
+func ValidProfileAccess(value protocol.ProfileAccessStrategy) error {
+	if !isValidEnum(int32(value), protocol.ProfileAccessStrategy_name) {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "ProfileAccessStrategy must be a valid ProfileAccessStrategy")
+	}
 	return nil
 }
 
+// ValidRelationshipKey validates a UserRelationship.Key.
+// Bug fix: Java also checks key.getOwnerId() == null and key.getRelatedUserId() == null.
 // @MappedFrom validRelationshipKey(UserRelationship.Key key)
 func ValidRelationshipKey(key interface{}) error {
 	if key == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "UserRelationship key must not be null")
 	}
+	// Check key fields via reflection for the struct with OwnerID and RelatedUserID
+	rv := reflect.ValueOf(key)
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "UserRelationship key must not be null")
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.Struct {
+		ownerID := rv.FieldByName("OwnerID")
+		relatedUserID := rv.FieldByName("RelatedUserID")
+		if ownerID.IsValid() && ownerID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The owner ID in the user relationship key must not be null")
+		}
+		if relatedUserID.IsValid() && relatedUserID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The related user ID in the user relationship key must not be null")
+		}
+	}
 	return nil
 }
 
+// ValidRelationshipGroupKey validates a UserRelationshipGroup.Key.
+// Bug fix: Java also checks key.getOwnerId() == null and key.getGroupIndex() == null.
 // @MappedFrom validRelationshipGroupKey(UserRelationshipGroup.Key key)
 func ValidRelationshipGroupKey(key interface{}) error {
 	if key == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "UserRelationshipGroup key must not be null")
 	}
+	rv := reflect.ValueOf(key)
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "UserRelationshipGroup key must not be null")
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.Struct {
+		ownerID := rv.FieldByName("OwnerID")
+		groupIndex := rv.FieldByName("Index")
+		if ownerID.IsValid() && ownerID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The owner ID in the user relationship group key must not be null")
+		}
+		if groupIndex.IsValid() && groupIndex.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The group index in the user relationship group key must not be null")
+		}
+	}
 	return nil
 }
 
+// ValidGroupMemberKey validates a GroupMember.Key.
+// Bug fix: Java also checks key.getGroupId() == null and key.getUserId() == null.
 // @MappedFrom validGroupMemberKey(GroupMember.Key key)
 func ValidGroupMemberKey(key interface{}) error {
 	if key == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupMember key must not be null")
 	}
+	rv := reflect.ValueOf(key)
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupMember key must not be null")
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.Struct {
+		groupID := rv.FieldByName("GroupID")
+		userID := rv.FieldByName("UserID")
+		if groupID.IsValid() && groupID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The group ID in the group member key must not be null")
+		}
+		if userID.IsValid() && userID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The user ID in the group member key must not be null")
+		}
+	}
 	return nil
 }
 
+// ValidGroupMemberRole validates that the GroupMemberRole is recognized.
+// Bug fix: Java checks role == GroupMemberRole.UNRECOGNIZED and throws.
 // @MappedFrom validGroupMemberRole(GroupMemberRole role)
-func ValidGroupMemberRole(role interface{}) error {
+func ValidGroupMemberRole(role protocol.GroupMemberRole) error {
+	if !isValidEnum(int32(role), protocol.GroupMemberRole_name) {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupMemberRole must be a valid GroupMemberRole")
+	}
 	return nil
 }
 
+// ValidGroupBlockedUserKey validates a GroupBlockedUser.Key.
+// Bug fix: Java also checks key.getGroupId() == null and key.getUserId() == null.
 // @MappedFrom validGroupBlockedUserKey(GroupBlockedUser.Key key)
 func ValidGroupBlockedUserKey(key interface{}) error {
 	if key == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupBlockedUser key must not be null")
 	}
+	rv := reflect.ValueOf(key)
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "GroupBlockedUser key must not be null")
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.Struct {
+		groupID := rv.FieldByName("GroupID")
+		userID := rv.FieldByName("UserID")
+		if groupID.IsValid() && groupID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The group ID in the group blocked user key must not be null")
+		}
+		if userID.IsValid() && userID.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The user ID in the group blocked user key must not be null")
+		}
+	}
 	return nil
 }
 
+// ValidNewGroupQuestion validates a NewGroupQuestion.
+// Bug fix: Already checks empty answers and null/negative score, matching Java.
 // @MappedFrom validNewGroupQuestion(NewGroupQuestion question)
 func ValidNewGroupQuestion(question interface{}) error {
 	if question == nil {
@@ -155,10 +267,30 @@ func ValidNewGroupQuestion(question interface{}) error {
 	return nil
 }
 
+// ValidGroupQuestionIdAndAnswer validates a questionIdAndAnswer entry.
+// Bug fix: Java also checks key == null and value == null.
 // @MappedFrom validGroupQuestionIdAndAnswer(Map.Entry<Long, String> questionIdAndAnswer)
 func ValidGroupQuestionIdAndAnswer(questionIdAndAnswer interface{}) error {
 	if questionIdAndAnswer == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "Map entry must not be null")
+	}
+	// Check for struct with Key/Value fields (Go equivalent of Map.Entry)
+	rv := reflect.ValueOf(questionIdAndAnswer)
+	if rv.Kind() == reflect.Ptr {
+		if rv.IsNil() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "Map entry must not be null")
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() == reflect.Struct {
+		keyField := rv.FieldByName("Key")
+		valueField := rv.FieldByName("Value")
+		if keyField.IsValid() && keyField.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The question ID must not be null")
+		}
+		if valueField.IsValid() && valueField.IsZero() {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), "The answer must not be null")
+		}
 	}
 	return nil
 }

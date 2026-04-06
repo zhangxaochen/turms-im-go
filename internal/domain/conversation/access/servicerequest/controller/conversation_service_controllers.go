@@ -54,41 +54,52 @@ func (c *ConversationServiceController) HandleQueryConversationsRequest(ctx cont
 	queryRequest := request.TurmsRequest.GetQueryConversationsRequest()
 	targetIDs := queryRequest.GetTargetIds()
 	groupIDs := queryRequest.GetGroupIds()
+	// Bug fix: Return NO_CONTENT when both lists are empty (Java returns NO_CONTENT, not OK).
 	if len(targetIDs) == 0 && len(groupIDs) == 0 {
-		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK), nil
+		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_NO_CONTENT), nil
 	}
 
-	var privateConversations []*po.PrivateConversation
-	var groupConversations []*po.GroupConversation
-	var err error
-
+	// Bug fix: Java queries either private OR group conversations, never both.
+	// When targetIDs is non-empty, Java only queries private conversations (ignoring groupIDs).
+	// When targetIDs is empty, Java falls through to query group conversations.
 	if len(targetIDs) > 0 {
 		keys := make([]po.PrivateConversationKey, len(targetIDs))
 		for i, targetID := range targetIDs {
+			// Bug fix: Swap OwnerID and TargetID to match Java's key construction.
+			// Java: queryPrivateConversations(targetIds, clientRequest.userId())
+			// creates Key(ownerId=requestTargetId, targetId=currentUserId).
+			// Go was incorrectly: Key(OwnerID=currentUserId, TargetID=requestTargetId).
 			keys[i] = po.PrivateConversationKey{
-				OwnerID:  request.UserId,
-				TargetID: targetID,
+				OwnerID:  targetID,
+				TargetID: request.UserId,
 			}
 		}
-		privateConversations, err = c.conversationService.QueryPrivateConversations(ctx, keys)
+		privateConversations, err := c.conversationService.QueryPrivateConversations(ctx, keys)
 		if err != nil {
 			return nil, err
 		}
-	}
-	if len(groupIDs) > 0 {
-		groupConversations, err = c.conversationService.QueryGroupConversations(ctx, groupIDs)
-		if err != nil {
-			return nil, err
+		if len(privateConversations) == 0 {
+			return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_NO_CONTENT), nil
 		}
+		return dto.RequestHandlerResultOfResponse(&protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_Conversations{
+				Conversations: c.conversations2proto(privateConversations, nil),
+			},
+		}), nil
 	}
 
-	if len(privateConversations) == 0 && len(groupConversations) == 0 {
-		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK), nil
+	// Group conversations
+	groupConversations, err := c.conversationService.QueryGroupConversations(ctx, groupIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(groupConversations) == 0 {
+		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_NO_CONTENT), nil
 	}
 
 	return dto.RequestHandlerResultOfResponse(&protocol.TurmsNotification_Data{
 		Kind: &protocol.TurmsNotification_Data_Conversations{
-			Conversations: c.conversations2proto(privateConversations, groupConversations),
+			Conversations: c.conversations2proto(nil, groupConversations),
 		},
 	}), nil
 }
@@ -153,18 +164,13 @@ func (c *ConversationServiceController) HandleUpdateConversationRequest(ctx cont
 		} else if c.notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated {
 			return dto.RequestHandlerResultOfForwardNotification(true, request.TurmsRequest), nil
 		} else {
+			// Bug fix: Java passes all member IDs (including requester) as recipients.
+			// Go was incorrectly filtering out the requester from member IDs.
 			memberIDs, err := c.groupMemberService.FindGroupMemberIDs(ctx, *groupID)
 			if err != nil {
 				return nil, err
 			}
-			// filter request.UserId
-			filteredIDs := make([]int64, 0, len(memberIDs))
-			for _, id := range memberIDs {
-				if id != request.UserId {
-					filteredIDs = append(filteredIDs, id)
-				}
-			}
-			return dto.RequestHandlerResultOfRecipientsNotification(filteredIDs, request.TurmsRequest), nil
+			return dto.RequestHandlerResultOfRecipientsNotification(memberIDs, request.TurmsRequest), nil
 		}
 	}
 

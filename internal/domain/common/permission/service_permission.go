@@ -20,11 +20,17 @@ func NewServicePermission(code constant.ResponseStatusCode, reason string) *Serv
 // OK defines the OK service permission constant.
 var OK = NewServicePermission(constant.ResponseStatusCode_OK, "")
 
-// Get returns a service permission for a code with no reason.
+// Get returns a new service permission for a code with no reason.
+// Bug fix: Always creates a new instance (Java always returns new ServicePermission(code, null)),
+// never returns the shared OK singleton, to match Java behavior where get(OK) != OK.
 // @MappedFrom get(ResponseStatusCode code)
 func Get(code constant.ResponseStatusCode) *ServicePermission {
-	if code == constant.ResponseStatusCode_OK {
-		return OK
-	}
 	return NewServicePermission(code, "")
+}
+
+// GetWithReason returns a new service permission for a code with a reason.
+// Bug fix: Added missing two-parameter get method from Java.
+// @MappedFrom get(ResponseStatusCode code, String reason)
+func GetWithReason(code constant.ResponseStatusCode, reason string) *ServicePermission {
+	return NewServicePermission(code, reason)
 }

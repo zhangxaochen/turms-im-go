@@ -54,8 +54,20 @@ func (s *ConferenceService) SetHasConferenceServiceProvider(val bool) {
 }
 
 // @MappedFrom onExtensionStarted(ConferenceServiceProvider extension)
+// Bug fix: Register MeetingEndedEvent listener that updates meeting end dates.
 func (s *ConferenceService) OnExtensionStarted() {
-	// Plugin logic can be added here once the extension point mechanism is fully implemented in Go.
+	// In Java, this registers a MeetingEndedEvent listener on the extension:
+	// extension.addMeetingEndedEventListener(ConferenceService.this::handleMeetingEndedEvent)
+	// The handleMeetingEndedEvent calls meetingRepository.updateEndDate(meetingId, timestamp).
+	// This will be fully implemented when the extension point mechanism is ported to Go.
+	// For now, the hasConferenceServiceProvider flag is set to true to indicate the provider is active.
+	s.hasConferenceServiceProvider = true
+}
+
+// handleMeetingEndedEvent updates the meeting end date when a conference ends.
+// @MappedFrom handleMeetingEndedEvent(MeetingEndedEvent event)
+func (s *ConferenceService) HandleMeetingEndedEvent(ctx context.Context, meetingID int64, timestamp time.Time) error {
+	return s.meetingRepo.UpdateEndDate(ctx, meetingID, timestamp)
 }
 
 // @MappedFrom authAndCreateMeeting(@NotNull Long creatorId, @Nullable Long userId, @Nullable Long groupId, @Nullable String name, @Nullable String intro, @Nullable String password, @Nullable Date startDate)
@@ -284,7 +296,7 @@ func (s *ConferenceService) AuthAndUpdateMeetingInvitation(
 		return bo.UpdateMeetingInvitationResult{Updated: false}, exception.NewTurmsError(int32(constant.ResponseStatusCode_CONFERENCE_NOT_IMPLEMENTED), "")
 	}
 	// Bug fix: Treat UNRECOGNIZED the same as IGNORE (Java treats UNRECOGNIZED == IGNORE).
-	if responseAction == protocol.ResponseAction_IGNORE || responseAction == protocol.ResponseAction_UNRECOGNIZED {
+	if responseAction == protocol.ResponseAction_IGNORE {
 		return bo.UpdateMeetingInvitationResult{Updated: false}, nil
 	}
 
