@@ -107,7 +107,7 @@ func TestGroupRelationshipPOValidation(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, exists)
 
-		err = blockRepo.Delete(ctx, groupID, userA)
+		_, err = blockRepo.Delete(ctx, groupID, userA)
 		require.NoError(t, err)
 
 		exists2, err := blockRepo.Exists(ctx, groupID, userA)

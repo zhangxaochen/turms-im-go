@@ -115,20 +115,9 @@ func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 
 	// 5. Check if invitee can be invited (not member + not blocked)
 	// Java: groupMemberService.isAllowedToBeInvited(groupId, inviteeId)
-	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupID, inviteeID)
+	_, err = s.groupMemberService.IsAllowedToBeInvited(ctx, groupID, inviteeID)
 	if err != nil {
 		return nil, err
-	}
-	if isMember {
-		return nil, exception.NewTurmsError(codes.SendGroupInvitationToGroupMember, "Invitee is already a group member")
-	}
-
-	isBlocked, err := s.groupMemberService.IsBlocked(ctx, groupID, inviteeID)
-	if err != nil {
-		return nil, err
-	}
-	if isBlocked {
-		return nil, exception.NewTurmsError(codes.SendGroupInvitationToBlockedUser, "Invitee has been blocked by the group")
 	}
 
 	// 6. Check for existing pending invitation

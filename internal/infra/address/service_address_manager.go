@@ -1,7 +1,9 @@
 package address
 
 import (
+	"context"
 	"fmt"
+	"time"
 )
 
 // ServiceAddressManager maps to ServiceAddressManager in Java.
@@ -118,7 +120,9 @@ func (m *ServiceAddressManager) queryHost(advertiseStrategy, host, advertiseHost
 		return "127.0.0.1"
 	case "PUBLIC_ADDRESS":
 		// @MappedFrom Java: IpDetector.queryPublicIp()
-		ip, err := m.ipDetector.QueryPublicIp(context.Background(), nil, 0)
+		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		defer cancel()
+		ip, err := m.ipDetector.QueryPublicIp(ctx, nil, 0)
 		if err == nil && ip != "" {
 			return ip
 		}

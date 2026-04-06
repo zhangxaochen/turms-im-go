@@ -138,14 +138,14 @@ func (c *GroupServiceController) HandleQueryGroupsRequest(ctx context.Context, s
 		lastUpdatedDate = &t
 	}
 
-	// BUG FIX: Add missing name, skip, limit parameters from request
+	// BUG FIX: Protocol only has groupIds and lastUpdatedDate
 	groups, err := c.groupService.AuthAndQueryGroups(
 		ctx,
 		queryReq.GetGroupIds(),
-		queryReq.Name,
+		nil,
 		lastUpdatedDate,
-		queryReq.Skip,
-		queryReq.Limit,
+		nil,
+		nil,
 		nil, // fieldsToHighlight - not implemented yet
 	)
 	if err != nil {
@@ -246,13 +246,10 @@ func (c *GroupServiceController) HandleQueryJoinedGroupInfosRequest(ctx context.
 	}
 
 	// BUG FIX: Use single service call to match Java's queryJoinedGroupsWithVersion
-	groupsWithVersion, err := c.groupService.QueryJoinedGroupsWithVersion(ctx, s.UserID, lastUpdatedDate)
+	groups, version, err := c.groupService.QueryJoinedGroupsWithVersion(ctx, s.UserID, lastUpdatedDate)
 	if err != nil {
 		return nil, err
 	}
-
-	groups := groupsWithVersion.Groups
-	version := groupsWithVersion.LastUpdatedDate
 
 	if len(groups) == 0 && version == nil {
 		return &protocol.TurmsNotification{
@@ -313,8 +310,10 @@ func (c *GroupServiceController) HandleUpdateGroupRequest(ctx context.Context, s
 
 	// BUG FIX: Add branching logic for successorId vs regular update
 	if updateReq.SuccessorId != nil {
-		// Java: authAndTransferGroupOwnership when successorId is present
-		quitAfterTransfer := updateReq.GetQuitAfterTransfer()
+		quitAfterTransfer := false
+		if updateReq.QuitAfterTransfer != nil {
+			quitAfterTransfer = *updateReq.QuitAfterTransfer
+		}
 		err := c.groupService.AuthAndTransferGroupOwnership(
 			ctx,
 			s.UserID,
@@ -327,19 +326,25 @@ func (c *GroupServiceController) HandleUpdateGroupRequest(ctx context.Context, s
 			return nil, err
 		}
 	} else {
-		// BUG FIX: Use correct AuthAndUpdateGroup signature matching the service method
+		var muteEndDate *time.Time
+		if updateReq.MuteEndDate != nil {
+			med := time.UnixMilli(*updateReq.MuteEndDate)
+			muteEndDate = &med
+		}
+
 		err := c.groupService.AuthAndUpdateGroup(
 			ctx,
 			s.UserID,
 			updateReq.GetGroupId(),
 			updateReq.TypeId,
-			updateReq.SuccessorId,
+			nil, // successorId
 			updateReq.Name,
 			updateReq.Intro,
 			updateReq.Announcement,
 			updateReq.MinScore,
-			updateReq.Active,
+			nil, // isActive
 			updateReq.QuitAfterTransfer,
+			muteEndDate,
 		)
 		if err != nil {
 			return nil, err
@@ -368,7 +373,7 @@ func (c *GroupServiceController) HandleCreateGroupMembersRequest(ctx context.Con
 		createReq.GetGroupId(),
 		createReq.GetUserIds(),
 		createReq.GetRole(),
-		createReq.GetName(), // BUG FIX: was createReq.Name
+		createReq.Name,
 		muteEndDate,
 	)
 	if err != nil {
@@ -401,7 +406,7 @@ func (c *GroupServiceController) HandleDeleteGroupMembersRequest(ctx context.Con
 	if len(memberIds) == 0 {
 		return buildSuccessNotification(req.RequestId), nil
 	}
-	deletedUserIds, err := c.groupMemberService.AuthAndDeleteGroupMembers(
+	err := c.groupMemberService.AuthAndDeleteGroupMembers(
 		ctx,
 		s.UserID,
 		deleteReq.GetGroupId(),
@@ -411,11 +416,6 @@ func (c *GroupServiceController) HandleDeleteGroupMembersRequest(ctx context.Con
 	)
 	if err != nil {
 		return nil, err
-	}
-
-	// BUG FIX: Add empty result check
-	if len(deletedUserIds) == 0 {
-		return buildSuccessNotification(req.RequestId), nil
 	}
 
 	// TODO: Add notification logic for group members
@@ -788,7 +788,6 @@ func (c *GroupServiceController) HandleQueryGroupInvitationsRequest(ctx context.
 func (c *GroupServiceController) HandleUpdateGroupInvitationRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateGroupInvitationRequest()
 	accept := protocol.ResponseAction_name[int32(updateReq.GetResponseAction())] == "ACCEPT" // Simplistic mapping
-	// BUG FIX: Preserve reason parameter and auth check, matching Java's authAndHandleInvitation
 	status := po.RequestStatusDeclined
 	if accept {
 		status = po.RequestStatusAccepted

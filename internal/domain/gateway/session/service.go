@@ -55,7 +55,7 @@ type SessionService struct {
 	userSimultaneousLoginService *UserSimultaneousLoginService
 	sessionAuthenticationManager *SessionIdentityAccessManager
 	nodeID                       string
-	ipToSessions                 sync.Map // ipStr -> *sync.Map (*UserSession -> struct{})
+	ipToSessions                 sync.Map // ipStr -> *ipSessions // BUG FIX: Use ipSessions wrapper for thread-safe empty cleanup
 	onSessionClosedListeners     []func(*UserSession)
 	rpcService                   *rpc.RpcService
 
@@ -146,35 +146,48 @@ func (s *SessionService) RegisterSession(ctx context.Context, session *UserSessi
 	return nil
 }
 
+type ipSessions struct {
+	mu       sync.Mutex
+	sessions map[*UserSession]struct{}
+}
+
 func (s *SessionService) registerSessionIp(session *UserSession) {
 	ipStr := session.IP.String()
-	var sessionMap *sync.Map
-	v, ok := s.ipToSessions.Load(ipStr)
-	if ok {
-		sessionMap = v.(*sync.Map)
-	} else {
-		sessionMap = &sync.Map{}
-		v, _ = s.ipToSessions.LoadOrStore(ipStr, sessionMap)
-		sessionMap = v.(*sync.Map)
+	var sessions *ipSessions
+	for {
+		v, ok := s.ipToSessions.Load(ipStr)
+		if !ok {
+			v, _ = s.ipToSessions.LoadOrStore(ipStr, &ipSessions{
+				sessions: make(map[*UserSession]struct{}),
+			})
+		}
+		sessions = v.(*ipSessions)
+
+		sessions.mu.Lock()
+		if sessions.sessions == nil {
+			sessions.mu.Unlock()
+			continue
+		}
+		sessions.sessions[session] = struct{}{}
+		sessions.mu.Unlock()
+		break
 	}
-	sessionMap.Store(session, struct{}{})
 }
 
 func (s *SessionService) unregisterSessionIp(session *UserSession) {
 	ipStr := session.IP.String()
 	v, ok := s.ipToSessions.Load(ipStr)
 	if ok {
-		sessionMap := v.(*sync.Map)
-		sessionMap.Delete(session)
-		
-		isEmpty := true
-		sessionMap.Range(func(key, value any) bool {
-			isEmpty = false
-			return false
-		})
-		if isEmpty {
-			s.ipToSessions.Delete(ipStr)
+		sessions := v.(*ipSessions)
+		sessions.mu.Lock()
+		if sessions.sessions != nil {
+			delete(sessions.sessions, session)
+			if len(sessions.sessions) == 0 {
+				sessions.sessions = nil
+				s.ipToSessions.Delete(ipStr)
+			}
 		}
+		sessions.mu.Unlock()
 	}
 }
 
@@ -585,16 +598,27 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 	if checkIPs {
 		// Java parity: Close ALL sessions matching each IP.
 		// Java has completely separate methods for userIds and IPs, always closing
-		// all sessions for each IP.
-		ipUserSet := make(map[int64]struct{})
+		// all sessions for each IP without skipping users already in userIdSet.
 		for ipStr := range ipSet {
 			if v, ok := s.ipToSessions.Load(ipStr); ok {
-				sessionMap := v.(*sync.Map)
-				sessionMap.Range(func(key, value any) bool {
-					sess := key.(*UserSession)
-					ipUserSet[sess.UserID] = struct{}{}
-					return true
-				})
+				sessionsGroup := v.(*ipSessions)
+				sessionsGroup.mu.Lock()
+				if sessionsGroup.sessions == nil {
+					sessionsGroup.mu.Unlock()
+					continue
+				}
+				// Collect all user sessions for this IP and close them
+				var sessionsToClose []*UserSession
+				for sess := range sessionsGroup.sessions {
+					sessionsToClose = append(sessionsToClose, sess)
+				}
+				sessionsGroup.mu.Unlock()
+
+				for _, sess := range sessionsToClose {
+					// Close each session for this user. Use nil deviceTypes to close ALL device types.
+					n, _ := s.CloseLocalSession(ctx, sess.UserID, nil, closeReason)
+					totalCount += n
+				}
 			}
 		}
 	}

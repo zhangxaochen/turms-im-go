@@ -166,7 +166,7 @@ type GroupStatisticsDTO struct {
 	DeletedGroups                 *int64 `json:"deletedGroups"`
 	GroupsThatSentMessages        *int64 `json:"groupsThatSentMessages"`
 	CreatedGroups                 *int64 `json:"createdGroups"`
-	DeletedGroupsRecords          []dto.StatisticsRecordDTO `json:"deletedGroupsRecords"`
-	GroupsThatSentMessagesRecords []dto.StatisticsRecordDTO `json:"groupsThatSentMessagesRecords"`
-	CreatedGroupsRecords          []dto.StatisticsRecordDTO `json:"createdGroupsRecords"`
+	DeletedGroupsRecords          []common_dto.StatisticsRecordDTO `json:"deletedGroupsRecords"`
+	GroupsThatSentMessagesRecords []common_dto.StatisticsRecordDTO `json:"groupsThatSentMessagesRecords"`
+	CreatedGroupsRecords          []common_dto.StatisticsRecordDTO `json:"createdGroupsRecords"`
 }
