@@ -344,7 +344,7 @@ func (s *GroupMemberService) IsGroupMember(ctx context.Context, groupID, userID 
 // so this is equivalent to IsGroupMember.
 // Java parity: isGroupMember(groupId, userId, true)
 func (s *GroupMemberService) IsGroupMemberActiveOnly(ctx context.Context, groupID, userID int64) (bool, error) {
-	return s.IsGroupMember(ctx, groupID, userID)
+	return s.IsGroupMember(ctx, groupID, userID, true)
 }
 
 // FindActiveGroupMemberIDs returns only active group member IDs.

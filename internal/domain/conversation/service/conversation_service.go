@@ -180,8 +180,14 @@ func (s *ConversationService) UpsertGroupConversationsReadDate(ctx context.Conte
 
 // UpsertPrivateConversationReadDate
 // @MappedFrom upsertPrivateConversationReadDate(@NotNull Long ownerId, @NotNull Long targetId, @Nullable @PastOrPresent Date readDate)
+// Bug fix: Pass nil readDate pointer when zero-valued so UpsertPrivateConversationsReadDate
+// can correctly apply DuplicateKey swallowing logic (Java: swallow when readDate was null).
 func (s *ConversationService) UpsertPrivateConversationReadDate(ctx context.Context, ownerID int64, targetID int64, readDate time.Time) error {
-	return s.UpsertPrivateConversationsReadDate(ctx, []po.PrivateConversationKey{{OwnerID: ownerID, TargetID: targetID}}, &readDate)
+	var readDatePtr *time.Time
+	if !readDate.IsZero() {
+		readDatePtr = &readDate
+	}
+	return s.UpsertPrivateConversationsReadDate(ctx, []po.PrivateConversationKey{{OwnerID: ownerID, TargetID: targetID}}, readDatePtr)
 }
 
 // UpsertPrivateConversationsReadDate
