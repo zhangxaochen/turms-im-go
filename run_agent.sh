@@ -15,7 +15,7 @@ while [ $count -lt $MAX_RETRIES ]; do
         echo "[$(date)] Agent finished successfully. Attempting to commit and merge..."
         # 1. 兜底提交（防止 Claude 忘了主动跑 Commit 命令）
         git add .
-        git commit -m "fix(automation): resolve parity bugs for batch 8" || true
+        git commit -m "fix(automation): resolve parity bugs for batch 4" || true
         
         # 2. 回到主分支执行安全的合并。遇到冲突则让 AI 进行 Rebase + Self-Heal 自动修复
         while true; do
@@ -26,8 +26,8 @@ while [ $count -lt $MAX_RETRIES ]; do
                 sleep 2
             done
             
-            echo "[$(date)] Attempting merge for feature/fix-batch-8 into main..."
-            if git merge "feature/fix-batch-8" --no-edit -m "Merge auto-fix batch 8 into main"; then
+            echo "[$(date)] Attempting merge for feature/fix-batch-4 into main..."
+            if git merge "feature/fix-batch-4" --no-edit -m "Merge auto-fix batch 4 into main"; then
                 MERGE_RESULT="SUCCESS"
             else
                 echo "[!] Conflict detected. Aborting merge."
@@ -44,7 +44,7 @@ while [ $count -lt $MAX_RETRIES ]; do
             fi
             
             echo "[$(date)] Merge conflict! Initiating Sub-Agent Self-Heal Rebase..."
-            cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-8"
+            cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-4"
             
             # 开始 Rebase main
             git rebase main || {
@@ -75,7 +75,7 @@ Do NOT attempt to run standard git merge. Finish the rebase process. Keep your t
             echo "[$(date)] Self-Heal Rebase complete. Loop will retry the merge."
         done
         
-        echo "[$(date)] Pipeline for batch 8 complete."
+        echo "[$(date)] Pipeline for batch 4 complete."
         exit 0
     fi
     

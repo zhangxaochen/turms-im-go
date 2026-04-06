@@ -8783,7 +8783,7 @@ Now I have a clear picture. Let me verify one more detail — the Java `TurmsReq
 
 - [x] **Bug: `relayedRequestType` is never logged as `"null"` in Java.** In Java, `TurmsRequest.KindCase` is an enum, and `KIND_NOT_SET` (the default/unset case) has `.name()` returning `"KIND_NOT_SET"`. The Go code checks `if n.RelayedRequestType != 0` and substitutes `"null"` when zero. But in Java, `KIND_NOT_SET` would be logged as the literal string `"KIND_NOT_SET"`, not `"null"`. This is a behavioral difference — the Go code will log `"null"` where Java would log `"KIND_NOT_SET"`.
 
-- [ ] **Bug: `closeStatus` is formatted as a string, losing `ByteBufUtil.join` integer rendering parity.** In Java, `closeStatus` is passed as an `Integer` object to `ByteBufUtil.join`, which renders it as its numeric character bytes. The Go code formats it as `fmt.Sprintf("%d", *n.CloseStatus)` and then passes the resulting string through `joinFields`, which calls `fmt.Sprintf("%v", f)` on it again. While the double-formatting of a string is a no-op (string → `"%v"` → same string), this means `closeStatus` is always rendered as a string like `"200"` rather than being rendered as a raw integer by the join. This is functionally correct but represents a type inconsistency in the `joinFields` call (mixing pre-formatted strings with raw values).
+- [x] **Bug: `closeStatus` is formatted as a string, losing `ByteBufUtil.join` integer rendering parity.** In Java, `closeStatus` is passed as an `Integer` object to `ByteBufUtil.join`, which renders it as its numeric character bytes. The Go code formats it as `fmt.Sprintf("%d", *n.CloseStatus)` and then passes the resulting string through `joinFields`, which calls `fmt.Sprintf("%v", f)` on it again. While the double-formatting of a string is a no-op (string → `"%v"` → same string), this means `closeStatus` is always rendered as a string like `"200"` rather than being rendered as a raw integer by the join. This is functionally correct but represents a type inconsistency in the `joinFields` call (mixing pre-formatted strings with raw values).
 
 # SimpleTurmsRequest.java
 *Checked methods: SimpleTurmsRequest(long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest), toString()*
@@ -8857,36 +8857,36 @@ Both of these are real behavioral differences from the Java version.
 
 ## toString()
 
-- [ ] `createSessionRequest` is formatted using the raw protobuf `String()` method instead of a `ProtoFormatter.toLogString()` equivalent, meaning sensitive data (strings, bytes, repeated fields) is not masked with `'*'` as in Java.
-- [ ] When `createSessionRequest` is `nil`, the Go version outputs `<nil>` instead of `null` (Java's `ProtoFormatter.toLogString(null)` returns `null`).
+- [x] `createSessionRequest` is formatted using the raw protobuf `String()` method instead of a `ProtoFormatter.toLogString()` equivalent, meaning sensitive data (strings, bytes, repeated fields) is not masked with `'*'` as in Java.
+- [x] When `createSessionRequest` is `nil`, the Go version outputs `<nil>` instead of `null` (Java's `ProtoFormatter.toLogString(null)` returns `null`).
 
 # TurmsNotificationParser.java
 *Checked methods: parseSimpleNotification(CodedInputStream turmsRequestInputStream)*
 
 ## ParseSimpleNotification
 
-- [ ] **Error message for unknown request type omits the type value**: The Java code includes the `type` value in the error message: `"Unknown request type: " + type`, while the Go code at line 251 uses just `"Not a valid notification: Unknown request type"` without appending the `kindCase` value. This is a behavioral difference in the error message content.
-- [ ] **Bounds check missing when skipping length-delimited fields**: In the `default` branch at line 236, when skipping a length-delimited field (`wireTypeLenDelimited`), the Go code does `pos = np + int(length)` without checking that `np + int(length) <= len(data)`. This could cause an out-of-bounds panic on corrupted/malformed data. The Java `CodedInputStream.skipField()` handles this internally, but the Go manual implementation does not guard against it.
-- [ ] **Bounds check missing when skipping fixed-size fields**: Similarly, at lines 238-239, the fixed 64-bit (`pos += 8`) and 32-bit (`pos += 4`) skip operations do not verify that `pos` won't exceed `len(data)`, which could cause subsequent reads to access out-of-bounds memory or silently read wrong data.
+- [x] **Error message for unknown request type omits the type value**: The Java code includes the `type` value in the error message: `"Unknown request type: " + type`, while the Go code at line 251 uses just `"Not a valid notification: Unknown request type"` without appending the `kindCase` value. This is a behavioral difference in the error message content.
+- [x] **Bounds check missing when skipping length-delimited fields**: In the `default` branch at line 236, when skipping a length-delimited field (`wireTypeLenDelimited`), the Go code does `pos = np + int(length)` without checking that `np + int(length) <= len(data)`. This could cause an out-of-bounds panic on corrupted/malformed data. The Java `CodedInputStream.skipField()` handles this internally, but the Go manual implementation does not guard against it.
+- [x] **Bounds check missing when skipping fixed-size fields**: Similarly, at lines 238-239, the fixed 64-bit (`pos += 8`) and 32-bit (`pos += 4`) skip operations do not verify that `pos` won't exceed `len(data)`, which could cause subsequent reads to access out-of-bounds memory or silently read wrong data.
 
 # TurmsServiceApplication.java
 *Checked methods: main(String[] args)*
 
 ## main(String[] args)
 
-- [ ] **Missing static initializer logic**: The Java `BaseTurmsApplication` has a static block that sets critical system properties: `TimeZone.setDefault(TimeZoneConst.ZONE)` (the Go code sets `time.Local = time.UTC` which is roughly equivalent), but it also sets Netty properties (`io.netty.maxDirectMemory=0`), Spring banner mode (`spring.main.banner-mode=off`), and Spring web application type (`spring.main.web-application-type=none`). The Go code does not set any equivalent Netty or configuration properties.
+- [x] **Missing static initializer logic**: The Java `BaseTurmsApplication` has a static block that sets critical system properties: `TimeZone.setDefault(TimeZoneConst.ZONE)` (the Go code sets `time.Local = time.UTC` which is roughly equivalent), but it also sets Netty properties (`io.netty.maxDirectMemory=0`), Spring banner mode (`spring.main.banner-mode=off`), and Spring web application type (`spring.main.web-application-type=none`). The Go code does not set any equivalent Netty or configuration properties.
 
-- [ ] **Missing SpringApplication.run equivalent**: The Java `main` calls `bootstrap(TurmsServiceApplication.class, args)` which calls `SpringApplication.run(applicationClass, args)` to actually start the application. The Go code has no equivalent — it only logs "Starting Turms Gateway..." and immediately waits for a shutdown signal, meaning no actual application initialization or service startup occurs.
+- [x] **Missing SpringApplication.run equivalent**: The Java `main` calls `bootstrap(TurmsServiceApplication.class, args)` which calls `SpringApplication.run(applicationClass, args)` to actually start the application. The Go code has no equivalent — it only logs "Starting Turms Gateway..." and immediately waits for a shutdown signal, meaning no actual application initialization or service startup occurs.
 
-- [ ] **Wrong application type**: The Java file is `TurmsServiceApplication` with `@Application(nodeType = NodeType.SERVICE)`, but the Go code at `cmd/turms-gateway/main.go` has comments referencing `NodeType.GATEWAY`. The user asked to compare the Go port of the gateway's main, but the Java reference file is the *service* application, not the gateway. The core bootstrap logic is the same (inherited from `BaseTurmsApplication`), but the application class and node type differ.
+- [x] **Wrong application type**: The Java file is `TurmsServiceApplication` with `@Application(nodeType = NodeType.SERVICE)`, but the Go code at `cmd/turms-gateway/main.go` has comments referencing `NodeType.GATEWAY`. The user asked to compare the Go port of the gateway's main, but the Java reference file is the *service* application, not the gateway. The core bootstrap logic is the same (inherited from `BaseTurmsApplication`), but the application class and node type differ.
 
-- [ ] **Missing LoggerFactory graceful shutdown**: In the Java `bootstrap` catch block, if `LoggerFactory.isInitialized()`, it calls `LoggerFactory.close(Duration.ofSeconds(50)).block(DurationConst.ONE_MINUTE)` to ensure all logs are flushed. The Go code's recover handler uses `time.Sleep(1 * time.Second)` as a mock comment, which is not equivalent to the Java's structured logger flush with proper timeouts.
+- [x] **Missing LoggerFactory graceful shutdown**: In the Java `bootstrap` catch block, if `LoggerFactory.isInitialized()`, it calls `LoggerFactory.close(Duration.ofSeconds(50)).block(DurationConst.ONE_MINUTE)` to ensure all logs are flushed. The Go code's recover handler uses `time.Sleep(1 * time.Second)` as a mock comment, which is not equivalent to the Java's structured logger flush with proper timeouts.
 
-- [ ] **Missing System.exit(1) on failure**: The Java `bootstrap` method explicitly calls `System.exit(1)` in the catch block to ensure the process terminates even if non-daemon threads are running. The Go code does `os.Exit(1)` inside the recover handler, which is present, but the Java exit is in the `catch` block (not a panic/recover pattern) — the Go code will only hit `os.Exit(1)` if something panics, whereas Java's catch handles all `Exception` types including checked exceptions.
+- [x] **Missing System.exit(1) on failure**: The Java `bootstrap` method explicitly calls `System.exit(1)` in the catch block to ensure the process terminates even if non-daemon threads are running. The Go code does `os.Exit(1)` inside the recover handler, which is present, but the Java exit is in the `catch` block (not a panic/recover pattern) — the Go code will only hit `os.Exit(1)` if something panics, whereas Java's catch handles all `Exception` types including checked exceptions.
 
-- [ ] **Missing validateEnv logic**: The Java `validateEnv()` loads specific utility classes (`CollectionUtil`, `ClassUtil`, `StringUtil`) to trigger their static validation. The Go `validateEnv()` only checks `runtime.Version() == ""` which will never be true in practice and is not equivalent to the Java environment validation.
+- [x] **Missing validateEnv logic**: The Java `validateEnv()` loads specific utility classes (`CollectionUtil`, `ClassUtil`, `StringUtil`) to trigger their static validation. The Go `validateEnv()` only checks `runtime.Version() == ""` which will never be true in practice and is not equivalent to the Java environment validation.
 
-- [ ] **Missing Spring component scanning**: The Java `@SpringBootApplication(scanBasePackages = {PackageConst.SERVICE, PackageConst.SERVER_COMMON})` annotation configures component scanning for dependency injection. The Go code has no equivalent dependency injection or component wiring — it has a TODO comment acknowledging this gap.
+- [x] **Missing Spring component scanning**: The Java `@SpringBootApplication(scanBasePackages = {PackageConst.SERVICE, PackageConst.SERVER_COMMON})` annotation configures component scanning for dependency injection. The Go code has no equivalent dependency injection or component wiring — it has a TODO comment acknowledging this gap.
 
 # ServiceRequestDispatcher.java
 *Checked methods: dispatch(TracingContext context, ServiceRequest serviceRequest)*
@@ -8917,27 +8917,27 @@ The actual closer port of the Java `dispatch` method is `ClientRequestDispatcher
 
 ## Dispatch
 
-- [ ] **Missing pending request count management**: Java `dispatch()` increments `pendingRequestCount` at entry and decrements it in `doFinally` (via `onPendingRequestHandled()`). Go `Dispatch()` has no pending request count tracking at all. This is critical for graceful shutdown — the Java version uses it to wait for all in-flight requests before shutting down.
-- [ ] **Missing request buffer lifecycle management**: Java `dispatch()` explicitly touches the `requestBuffer` for leak detection (`requestBuffer.touch(serviceRequest)`), retains it before async processing, and releases it in the `finally` block. Go `Dispatch()` passes raw `[]byte` (no reference counting needed in Go, but no equivalent lifecycle concern is addressed).
-- [ ] **Missing user ID validation**: Java `dispatch0()` validates that `userId != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no user identity validation.
-- [ ] **Missing device type validation**: Java `dispatch0()` validates that `deviceType != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no device type validation.
-- [ ] **Missing service availability check**: Java `dispatch0()` calls `serverStatusManager.getServiceAvailability()` and returns `SERVER_UNAVAILABLE` if the service is not available. Go `Dispatch()` has no availability check.
-- [ ] **Missing protobuf request parsing**: Java `dispatch0()` parses the raw `ByteBuf` into a `TurmsRequest` using `ProtoDecoder.newInputStream()` and handles `IOException` from corrupted data. Go `Dispatch()` takes a pre-decoded `RpcFrame` and passes raw payload to the handler without any request parsing.
-- [ ] **Missing blocklist handling for corrupted requests**: Java `dispatch0()` calls `blocklistService.tryBlockIpForCorruptedRequest()` and `blocklistService.tryBlockUserIdForCorruptedRequest()` when proto parsing fails. Go `Dispatch()` has no blocklist integration.
-- [ ] **Missing plugin/extension point support**: Java `dispatch0()` checks for running `ClientRequestTransformer` extensions and applies them via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no plugin system integration.
-- [ ] **Missing handler lookup by request type**: Java `dispatch0()` routes requests by `TurmsRequest.KindCase` using `requestTypeToHandler.get(requestType)`. Go `Dispatch()` routes by `CodecID` (a uint16), which is a different routing mechanism entirely — it's an RPC codec ID, not a TurmsRequest type.
-- [ ] **Missing KIND_NOT_SET validation**: Java `dispatch0()` checks if `requestType == KIND_NOT_SET` and returns `ILLEGAL_ARGUMENT`. Go `Dispatch()` has no equivalent validation.
-- [ ] **Missing unsupported request type response**: Java `dispatch0()` returns `ILLEGAL_ARGUMENT` with "The request type is unsupported" when no handler is found. Go `Dispatch()` returns a generic `ErrHandlerNotFound` error without a proper service response.
-- [ ] **Missing metrics recording**: Java `dispatch0()` uses `.name(TURMS_CLIENT_REQUEST).tag(TURMS_CLIENT_REQUEST_TAG_TYPE, requestType.name()).metrics()` for request metrics. Go `Dispatch()` has no metrics recording.
-- [ ] **Missing notification of related users**: Java `dispatch0()` calls `notifyRelatedUsersOfAction()` to forward notifications to recipients and the requester's other online sessions, including plugin `beforeNotify` and `afterNotify` hooks. Go `Dispatch()` has no notification logic.
-- [ ] **Missing request logging**: Java `dispatch0()` calls `ClientApiLogging.log()` for server errors and when `apiLoggingContext.shouldLogRequest()` returns true. Go `Dispatch()` has no request logging.
-- [ ] **Missing error transformation to ServiceResponse**: Java `dispatch()` catches all exceptions and maps them to `ServiceResponse` instances with appropriate status codes (never returns MonoError). Go `Dispatch()` returns raw errors without wrapping them in a service response structure.
-- [ ] **Missing turmsRequestBuffer retain before async processing**: Java `dispatch0()` explicitly retains the buffer before async processing (`turmsRequestBuffer.retain()`) because `NioByteString` instances reference the buffer. Go `Dispatch()` has no such concern.
-- [ ] **Missing request size tracking**: Java `dispatch0()` tracks `requestSize = turmsRequestBuffer.readableBytes()` and passes it to logging. Go `Dispatch()` does not track request size.
-- [ ] **Missing request timing**: Java `dispatch0()` records `requestTime = System.currentTimeMillis()` and `startTime = System.nanoTime()` for latency measurement in logs. Go `Dispatch()` has no timing.
-- [ ] **Missing plugin-based request handling override**: Java `dispatch0()` invokes `ClientRequestHandler` extension points that can override the default handler behavior via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no extension point for handler override.
-- [ ] **Missing error logging for internal server errors**: Java `dispatch0()` logs internal server errors with full request context using `LOGGER.error()` and `context.updateThreadContext()`. Go `Dispatch()` has no error logging beyond the basic handler error return.
-- [ ] **Missing graceful shutdown hook**: Java constructor registers a shutdown hook via `applicationContext.addShutdownHook()` that waits for `pendingRequestCount` to reach zero. Go `Dispatch()` has no shutdown coordination mechanism.
+- [x] **Missing pending request count management**: Java `dispatch()` increments `pendingRequestCount` at entry and decrements it in `doFinally` (via `onPendingRequestHandled()`). Go `Dispatch()` has no pending request count tracking at all. This is critical for graceful shutdown — the Java version uses it to wait for all in-flight requests before shutting down.
+- [x] **Missing request buffer lifecycle management**: Java `dispatch()` explicitly touches the `requestBuffer` for leak detection (`requestBuffer.touch(serviceRequest)`), retains it before async processing, and releases it in the `finally` block. Go `Dispatch()` passes raw `[]byte` (no reference counting needed in Go, but no equivalent lifecycle concern is addressed).
+- [x] **Missing user ID validation**: Java `dispatch0()` validates that `userId != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no user identity validation.
+- [x] **Missing device type validation**: Java `dispatch0()` validates that `deviceType != null` and returns `SERVER_INTERNAL_ERROR` if missing. Go `Dispatch()` has no device type validation.
+- [x] **Missing service availability check**: Java `dispatch0()` calls `serverStatusManager.getServiceAvailability()` and returns `SERVER_UNAVAILABLE` if the service is not available. Go `Dispatch()` has no availability check.
+- [x] **Missing protobuf request parsing**: Java `dispatch0()` parses the raw `ByteBuf` into a `TurmsRequest` using `ProtoDecoder.newInputStream()` and handles `IOException` from corrupted data. Go `Dispatch()` takes a pre-decoded `RpcFrame` and passes raw payload to the handler without any request parsing.
+- [x] **Missing blocklist handling for corrupted requests**: Java `dispatch0()` calls `blocklistService.tryBlockIpForCorruptedRequest()` and `blocklistService.tryBlockUserIdForCorruptedRequest()` when proto parsing fails. Go `Dispatch()` has no blocklist integration.
+- [x] **Missing plugin/extension point support**: Java `dispatch0()` checks for running `ClientRequestTransformer` extensions and applies them via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no plugin system integration.
+- [x] **Missing handler lookup by request type**: Java `dispatch0()` routes requests by `TurmsRequest.KindCase` using `requestTypeToHandler.get(requestType)`. Go `Dispatch()` routes by `CodecID` (a uint16), which is a different routing mechanism entirely — it's an RPC codec ID, not a TurmsRequest type.
+- [x] **Missing KIND_NOT_SET validation**: Java `dispatch0()` checks if `requestType == KIND_NOT_SET` and returns `ILLEGAL_ARGUMENT`. Go `Dispatch()` has no equivalent validation.
+- [x] **Missing unsupported request type response**: Java `dispatch0()` returns `ILLEGAL_ARGUMENT` with "The request type is unsupported" when no handler is found. Go `Dispatch()` returns a generic `ErrHandlerNotFound` error without a proper service response.
+- [x] **Missing metrics recording**: Java `dispatch0()` uses `.name(TURMS_CLIENT_REQUEST).tag(TURMS_CLIENT_REQUEST_TAG_TYPE, requestType.name()).metrics()` for request metrics. Go `Dispatch()` has no metrics recording.
+- [x] **Missing notification of related users**: Java `dispatch0()` calls `notifyRelatedUsersOfAction()` to forward notifications to recipients and the requester's other online sessions, including plugin `beforeNotify` and `afterNotify` hooks. Go `Dispatch()` has no notification logic.
+- [x] **Missing request logging**: Java `dispatch0()` calls `ClientApiLogging.log()` for server errors and when `apiLoggingContext.shouldLogRequest()` returns true. Go `Dispatch()` has no request logging.
+- [x] **Missing error transformation to ServiceResponse**: Java `dispatch()` catches all exceptions and maps them to `ServiceResponse` instances with appropriate status codes (never returns MonoError). Go `Dispatch()` returns raw errors without wrapping them in a service response structure.
+- [x] **Missing turmsRequestBuffer retain before async processing**: Java `dispatch0()` explicitly retains the buffer before async processing (`turmsRequestBuffer.retain()`) because `NioByteString` instances reference the buffer. Go `Dispatch()` has no such concern.
+- [x] **Missing request size tracking**: Java `dispatch0()` tracks `requestSize = turmsRequestBuffer.readableBytes()` and passes it to logging. Go `Dispatch()` does not track request size.
+- [x] **Missing request timing**: Java `dispatch0()` records `requestTime = System.currentTimeMillis()` and `startTime = System.nanoTime()` for latency measurement in logs. Go `Dispatch()` has no timing.
+- [x] **Missing plugin-based request handling override**: Java `dispatch0()` invokes `ClientRequestHandler` extension points that can override the default handler behavior via `pluginManager.invokeExtensionPointsSequentially()`. Go `Dispatch()` has no extension point for handler override.
+- [x] **Missing error logging for internal server errors**: Java `dispatch0()` logs internal server errors with full request context using `LOGGER.error()` and `context.updateThreadContext()`. Go `Dispatch()` has no error logging beyond the basic handler error return.
+- [x] **Missing graceful shutdown hook**: Java constructor registers a shutdown hook via `applicationContext.addShutdownHook()` that waits for `pendingRequestCount` to reach zero. Go `Dispatch()` has no shutdown coordination mechanism.
 
 # ClientRequest.java
 *Checked methods: toString(), turmsRequest(), userId(), deviceType(), clientIp(), requestId(), equals(Object obj), hashCode()*
@@ -8975,20 +8975,20 @@ Now let me also check the `bytesEq` helper — it doesn't handle both-nil correc
 
 ## toString
 
-- [ ] `clientIp` formatting: Java uses `Arrays.toString(clientIp)` producing comma-separated output like `[10, 0, 0, 1]`, but Go uses `fmt.Sprintf("%v", c.clientIp)` producing space-separated output like `[10 0 0 1]`. The format differs from Java's output.
+- [x] `clientIp` formatting: Java uses `Arrays.toString(clientIp)` producing comma-separated output like `[10, 0, 0, 1]`, but Go uses `fmt.Sprintf("%v", c.clientIp)` producing space-separated output like `[10 0 0 1]`. The format differs from Java's output.
 
 ## turmsRequest
 
-- [ ] Java lazily builds `turmsRequest` from `turmsRequestBuilder` on first access. Go simply returns the stored pointer. This is an acceptable design difference since Go protobuf doesn't use builders, but if `turmsRequest` were ever nil, Go returns nil while Java would build it from the builder.
+- [x] Java lazily builds `turmsRequest` from `turmsRequestBuilder` on first access. Go simply returns the stored pointer. This is an acceptable design difference since Go protobuf doesn't use builders, but if `turmsRequest` were ever nil, Go returns nil while Java would build it from the builder.
 
 ## equals
 
-- [ ] `turmsRequest` comparison uses Go pointer identity (`c.turmsRequest == other.turmsRequest`) instead of value equality. Java uses `Objects.equals()` which calls `.equals()` on the protobuf message for deep equality. Two protobuf messages with identical content at different addresses would incorrectly be reported as unequal in Go.
-- [ ] `bytesEq` helper treats `nil` and empty `[]byte{}` as equal (since `len(nil) == len([]byte{}) == 0`), whereas Java's `Arrays.equals(null, new byte[0])` returns `false`. This causes `Equals` to produce different results than Java when one side has a nil `clientIp` and the other has an empty byte slice.
+- [x] `turmsRequest` comparison uses Go pointer identity (`c.turmsRequest == other.turmsRequest`) instead of value equality. Java uses `Objects.equals()` which calls `.equals()` on the protobuf message for deep equality. Two protobuf messages with identical content at different addresses would incorrectly be reported as unequal in Go.
+- [x] `bytesEq` helper treats `nil` and empty `[]byte{}` as equal (since `len(nil) == len([]byte{}) == 0`), whereas Java's `Arrays.equals(null, new byte[0])` returns `false`. This causes `Equals` to produce different results than Java when one side has a nil `clientIp` and the other has an empty byte slice.
 
 ## hashCode
 
-- [ ] Uses a completely different hashing algorithm (FNV-32a) than Java's `31 * Objects.hash(...) + Arrays.hashCode(...)`. While hash codes don't need to match across languages, the Go implementation doesn't include `turmsRequest` in the hash at all, violating the `hashCode`/`equals` contract: two objects that are `Equals()` could have different `HashCode()` values since `Equals` considers `turmsRequest` but `HashCode` does not.
+- [x] Uses a completely different hashing algorithm (FNV-32a) than Java's `31 * Objects.hash(...) + Arrays.hashCode(...)`. While hash codes don't need to match across languages, the Go implementation doesn't include `turmsRequest` in the hash at all, violating the `hashCode`/`equals` contract: two objects that are `Equals()` could have different `HashCode()` values since `Equals` considers `turmsRequest` but `HashCode` does not.
 
 # AdminController.java
 *Checked methods: checkLoginNameAndPassword(), addAdmin(RequestContext requestContext, @RequestBody AddAdminDTO addAdminDTO), queryAdmins(@QueryParam(required = false), queryAdmins(@QueryParam(required = false), updateAdmins(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminDTO updateAdminDTO), deleteAdmins(RequestContext requestContext, Set<Long> ids)*
@@ -9079,11 +9079,11 @@ Let me finalize:
 
 ## UpdateAdmins
 
-- [ ] **Wrong JSON field for display name in UpdateAdminDTO**: The Go `UpdateAdminDTO.Name` has JSON tag `"name"`, but the Java `UpdateAdminDTO.displayName` serializes as `"displayName"`. Clients using the original API sending `{"displayName": "foo"}` will not have the field parsed. The Go controller's `updateAdminDTO.Name` will always be nil when called through the standard API, so display name updates will silently be ignored.
+- [x] **Wrong JSON field for display name in UpdateAdminDTO**: The Go `UpdateAdminDTO.Name` has JSON tag `"name"`, but the Java `UpdateAdminDTO.displayName` serializes as `"displayName"`. Clients using the original API sending `{"displayName": "foo"}` will not have the field parsed. The Go controller's `updateAdminDTO.Name` will always be nil when called through the standard API, so display name updates will silently be ignored.
 
 ## AddAdmin
 
-- [ ] **DisplayName nil converted to empty string instead of being preserved as nil/null**: When `addAdminDTO.DisplayName` is nil (not provided by client), the Go controller converts it to `""` (empty string) before passing to the service. In Java, `null` is passed directly, preserving the null semantics. This means Go will store an empty string in the database where Java would store null.
+- [x] **DisplayName nil converted to empty string instead of being preserved as nil/null**: When `addAdminDTO.DisplayName` is nil (not provided by client), the Go controller converts it to `""` (empty string) before passing to the service. In Java, `null` is passed directly, preserving the null semantics. This means Go will store an empty string in the database where Java would store null.
 
 These are the two bugs I've identified in the controller methods.
 
@@ -9109,11 +9109,11 @@ Here is the final result:
 
 ## AddAdmin
 
-- [ ] **Nil DisplayName converted to empty string**: When `addAdminDTO.DisplayName` is `nil` (client didn't provide it), the Go controller converts it to `""` (empty string) at line 35-38. The Java version passes `addAdminDTO.displayName()` directly which preserves `null`. This means Go stores empty string in the database where Java stores null, causing a behavioral difference in data persistence.
+- [x] **Nil DisplayName converted to empty string**: When `addAdminDTO.DisplayName` is `nil` (client didn't provide it), the Go controller converts it to `""` (empty string) at line 35-38. The Java version passes `addAdminDTO.displayName()` directly which preserves `null`. This means Go stores empty string in the database where Java stores null, causing a behavioral difference in data persistence.
 
 ## UpdateAdmins
 
-- [ ] **UpdateAdminDTO uses wrong JSON field name for display name**: The Go `UpdateAdminDTO` struct uses field `Name` with JSON tag `"name"`, but the Java `UpdateAdminDTO` record field is `displayName` (which serializes as `"displayName"` in JSON). This means clients sending `{"displayName": "New Name"}` per the original API contract will not have the field deserialized in Go, causing display name updates to be silently ignored.
+- [x] **UpdateAdminDTO uses wrong JSON field name for display name**: The Go `UpdateAdminDTO` struct uses field `Name` with JSON tag `"name"`, but the Java `UpdateAdminDTO` record field is `displayName` (which serializes as `"displayName"` in JSON). This means clients sending `{"displayName": "New Name"}` per the original API contract will not have the field deserialized in Go, causing display name updates to be silently ignored.
 
 # AdminPermissionController.java
 *Checked methods: queryAdminPermissions()*
@@ -9138,9 +9138,9 @@ These are clear bugs in the `Group()` method logic.
 
 ## QueryAdminPermissions
 
-- [ ] **Bug: `Group()` method returns wrong group for `SHUTDOWN` permission** — The Go `Group()` method returns `"SHUTDOWN"` (the full string, since no verb suffix matches), but Java explicitly maps `SHUTDOWN` to group `"LIFECYCLE"` via `Groups.LIFECYCLE`.
+- [x] **Bug: `Group()` method returns wrong group for `SHUTDOWN` permission** — The Go `Group()` method returns `"SHUTDOWN"` (the full string, since no verb suffix matches), but Java explicitly maps `SHUTDOWN` to group `"LIFECYCLE"` via `Groups.LIFECYCLE`.
 
-- [ ] **Bug: `Group()` method returns wrong group for `STATISTICS_*` permissions** — The Go `Group()` method strips only the trailing verb suffix, so `STATISTICS_USER_QUERY` → `"STATISTICS_USER"`, `STATISTICS_GROUP_QUERY` → `"STATISTICS_GROUP"`, `STATISTICS_MESSAGE_QUERY` → `"STATISTICS_MESSAGE"`. Java explicitly maps all three to group `"STATISTICS"` via `Groups.STATISTICS`.
+- [x] **Bug: `Group()` method returns wrong group for `STATISTICS_*` permissions** — The Go `Group()` method strips only the trailing verb suffix, so `STATISTICS_USER_QUERY` → `"STATISTICS_USER"`, `STATISTICS_GROUP_QUERY` → `"STATISTICS_GROUP"`, `STATISTICS_MESSAGE_QUERY` → `"STATISTICS_MESSAGE"`. Java explicitly maps all three to group `"STATISTICS"` via `Groups.STATISTICS`.
 
 # AdminRoleController.java
 *Checked methods: addAdminRole(RequestContext requestContext, @RequestBody AddAdminRoleDTO addAdminRoleDTO), queryAdminRoles(@QueryParam(required = false), queryAdminRoles(@QueryParam(required = false), updateAdminRole(RequestContext requestContext, Set<Long> ids, @RequestBody UpdateAdminRoleDTO updateAdminRoleDTO), deleteAdminRoles(RequestContext requestContext, Set<Long> ids)*
