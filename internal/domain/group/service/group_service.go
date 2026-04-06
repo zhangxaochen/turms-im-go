@@ -545,36 +545,15 @@ func (s *GroupService) UpdateGroupsInformation(
 }
 
 // IsGroupMuted indicates if the group is globally muted.
+// Bug fix: Now delegates to repo with time.Now() as the comparison point, matching Java's parameter-based approach.
 func (s *GroupService) IsGroupMuted(ctx context.Context, groupID int64) (bool, error) {
-	group, err := s.groupRepo.FindGroup(ctx, groupID)
-	if err != nil {
-		return false, err
-	}
-	if group == nil {
-		return false, ErrGroupNotFound
-	}
-	if group.MuteEndDate != nil && group.MuteEndDate.After(time.Now()) {
-		return true, nil
-	}
-	return false, nil
+	return s.groupRepo.IsGroupMuted(ctx, groupID, time.Now())
 }
 
 // IsGroupActiveAndNotDeleted indicates if the group is still active and not logically deleted.
+// Bug fix: Now delegates to repo which uses eq(DELETION_DATE, null) for proper null matching.
 func (s *GroupService) IsGroupActiveAndNotDeleted(ctx context.Context, groupID int64) (bool, error) {
-	group, err := s.groupRepo.FindGroup(ctx, groupID)
-	if err != nil {
-		return false, err
-	}
-	if group == nil {
-		return false, nil
-	}
-	if group.DeletionDate != nil {
-		return false, nil
-	}
-	if group.IsActive != nil && !*group.IsActive {
-		return false, nil
-	}
-	return true, nil
+	return s.groupRepo.IsGroupActiveAndNotDeleted(ctx, groupID)
 }
 
 // @MappedFrom queryJoinedGroups(@NotNull Long memberId)
@@ -632,9 +611,9 @@ func (s *GroupService) Count(ctx context.Context) (int64, error) {
 	return s.groupRepo.Count(ctx)
 }
 
-// @MappedFrom countGroups(@Nullable DateRange dateRange)
-func (s *GroupService) CountGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
-	return s.groupRepo.CountGroups(ctx, nil, nil, nil, nil, nil)
+// @MappedFrom countGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange)
+func (s *GroupService) CountGroups(ctx context.Context, ids []int64, typeIds []int64, creatorIds []int64, ownerIds []int64, isActive *bool) (int64, error) {
+	return s.groupRepo.CountGroups(ctx, ids, typeIds, creatorIds, ownerIds, isActive)
 }
 
 func (s *GroupService) QueryGroupsWithPagination(ctx context.Context, page, size *int) ([]*po.Group, error) {

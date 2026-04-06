@@ -556,7 +556,7 @@ func (c *GroupServiceController) HandleCreateGroupBlockedUserRequest(ctx context
 func (c *GroupServiceController) HandleDeleteGroupBlockedUserRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteGroupBlockedUserRequest()
 	// BUG FIX: Use AuthAndUnblockUser with requester ID for authorization, matching Java's authAndUnblockUser
-	wasBlocked, err := c.groupBlocklistService.AuthAndUnblockUser(ctx, s.UserID, deleteReq.GetGroupId(), deleteReq.GetUserId())
+	wasBlocked, err := c.groupBlocklistService.AuthAndUnblockUser(ctx, s.UserID, deleteReq.GetGroupId(), deleteReq.GetUserId(), true)
 	if err != nil {
 		return nil, err
 	}

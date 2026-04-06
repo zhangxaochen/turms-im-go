@@ -42,15 +42,40 @@ func (r *GroupVersionRepository) InsertVersion(ctx context.Context, groupID int6
 }
 
 // UpdateVersion updates a specific version field.
-// @MappedFrom updateVersion(@NotNull Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
-// @MappedFrom updateVersion(Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
+// Bug fix: Removed SetUpsert(true) — Java only updates existing documents, does NOT create new ones.
 // @MappedFrom updateVersion(Long groupId, String field)
 func (r *GroupVersionRepository) UpdateVersion(ctx context.Context, groupID int64, field string) error {
 	filter := bson.M{"_id": groupID}
 	update := bson.M{"$set": bson.M{field: time.Now()}}
-	opts := options.Update().SetUpsert(true)
 
-	_, err := r.col.UpdateOne(ctx, filter, update, opts)
+	_, err := r.col.UpdateOne(ctx, filter, update)
+	return err
+}
+
+// UpdateVersionFields conditionally updates multiple version fields in a single atomic operation.
+// @MappedFrom updateVersion(Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
+// Bug fix: Method was missing. Java sets up to 4 fields to the same Date instance based on boolean flags.
+func (r *GroupVersionRepository) UpdateVersionFields(ctx context.Context, groupID int64, updateMembers, updateBlocklist, updateJoinRequests, updateJoinQuestions bool) error {
+	filter := bson.M{"_id": groupID}
+	setFields := bson.M{}
+	now := time.Now()
+	if updateMembers {
+		setFields["mbr"] = now
+	}
+	if updateBlocklist {
+		setFields["bl"] = now
+	}
+	if updateJoinRequests {
+		setFields["jr"] = now
+	}
+	if updateJoinQuestions {
+		setFields["jq"] = now
+	}
+	if len(setFields) == 0 {
+		return nil
+	}
+	update := bson.M{"$set": setFields}
+	_, err := r.col.UpdateOne(ctx, filter, update)
 	return err
 }
 
@@ -167,6 +192,12 @@ func (r *GroupVersionRepository) FindMembers(ctx context.Context, groupID int64)
 	return r.findSpecificVersion(ctx, groupID, "mbr")
 }
 
+// FindInvitations retrieves the invitations version.
+// Bug fix: Method was missing. Java projects the INVITATIONS field and returns the timestamp.
+func (r *GroupVersionRepository) FindInvitations(ctx context.Context, groupID int64) (*time.Time, error) {
+	return r.findSpecificVersion(ctx, groupID, "invt")
+}
+
 func (r *GroupVersionRepository) findSpecificVersion(ctx context.Context, groupID int64, field string) (*time.Time, error) {
 	filter := bson.M{"_id": groupID}
 	opts := options.FindOne().SetProjection(bson.M{field: 1})
@@ -186,6 +217,8 @@ func (r *GroupVersionRepository) findSpecificVersion(ctx context.Context, groupI
 		return version.JoinQuestions, nil
 	case "mbr":
 		return version.Members, nil
+	case "invt":
+		return version.Invitations, nil
 	}
 	return nil, nil
 }

@@ -112,7 +112,7 @@ func TestGroupRelationshipService(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, users, 1)
 
-		err = blockSvc.UnblockUser(ctx, groupID, userID)
+		_, err = blockSvc.UnblockUser(ctx, groupID, userID)
 		require.NoError(t, err)
 
 		isBlocked, err = blockSvc.IsBlocked(ctx, groupID, userID)

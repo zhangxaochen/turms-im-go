@@ -45,6 +45,12 @@ func (s *GroupVersionService) UpdateJoinQuestionsVersion(ctx context.Context, gr
 	return s.groupVersionRepo.UpdateJoinQuestionsVersion(ctx, groupID)
 }
 
+// UpdateVersionFields conditionally updates multiple version fields in a single atomic operation.
+// @MappedFrom updateVersion(Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
+func (s *GroupVersionService) UpdateVersionFields(ctx context.Context, groupID int64, updateMembers, updateBlocklist, updateJoinRequests, updateJoinQuestions bool) error {
+	return s.groupVersionRepo.UpdateVersionFields(ctx, groupID, updateMembers, updateBlocklist, updateJoinRequests, updateJoinQuestions)
+}
+
 // @MappedFrom queryGroupInvitationsVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupInvitationsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
 	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
