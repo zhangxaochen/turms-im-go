@@ -465,6 +465,11 @@ func (s *GroupInvitationService) ReplyToInvitation(ctx context.Context, invitati
 	return err == nil, err
 }
 
+// GenerateInvitationId generates a new unique invitation ID using the Snowflake ID generator.
+func (s *GroupInvitationService) GenerateInvitationId() int64 {
+	return s.idGen.NextLargeGapId()
+}
+
 // GetEntityExpirationDate returns the entity expiration date for response wrapping
 func (s *GroupInvitationService) GetEntityExpirationDate(ctx context.Context) *time.Time {
 	// Returns nil for now - the expiration date is managed by the turms-properties configuration
