@@ -18,7 +18,7 @@ type GroupBlockedUserRepository interface {
 	FindBlockedUserIds(ctx context.Context, groupId int64) ([]int64, error)
 	FindBlockedUsers(ctx context.Context, groupIds, userIds []int64, blockDateRange *turmsmongo.DateRange, requesterIds []int64, page, size *int) ([]po.GroupBlockedUser, error)
 	Insert(ctx context.Context, blockedUser *po.GroupBlockedUser) error
-	Delete(ctx context.Context, groupID, userID int64) error
+	Delete(ctx context.Context, groupID, userID int64) (int64, error)
 	Exists(ctx context.Context, groupID, userID int64) (bool, error)
 	FindBlockedUsersByGroupID(ctx context.Context, groupID int64) ([]po.GroupBlockedUser, error)
 	FilterBlockedUserIDs(ctx context.Context, groupID int64, userIDs []int64) ([]int64, error)
@@ -41,13 +41,16 @@ func (r *groupBlockedUserRepository) Insert(ctx context.Context, blockedUser *po
 	return err
 }
 
-func (r *groupBlockedUserRepository) Delete(ctx context.Context, groupID, userID int64) error {
+func (r *groupBlockedUserRepository) Delete(ctx context.Context, groupID, userID int64) (int64, error) {
 	filter := bson.M{
 		"_id.gid": groupID,
 		"_id.uid": userID,
 	}
-	_, err := r.coll.DeleteOne(ctx, filter)
-	return err
+	result, err := r.coll.DeleteOne(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+	return result.DeletedCount, nil
 }
 
 func (r *groupBlockedUserRepository) Exists(ctx context.Context, groupID, userID int64) (bool, error) {

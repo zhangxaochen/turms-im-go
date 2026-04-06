@@ -46,6 +46,13 @@ func NewGroupInvitationService(
 }
 
 // @MappedFrom authAndCreateGroupInvitation(@NotNull Long groupId, @NotNull Long inviterId, @NotNull Long inviteeId, @Nullable String content)
+// Bug fixes:
+// - Strategy that doesn't require approval now REJECTS (Java parity), not auto-accepts
+// - Added blocklist check for invitee (Java: isAllowedToBeInvited)
+// - Added pending invitation duplicate check (Java parity)
+// - Fixed error code for "invitee is member" (SendGroupInvitationToGroupMember)
+// - Inviter must be a group member for ALL strategy (Java: queryGroupMemberRole empty → error)
+// - Always creates with PENDING status (Java never auto-accepts in this method)
 func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 	ctx context.Context,
 	requesterID int64,
@@ -62,16 +69,7 @@ func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 		return nil, exception.NewTurmsError(codes.AddUserToInactiveGroup, "Group does not exist or is inactive")
 	}
 
-	// 2. Check if invitee is already a member
-	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupID, inviteeID)
-	if err != nil {
-		return nil, err
-	}
-	if isMember {
-		return nil, exception.NewTurmsError(codes.AddUserToGroupWithSizeLimitReached, "Invitee is already a group member") // Actually should be a more specific code if exists
-	}
-
-	// 3. Check invitation strategy
+	// 2. Check invitation strategy
 	groupType, err := s.groupTypeService.FindGroupType(ctx, *typeID)
 	if err != nil {
 		return nil, err
@@ -81,34 +79,70 @@ func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 	}
 
 	strategy := groupType.InvitationStrategy
+
+	// 3. Java parity: if strategy doesn't require approval, REJECT the request
+	// Java: if (!strategy.requiresApproval()) return error SEND_GROUP_INVITATION_TO_GROUP_NOT_REQUIRING_USERS_APPROVAL
+	if !strategy.RequiresApproval() {
+		return nil, exception.NewTurmsError(codes.SendGroupInvitationToGroupNotRequiringUsersApproval, "Cannot send group invitation for group not requiring user approval")
+	}
+
+	// 4. Check inviter role permissions
+	// Java: queryGroupMemberRole → if empty → GROUP_INVITER_NOT_MEMBER (regardless of strategy)
 	requesterRole, err := s.groupMemberService.QueryGroupMemberRole(ctx, groupID, requesterID)
 	if err != nil {
 		return nil, err
 	}
+	// Java: inviter must be a member (role != null) for all strategies
+	if requesterRole == nil {
+		return nil, exception.NewTurmsError(codes.NotGroupMemberToSendGroupInvitation, "Inviter is not a group member")
+	}
 
 	allowed := false
 	switch strategy {
-	case group_constant.GroupInvitationStrategy_ALL, group_constant.GroupInvitationStrategy_ALL_REQUIRING_APPROVAL:
+	case group_constant.GroupInvitationStrategy_ALL_REQUIRING_APPROVAL:
 		allowed = true
-	case group_constant.GroupInvitationStrategy_OWNER_MANAGER_MEMBER, group_constant.GroupInvitationStrategy_OWNER_MANAGER_MEMBER_REQUIRING_APPROVAL:
-		allowed = requesterRole != nil
-	case group_constant.GroupInvitationStrategy_OWNER_MANAGER, group_constant.GroupInvitationStrategy_OWNER_MANAGER_REQUIRING_APPROVAL:
-		allowed = requesterRole != nil && (*requesterRole == protocol.GroupMemberRole_OWNER || *requesterRole == protocol.GroupMemberRole_MANAGER)
-	case group_constant.GroupInvitationStrategy_OWNER, group_constant.GroupInvitationStrategy_OWNER_REQUIRING_APPROVAL:
-		allowed = requesterRole != nil && *requesterRole == protocol.GroupMemberRole_OWNER
+	case group_constant.GroupInvitationStrategy_OWNER_MANAGER_MEMBER_REQUIRING_APPROVAL:
+		allowed = true // already checked requesterRole != nil
+	case group_constant.GroupInvitationStrategy_OWNER_MANAGER_REQUIRING_APPROVAL:
+		allowed = *requesterRole == protocol.GroupMemberRole_OWNER || *requesterRole == protocol.GroupMemberRole_MANAGER
+	case group_constant.GroupInvitationStrategy_OWNER_REQUIRING_APPROVAL:
+		allowed = *requesterRole == protocol.GroupMemberRole_OWNER
 	}
 
 	if !allowed {
 		return nil, exception.NewTurmsError(codes.NotGroupMemberToSendGroupInvitation, "Not allowed to send group invitation")
 	}
 
-	// 4. Create invitation
+	// 5. Check if invitee can be invited (not member + not blocked)
+	// Java: groupMemberService.isAllowedToBeInvited(groupId, inviteeId)
+	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupID, inviteeID)
+	if err != nil {
+		return nil, err
+	}
+	if isMember {
+		return nil, exception.NewTurmsError(codes.SendGroupInvitationToGroupMember, "Invitee is already a group member")
+	}
+
+	isBlocked, err := s.groupMemberService.IsBlocked(ctx, groupID, inviteeID)
+	if err != nil {
+		return nil, err
+	}
+	if isBlocked {
+		return nil, exception.NewTurmsError(codes.SendGroupInvitationToBlockedUser, "Invitee has been blocked by the group")
+	}
+
+	// 6. Check for existing pending invitation
+	hasPending, err := s.invRepo.HasPendingInvitation(ctx, groupID, inviteeID)
+	if err != nil {
+		return nil, err
+	}
+	if hasPending {
+		return nil, exception.NewTurmsError(codes.RecordContainsDuplicateKey, "A pending invitation already exists")
+	}
+
+	// 7. Create invitation — always PENDING status (Java never auto-accepts)
 	now := time.Now()
 	id := s.idGen.NextLargeGapId()
-	status := po.RequestStatusPending
-	if !strategy.RequiresApproval() {
-		status = po.RequestStatusAccepted
-	}
 
 	inv := &po.GroupInvitation{
 		ID:           id,
@@ -116,7 +150,7 @@ func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 		InviterID:    requesterID,
 		InviteeID:    inviteeID,
 		Content:      content,
-		Status:       status,
+		Status:       po.RequestStatusPending,
 		CreationDate: now,
 	}
 
@@ -125,15 +159,7 @@ func (s *GroupInvitationService) AuthAndCreateGroupInvitation(
 		return nil, err
 	}
 
-	// 5. If accepted automatically, add to members
-	if status == po.RequestStatusAccepted {
-		err = s.groupMemberService.AddGroupMember(ctx, groupID, inviteeID, protocol.GroupMemberRole_MEMBER, nil, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// 6. Update versions
+	// 8. Update versions
 	_ = s.groupVersionService.UpdateInvitationsVersion(ctx, groupID)
 	_ = s.userVersionService.UpdateSentGroupInvitationsVersion(ctx, requesterID)
 	_ = s.userVersionService.UpdateReceivedGroupInvitationsVersion(ctx, inviteeID)

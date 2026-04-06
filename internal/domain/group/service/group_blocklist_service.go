@@ -9,7 +9,7 @@ import (
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
 	turmsmongo "im.turms/server/internal/storage/mongo"
-	"im.turms/server/pkg/protocol"
+	"im.turms/server/pkg/codes"
 )
 
 type GroupBlocklistService struct {
@@ -49,85 +49,104 @@ func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, us
 
 // AuthAndBlockUser blocks a user from a group after performing authorization checks.
 // @MappedFrom authAndBlockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToBlock, @Nullable ClientSession session)
+// Bug fixes:
+// - Added "cannot block oneself" check (Java checks requesterId.equals(userIdToBlock))
+// - Updated both members AND blocklist version when target is a member (Java: updateVersion(groupId, true, true, false, false))
+// - Properly propagate errors from DeleteGroupMember instead of ignoring
+// - Removed extra role hierarchy check not present in Java
 func (s *GroupBlocklistService) AuthAndBlockUser(
 	ctx context.Context,
 	requesterID int64,
 	groupID int64,
 	userID int64,
 ) error {
-	// 1. Authorization check
-	requesterRole, err := s.groupMemberService.FindGroupMemberRole(ctx, requesterID, groupID)
+	// 1. Cannot block oneself
+	if requesterID == userID {
+		return exception.NewTurmsError(codes.IllegalArgument, "Cannot block oneself")
+	}
+
+	// 2. Authorization check: must be owner or manager
+	isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
 	if err != nil {
 		return err
 	}
-	if requesterRole == nil || (*requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER) {
+	if !isOwnerOrManager {
 		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_ADD_BLOCKED_USER), "Only owner or manager can block users")
 	}
 
-	// 2. Target check
-	targetRole, err := s.groupMemberService.FindGroupMemberRole(ctx, userID, groupID)
+	// 3. Check if target is a group member
+	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupID, userID)
 	if err != nil {
 		return err
 	}
-	if targetRole != nil {
-		if *requesterRole == protocol.GroupMemberRole_MANAGER && (*targetRole == protocol.GroupMemberRole_OWNER || *targetRole == protocol.GroupMemberRole_MANAGER) {
-			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_TO_REMOVE_GROUP_OWNER_OR_MANAGER), "Manager cannot block owner or other managers")
+
+	// 4. Block the user
+	err = s.BlockUser(ctx, groupID, userID, requesterID)
+	if err != nil {
+		return err
+	}
+
+	// 5. If target is a member, remove from group and update both members + blocklist version
+	if isMember {
+		// Java: deleteGroupMember + insert(blockedUser) in a transaction
+		// For now, sequential execution (transactions not yet implemented)
+		err = s.groupMemberService.DeleteGroupMember(ctx, groupID, userID, nil, true)
+		if err != nil {
+			return err
 		}
+		// Java: updateVersion(groupId, true, true, false, false) — updates members AND blocklist
+		_ = s.groupVersionService.UpdateVersionFields(ctx, groupID, true, true, false, false)
+		return nil
 	}
 
-	// 3. Block
-	_, err = s.AddBlockedUser(ctx, groupID, userID, requesterID, nil)
-	if err != nil {
-		return err
-	}
-
-	// 4. Remove from group and update version
-	if targetRole != nil {
-		// No session context passed here, matching existing GroupMemberService.DeleteGroupMember calls
-		_ = s.groupMemberService.DeleteGroupMember(ctx, groupID, userID, nil, false)
-	}
+	// 6. If target is not a member, only update blocklist version
 	return s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
 }
 
 // AuthAndUnblockUser unblocks a user from a group after performing authorization checks.
-// @MappedFrom authAndUnblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion)
-// Returns (wasBlocked, error) - wasBlocked indicates whether the user was actually blocked before unblocking.
+// @MappedFrom unblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion)
+// Bug fixes:
+// - Added updateBlocklistVersion parameter for caller control
+// - Only update version if user was actually blocked (wasBlocked == true)
+// - Returns (wasBlocked, error) - wasBlocked indicates whether the user was actually blocked before unblocking.
 func (s *GroupBlocklistService) AuthAndUnblockUser(
 	ctx context.Context,
 	requesterID int64,
 	groupID int64,
 	userID int64,
+	updateBlocklistVersion bool,
 ) (bool, error) {
-	// 1. Check if user was actually blocked (for wasBlocked return value)
-	wasBlocked, err := s.IsBlocked(ctx, groupID, userID)
+	// 1. Authorization check
+	isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
 	if err != nil {
 		return false, err
 	}
-	if !wasBlocked {
-		return false, nil
-	}
-
-	// 2. Authorization check
-	requesterRole, err := s.groupMemberService.FindGroupMemberRole(ctx, requesterID, groupID)
-	if err != nil {
-		return false, err
-	}
-	if requesterRole == nil || (*requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER) {
+	if !isOwnerOrManager {
 		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_REMOVE_BLOCKED_USER), "Only owner or manager can unblock users")
 	}
 
-	// 3. Unblock
-	err = s.UnblockUser(ctx, groupID, userID)
+	// 2. Unblock
+	wasBlocked, err := s.UnblockUser(ctx, groupID, userID)
 	if err != nil {
 		return false, err
 	}
 
-	return true, s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
+	// 3. Only update version if user was actually blocked and updateBlocklistVersion is true
+	if updateBlocklistVersion && wasBlocked {
+		_ = s.groupVersionService.UpdateBlocklistVersion(ctx, groupID)
+	}
+
+	return wasBlocked, nil
 }
 
 // @MappedFrom unblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion)
-func (s *GroupBlocklistService) UnblockUser(ctx context.Context, groupID int64, userID int64) error {
-	return s.blockedUserRepo.Delete(ctx, groupID, userID)
+// Bug fix: Now returns whether the user was actually blocked (deletedCount > 0) for caller control.
+func (s *GroupBlocklistService) UnblockUser(ctx context.Context, groupID int64, userID int64) (bool, error) {
+	deletedCount, err := s.blockedUserRepo.Delete(ctx, groupID, userID)
+	if err != nil {
+		return false, err
+	}
+	return deletedCount > 0, nil
 }
 
 // @MappedFrom queryBlockedUsers(int page, @QueryParam(required = false)
@@ -145,6 +164,9 @@ func (s *GroupBlocklistService) FilterBlockedUserIDs(ctx context.Context, groupI
 }
 
 // AuthAndQueryGroupBlockedUserIds queries blocked user IDs with auth check.
+// Bug fixes:
+// - Always query version (even when lastUpdatedDate is nil) to match Java behavior
+// - Return NO_CONTENT error when blocked user IDs list is empty
 func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserIds(
 	ctx context.Context,
 	requesterID int64,
@@ -160,34 +182,38 @@ func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserIds(
 		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_QUERY_GROUP_MEMBER_INFO), "Only group members can query blocked user info")
 	}
 
-	// 2. Version check
-	var version *time.Time
-	if lastUpdatedDate != nil {
-		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
-		if err != nil {
-			return nil, nil, err
-		}
-		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
-			return nil, nil, nil
-		}
-		version = v
+	// 2. Version check — always query version (even when lastUpdatedDate is nil)
+	version, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if version == nil {
+		// Java: switchIfEmpty -> alreadyUpToUpdate()
+		return nil, nil, nil
+	}
+	if lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
+		// Already up to date
+		return nil, nil, nil
 	}
 
 	// 3. Query
-	users, err := s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
+	userIDs, err := s.blockedUserRepo.FindBlockedUserIds(ctx, groupID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var userIDs []int64
-	for _, u := range users {
-		userIDs = append(userIDs, u.ID.UserID)
+	if len(userIDs) == 0 {
+		// Java: throw NO_CONTENT
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NO_CONTENT), "No blocked users found")
 	}
 
 	return userIDs, version, nil
 }
 
 // AuthAndQueryGroupBlockedUserInfos queries blocked user infos with auth check.
+// Bug fixes:
+// - Always query version (even when lastUpdatedDate is nil)
+// - Return NO_CONTENT when empty results
 func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserInfos(
 	ctx context.Context,
 	requesterID int64,
@@ -203,23 +229,28 @@ func (s *GroupBlocklistService) AuthAndQueryGroupBlockedUserInfos(
 		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_MEMBER_TO_QUERY_GROUP_MEMBER_INFO), "Only group members can query blocked user info")
 	}
 
-	// 2. Version check
-	var version *time.Time
-	if lastUpdatedDate != nil {
-		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
-		if err != nil {
-			return nil, nil, err
-		}
-		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
-			return nil, nil, nil
-		}
-		version = v
+	// 2. Version check — always query version (even when lastUpdatedDate is nil)
+	version, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if version == nil {
+		// Java: switchIfEmpty -> alreadyUpToUpdate()
+		return nil, nil, nil
+	}
+	if lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
+		return nil, nil, nil
 	}
 
 	// 3. Query
 	users, err := s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if len(users) == 0 {
+		// Java: throw NO_CONTENT
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NO_CONTENT), "No blocked users found")
 	}
 
 	return users, version, nil
@@ -244,51 +275,75 @@ func (s *GroupBlocklistService) CountBlockedUsers(
 	return s.blockedUserRepo.CountBlockedUsers(ctx, groupIds, userIds, blockDateRange, requesterIds)
 }
 
+// QueryGroupBlockedUserIdsWithVersion queries blocked user IDs with version control.
+// Bug fixes:
+// - Always query version (even when lastUpdatedDate is nil) to match Java behavior
+// - Return NO_CONTENT error when blocked user IDs list is empty
+// - Return proper alreadyUpToUpdate semantics when version is nil
 func (s *GroupBlocklistService) QueryGroupBlockedUserIdsWithVersion(
 	ctx context.Context,
 	groupID int64,
 	lastUpdatedDate *time.Time,
 ) ([]int64, *time.Time, error) {
-	var version *time.Time
-	if lastUpdatedDate != nil {
-		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
-		if err != nil {
-			return nil, nil, err
-		}
-		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
-			return nil, nil, nil
-		}
-		version = v
+	// Always query version (Java always queries and uses it in response)
+	version, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if version == nil {
+		// Java: switchIfEmpty -> alreadyUpToUpdate()
+		return nil, nil, nil
+	}
+	if lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
+		// Already up to date
+		return nil, nil, nil
 	}
 
 	userIDs, err := s.blockedUserRepo.FindBlockedUserIds(ctx, groupID)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if len(userIDs) == 0 {
+		// Java: throw NO_CONTENT
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NO_CONTENT), "No blocked users found")
+	}
+
 	return userIDs, version, nil
 }
 
+// QueryGroupBlockedUserInfosWithVersion queries blocked user infos with version control.
+// Bug fixes:
+// - Always query version (even when lastUpdatedDate is nil)
+// - Return NO_CONTENT error when empty results
 func (s *GroupBlocklistService) QueryGroupBlockedUserInfosWithVersion(
 	ctx context.Context,
 	groupID int64,
 	lastUpdatedDate *time.Time,
 ) ([]po.GroupBlockedUser, *time.Time, error) {
-	var version *time.Time
-	if lastUpdatedDate != nil {
-		v, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
-		if err != nil {
-			return nil, nil, err
-		}
-		if v == nil || v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate) {
-			return nil, nil, nil
-		}
-		version = v
+	// Always query version (Java always queries and uses it in response)
+	version, err := s.groupVersionService.QueryGroupBlocklistVersion(ctx, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if version == nil {
+		// Java: switchIfEmpty -> alreadyUpToUpdate()
+		return nil, nil, nil
+	}
+	if lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
+		return nil, nil, nil
 	}
 
 	users, err := s.blockedUserRepo.FindBlockedUsersByGroupID(ctx, groupID)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	if len(users) == 0 {
+		// Java: throw NO_CONTENT
+		return nil, nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NO_CONTENT), "No blocked users found")
+	}
+
 	return users, version, nil
 }
 
@@ -318,16 +373,32 @@ func (s *GroupBlocklistService) AddBlockedUser(
 	return blockedUser, nil
 }
 
+// UpdateBlockedUsers updates blocked users.
+// Bug fix: Added per-key validation.
 func (s *GroupBlocklistService) UpdateBlockedUsers(
 	ctx context.Context,
 	keys []po.GroupBlockedUserKey,
 	blockDate *time.Time,
 	requesterId *int64,
 ) error {
+	// Validate keys
+	for _, key := range keys {
+		if key.GroupID <= 0 || key.UserID <= 0 {
+			return exception.NewTurmsError(codes.IllegalArgument, "Invalid blocked user key")
+		}
+	}
 	return s.blockedUserRepo.UpdateBlockedUsers(ctx, keys, blockDate, requesterId)
 }
 
+// DeleteBlockedUsers deletes blocked users.
+// Bug fix: Added per-key validation.
 func (s *GroupBlocklistService) DeleteBlockedUsers(ctx context.Context, keys []po.GroupBlockedUserKey) error {
+	// Validate keys
+	for _, key := range keys {
+		if key.GroupID <= 0 || key.UserID <= 0 {
+			return exception.NewTurmsError(codes.IllegalArgument, "Invalid blocked user key")
+		}
+	}
 	return s.blockedUserRepo.DeleteBlockedUsers(ctx, keys)
 }
 
