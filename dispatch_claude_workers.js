@@ -129,8 +129,7 @@ const { execSync, spawn } = require('child_process');
             + `1. Your specific assigned bugs are listed securely in the file 'temp_task.md' located in the root of your workspace. Read 'temp_task.md' immediately to figure out what you need to do.\n`
             + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first! You might be resuming an interrupted execution where some bugs are already fixed or partially staged.\n`
             + `3. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
-            + `4. Very Important: Before wrapping up, you MUST also find those exact same resolved bugs in 'docs/pending_bugs.md' and check them off ('- [x]') there as well, so that the main tracked documentation sees your progress.\n`
-            + `   (Note: The '[Context: ...]' headings in 'temp_task.md' were auto-injected for context. They do NOT exist line-by-line in 'docs/pending_bugs.md'. Search by the actual bug description.)\n`
+            + `4. Very Important: You ONLY need to check off ('- [x]') the bugs in your local 'temp_task.md'. Under NO CIRCUMSTANCES should you modify 'docs/pending_bugs.md'. The main scheduler will sync it automatically.\n`
             + `5. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. At that point, test the code, use 'git add .', and 'git commit' with a neat descriptive message.\n`
             + `KEEP LOGS CONCISE. Stop and commit when all tasks in the scratchpad are fully resolved.`;
 
@@ -175,13 +174,21 @@ while [ $count -lt $MAX_RETRIES ]; do
                 MERGE_RESULT="CONFLICT"
             fi
             
-            # 取出结果后立刻放行排队
-            rmdir .git/merge_lock_dir
-            
             if [ "$MERGE_RESULT" = "SUCCESS" ]; then
                 echo "[$(date)] Successfully merged batch ${i} into main."
+                
+                # --- 主控在持有合法的原根目录读写锁时同步最新的全量状态 ---
+                node "${projectRoot}/sync_markdown_status.js" "${worktreePath}/temp_task.md" "${projectRoot}/docs/pending_bugs.md"
+                
+                git add docs/pending_bugs.md
+                git commit -m "docs: sync global progress from batch ${i}" || true
+                
+                rmdir .git/merge_lock_dir
                 break
             fi
+            
+            # 若失败则只释放锁，进入重试流
+            rmdir .git/merge_lock_dir
             
             echo "[$(date)] Merge conflict! Initiating Sub-Agent Self-Heal Rebase..."
             cd "${worktreePath}"
