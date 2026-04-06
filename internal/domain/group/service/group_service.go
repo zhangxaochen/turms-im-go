@@ -383,6 +383,7 @@ func (s *GroupService) AuthAndUpdateGroup(
 	minimumScore *int32,
 	isActive *bool,
 	quitAfterTransfer *bool,
+	muteEndDate *time.Time,
 ) error {
 	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
 	if err != nil {
@@ -440,6 +441,9 @@ func (s *GroupService) AuthAndUpdateGroup(
 	}
 	if isActive != nil {
 		update["ac"] = *isActive
+	}
+	if muteEndDate != nil {
+		update["med"] = *muteEndDate
 	}
 
 	if len(update) == 0 {
@@ -638,7 +642,7 @@ func (s *GroupService) Count(ctx context.Context) (int64, error) {
 
 // @MappedFrom countGroups(@Nullable DateRange dateRange)
 func (s *GroupService) CountGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
-	return s.groupRepo.CountGroups(ctx, dateRange)
+	return s.groupRepo.CountCreatedGroups(ctx, dateRange)
 }
 
 func (s *GroupService) QueryGroupsWithPagination(ctx context.Context, page, size *int) ([]*po.Group, error) {
