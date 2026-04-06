@@ -12776,15 +12776,15 @@ Now I have all the information needed for a thorough comparison. Let me analyze 
 
 ## updateVersion(Long groupId, String field)
 
-- [ ] The Go `UpdateVersion` method uses `SetUpsert(true)` (line 51), but the Java version does **not** perform an upsert — it only updates existing documents. This means the Go version will incorrectly create a new document if the groupId doesn't exist, while the Java version would simply update 0 documents.
+- [x] The Go `UpdateVersion` method uses `SetUpsert(true)` (line 51), but the Java version does **not** perform an upsert — it only updates existing documents. This means the Go version will incorrectly create a new document if the groupId doesn't exist, while the Java version would simply update 0 documents.
 
 ## updateVersion(Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)
 
-- [ ] This method is completely missing from the Go code. The Java version conditionally updates up to 4 version fields (MEMBERS, BLOCKLIST, JOIN_REQUESTS, JOIN_QUESTIONS) in a single atomic operation based on boolean flags, all set to the same `Date` instance. There is no equivalent Go method.
+- [x] This method is completely missing from the Go code. The Java version conditionally updates up to 4 version fields (MEMBERS, BLOCKLIST, JOIN_REQUESTS, JOIN_QUESTIONS) in a single atomic operation based on boolean flags, all set to the same `Date` instance. There is no equivalent Go method.
 
 ## findInvitations(Long groupId)
 
-- [ ] This method is completely missing from the Go `group_version_repository.go`. The Java version projects the `INVITATIONS` field and returns the invitations version timestamp. The Go `findSpecificVersion` helper only handles `"bl"`, `"jr"`, `"jq"`, and `"mbr"` — there is no case for `"invt"`, and no `FindInvitations` method is exposed.
+- [x] This method is completely missing from the Go `group_version_repository.go`. The Java version projects the `INVITATIONS` field and returns the invitations version timestamp. The Go `findSpecificVersion` helper only handles `"bl"`, `"jr"`, `"jq"`, and `"mbr"` — there is no case for `"invt"`, and no `FindInvitations` method is exposed.
 
 # GroupBlocklistService.java
 *Checked methods: authAndBlockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToBlock, @Nullable ClientSession session), unblockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToUnblock, @Nullable ClientSession session, boolean updateBlocklistVersion), findBlockedUserIds(@NotNull Long groupId, @NotNull Set<Long> userIds), isBlocked(@NotNull Long groupId, @NotNull Long userId), queryGroupBlockedUserIds(@NotNull Long groupId), queryBlockedUsers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange blockDateRange, @Nullable Set<Long> requesterIds, @Nullable Integer page, @Nullable Integer size), countBlockedUsers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange blockDateRange, @Nullable Set<Long> requesterIds), queryGroupBlockedUserIdsWithVersion(@NotNull Long groupId, @Nullable Date lastUpdatedDate), queryGroupBlockedUserInfosWithVersion(@NotNull Long groupId, @Nullable Date lastUpdatedDate), addBlockedUser(@NotNull Long groupId, @NotNull Long userId, @NotNull Long requesterId, @Nullable @PastOrPresent Date blockDate), updateBlockedUsers(@NotEmpty Set<GroupBlockedUser.@ValidGroupBlockedUserKey Key> keys, @Nullable @PastOrPresent Date blockDate, @Nullable Long requesterId), deleteBlockedUsers(@NotEmpty Set<GroupBlockedUser.@ValidGroupBlockedUserKey Key> keys)*
@@ -12983,35 +12983,69 @@ Functionally equivalent. No bugs.
 Here is the full bug report:
 
 ## authAndBlockUser
-- [ ] Missing "cannot block oneself" check: Java checks `requesterId.equals(userIdToBlock)` and returns `ILLEGAL_ARGUMENT` / "Cannot block oneself". Go has no such check.
+- [x] Missing "cannot block oneself" check: Java checks `requesterId.equals(userIdToBlock)` and returns `ILLEGAL_ARGUMENT` / "Cannot block oneself". Go has no such check.
 - [ ] Non-transactional member removal and block insert: When the target user is a group member, Java wraps `deleteGroupMember` + `insert(blockedUser)` in a single MongoDB transaction (with retry). Go executes them sequentially with no transaction, risking data inconsistency if one operation fails.
-- [ ] Wrong version update scope when target is a member: Java calls `groupVersionService.updateVersion(groupId, true, true, false, false)` which updates both the members version AND blocklist version. Go only calls `UpdateBlocklistVersion`, missing the members version update.
-- [ ] Ignored error from DeleteGroupMember: Go discards the error with `_ = s.groupMemberService.DeleteGroupMember(...)`. Java propagates errors within the transaction chain.
-- [ ] Extra role hierarchy check not in Java: Go adds logic to prevent a manager from blocking an owner or other manager (`NOT_GROUP_OWNER_TO_REMOVE_GROUP_OWNER_OR_MANAGER`). This defensive check does not exist in the Java version, which only checks `isOwnerOrManager` for the requester and `isGroupMember` for the target.
+- [x] Wrong version update scope when target is a member: Java calls `groupVersionService.updateVersion(groupId, true, true, false, false)` which updates both the members version AND blocklist version. Go only calls `UpdateBlocklistVersion`, missing the members version update.
+- [x] Ignored error from DeleteGroupMember: Go discards the error with `_ = s.groupMemberService.DeleteGroupMember(...)`. Java propagates errors within the transaction chain.
+- [x] Extra role hierarchy check not in Java: Go adds logic to prevent a manager from blocking an owner or other manager (`NOT_GROUP_OWNER_TO_REMOVE_GROUP_OWNER_OR_MANAGER`). This defensive check does not exist in the Java version, which only checks `isOwnerOrManager` for the requester and `isGroupMember` for the target.
 
 ## unblockUser
-- [ ] Missing return value indicating whether user was blocked: Java returns `Mono<Boolean>` (`deletedCount > 0`). Go's `UnblockUser` returns only `error`, discarding whether a deletion actually occurred.
-- [ ] Always updates blocklist version regardless of outcome: Java only calls `updateBlocklistVersion` if `wasBlocked` is true (i.e., the user was actually in the blocklist). Go's `AuthAndUnblockUser` always updates the version after calling `UnblockUser`, even if the user was not blocked.
-- [ ] Missing `updateBlocklistVersion` parameter: Java accepts a `boolean updateBlocklistVersion` parameter to control whether version should be updated. Go's `AuthAndUnblockUser` always updates it, removing caller control.
+- [x] Missing return value indicating whether user was blocked: Java returns `Mono<Boolean>` (`deletedCount > 0`). Go's `UnblockUser` returns only `error`, discarding whether a deletion actually occurred.
+- [x] Always updates blocklist version regardless of outcome: Java only calls `updateBlocklistVersion` if `wasBlocked` is true (i.e., the user was actually in the blocklist). Go's `AuthAndUnblockUser` always updates the version after calling `UnblockUser`, even if the user was not blocked.
+- [x] Missing `updateBlocklistVersion` parameter: Java accepts a `boolean updateBlocklistVersion` parameter to control whether version should be updated. Go's `AuthAndUnblockUser` always updates it, removing caller control.
 
 ## queryGroupBlockedUserIdsWithVersion
-- [ ] Missing version query when `lastUpdatedDate` is nil: Java always queries the blocklist version (even when `lastUpdatedDate` is null) and includes it in the response. Go skips the version query entirely when `lastUpdatedDate` is nil, returning a nil version.
-- [ ] Missing `NO_CONTENT` error for empty results: Java throws `ResponseStatusCode.NO_CONTENT` when the blocked user IDs list is empty. Go returns an empty `[]int64` with no error.
-- [ ] Missing `alreadyUpToUpdate` semantics when version is nil: Java returns `alreadyUpToUpdate()` when no version exists (via `switchIfEmpty`). Go returns `nil, nil, nil` which has different semantics — it indicates "no data" rather than "already up to date".
+- [x] Missing version query when `lastUpdatedDate` is nil: Java always queries the blocklist version (even when `lastUpdatedDate` is null) and includes it in the response. Go skips the version query entirely when `lastUpdatedDate` is nil, returning a nil version.
+- [x] Missing `NO_CONTENT` error for empty results: Java throws `ResponseStatusCode.NO_CONTENT` when the blocked user IDs list is empty. Go returns an empty `[]int64` with no error.
+- [x] Missing `alreadyUpToUpdate` semantics when version is nil: Java returns `alreadyUpToUpdate()` when no version exists (via `switchIfEmpty`). Go returns `nil, nil, nil` which has different semantics — it indicates "no data" rather than "already up to date".
 
 ## queryGroupBlockedUserInfosWithVersion
 - [ ] Returns wrong data type — blocklist entries instead of user profiles: Java queries user profiles via `userService.queryUsersProfile(ids, false)` and builds a `UserInfosWithVersion` proto with `userProfile2proto(user)`. Go returns `[]po.GroupBlockedUser` (raw blocklist records), not user profile information. These are fundamentally different data.
-- [ ] Missing `NO_CONTENT` error for empty blocked user IDs: Java throws `NO_CONTENT` when the blocked user ID list is empty after querying. Go returns an empty slice.
+- [x] Missing `NO_CONTENT` error for empty blocked user IDs: Java throws `NO_CONTENT` when the blocked user ID list is empty after querying. Go returns an empty slice.
 - [ ] Missing `NO_CONTENT` error for empty user profiles: Java throws `NO_CONTENT` when the queried user profiles are empty. Go has no such check.
-- [ ] Missing version query when `lastUpdatedDate` is nil: Same as `queryGroupBlockedUserIdsWithVersion` — Java always queries and returns the version. Go skips it.
-- [ ] Missing `alreadyUpToUpdate` semantics when version is nil: Same as `queryGroupBlockedUserIdsWithVersion`.
+- [x] Missing version query when `lastUpdatedDate` is nil: Same as `queryGroupBlockedUserIdsWithVersion` — Java always queries and returns the version. Go skips it.
+- [x] Missing `alreadyUpToUpdate` semantics when version is nil: Same as `queryGroupBlockedUserIdsWithVersion`.
 
 ## updateBlockedUsers
-- [ ] Missing per-key validation: Java iterates over each key and calls `DataValidator.validGroupBlockedUserKey(key)` to validate it. Go passes keys directly to the repository without validation.
+- [x] Missing validation of individual keys (`DataValidator.validGroupBlockedUserKey(key)`). The Java version validates each key is well-formed before proceeding.
+
+## deleteBlockedUsers
+- [x] Missing validation of individual keys (`DataValidator.validGroupBlockedUserKey(key)`). Same as updateBlockedUsers.
+
+---
+
+Here is the full bug report:
+
+## authAndBlockUser
+- [x] Missing "cannot block oneself" check: Java checks `requesterId.equals(userIdToBlock)` and returns `ILLEGAL_ARGUMENT` / "Cannot block oneself". Go has no such check.
+- [ ] Non-transactional member removal and block insert: When the target user is a group member, Java wraps `deleteGroupMember` + `insert(blockedUser)` in a single MongoDB transaction (with retry). Go executes them sequentially with no transaction, risking data inconsistency if one operation fails.
+- [x] Wrong version update scope when target is a member: Java calls `groupVersionService.updateVersion(groupId, true, true, false, false)` which updates both the members version AND blocklist version. Go only calls `UpdateBlocklistVersion`, missing the members version update.
+- [x] Ignored error from DeleteGroupMember: Go discards the error with `_ = s.groupMemberService.DeleteGroupMember(...)`. Java propagates errors within the transaction chain.
+- [x] Extra role hierarchy check not in Java: Go adds logic to prevent a manager from blocking an owner or other manager (`NOT_GROUP_OWNER_TO_REMOVE_GROUP_OWNER_OR_MANAGER`). This defensive check does not exist in the Java version, which only checks `isOwnerOrManager` for the requester and `isGroupMember` for the target.
+
+## unblockUser
+- [x] Missing return value indicating whether user was blocked: Java returns `Mono<Boolean>` (`deletedCount > 0`). Go's `UnblockUser` returns only `error`, discarding whether a deletion actually occurred.
+- [x] Always updates blocklist version regardless of outcome: Java only calls `updateBlocklistVersion` if `wasBlocked` is true (i.e., the user was actually in the blocklist). Go's `AuthAndUnblockUser` always updates the version after calling `UnblockUser`, even if the user was not blocked.
+- [x] Missing `updateBlocklistVersion` parameter: Java accepts a `boolean updateBlocklistVersion` parameter to control whether version should be updated. Go's `AuthAndUnblockUser` always updates it, removing caller control.
+
+## queryGroupBlockedUserIdsWithVersion
+- [x] Missing version query when `lastUpdatedDate` is nil: Java always queries the blocklist version (even when `lastUpdatedDate` is null) and includes it in the response. Go skips the version query entirely when `lastUpdatedDate` is nil, returning a nil version.
+- [x] Missing `NO_CONTENT` error for empty results: Java throws `ResponseStatusCode.NO_CONTENT` when the blocked user IDs list is empty. Go returns an empty `[]int64` with no error.
+- [x] Missing `alreadyUpToUpdate` semantics when version is nil: Java returns `alreadyUpToUpdate()` when no version exists (via `switchIfEmpty`). Go returns `nil, nil, nil` which has different semantics — it indicates "no data" rather than "already up to date".
+
+## queryGroupBlockedUserInfosWithVersion
+- [ ] Returns wrong data type — blocklist entries instead of user profiles: Java queries user profiles via `userService.queryUsersProfile(ids, false)` and builds a `UserInfosWithVersion` proto with `userProfile2proto(user)`. Go returns `[]po.GroupBlockedUser` (raw blocklist records), not user profile information. These are fundamentally different data.
+- [x] Missing `NO_CONTENT` error for empty blocked user IDs: Java throws `NO_CONTENT` when the blocked user ID list is empty after querying. Go returns an empty slice.
+- [ ] Missing `NO_CONTENT` error for empty user profiles: Java throws `NO_CONTENT` when the queried user profiles are empty. Go has no such check.
+- [x] Missing version query when `lastUpdatedDate` is nil: Same as `queryGroupBlockedUserIdsWithVersion` — Java always queries and returns the version. Go skips it.
+- [x] Missing `alreadyUpToUpdate` semantics when version is nil: Same as `queryGroupBlockedUserIdsWithVersion`.
+
+## updateBlockedUsers
+- [x] Missing per-key validation: Java iterates over each key and calls `DataValidator.validGroupBlockedUserKey(key)` to validate it. Go passes keys directly to the repository without validation.
 - [ ] Missing `pastOrPresent` validation for `blockDate`: Java validates `blockDate` is not in the future. Go has no such validation.
 
 ## deleteBlockedUsers
-- [ ] Missing per-key validation: Java iterates over each key and calls `DataValidator.validGroupBlockedUserKey(key)`. Go passes keys directly to the repository without validation.
+- [x] Missing per-key validation: Java iterates over each key and calls `DataValidator.validGroupBlockedUserKey(key)`. Go passes keys directly to the repository without validation.
 
 # GroupInvitationService.java
 *Checked methods: authAndCreateGroupInvitation(@NotNull Long groupId, @NotNull Long inviterId, @NotNull Long inviteeId, @Nullable String content), createGroupInvitation(@Nullable Long id, @NotNull Long groupId, @NotNull Long inviterId, @NotNull Long inviteeId, @Nullable String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate), queryGroupIdAndInviterIdAndInviteeIdAndStatus(@NotNull Long invitationId), queryGroupIdAndInviteeIdAndStatus(@NotNull Long invitationId), authAndRecallPendingGroupInvitation(@NotNull Long requesterId, @NotNull Long invitationId), queryGroupInvitationsByInviteeId(@NotNull Long inviteeId), queryGroupInvitationsByInviterId(@NotNull Long inviterId), queryGroupInvitationsByGroupId(@NotNull Long groupId), queryUserGroupInvitationsWithVersion(@NotNull Long userId, boolean areSentByUser, @Nullable Date lastUpdatedDate), authAndQueryGroupInvitationsWithVersion(@NotNull Long userId, @NotNull Long groupId, @Nullable Date lastUpdatedDate), queryInviteeIdAndGroupIdAndCreationDateAndStatusByInvitationId(@NotNull Long invitationId), queryInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size), countInvitations(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> inviterIds, @Nullable Set<Long> inviteeIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange), deleteInvitations(@Nullable Set<Long> ids), authAndHandleInvitation(@NotNull Long requesterId, @NotNull Long invitationId, @NotNull @ValidResponseAction ResponseAction action, @Nullable String reason), updatePendingInvitationStatus(@NotNull Long groupId, @NotNull Long invitationId, @NotNull @ValidRequestStatus RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session), updateInvitations(@NotEmpty Set<Long> invitationIds, @Nullable Long inviterId, @Nullable Long inviteeId, @Nullable String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate)*
@@ -13020,12 +13054,12 @@ Now I have a thorough understanding of both codebases. Let me compile the review
 
 ## authAndCreateGroupInvitation
 
-- [ ] **Missing check: strategy must require approval.** The Java code explicitly checks `if (!strategy.requiresApproval())` and returns an error `SEND_GROUP_INVITATION_TO_GROUP_NOT_REQUIRING_USERS_APPROVAL`. The Go code does NOT check this — it only checks `RequiresApproval()` to decide between `Pending` and `Accepted` status, but never rejects the request for non-requiring-approval strategies. In Java, if the strategy doesn't require approval, the invitation is *rejected* with an error, not auto-accepted. The Go code incorrectly auto-accepts invitations when the strategy doesn't require approval.
-- [ ] **Missing check: isAllowedToBeInvited (blocklist check).** The Java code calls `groupMemberService.isAllowedToBeInvited(groupId, inviteeId)` which checks if the invitee is already a group member AND if the invitee is blocked by the group blocklist. The Go code only checks `IsGroupMember` but does NOT check the blocklist.
-- [ ] **Missing check: pending invitation already exists.** The Java `isAllowedToInviteUser` flow implicitly prevents duplicate pending invitations via the repository-level `isNotExpired` filter on creation. More critically, the Go code does not check whether a pending invitation already exists for the same group+invitee before creating a new one. The Go repository has a `HasPendingInvitation` method that is never called.
-- [ ] **Wrong error code for "invitee is already a member".** The Go code returns `codes.AddUserToGroupWithSizeLimitReached` when the invitee is already a member. The Java code returns `SEND_GROUP_INVITATION_TO_GROUP_MEMBER` via `isAllowedToBeInvited`. These are semantically different error codes.
-- [ ] **Missing inviter membership check before role query.** The Java `isAllowedToInviteUser` calls `queryGroupMemberRole` and if the inviter has no role (i.e., is not a member), returns `GROUP_INVITER_NOT_MEMBER`. The Go code queries `QueryGroupMemberRole` but for strategies like `ALL`/`ALL_REQUIRING_APPROVAL`, it allows non-members (requesterRole == nil is treated as allowed). This is incorrect — in Java, `ALL`/`ALL_REQUIRING_APPROVAL` means any user can invite regardless of role (the role check passes for any role), but the inviter must still be a group member (the role query returning empty triggers `GROUP_INVITER_NOT_MEMBER`). The Go code allows non-members to invite for `ALL` strategies.
-- [ ] **Status auto-accept logic is wrong.** In Java, `authAndCreateGroupInvitation` always creates with `RequestStatus.PENDING` and rejects if the strategy doesn't require approval. The Go code sets status to `RequestStatusAccepted` when `!strategy.RequiresApproval()` and then also calls `AddGroupMember`. This entire auto-accept branch should not exist — Java never auto-accepts in `authAndCreateGroupInvitation`.
+- [x] **Missing check: strategy must require approval.** The Java code explicitly checks `if (!strategy.requiresApproval())` and returns an error `SEND_GROUP_INVITATION_TO_GROUP_NOT_REQUIRING_USERS_APPROVAL`. The Go code does NOT check this — it only checks `RequiresApproval()` to decide between `Pending` and `Accepted` status, but never rejects the request for non-requiring-approval strategies. In Java, if the strategy doesn't require approval, the invitation is *rejected* with an error, not auto-accepted. The Go code incorrectly auto-accepts invitations when the strategy doesn't require approval.
+- [x] **Missing check: isAllowedToBeInvited (blocklist check).** The Java code calls `groupMemberService.isAllowedToBeInvited(groupId, inviteeId)` which checks if the invitee is already a group member AND if the invitee is blocked by the group blocklist. The Go code only checks `IsGroupMember` but does NOT check the blocklist.
+- [x] **Missing check: pending invitation already exists.** The Java `isAllowedToInviteUser` flow implicitly prevents duplicate pending invitations via the repository-level `isNotExpired` filter on creation. More critically, the Go code does not check whether a pending invitation already exists for the same group+invitee before creating a new one. The Go repository has a `HasPendingInvitation` method that is never called.
+- [x] **Wrong error code for "invitee is already a member".** The Go code returns `codes.AddUserToGroupWithSizeLimitReached` when the invitee is already a member. The Java code returns `SEND_GROUP_INVITATION_TO_GROUP_MEMBER` via `isAllowedToBeInvited`. These are semantically different error codes.
+- [x] **Missing inviter membership check before role query.** The Java `isAllowedToInviteUser` calls `queryGroupMemberRole` and if the inviter has no role (i.e., is not a member), returns `GROUP_INVITER_NOT_MEMBER`. The Go code queries `QueryGroupMemberRole` but for strategies like `ALL`/`ALL_REQUIRING_APPROVAL`, it allows non-members (requesterRole == nil is treated as allowed). This is incorrect — in Java, `ALL`/`ALL_REQUIRING_APPROVAL` means any user can invite regardless of role (the role check passes for any role), but the inviter must still be a group member (the role query returning empty triggers `GROUP_INVITER_NOT_MEMBER`). The Go code allows non-members to invite for `ALL` strategies.
+- [x] **Status auto-accept logic is wrong.** In Java, `authAndCreateGroupInvitation` always creates with `RequestStatus.PENDING` and rejects if the strategy doesn't require approval. The Go code sets status to `RequestStatusAccepted` when `!strategy.RequiresApproval()` and then also calls `AddGroupMember`. This entire auto-accept branch should not exist — Java never auto-accepts in `authAndCreateGroupInvitation`.
 
 ## createGroupInvitation
 
@@ -13867,7 +13901,7 @@ Now I have a thorough understanding of both codebases. Let me compile the full c
 
 ## countGroups (full filter)
 
-- [ ] **Missing method with full filter parameters**: Java's `countGroups` accepts `ids, typeIds, creatorIds, ownerIds, isActive, creationDateRange, deletionDateRange, lastUpdatedDateRange, muteEndDateRange, memberIds` and handles member-based filtering. Go's `CountGroups` only takes a `dateRange` parameter — it's actually mapped to `countCreatedGroups` in the repository, not the full-filter count.
+- [x] **Missing method with full filter parameters**: Java's `countGroups` accepts `ids, typeIds, creatorIds, ownerIds, isActive, creationDateRange, deletionDateRange, lastUpdatedDateRange, muteEndDateRange, memberIds` and handles member-based filtering. Go's `CountGroups` only takes a `dateRange` parameter — it's actually mapped to `countCreatedGroups` in the repository, not the full-filter count.
 
 ## isGroupMuted
 
@@ -13944,7 +13978,7 @@ Now I have all the information needed to perform a thorough comparison. Let me a
 
 ## queryGroupInvitationsVersion
 
-- [ ] The Go service (`QueryGroupInvitationsVersion`) uses `FindVersion` and returns `v.Invitations`. The Java code calls `groupVersionRepository.findInvitations(groupId)` which does a projection query. Functionally equivalent but the Go repository doesn't even have a `FindInvitations` method with projection like it does for other fields.
+- [x] The Go service (`QueryGroupInvitationsVersion`) uses `FindVersion` and returns `v.Invitations`. The Java code calls `groupVersionRepository.findInvitations(groupId)` which does a projection query. Functionally equivalent but the Go repository doesn't even have a `FindInvitations` method with projection like it does for other fields.
 
 ## updateVersion(groupId, updateMembers, updateBlocklist, joinRequests, joinQuestions)
 
@@ -13994,7 +14028,7 @@ Now I have all the information needed to perform a thorough comparison. Let me a
 
 ## queryGroupInvitationsVersion (additional note)
 
-- [ ] The Go repository lacks a `FindInvitations` method with projection (unlike `FindBlocklist`, `FindJoinRequests`, `FindJoinQuestions`, `FindMembers` which all exist). The service works around this by using the full-document `FindVersion` approach. Functionally works but inconsistent with other query methods.
+- [x] The Go repository lacks a `FindInvitations` method with projection (unlike `FindBlocklist`, `FindJoinRequests`, `FindJoinQuestions`, `FindMembers` which all exist). The service works around this by using the full-document `FindVersion` approach. Functionally works but inconsistent with other query methods.
 
 ---
 
@@ -14013,10 +14047,10 @@ Here is the consolidated bug report:
 - [ ] Same issue — uses `FindVersion` instead of the existing `FindJoinQuestions` repository method with projection.
 
 ## queryGroupInvitationsVersion
-- [ ] Uses `FindVersion` (full document fetch) instead of a dedicated projection-based method. The Go repository also lacks a `FindInvitations` projection method unlike the other four query methods.
+- [x] Uses `FindVersion` (full document fetch) instead of a dedicated projection-based method. The Go repository also lacks a `FindInvitations` projection method unlike the other four query methods.
 
 ## updateVersion(groupId, updateMembers, updateBlocklist, joinRequests, joinQuestions)
-- [ ] **Missing method entirely.** The Java service supports conditional multi-field updates in a single operation using boolean flags. The Go code has no equivalent — `UpdateVersion` only updates one field at a time.
+- [x] **Missing method entirely.** The Java service supports conditional multi-field updates in a single operation using boolean flags. The Go code has no equivalent — `UpdateVersion` only updates one field at a time.
 
 ## updateMembersVersion(groupId)
 - [ ] **Upsert behavior difference:** Go's `UpdateVersion` uses `SetUpsert(true)`, creating a new partial document if none exists. Java's `updateVersion(Long, String)` does NOT upsert.
