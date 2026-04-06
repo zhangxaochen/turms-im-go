@@ -119,11 +119,11 @@ func (m *mockUserRelService) BlockUser(ctx context.Context, ownerID int64, block
 
 type mockGroupMemService struct{}
 
-func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, userID int64, activeOnly ...bool) (bool, error) {
+func (m *mockGroupMemService) IsGroupMember(ctx context.Context, groupID int64, userID int64) (bool, error) {
 	return groupID == 1, nil // Member of group 1, not of group 99
 }
 
-func (m *mockGroupMemService) FindGroupMemberIDs(ctx context.Context, groupID int64, activeOnly ...bool) ([]int64, error) {
+func (m *mockGroupMemService) FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error) {
 	return []int64{1, 2, 3}, nil
 }
 

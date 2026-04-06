@@ -150,8 +150,9 @@ func BenchmarkLdapSessionIdentityAccessManager_VerifyAndGrant(b *testing.B) {
 	mgr.UpdateGlobalProperties(props)
 
 	pass := "secret"
+	userID := int64(1)
 	loginInfo := &bo.UserLoginInfo{
-		UserID:   1,
+		UserID:   &userID,
 		Password: &pass,
 	}
 	ctx := context.Background()
