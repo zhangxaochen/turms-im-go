@@ -29,11 +29,17 @@ func (m *NotificationLoggingManager) Log(
 
 	relayedStr := proto.KindCaseName(n.RelayedRequestType)
 
+	// Dereference closeStatus for logging parity with Java's ByteBufUtil.join
+	// (which renders Integer as its numeric string, not as a pointer address).
+	var closeStatusVal interface{} = nil
+	if n.CloseStatus != nil {
+		closeStatusVal = *n.CloseStatus
+	}
 	msg := joinFields(
 		n.RequesterID,
 		recipientCount,
 		onlineRecipientCount,
-		n.CloseStatus,
+		closeStatusVal,
 		notificationBytes,
 		relayedStr,
 	)
