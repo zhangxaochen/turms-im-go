@@ -9391,43 +9391,43 @@ Both are straightforward delegation. Looks correct.
 
 ## queryRoleIdsByAdminIds
 
-- [ ] Missing in-memory cache (`idToAdmin`) lookup before falling back to repository query. Java first checks the local cache and only queries the DB if any admin ID is not cached.
-- [ ] Missing deduplication of role IDs. Java uses a `Set` which auto-deduplicates; Go appends all role IDs to a slice, producing duplicates when multiple admins share roles.
+- [x] Missing in-memory cache (`idToAdmin`) lookup before falling back to repository query. Java first checks the local cache and only queries the DB if any admin ID is not cached.
+- [x] Missing deduplication of role IDs. Java uses a `Set` which auto-deduplicates; Go appends all role IDs to a slice, producing duplicates when multiple admins share roles.
 
 ## authAndAddAdmin
 
-- [ ] Missing validation that `roleIds` does not contain `ADMIN_ROLE_ROOT_ID` (Java checks `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, ...)`).
-- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester has no rank; Go silently proceeds when `QueryHighestRankByRoleIds` returns nil.
-- [ ] Missing validation that all requested role IDs actually exist. Java's `checkIfAllowedToAddRolesToAdmins` fetches roles by ID and errors if any are missing; Go only checks rank.
-- [ ] Missing `upsert` parameter and logic. Java's `authAndAddAdmin` takes a `boolean upsert` and passes it through to `addAdmin`, which chooses between `upsert` and `insert`.
+- [x] Missing validation that `roleIds` does not contain `ADMIN_ROLE_ROOT_ID` (Java checks `Validator.notContains(roleIds, ADMIN_ROLE_ROOT_ID, ...)`).
+- [x] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester has no rank; Go silently proceeds when `QueryHighestRankByRoleIds` returns nil.
+- [x] Missing validation that all requested role IDs actually exist. Java's `checkIfAllowedToAddRolesToAdmins` fetches roles by ID and errors if any are missing; Go only checks rank.
+- [x] Missing `upsert` parameter and logic. Java's `authAndAddAdmin` takes a `boolean upsert` and passes it through to `addAdmin`, which chooses between `upsert` and `insert`.
 
 ## addAdmin
 
-- [ ] Missing default generation for empty/null `loginName`. Java generates `RandomStringUtils.randomAlphabetic(16)` when loginName is null; Go does not.
-- [ ] Missing default generation for empty/null `rawPassword`. Java generates `RandomStringUtils.randomAlphabetic(10)` and encodes it when rawPassword is null/empty; Go does not handle this case.
-- [ ] Missing default for null `displayName`. Java defaults to `loginName` when displayName is null/empty; Go does not.
-- [ ] Missing `upsert` parameter. Java's `addAdmin` supports both insert and upsert modes via the `upsert` boolean; Go always inserts.
-- [ ] Missing in-memory cache update (`idToAdmin`). Java stores the new admin in `idToAdmin` after successful DB write; Go does not maintain this cache.
-- [ ] Missing `registrationDate` parameter. Java accepts an explicit registration date and only defaults to `new Date()` when null; Go always uses `time.Now()`, ignoring any caller-provided value.
+- [x] Missing default generation for empty/null `loginName`. Java generates `RandomStringUtils.randomAlphabetic(16)` when loginName is null; Go does not.
+- [x] Missing default generation for empty/null `rawPassword`. Java generates `RandomStringUtils.randomAlphabetic(10)` and encodes it when rawPassword is null/empty; Go does not handle this case.
+- [x] Missing default for null `displayName`. Java defaults to `loginName` when displayName is null/empty; Go does not.
+- [x] Missing `upsert` parameter. Java's `addAdmin` supports both insert and upsert modes via the `upsert` boolean; Go always inserts.
+- [x] Missing in-memory cache update (`idToAdmin`). Java stores the new admin in `idToAdmin` after successful DB write; Go does not maintain this cache.
+- [x] Missing `registrationDate` parameter. Java accepts an explicit registration date and only defaults to `new Date()` when null; Go always uses `time.Now()`, ignoring any caller-provided value.
 
 ## authAndDeleteAdmins
 
-- [ ] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester doesn't exist; Go silently proceeds when `targetHighest` is nil, potentially allowing deletion by a non-existent requester or when target admins have no roles.
-- [ ] Missing validation that `adminIds` is non-empty. Java validates `Validator.notEmpty(adminIds, "adminIds")`.
-- [ ] Missing validation that `requesterId` is provided. Java validates `Validator.notNull(requesterId, "requesterId")`.
+- [x] Missing requester-not-exist handling. Java uses `switchIfEmpty(errorRequesterNotExist())` to explicitly error if the requester doesn't exist; Go silently proceeds when `targetHighest` is nil, potentially allowing deletion by a non-existent requester or when target admins have no roles.
+- [x] Missing validation that `adminIds` is non-empty. Java validates `Validator.notEmpty(adminIds, "adminIds")`.
+- [x] Missing validation that `requesterId` is provided. Java validates `Validator.notNull(requesterId, "requesterId")`.
 
 ## authAndUpdateAdmins
 
-- [ ] Missing check for requester updating their own role IDs. Java returns an explicit error `MONO_ERROR_UPDATE_ONE_OWN_ROLE_ID` when `targetAdminIds.contains(requesterId)` and roleIds are present; Go has no such check.
-- [ ] Missing early return when all update parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately when `rawPassword`, `displayName`, and `roleIds` are all null; Go still performs authorization checks and a no-op update.
-- [ ] Missing requester-not-exist handling. Same issue as other auth methods.
-- [ ] Missing validation that requested `roleIds` actually exist. Java's `checkIfAllowedToAddRolesToAdmins` validates all role IDs exist; Go only checks rank.
-- [ ] When roleIds are present, Java passes `null` roleIds to `updateAdmins` (effectively not persisting role changes through that path), while Go passes `roleIds` directly to `UpdateAdmins`. This is a behavioral difference — the Go version will persist role changes that the Java version intentionally skips.
+- [x] Missing check for requester updating their own role IDs. Java returns an explicit error `MONO_ERROR_UPDATE_ONE_OWN_ROLE_ID` when `targetAdminIds.contains(requesterId)` and roleIds are present; Go has no such check.
+- [x] Missing early return when all update parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately when `rawPassword`, `displayName`, and `roleIds` are all null; Go still performs authorization checks and a no-op update.
+- [x] Missing requester-not-exist handling. Same issue as other auth methods.
+- [x] Missing validation that requested `roleIds` actually exist. Java's `checkIfAllowedToAddRolesToAdmins` validates all role IDs exist; Go only checks rank.
+- [x] When roleIds are present, Java passes `null` roleIds to `updateAdmins` (effectively not persisting role changes through that path), while Go passes `roleIds` directly to `UpdateAdmins`. This is a behavioral difference — the Go version will persist role changes that the Java version intentionally skips.
 
 ## updateAdmins
 
-- [ ] Missing early return when all parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` when `rawPassword`, `displayName`, and `roleIds` are all null; Go still calls the repository with nil values.
-- [ ] Missing in-memory cache invalidation. Java removes all target admin IDs from `idToAdmin` on successful update; Go has no cache invalidation.
+- [x] Missing early return when all parameters are nil/empty. Java returns `ACKNOWLEDGED_UPDATE_RESULT` when `rawPassword`, `displayName`, and `roleIds` are all null; Go still calls the repository with nil values.
+- [x] Missing in-memory cache invalidation. Java removes all target admin IDs from `idToAdmin` on successful update; Go has no cache invalidation.
 
 ## countAdmins
 
@@ -9435,7 +9435,7 @@ No bugs found.
 
 ## errorRequesterNotExist
 
-- [ ] Missing `UNAUTHORIZED` status code. Java returns `ResponseException` with `ResponseStatusCode.UNAUTHORIZED` and a descriptive message; Go returns a plain `errors.New("requester does not exist")` without any status code, losing error classification information.
+- [x] Missing `UNAUTHORIZED` status code. Java returns `ResponseException` with `ResponseStatusCode.UNAUTHORIZED` and a descriptive message; Go returns a plain `errors.New("requester does not exist")` without any status code, losing error classification information.
 
 # IpBlocklistController.java
 *Checked methods: addBlockedIps(@RequestBody AddBlockedIpsDTO addBlockedIpsDTO), queryBlockedIps(Set<String> ids), queryBlockedIps(int page, @QueryParam(required = false), deleteBlockedIps(@QueryParam(required = false)*
@@ -9444,11 +9444,11 @@ Now I have all the context needed. Let me analyze the differences.
 
 ## queryBlockedIps (page)
 
-- [ ] **Missing `countBlockIps()` call**: The Java version calls `blocklistService.countBlockIps()` to get the total count and returns it via `HttpHandlerResult.page(blockedIpCount, clients2ips(blockedIps))`. The Go version's `QueryBlockedIpsByPage` only returns `[]dto.BlockedIpDTO` and does not call a count method at all. The method signature returns just the DTO slice, with no pagination metadata (total count), making it impossible for the caller to return proper paginated responses as the Java version does.
+- [x] **Missing `countBlockIps()` call**: The Java version calls `blocklistService.countBlockIps()` to get the total count and returns it via `HttpHandlerResult.page(blockedIpCount, clients2ips(blockedIps))`. The Go version's `QueryBlockedIpsByPage` only returns `[]dto.BlockedIpDTO` and does not call a count method at all. The method signature returns just the DTO slice, with no pagination metadata (total count), making it impossible for the caller to return proper paginated responses as the Java version does.
 
 ## deleteBlockedIps
 
-- [ ] **Missing empty-ids guard**: The Java version checks `!CollectionUtils.isEmpty(ids)` before calling `unblockIpStrings(ids)`, meaning if `deleteAll` is false and `ids` is null/empty, it does nothing (returns `Mono.empty()`). The Go version unconditionally calls `c.blocklistService.UnblockIpStrings(ids)` when `deleteAll` is false, even when `ids` is nil or empty, which differs from the Java behavior.
+- [x] **Missing empty-ids guard**: The Java version checks `!CollectionUtils.isEmpty(ids)` before calling `unblockIpStrings(ids)`, meaning if `deleteAll` is false and `ids` is null/empty, it does nothing (returns `Mono.empty()`). The Go version unconditionally calls `c.blocklistService.UnblockIpStrings(ids)` when `deleteAll` is false, even when `ids` is nil or empty, which differs from the Java behavior.
 
 # UserBlocklistController.java
 *Checked methods: addBlockedUserIds(@RequestBody AddBlockedUserIdsDTO addBlockedUserIdsDTO), queryBlockedUsers(Set<Long> ids), queryBlockedUsers(int page, @QueryParam(required = false), deleteBlockedUserIds(@QueryParam(required = false)*
@@ -9511,11 +9511,11 @@ The Go version has a behavioral difference: when `deleteAll` is false **and** `i
 
 ## queryBlockedUsers(int page, @QueryParam(required = false) Integer size)
 
-- [ ] **Missing total count**: The Go `QueryBlockedUserIdsByPage` method does not call a `CountBlockUsers()` equivalent. The Java version calls `blocklistService.countBlockUsers()` and passes `blockUserCount` to `HttpHandlerResult.page()`. The Go version only returns `[]dto.BlockedUserDTO` without any pagination metadata (total count), making it impossible for clients to know the total number of blocked users. Furthermore, `BlocklistService` in Go has no `CountBlockUsers` method at all.
+- [x] **Missing total count**: The Go `QueryBlockedUserIdsByPage` method does not call a `CountBlockUsers()` equivalent. The Java version calls `blocklistService.countBlockUsers()` and passes `blockUserCount` to `HttpHandlerResult.page()`. The Go version only returns `[]dto.BlockedUserDTO` without any pagination metadata (total count), making it impossible for clients to know the total number of blocked users. Furthermore, `BlocklistService` in Go has no `CountBlockUsers` method at all.
 
 ## deleteBlockedUserIds(@QueryParam(required = false) Set<Long> ids, boolean deleteAll)
 
-- [ ] **Missing empty-ids guard**: When `deleteAll` is `false` and `ids` is empty/nil, the Java code skips the `unblockUserIds` call entirely (due to `!CollectionUtils.isEmpty(ids)` check), resulting in a no-op. The Go version unconditionally calls `UnblockUserIds(ids)` when `deleteAll` is false, even with an empty slice, which could cause unintended behavior or errors depending on the service implementation.
+- [x] **Missing empty-ids guard**: When `deleteAll` is `false` and `ids` is empty/nil, the Java code skips the `unblockUserIds` call entirely (due to `!CollectionUtils.isEmpty(ids)` check), resulting in a no-op. The Go version unconditionally calls `UnblockUserIds(ids)` when `deleteAll` is false, even with an empty slice, which could cause unintended behavior or errors depending on the service implementation.
 
 # BlockedClientSerializer.java
 *Checked methods: serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)*
@@ -9530,7 +9530,7 @@ Given the strict instruction format, here is the assessment:
 
 ## serialize(BlockedClient value, JsonGenerator gen, SerializerProvider provider)
 
-- [ ] The entire method is **missing** from the Go code. The Go file `elasticsearch_model.go` contains no `BlockedClient` type, no custom JSON marshaling for it, and no equivalent of: (1) writing an `id` field that is either a `Long` userId (written as a number) or an IP byte array (converted to string via `InetAddressUtil.ipBytesToString`), and (2) writing a `blockEndTime` field formatted via `DateTimeUtil.toStr(value.blockEndTimeMillis())`.
+- [x] The entire method is **missing** from the Go code. The Go file `elasticsearch_model.go` contains no `BlockedClient` type, no custom JSON marshaling for it, and no equivalent of: (1) writing an `id` field that is either a `Long` userId (written as a number) or an IP byte array (converted to string via `InetAddressUtil.ipBytesToString`), and (2) writing a `blockEndTime` field formatted via `DateTimeUtil.toStr(value.blockEndTimeMillis())`.
 
 # MemberController.java
 *Checked methods: queryMembers(), removeMembers(List<String> ids), addMember(@RequestBody AddMemberDTO addMemberDTO), updateMember(String id, @RequestBody UpdateMemberDTO updateMemberDTO), queryLeader(), electNewLeader(@QueryParam(required = false)*
@@ -9539,7 +9539,7 @@ Now I have a complete picture of both implementations. Let me compile the findin
 
 ## addMember
 
-- [ ] **Missing fields in Member construction**: The Java code constructs a `Member` with 18 fields including `version` (via `NodeVersion.parse`), `registrationDate`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, and `isActive`/`isHealthy` from the DTO. The Go code only sets: `ClusterID`, `NodeID`, `Zone`, `Name`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`, and conditionally `NodeType`. The following fields from `AddMemberDTO` are **not assigned** in the Go code:
+- [x] **Missing fields in Member construction**: The Java code constructs a `Member` with 18 fields including `version` (via `NodeVersion.parse`), `registrationDate`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, and `isActive`/`isHealthy` from the DTO. The Go code only sets: `ClusterID`, `NodeID`, `Zone`, `Name`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`, and conditionally `NodeType`. The following fields from `AddMemberDTO` are **not assigned** in the Go code:
   - `Version` (Java: `NodeVersion.parse(addMemberDTO.version())`)
   - `RegistrationDate`
   - `MemberPort`
@@ -9547,26 +9547,26 @@ Now I have a complete picture of both implementations. Let me compile the findin
   - `WsAddress`
   - `TcpAddress`
   - `UdpAddress`
-- [ ] **`IsActive` and `IsHealthy` hardcoded to `false`**: The Java code passes `addMemberDTO.isActive()` and `addMemberDTO.isHealthy()` from the request DTO. The Go code hardcodes both to `false` on lines 78-79, ignoring whatever the client sent.
-- [ ] **`ClusterID` sourced incorrectly**: Java gets the cluster ID via `discoveryService.getLocalMember().getClusterId()`. Go uses `c.discoveryService.GetLocalNodeID()` which returns the **node** ID, not the cluster ID. These are different values.
-- [ ] **Go `AddMemberDTO` is missing fields compared to Java**: The Java `AddMemberDTO` has 17 fields (`nodeId`, `zone`, `name`, `nodeType`, `version`, `isSeed`, `isLeaderEligible`, `registrationDate`, `priority`, `memberHost`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, `isActive`, `isHealthy`). The Go `AddMemberDTO` only has 9 fields (`NodeID`, `Zone`, `Name`, `NodeType`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`). Missing DTO fields: `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, `IsHealthy`, `Version`, `RegistrationDate`.
+- [x] **`IsActive` and `IsHealthy` hardcoded to `false`**: The Java code passes `addMemberDTO.isActive()` and `addMemberDTO.isHealthy()` from the request DTO. The Go code hardcodes both to `false` on lines 78-79, ignoring whatever the client sent.
+- [x] **`ClusterID` sourced incorrectly**: Java gets the cluster ID via `discoveryService.getLocalMember().getClusterId()`. Go uses `c.discoveryService.GetLocalNodeID()` which returns the **node** ID, not the cluster ID. These are different values.
+- [x] **Go `AddMemberDTO` is missing fields compared to Java**: The Java `AddMemberDTO` has 17 fields (`nodeId`, `zone`, `name`, `nodeType`, `version`, `isSeed`, `isLeaderEligible`, `registrationDate`, `priority`, `memberHost`, `memberPort`, `adminApiAddress`, `wsAddress`, `tcpAddress`, `udpAddress`, `isActive`, `isHealthy`). The Go `AddMemberDTO` only has 9 fields (`NodeID`, `Zone`, `Name`, `NodeType`, `IsSeed`, `IsLeaderEligible`, `Priority`, `MemberHost`). Missing DTO fields: `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, `IsHealthy`, `Version`, `RegistrationDate`.
 
 ## queryMembers
 
-- [ ] **Returns different data structure**: Java returns `Collection<Member>` (the raw Member objects with all fields including `ClusterID`, `LastHeartbeat`, etc.). Go returns `[]MemberDTO` which is a transformed DTO with an additional computed `IsLeader` field. While this could be intentional for the Go API design, the Java version returns the raw `Member` entity directly, not a DTO.
+- [x] **Returns different data structure**: Java returns `Collection<Member>` (the raw Member objects with all fields including `ClusterID`, `LastHeartbeat`, etc.). Go returns `[]MemberDTO` which is a transformed DTO with an additional computed `IsLeader` field. While this could be intentional for the Go API design, the Java version returns the raw `Member` entity directly, not a DTO.
 
 ## queryLeader
 
-- [ ] **Error handling differs**: Java throws `ResponseException.get(ResponseStatusCode.NO_CONTENT)` when leader is null (HTTP 204). Go returns `fmt.Errorf("NO_CONTENT")` which is a generic error, not a proper HTTP 204 response — it would likely result in an HTTP 500 internal error instead of the intended 204 No Content.
-- [ ] **Same error handling issue for null member lookup**: When `discoveryService.getAllKnownMembers().get(nodeId)` returns null in Java, it passes null to `HttpHandlerResult.okIfTruthy()` which handles it. In Go, `GetMember(leaderID)` returning nil is handled with the same generic `fmt.Errorf("NO_CONTENT")` rather than the proper HTTP response code.
+- [x] **Error handling differs**: Java throws `ResponseException.get(ResponseStatusCode.NO_CONTENT)` when leader is null (HTTP 204). Go returns `fmt.Errorf("NO_CONTENT")` which is a generic error, not a proper HTTP 204 response — it would likely result in an HTTP 500 internal error instead of the intended 204 No Content.
+- [x] **Same error handling issue for null member lookup**: When `discoveryService.getAllKnownMembers().get(nodeId)` returns null in Java, it passes null to `HttpHandlerResult.okIfTruthy()` which handles it. In Go, `GetMember(leaderID)` returning nil is handled with the same generic `fmt.Errorf("NO_CONTENT")` rather than the proper HTTP response code.
 
 ## electNewLeader
 
-- [ ] **Missing return value**: Java returns `Mono<HttpHandlerResult<ResponseDTO<Member>>>` — it returns the newly elected leader `Member` object in the response. Go returns only `error` with no member data, so the caller gets no information about who was elected leader.
+- [x] **Missing return value**: Java returns `Mono<HttpHandlerResult<ResponseDTO<Member>>>` — it returns the newly elected leader `Member` object in the response. Go returns only `error` with no member data, so the caller gets no information about who was elected leader.
 
 ## removeMembers
 
-- [ ] **Missing deleted count in response**: Java returns `HttpHandlerResult<DeleteResultDTO>` which includes the count of deleted members (`unregisterMembers` count). Go returns only `error` with no count information.
+- [x] **Missing deleted count in response**: Java returns `HttpHandlerResult<DeleteResultDTO>` which includes the count of deleted members (`unregisterMembers` count). Go returns only `error` with no count information.
 
 # SettingController.java
 *Checked methods: queryClusterSettings(boolean queryLocalSettings, boolean onlyMutable), updateClusterSettings(boolean reset, boolean updateLocalSettings, @RequestBody(required = false), queryClusterConfigMetadata(boolean queryLocalSettings, boolean onlyMutable, boolean withValue)*
@@ -9592,37 +9592,37 @@ Now I have a comprehensive understanding of both implementations. Let me compare
 
 ## queryClusterSettings
 
-- [ ] **Missing `convertPropertiesToValueMap` logic**: The retrieved `props` is discarded with `_ = props`. The `onlyMutable` parameter is completely ignored. The Java version calls `convertPropertiesToValueMap(properties, onlyMutable)` which filters/converts properties to a map respecting the mutable-only flag. The Go version returns an empty `settings` map instead.
-- [ ] **Hardcoded schema version**: `"1.0"` is hardcoded instead of using the `TurmsProperties.SCHEMA_VERSION` constant that the Java version references.
+- [x] **Missing `convertPropertiesToValueMap` logic**: The retrieved `props` is discarded with `_ = props`. The `onlyMutable` parameter is completely ignored. The Java version calls `convertPropertiesToValueMap(properties, onlyMutable)` which filters/converts properties to a map respecting the mutable-only flag. The Go version returns an empty `settings` map instead.
+- [x] **Hardcoded schema version**: `"1.0"` is hardcoded instead of using the `TurmsProperties.SCHEMA_VERSION` constant that the Java version references.
 
 ## updateClusterSettings
 
-- [ ] **`UpdateGlobalProperties` return type mismatch**: In Java, `updateGlobalProperties` returns a `Mono<Void>` (asynchronous/reactive), and the result is chained with `.thenReturn(RESPONSE_OK)`. In Go, `UpdateGlobalProperties` is a synchronous stub returning `error`. While the branching logic matches, the async nature of the global update is lost. (This may be an acceptable design adaptation for Go, but it means the global properties update doesn't actually perform the distributed update that the Java version does.)
-- [ ] **Missing response wrapping**: Java returns `HttpHandlerResult<ResponseDTO<Void>>` (a proper HTTP response wrapper), while Go returns bare `error`. The success path returns `nil` error with no response body information, losing the `RESPONSE_OK` semantics.
+- [x] **`UpdateGlobalProperties` return type mismatch**: In Java, `updateGlobalProperties` returns a `Mono<Void>` (asynchronous/reactive), and the result is chained with `.thenReturn(RESPONSE_OK)`. In Go, `UpdateGlobalProperties` is a synchronous stub returning `error`. While the branching logic matches, the async nature of the global update is lost. (This may be an acceptable design adaptation for Go, but it means the global properties update doesn't actually perform the distributed update that the Java version does.)
+- [x] **Missing response wrapping**: Java returns `HttpHandlerResult<ResponseDTO<Void>>` (a proper HTTP response wrapper), while Go returns bare `error`. The success path returns `nil` error with no response body information, losing the `RESPONSE_OK` semantics.
 
 ## queryClusterConfigMetadata
 
-- [ ] **Missing `TurmsPropertiesInspector` equivalent entirely**: No `ONLY_MUTABLE_METADATA` or `METADATA` lookup exists. The `onlyMutable` parameter is ignored. The Go code creates an empty map instead of looking up the appropriate metadata.
-- [ ] **Missing `mergeMetadataWithPropertyValue` logic**: When `withValue` is true, Java merges metadata with actual property values (from local or global properties based on `queryLocalSettings`). The Go code completely ignores `withValue` and `queryLocalSettings`.
-- [ ] **All three parameters are dead code**: `queryLocalSettings`, `onlyMutable`, and `withValue` are all accepted but never used in the function body.
-- [ ] **Hardcoded schema version**: Same as `queryClusterSettings` — `"1.0"` is hardcoded instead of referencing `TurmsProperties.SCHEMA_VERSION`.
+- [x] **Missing `TurmsPropertiesInspector` equivalent entirely**: No `ONLY_MUTABLE_METADATA` or `METADATA` lookup exists. The `onlyMutable` parameter is ignored. The Go code creates an empty map instead of looking up the appropriate metadata.
+- [x] **Missing `mergeMetadataWithPropertyValue` logic**: When `withValue` is true, Java merges metadata with actual property values (from local or global properties based on `queryLocalSettings`). The Go code completely ignores `withValue` and `queryLocalSettings`.
+- [x] **All three parameters are dead code**: `queryLocalSettings`, `onlyMutable`, and `withValue` are all accepted but never used in the function body.
+- [x] **Hardcoded schema version**: Same as `queryClusterSettings` — `"1.0"` is hardcoded instead of referencing `TurmsProperties.SCHEMA_VERSION`.
 
 # AddMemberDTO.java
 *Checked methods: AddMemberDTO(String nodeId, String zone, String name, NodeType nodeType, String version, boolean isSeed, boolean isLeaderEligible, Date registrationDate, int priority, String memberHost, int memberPort, String adminApiAddress, String wsAddress, String tcpAddress, String udpAddress, boolean isActive, boolean isHealthy)*
 
 ## AddMemberDTO
 
-- [ ] **Missing fields**: The Java `AddMemberDTO` has fields `version` (String), `registrationDate` (Date), `memberPort` (int), `adminApiAddress` (String), `wsAddress` (String), `tcpAddress` (String), `udpAddress` (String), `isActive` (boolean), and `isHealthy` (boolean). The Go `AddMemberDTO` is missing all of these: `Version`, `RegistrationDate`, `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, and `IsHealthy`.
+- [x] **Missing fields**: The Java `AddMemberDTO` has fields `version` (String), `registrationDate` (Date), `memberPort` (int), `adminApiAddress` (String), `wsAddress` (String), `tcpAddress` (String), `udpAddress` (String), `isActive` (boolean), and `isHealthy` (boolean). The Go `AddMemberDTO` is missing all of these: `Version`, `RegistrationDate`, `MemberPort`, `AdminAPIAddress`, `WsAddress`, `TcpAddress`, `UdpAddress`, `IsActive`, and `IsHealthy`.
 
-- [ ] **Incorrect field types**: In Java, `isLeaderEligible` is a primitive `boolean`, but in Go it is `*bool` (pointer). In Java, `memberHost` is a `String`, but in Go it is `*string` (pointer). In Java, `nodeType` is `NodeType` (value type), but in Go it is `*discovery.NodeType` (pointer). While pointer types may be intentional for optional/nullable semantics in Go APIs, these differ from the Java record which uses plain value types for these fields.
+- [x] **Incorrect field types**: In Java, `isLeaderEligible` is a primitive `boolean`, but in Go it is `*bool` (pointer). In Java, `memberHost` is a `String`, but in Go it is `*string` (pointer). In Java, `nodeType` is `NodeType` (value type), but in Go it is `*discovery.NodeType` (pointer). While pointer types may be intentional for optional/nullable semantics in Go APIs, these differ from the Java record which uses plain value types for these fields.
 
 # SettingsDTO.java
 *Checked methods: SettingsDTO(int schemaVersion, Map<String, Object> settings)*
 
 ## SettingsDTO
 
-- [ ] `SchemaVersion` field is typed as `string` in Go but the Java record uses `int`. The field should be `int` (or a Go numeric type like `int32`) to match the Java signature `int schemaVersion`.
-- [ ] The JSON tag for `SchemaVersion` is `json:"schema_version"` (snake_case), but the Java record field is `schemaVersion` which would serialize as `schemaVersion` (camelCase) by default in most Java JSON libraries, creating a serialization mismatch.
+- [x] `SchemaVersion` field is typed as `string` in Go but the Java record uses `int`. The field should be `int` (or a Go numeric type like `int32`) to match the Java signature `int schemaVersion`.
+- [x] The JSON tag for `SchemaVersion` is `json:"schema_version"` (snake_case), but the Java record field is `schemaVersion` which would serialize as `schemaVersion` (camelCase) by default in most Java JSON libraries, creating a serialization mismatch.
 
 # BaseController.java
 *Checked methods: getPageSize(@Nullable Integer size), queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages), queryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function), checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function3<DateRange, Boolean, Boolean, Mono<Long>> function, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages), checkAndQueryBetweenDate(DateRange dateRange, DivideBy divideBy, Function<DateRange, Mono<Long>> function)*
@@ -9714,11 +9714,11 @@ No bugs found.
 
 ## queryBetweenDate (Function3 overload)
 
-- [ ] Missing result sorting: Java explicitly sorts results by date via `collectSortedList` with a date comparator in `mergeStaticsRecords`. The Go version appends results in loop iteration order without sorting, relying on `DivideDuration` returning chronologically ordered pairs.
+- [x] Missing result sorting: Java explicitly sorts results by date via `collectSortedList` with a date comparator in `mergeStaticsRecords`. The Go version appends results in loop iteration order without sorting, relying on `DivideDuration` returning chronologically ordered pairs.
 
 ## queryBetweenDate (Function overload)
 
-- [ ] Missing result sorting: Same as the Function3 overload — Java's `mergeStaticsRecords` sorts results by date, but Go returns them in iteration order.
+- [x] Missing result sorting: Same as the Function3 overload — Java's `mergeStaticsRecords` sorts results by date, but Go returns them in iteration order.
 
 ## checkAndQueryBetweenDate (Function3 overload)
 
@@ -9730,7 +9730,7 @@ No bugs beyond those inherited from `queryBetweenDate`.
 
 ## IsDurationNotGreaterThanMax / CalculateDuration
 
-- [ ] Month calculation uses a slightly different constant: Go uses `24 * 30.4375 = 730.5` hours, while Java uses `2629746000L` milliseconds = `730.485` hours. This can cause different ceiling results for durations near month boundaries.
+- [x] Month calculation uses a slightly different constant: Go uses `24 * 30.4375 = 730.5` hours, while Java uses `2629746000L` milliseconds = `730.485` hours. This can cause different ceiling results for durations near month boundaries.
 
 Wait, I should organize by the exact method names requested. The user asked about these specific methods:
 1. getPageSize
@@ -9747,38 +9747,38 @@ No bugs.
 
 ## queryBetweenDate (Function3 overload)
 
-- [ ] Missing result sorting: Java uses `Flux.merge(recordMonos).collectSortedList(...)` which sorts the final results by date. The Go version returns results in the order they're appended in the loop, without any explicit sorting.
+- [x] Missing result sorting: Java uses `Flux.merge(recordMonos).collectSortedList(...)` which sorts the final results by date. The Go version returns results in the order they're appended in the loop, without any explicit sorting.
 
 ## queryBetweenDate (Function overload)
 
-- [ ] Missing result sorting: Same as the Function3 overload — no explicit sort by date as Java's `mergeStaticsRecords` does.
+- [x] Missing result sorting: Same as the Function3 overload — no explicit sort by date as Java's `mergeStaticsRecords` does.
 
 ## checkAndQueryBetweenDate (Function3 overload)
 
-- [ ] Month duration calculation precision differs from Java: Go's `CalculateDuration` uses `diff.Hours() / (24 * 30.4375)` (= 730.5 hours per month), while Java uses `2629746000L` milliseconds (= 730.485 hours per month). This can cause `IsDurationNotGreaterThanMax` to accept or reject slightly different date ranges for MONTH divide-by compared to Java.
+- [x] Month duration calculation precision differs from Java: Go's `CalculateDuration` uses `diff.Hours() / (24 * 30.4375)` (= 730.5 hours per month), while Java uses `2629746000L` milliseconds (= 730.485 hours per month). This can cause `IsDurationNotGreaterThanMax` to accept or reject slightly different date ranges for MONTH divide-by compared to Java.
 
 ## checkAndQueryBetweenDate (Function overload)
 
-- [ ] Same month duration calculation precision issue as the Function3 overload, inherited from the shared `IsDurationNotGreaterThanMax`/`CalculateDuration` helpers.
+- [x] Same month duration calculation precision issue as the Function3 overload, inherited from the shared `IsDurationNotGreaterThanMax`/`CalculateDuration` helpers.
 
 # ServicePermission.java
 *Checked methods: ServicePermission(ResponseStatusCode code, String reason), get(ResponseStatusCode code), get(ResponseStatusCode code, String reason)*
 
 ## NewServicePermission
 
-- [ ] **Reason for OK constant uses `""` instead of `nil`/empty distinction**: In Java, `OK` is defined as `new ServicePermission(ResponseStatusCode.OK, null)`. The Go version defines `OK` as `NewServicePermission(constant.ResponseStatusCode_OK, "")`. In Java, `reason` is `null`; in Go, `reason` is `""` (empty string). While Go doesn't have nullable strings, this is a semantic difference — downstream code checking `reason == nil` vs `reason == ""` would behave differently. This is an inherent language limitation and may be acceptable, but is a behavioral difference.
+- [x] **Reason for OK constant uses `""` instead of `nil`/empty distinction**: In Java, `OK` is defined as `new ServicePermission(ResponseStatusCode.OK, null)`. The Go version defines `OK` as `NewServicePermission(constant.ResponseStatusCode_OK, "")`. In Java, `reason` is `null`; in Go, `reason` is `""` (empty string). While Go doesn't have nullable strings, this is a semantic difference — downstream code checking `reason == nil` vs `reason == ""` would behave differently. This is an inherent language limitation and may be acceptable, but is a behavioral difference.
 
 ## Get (single-parameter)
 
-- [ ] **Missing `get(ResponseStatusCode code, String reason)` overload**: The Java code has two `get` methods: `get(ResponseStatusCode code)` and `get(ResponseStatusCode code, String reason)`. The Go file only ports the single-parameter `Get` method. The two-parameter `GetWithReason` (or equivalent) is missing from `service_permission.go`.
+- [x] **Missing `get(ResponseStatusCode code, String reason)` overload**: The Java code has two `get` methods: `get(ResponseStatusCode code)` and `get(ResponseStatusCode code, String reason)`. The Go file only ports the single-parameter `Get` method. The two-parameter `GetWithReason` (or equivalent) is missing from `service_permission.go`.
 
 ## Get (single-parameter) — optimization deviation
 
-- [ ] **Added optimization not present in Java**: The Java `get(ResponseStatusCode code)` always returns `new ServicePermission(code, null)` — a fresh instance every time, even for `OK`. The Go version adds an `if code == constant.ResponseStatusCode_OK { return OK }` check that returns a shared singleton. This is a behavioral difference: in Java, `get(OK) != OK` (different object reference), while in Go `Get(OK)` returns the same `OK` pointer. If any caller mutates the returned struct, this would cause shared-state bugs that don't exist in Java. The Java version intentionally creates new instances.
+- [x] **Added optimization not present in Java**: The Java `get(ResponseStatusCode code)` always returns `new ServicePermission(code, null)` — a fresh instance every time, even for `OK`. The Go version adds an `if code == constant.ResponseStatusCode_OK { return OK }` check that returns a shared singleton. This is a behavioral difference: in Java, `get(OK) != OK` (different object reference), while in Go `Get(OK)` returns the same `OK` pointer. If any caller mutates the returned struct, this would cause shared-state bugs that don't exist in Java. The Java version intentionally creates new instances.
 
 ## Get (single-parameter) — reason mismatch
 
-- [ ] **Passes `""` instead of `nil`/zero-value**: Java's `get(ResponseStatusCode code)` passes `null` for reason. Go's `Get` passes `""` for reason. Same issue as the constructor — Java uses `null`, Go uses empty string.
+- [x] **Passes `""` instead of `nil`/zero-value**: Java's `get(ResponseStatusCode code)` passes `null` for reason. Go's `Get` passes `""` for reason. Same issue as the constructor — Java uses `null`, Go uses empty string.
 
 ## get(ResponseStatusCode code, String reason)
 
