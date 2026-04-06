@@ -110,10 +110,14 @@ const { execSync, spawn } = require('child_process');
         // 3. Setup prompt instructions for Claude
         const promptPath = path.join(worktreePath, `claude_prompt.txt`);
         const promptText = `You are a specialized coding sub-agent. Your task is to resolve exactly ${batchBugs.length} pending bugs in the turms-go codebase.\n`
-            + `CRITICAL RULES:\n1. Be extremely concise in your output and thoughts. Minimize conversational filler.\n2. Fix the issues below, test them, and YOU MUST automatically commit your changes with a descriptive commit message.\n\n`
+            + `CRITICAL RULES:\n`
+            + `1. Be extremely concise in your output and thoughts. Minimize conversational filler.\n`
+            + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first. You might be resuming an interrupted job where some bugs are already partially fixed, staged, or committed in this worktree.\n`
+            + `3. As you finish resolving bugs, YOU MUST check them off by changing '- [ ]' to '- [x]' in docs/pending_bugs.md for your specific assigned bugs.\n`
+            + `4. Test the implementations, and YOU MUST automatically commit your final changes with a descriptive commit message.\n\n`
             + `BUGS TO FIX:\n====================\n\n`
             + batchBugs.join('\n\n---\n\n')
-            + `\n\n====================\nRemember: ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.`;
+            + `\n\n====================\nRemember: Always mark completed tasks in docs/pending_bugs.md, and ALWAYS commit the result when finished. KEEP YOUR LOGS AND RESPONSES AS CONCISE AS POSSIBLE.`;
 
         fs.writeFileSync(promptPath, promptText);
 
