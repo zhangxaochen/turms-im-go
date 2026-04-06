@@ -16,3 +16,5 @@ claude_worker_batch_*
 claude_prompt.txt
 patch.diff
 build_output.log
+
+temp_task.md
