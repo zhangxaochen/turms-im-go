@@ -1,38 +1,25 @@
 # Mac OS X
 .DS_Store
 
-# Go
-bin/
-obj/
-*.test
-
-# IDEs
-.idea/
-.vscode/
-
-# Other
-coverage.out
-claude_worker_batch_*
-claude_prompt.txt
-patch.diff
-build_output.log
-
-# Mac OS X
-.DS_Store
-*.swp
-*.suo
-*.tgz
-
 # IDEs
 .idea/
 .vscode/
 *.code-workspace
 
+# Go
+bin/
+obj/
+*.test
+coverage.out
+
+# Tooling / Scripts / Logs
+*.swp
+*.suo
+*.tgz
 claude_worker_batch_*
 claude_prompt.txt
 patch.diff
 build_output.log
-
 temp_task.md
 run_agent.sh
 temp_prompt.txt
