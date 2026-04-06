@@ -8651,11 +8651,11 @@ Here is the consolidated bug list:
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## estimateSize()
-- [ ] **Different base return value**: The Java `estimateSize()` returns a hardcoded `0`, while the Go `EstimateSize()` returns `16` plus the protocol operation's estimated size. The Java version does not compute or delegate to the protocol operation's size at all.
+- [x] **Different base return value**: The Java `estimateSize()` returns a hardcoded `0`, while the Go `EstimateSize()` returns `16` plus the protocol operation's estimated size. The Java version does not compute or delegate to the protocol operation's size at all.
 
 ## WriteTo()
-- [ ] **Missing controls serialization**: The Java `writeTo()` serializes the `controls` list when non-empty: it writes a `LdapTagConst.CONTROLS`-tagged sequence, iterates over controls, and for each control writes its OID as an octet string and its criticality as a boolean if true. The Go `WriteTo()` completely omits any controls handling — it only writes the message ID and protocol operation.
-- [ ] **Silent no-op on nil/non-writeable ProtocolOp**: The Go code uses a type assertion `m.ProtocolOp.(interface{ WriteTo(*asn1.BerBuffer) })` and silently skips writing the protocol operation if the assertion fails. The Java code unconditionally calls `protocolOperation.writeTo(buffer)`, which would throw a NullPointerException if `protocolOperation` were null — there is no silent fallback.
+- [x] **Missing controls serialization**: The Java `writeTo()` serializes the `controls` list when non-empty: it writes a `LdapTagConst.CONTROLS`-tagged sequence, iterates over controls, and for each control writes its OID as an octet string and its criticality as a boolean if true. The Go `WriteTo()` completely omits any controls handling — it only writes the message ID and protocol operation.
+- [x] **Silent no-op on nil/non-writeable ProtocolOp**: The Go code uses a type assertion `m.ProtocolOp.(interface{ WriteTo(*asn1.BerBuffer) })` and silently skips writing the protocol operation if the assertion fails. The Java code unconditionally calls `protocolOperation.writeTo(buffer)`, which would throw a NullPointerException if `protocolOperation` were null — there is no silent fallback.
 
 # Control.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -8664,11 +8664,11 @@ Now I have all the information needed to compare the two implementations. Let me
 
 ## DecodeControls
 
-- [ ] **Missing bounded loop: Java uses `isReadableWithEnd(end)` but Go uses `isReadable()` — the loop in Go does not respect the outer Controls SEQUENCE length boundary.** In Java (line 48-50), after reading the Controls tag and length, it computes `end = buffer.readerIndex() + length` and uses `while (buffer.isReadableWithEnd(end))` to ensure the loop stops at the exact end of the Controls SEQUENCE. In Go (line 126-128), after `SkipTagAndLength()` the length is discarded, and the loop uses `for buffer.IsReadable()` which will continue reading past the Controls SEQUENCE boundary and into whatever bytes follow in the buffer, potentially parsing non-Control data as controls or causing errors.
+- [x] **Missing bounded loop: Java uses `isReadableWithEnd(end)` but Go uses `isReadable()` — the loop in Go does not respect the outer Controls SEQUENCE length boundary.** In Java (line 48-50), after reading the Controls tag and length, it computes `end = buffer.readerIndex() + length` and uses `while (buffer.isReadableWithEnd(end))` to ensure the loop stops at the exact end of the Controls SEQUENCE. In Go (line 126-128), after `SkipTagAndLength()` the length is discarded, and the loop uses `for buffer.IsReadable()` which will continue reading past the Controls SEQUENCE boundary and into whatever bytes follow in the buffer, potentially parsing non-Control data as controls or causing errors.
 
-- [ ] **Missing null-check on `oid` before appending to the controls list.** In Java (lines 72-74), there is an explicit `if (oid != null)` guard before adding a Control to the list. In Go (line 139), `controls = append(controls, Control{OID: oid, Criticality: criticality})` appends unconditionally. While `ReadOctetString` returning an empty string rather than nil may make this less critical in practice, it is a behavioral difference — an empty-string OID would be added in Go but not in Java (where a null OID would be skipped).
+- [x] **Missing null-check on `oid` before appending to the controls list.** In Java (lines 72-74), there is an explicit `if (oid != null)` guard before adding a Control to the list. In Go (line 139), `controls = append(controls, Control{OID: oid, Criticality: criticality})` appends unconditionally. While `ReadOctetString` returning an empty string rather than nil may make this less critical in practice, it is a behavioral difference — an empty-string OID would be added in Go but not in Java (where a null OID would be skipped).
 
-- [ ] **Outer `readTag()` + `readLength()` is replaced by `SkipTagAndLength()`, discarding the length that Java uses to bound the loop.** The Java code calls `buffer.readTag()` on line 47 and `buffer.readLength()` on line 48 explicitly, storing the length in a variable used to compute `end`. The Go code calls `buffer.SkipTagAndLength()` which internally discards the length value. This is the root cause of bug #1 above — the length is needed to create the bounded loop but is thrown away.
+- [x] **Outer `readTag()` + `readLength()` is replaced by `SkipTagAndLength()`, discarding the length that Java uses to bound the loop.** The Java code calls `buffer.readTag()` on line 47 and `buffer.readLength()` on line 48 explicitly, storing the length in a variable used to compute `end`. The Go code calls `buffer.SkipTagAndLength()` which internally discards the length value. This is the root cause of bug #1 above — the length is needed to create the bounded loop but is thrown away.
 
 # BindResponse.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -8687,9 +8687,9 @@ This reveals two distinct bugs:
 
 ## BindResponse.Decode
 
-- [ ] **Bug 1: Missing tag skip** — The Java code calls `buffer.skipTagAndLength()` which skips both the tag byte AND the length, while the Go code calls `buffer.SkipLength()` which only skips the length. This means the Go code is not skipping the protocol operation tag byte (e.g., `0x61` for BindResponse), which will cause the subsequent reads to be off by one byte, reading the tag value as part of the result code enumeration.
+- [x] **Bug 1: Missing tag skip** — The Java code calls `buffer.skipTagAndLength()` which skips both the tag byte AND the length, while the Go code calls `buffer.SkipLength()` which only skips the length. This means the Go code is not skipping the protocol operation tag byte (e.g., `0x61` for BindResponse), which will cause the subsequent reads to be off by one byte, reading the tag value as part of the result code enumeration.
 
-- [ ] **Bug 2: Missing referrals decoding** — The Java `LdapResult.decodeResult()` method handles referrals by checking for a `LdapTagConst.REFERRAL` tag and reading referral URLs if present. The Go `DecodeLdapResult()` function only reads `ResultCode`, `MatchedDN`, and `DiagnosticMessage`, completely omitting any referral handling. This means if the LDAP server returns referrals in a bind response, the Go code will not parse them and the buffer position will be incorrect, corrupting subsequent reads.
+- [x] **Bug 2: Missing referrals decoding** — The Java `LdapResult.decodeResult()` method handles referrals by checking for a `LdapTagConst.REFERRAL` tag and reading referral URLs if present. The Go `DecodeLdapResult()` function only reads `ResultCode`, `MatchedDN`, and `DiagnosticMessage`, completely omitting any referral handling. This means if the LDAP server returns referrals in a bind response, the Go code will not parse them and the buffer position will be incorrect, corrupting subsequent reads.
 
 # ModifyRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
@@ -8698,11 +8698,11 @@ Now I have all the information needed for the comparison.
 
 ## EstimateSize
 
-- [ ] The Java version computes `dn.length() + changes.size() * 32`, which produces a value that scales with the DN length and number of changes. The Go version returns a hardcoded constant `128` that ignores `r.DN` length and `r.Changes` count entirely.
+- [x] The Java version computes `dn.length() + changes.size() * 32`, which produces a value that scales with the DN length and number of changes. The Go version returns a hardcoded constant `128` that ignores `r.DN` length and `r.Changes` count entirely.
 
 ## WriteTo
 
-- [ ] The Go code calls `buffer.BeginSequenceWithTag(0x31)` (SET tag, `0x31`) for the values sequence, but the Java code uses `Asn1IdConst.TAG_SEQUENCE | Asn1IdConst.FORM_CONSTRUCTED` which equals `16 | 0x20 = 0x30` (SEQUENCE tag, `0x30`). The Go code uses `0x31` (SET) instead of `0x30` (SEQUENCE). This writes an incorrect ASN.1 tag for the attribute values sequence.
+- [x] The Go code calls `buffer.BeginSequenceWithTag(0x31)` (SET tag, `0x31`) for the values sequence, but the Java code uses `Asn1IdConst.TAG_SEQUENCE | Asn1IdConst.FORM_CONSTRUCTED` which equals `16 | 0x20 = 0x30` (SEQUENCE tag, `0x30`). The Go code uses `0x31` (SET) instead of `0x30` (SEQUENCE). This writes an incorrect ASN.1 tag for the attribute values sequence.
 
 # ModifyResponse.java
 *Checked methods: decode(BerBuffer buffer)*
@@ -8722,40 +8722,40 @@ The comparison is clear:
 
 ## ModifyResponse.Decode
 
-- [ ] **Missing `SkipTag` call**: The Java version calls `buffer.skipTagAndLength()` which skips both the tag byte and the length, but the Go version only calls `buffer.SkipLength()`, missing the tag skip. This will misalign the buffer read position.
+- [x] **Missing `SkipTag` call**: The Java version calls `buffer.skipTagAndLength()` which skips both the tag byte and the length, but the Go version only calls `buffer.SkipLength()`, missing the tag skip. This will misalign the buffer read position.
 
-- [ ] **Missing referrals parsing**: The Java `LdapResult.decodeResult()` includes referral parsing logic — it checks for a referral tag (`LdapTagConst.REFERRAL`), reads the referral sequence length, and parses individual referral URLs as octet strings. The Go `DecodeLdapResult()` only reads 3 fields (`ResultCode`, `MatchedDN`, `DiagnosticMessage`) and never handles referrals at all. This means the `Referrals` field of `LdapResult` will always be `nil`/empty, and if the server returns a referral, the buffer will be left in an inconsistent state with unread bytes.
+- [x] **Missing referrals parsing**: The Java `LdapResult.decodeResult()` includes referral parsing logic — it checks for a referral tag (`LdapTagConst.REFERRAL`), reads the referral sequence length, and parses individual referral URLs as octet strings. The Go `DecodeLdapResult()` only reads 3 fields (`ResultCode`, `MatchedDN`, `DiagnosticMessage`) and never handles referrals at all. This means the `Referrals` field of `LdapResult` will always be `nil`/empty, and if the server returns a referral, the buffer will be left in an inconsistent state with unread bytes.
 
-- [ ] **Returns void instead of creating a new instance**: The Java `decode` method is a factory that returns a **new** `ModifyResponse` instance. The Go version mutates the receiver (`r`) in-place. While this is a design difference rather than strictly a bug, it changes the usage pattern — callers cannot reuse the `DECODER` constant safely across concurrent or sequential decode operations since it's being mutated rather than creating a fresh instance.
+- [x] **Returns void instead of creating a new instance**: The Java `decode` method is a factory that returns a **new** `ModifyResponse` instance. The Go version mutates the receiver (`r`) in-place. While this is a design difference rather than strictly a bug, it changes the usage pattern — callers cannot reuse the `DECODER` constant safely across concurrent or sequential decode operations since it's being mutated rather than creating a fresh instance.
 
 # Filter.java
 *Checked methods: write(BerBuffer buffer, String filter)*
 
 ## `Filter.Write`
 
-- [ ] **Hardcoded output ignoring the `filter` parameter entirely**: The Go `Write` method at line 233 hardcodes writing `(objectClass=*)` as an equality-match BER sequence every time, completely discarding the `filter string` argument. The Java version at line 57–60 calls `writeFilter` with the actual filter bytes and performs full RFC 4515 filter parsing (handling `&`, `|`, `!`, substring, extensible match, present, greater/less/approximate filters, nested parentheses, escape sequences, attribute description validation, etc.).
-- [ ] **Missing entire `writeFilter` recursive parsing logic**: The Java code has a complete `writeFilter` method (lines 62–133) that parses the filter string character by character, handling parentheses, AND/OR/NOT sets, balance tracking, and unbalanced-parenthesis error detection. None of this logic exists in Go.
-- [ ] **Missing `writeFilterSet` / `writeFilterInSet` for compound filters**: Java handles `(&...)`, `(|...)`, `(!(..))` via `writeFilterSet` and `writeFilterInSet` (lines 406–450), including NOT filter validation (only one child allowed). The Go code has none of this.
-- [ ] **Missing `writeFilter` inner method for simple filter items**: The Java inner `writeFilter(buffer, filter, start, end)` (lines 230–404) parses `attr=value`, `attr<=value`, `attr>=value`, `attr~=value`, `attr:=value`, detects substring vs equality vs present filters, validates attribute descriptions, and handles extensible match. The Go code has none of this.
-- [ ] **Missing `writeSubstringFilter`**: Java handles `attr=*val*` patterns with initial/any/final substring components (lines 452–507). The Go code has none of this.
-- [ ] **Missing `writeExtensibleMatchFilter`**: Java handles extensible match filters with matching rules, `:dn`, and attribute types (lines 509–571). The Go code has none of this.
-- [ ] **Missing `unescapeFilterValue`**: Java handles backslash-hex escape sequences in filter values (lines 136–181). The Go code has none of this.
-- [ ] **Missing `findUnescaped` and `findClosingParenIndex`**: Java has helper methods for finding unescaped `*` characters and matching closing parentheses (lines 183–228). The Go code has none of this.
-- [ ] **Missing all filter type constants**: The Java code defines 9 filter type constants (`TYPE_AND` through `TYPE_PRESENT`), 4 extensible match constants, and 3 substring constants (lines 34–52). The Go code has none of these.
-- [ ] **Missing all validation logic**: The Java code validates attribute descriptions (alphabetic/digit/OID rules), detects consecutive semicolons, invalid trailing characters, unbalanced parentheses, and missing `=` signs — all throwing `LdapException` with appropriate `ResultCode.FILTER_ERROR`. The Go code has none of this.
+- [x] **Hardcoded output ignoring the `filter` parameter entirely**: The Go `Write` method at line 233 hardcodes writing `(objectClass=*)` as an equality-match BER sequence every time, completely discarding the `filter string` argument. The Java version at line 57–60 calls `writeFilter` with the actual filter bytes and performs full RFC 4515 filter parsing (handling `&`, `|`, `!`, substring, extensible match, present, greater/less/approximate filters, nested parentheses, escape sequences, attribute description validation, etc.).
+- [x] **Missing entire `writeFilter` recursive parsing logic**: The Java code has a complete `writeFilter` method (lines 62–133) that parses the filter string character by character, handling parentheses, AND/OR/NOT sets, balance tracking, and unbalanced-parenthesis error detection. None of this logic exists in Go.
+- [x] **Missing `writeFilterSet` / `writeFilterInSet` for compound filters**: Java handles `(&...)`, `(|...)`, `(!(..))` via `writeFilterSet` and `writeFilterInSet` (lines 406–450), including NOT filter validation (only one child allowed). The Go code has none of this.
+- [x] **Missing `writeFilter` inner method for simple filter items**: The Java inner `writeFilter(buffer, filter, start, end)` (lines 230–404) parses `attr=value`, `attr<=value`, `attr>=value`, `attr~=value`, `attr:=value`, detects substring vs equality vs present filters, validates attribute descriptions, and handles extensible match. The Go code has none of this.
+- [x] **Missing `writeSubstringFilter`**: Java handles `attr=*val*` patterns with initial/any/final substring components (lines 452–507). The Go code has none of this.
+- [x] **Missing `writeExtensibleMatchFilter`**: Java handles extensible match filters with matching rules, `:dn`, and attribute types (lines 509–571). The Go code has none of this.
+- [x] **Missing `unescapeFilterValue`**: Java handles backslash-hex escape sequences in filter values (lines 136–181). The Go code has none of this.
+- [x] **Missing `findUnescaped` and `findClosingParenIndex`**: Java has helper methods for finding unescaped `*` characters and matching closing parentheses (lines 183–228). The Go code has none of this.
+- [x] **Missing all filter type constants**: The Java code defines 9 filter type constants (`TYPE_AND` through `TYPE_PRESENT`), 4 extensible match constants, and 3 substring constants (lines 34–52). The Go code has none of these.
+- [x] **Missing all validation logic**: The Java code validates attribute descriptions (alphabetic/digit/OID rules), detects consecutive semicolons, invalid trailing characters, unbalanced parentheses, and missing `=` signs — all throwing `LdapException` with appropriate `ResultCode.FILTER_ERROR`. The Go code has none of this.
 
 # SearchRequest.java
 *Checked methods: estimateSize(), writeTo(BerBuffer buffer)*
 
 ## estimateSize
 
-- [ ] **No bug found** — The Go implementation `return 128` matches the Java implementation `return 128` exactly.
+- [x] **No bug found** — The Go implementation `return 128` matches the Java implementation `return 128` exactly.
 
 ## writeTo
 
-- [ ] **`Filter.Write` completely ignores the `filter` string parameter and hardcodes a single equality-match filter (`objectClass=*`)**. In Java, `Filter.write(buffer, filter)` parses the filter string into BER-encoded LDAP filter elements, supporting AND (`&`), OR (`|`), NOT (`!`), equality, substring, greater, less, approximate, present, and extensible-match filter types with full RFC 4515 compliance (nested parentheses, escape sequences, wildcard handling, etc. — a ~540-line implementation). The Go version at `elements.go:233-238` always writes a hardcoded `(objectClass=*)` equality-match regardless of the `filter` argument passed to `SearchRequest.WriteTo`. This means every `SearchRequest` will search for `objectClass=*` regardless of what `r.Filter` is set to.
+- [x] **`Filter.Write` completely ignores the `filter` string parameter and hardcodes a single equality-match filter (`objectClass=*`)**. In Java, `Filter.write(buffer, filter)` parses the filter string into BER-encoded LDAP filter elements, supporting AND (`&`), OR (`|`), NOT (`!`), equality, substring, greater, less, approximate, present, and extensible-match filter types with full RFC 4515 compliance (nested parentheses, escape sequences, wildcard handling, etc. — a ~540-line implementation). The Go version at `elements.go:233-238` always writes a hardcoded `(objectClass=*)` equality-match regardless of the `filter` argument passed to `SearchRequest.WriteTo`. This means every `SearchRequest` will search for `objectClass=*` regardless of what `r.Filter` is set to.
 
-- [ ] **`Filter.Write` always writes a presence-like filter using tag `0xA3` (TYPE_EQUALITY) for `objectClass=*`**, which is semantically incorrect even for the hardcoded case. In Java, `objectClass=*` would be encoded as a TYPE_PRESENT (`0x87`) filter, not TYPE_EQUALITY (`0xA3`). The Go code writes an equality match with attribute `objectClass` and value `*`, which is not the same as a present filter.
+- [x] **`Filter.Write` always writes a presence-like filter using tag `0xA3` (TYPE_EQUALITY) for `objectClass=*`**, which is semantically incorrect even for the hardcoded case. In Java, `objectClass=*` would be encoded as a TYPE_PRESENT (`0x87`) filter, not TYPE_EQUALITY (`0xA3`). The Go code writes an equality match with attribute `objectClass` and value `*`, which is not the same as a present filter.
 
 # SearchResult.java
 *Checked methods: decode(BerBuffer buffer), isComplete()*
@@ -8764,13 +8764,13 @@ Now I have the full picture. Here are the bugs:
 
 ## decode
 
-- [ ] **Missing referrals parsing in `SEARCH_RESULT_DONE` branch**: The Java code calls `LdapResult.decodeResult(buffer)` which parses `resultCode`, `matchedDn`, `diagnosticMessage`, AND `referrals`. The Go code manually reads only `resultCode`, `matchedDN`, and `diagnosticMsg` but never parses referrals from the buffer. The returned `SearchResult.Referrals` field will always be `nil` in the `SEARCH_RESULT_DONE` case, whereas Java populates it from the wire.
+- [x] **Missing referrals parsing in `SEARCH_RESULT_DONE` branch**: The Java code calls `LdapResult.decodeResult(buffer)` which parses `resultCode`, `matchedDn`, `diagnosticMessage`, AND `referrals`. The Go code manually reads only `resultCode`, `matchedDN`, and `diagnosticMsg` but never parses referrals from the buffer. The returned `SearchResult.Referrals` field will always be `nil` in the `SEARCH_RESULT_DONE` case, whereas Java populates it from the wire.
 
-- [ ] **Guard condition for "not complete yet" is wrong**: The Java code checks `if (entries == null)` — i.e., it checks whether the `entries` field on the DECODER singleton (which has `Collections.emptyList()`) has been replaced. In practice this means it checks whether any entries have been accumulated. The Go code checks `if r == nil`, which is a receiver nil-check. Since Go methods can be called on nil receivers, and the caller likely always passes a non-nil `SearchResult` for accumulation, this check will almost never trigger, producing a different failure mode than the Java version.
+- [x] **Guard condition for "not complete yet" is wrong**: The Java code checks `if (entries == null)` — i.e., it checks whether the `entries` field on the DECODER singleton (which has `Collections.emptyList()`) has been replaced. In practice this means it checks whether any entries have been accumulated. The Go code checks `if r == nil`, which is a receiver nil-check. Since Go methods can be called on nil receivers, and the caller likely always passes a non-nil `SearchResult` for accumulation, this check will almost never trigger, producing a different failure mode than the Java version.
 
 ## IsComplete
 
-- [ ] **Java uses an anonymous class override for `isComplete()` returning `false` on entry, not a stored field**: In the Java `SEARCH_RESULT_ENTRY` branch, the returned `SearchResult` is an anonymous subclass that overrides `isComplete()` to always return `false`. The Go code uses a `complete` bool field set to `false`. While functionally equivalent for the entry case, the default value of `complete` is `false` (Go zero value), meaning a freshly constructed `SearchResult{}` (e.g., via `new(SearchResult)`) will report `IsComplete() == false` even if no decode has occurred. In Java, the base `isComplete()` is not overridden and would need explicit behavior. However, since the Go `SEARCH_RESULT_DONE` branch sets `complete: true` and the `SEARCH_RESULT_ENTRY` branch sets `complete: false`, this is functionally equivalent for the decoded cases. **This is actually fine — no bug here.**
+- [x] **Java uses an anonymous class override for `isComplete()` returning `false` on entry, not a stored field**: In the Java `SEARCH_RESULT_ENTRY` branch, the returned `SearchResult` is an anonymous subclass that overrides `isComplete()` to always return `false`. The Go code uses a `complete` bool field set to `false`. While functionally equivalent for the entry case, the default value of `complete` is `false` (Go zero value), meaning a freshly constructed `SearchResult{}` (e.g., via `new(SearchResult)`) will report `IsComplete() == false` even if no decode has occurred. In Java, the base `isComplete()` is not overridden and would need explicit behavior. However, since the Go `SEARCH_RESULT_DONE` branch sets `complete: true` and the `SEARCH_RESULT_ENTRY` branch sets `complete: false`, this is functionally equivalent for the decoded cases. **This is actually fine — no bug here.**
 
 # NotificationLoggingManager.java
 *Checked methods: log(SimpleTurmsNotification notification, int notificationBytes, int recipientCount, int onlineRecipientCount)*
@@ -8779,9 +8779,9 @@ Now I have a clear picture. Let me verify one more detail — the Java `TurmsReq
 
 ## Log
 
-- [ ] **Bug: `relayedRequestType` logged as numeric integer instead of enum name string.** In Java, `notification.relayedRequestType().name()` outputs the **enum name** (e.g., `"CREATE_SESSION_REQUEST"`, `"KIND_NOT_SET"`). The Go code formats it as a decimal integer via `fmt.Sprintf("%d", n.RelayedRequestType)` (e.g., `"3"`). This produces different log output — the Java log would contain the human-readable enum name like `CREATE_MESSAGE_REQUEST`, while the Go log contains the raw protobuf field number like `5`.
+- [x] **Bug: `relayedRequestType` logged as numeric integer instead of enum name string.** In Java, `notification.relayedRequestType().name()` outputs the **enum name** (e.g., `"CREATE_SESSION_REQUEST"`, `"KIND_NOT_SET"`). The Go code formats it as a decimal integer via `fmt.Sprintf("%d", n.RelayedRequestType)` (e.g., `"3"`). This produces different log output — the Java log would contain the human-readable enum name like `CREATE_MESSAGE_REQUEST`, while the Go log contains the raw protobuf field number like `5`.
 
-- [ ] **Bug: `relayedRequestType` is never logged as `"null"` in Java.** In Java, `TurmsRequest.KindCase` is an enum, and `KIND_NOT_SET` (the default/unset case) has `.name()` returning `"KIND_NOT_SET"`. The Go code checks `if n.RelayedRequestType != 0` and substitutes `"null"` when zero. But in Java, `KIND_NOT_SET` would be logged as the literal string `"KIND_NOT_SET"`, not `"null"`. This is a behavioral difference — the Go code will log `"null"` where Java would log `"KIND_NOT_SET"`.
+- [x] **Bug: `relayedRequestType` is never logged as `"null"` in Java.** In Java, `TurmsRequest.KindCase` is an enum, and `KIND_NOT_SET` (the default/unset case) has `.name()` returning `"KIND_NOT_SET"`. The Go code checks `if n.RelayedRequestType != 0` and substitutes `"null"` when zero. But in Java, `KIND_NOT_SET` would be logged as the literal string `"KIND_NOT_SET"`, not `"null"`. This is a behavioral difference — the Go code will log `"null"` where Java would log `"KIND_NOT_SET"`.
 
 - [ ] **Bug: `closeStatus` is formatted as a string, losing `ByteBufUtil.join` integer rendering parity.** In Java, `closeStatus` is passed as an `Integer` object to `ByteBufUtil.join`, which renders it as its numeric character bytes. The Go code formats it as `fmt.Sprintf("%d", *n.CloseStatus)` and then passes the resulting string through `joinFields`, which calls `fmt.Sprintf("%v", f)` on it again. While the double-formatting of a string is a no-op (string → `"%v"` → same string), this means `closeStatus` is always rendered as a string like `"200"` rather than being rendered as a raw integer by the join. This is functionally correct but represents a type inconsistency in the `joinFields` call (mixing pre-formatted strings with raw values).
 
