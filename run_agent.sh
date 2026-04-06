@@ -1,6 +1,6 @@
 #!/bin/bash
-MAX_RETRIES=5
-DELAY=15
+MAX_RETRIES=15
+DELAY=60
 count=0
 
 echo "Starting Claude Sub-agent..."
@@ -21,22 +21,23 @@ while [ $count -lt $MAX_RETRIES ]; do
         while true; do
             cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-go"
             
-            # 使用 flock 排队尝试 Merge
-            (
-                flock -x 200
-                echo "[$(date)] Attempting merge for feature/fix-batch-0 into main..."
-                if git merge "feature/fix-batch-0" --no-edit -m "Merge auto-fix batch 0 into main"; then
-                    echo "SUCCESS" > .git/merge_result_batch_0
-                else
-                    echo "[!] Conflict detected. Aborting merge."
-                    git merge --abort
-                    echo "CONFLICT" > .git/merge_result_batch_0
-                fi
-            ) 200>.git/merge_lock.lock
-
-            MERGE_RESULT=$(cat .git/merge_result_batch_0)
-            rm -f .git/merge_result_batch_0
-
+            # 使用 mkdir 实现全平台(特别是 macOS)兼容的原子锁排队
+            while ! mkdir .git/merge_lock_dir 2>/dev/null; do
+                sleep 2
+            done
+            
+            echo "[$(date)] Attempting merge for feature/fix-batch-0 into main..."
+            if git merge "feature/fix-batch-0" --no-edit -m "Merge auto-fix batch 0 into main"; then
+                MERGE_RESULT="SUCCESS"
+            else
+                echo "[!] Conflict detected. Aborting merge."
+                git merge --abort
+                MERGE_RESULT="CONFLICT"
+            fi
+            
+            # 取出结果后立刻放行排队
+            rmdir .git/merge_lock_dir
+            
             if [ "$MERGE_RESULT" = "SUCCESS" ]; then
                 echo "[$(date)] Successfully merged batch 0 into main."
                 break
