@@ -21,18 +21,17 @@ var (
 	ErrPermissionDenied  = errors.New("permission denied")
 )
 
-const RootRoleID int64 = 0
-const RootAdminID int64 = 0
+const (
+	RootRoleID int64 = 0
+	RootAdminID int64 = 0
 
-// MinRoleNameLimit and MaxRoleNameLimit define the valid length range for role names.
-const MinRoleNameLimit = 1
-const MaxRoleNameLimit = 32
+	// rootRoleRank is the rank of the root role (Integer.MAX_VALUE in Java).
+	rootRoleRank = int(^uint(0) >> 1)
 
-// rootRoleRank is the rank of the root role (Integer.MAX_VALUE in Java).
-const rootRoleRank = int(^uint(0) >> 1)
-
-// rootRoleRankValue is a variable copy of rootRoleRank for taking its address.
-var rootRoleRankValue = rootRoleRank
+	// MinRoleNameLimit and MaxRoleNameLimit match Java's MIN_ROLE_NAME_LIMIT and MAX_ROLE_NAME_LIMIT.
+	MinRoleNameLimit = 1
+	MaxRoleNameLimit = 32
+)
 
 // rootRole is the in-memory root admin role (not stored in DB).
 var rootRole = &po.AdminRole{
@@ -42,9 +41,14 @@ var rootRole = &po.AdminRole{
 	Rank:        rootRoleRank,
 }
 
-// getRootRole returns the in-memory root admin role.
+// getRootRole returns a copy of the in-memory root admin role.
 func getRootRole() *po.AdminRole {
-	return rootRole
+	return &po.AdminRole{
+		ID:          RootRoleID,
+		Name:        "ROOT",
+		Permissions: permission.AllAdminPermissions,
+		Rank:        rootRoleRank,
+	}
 }
 
 // randomAlphabetic generates a random alphabetic string of the given length.
@@ -363,7 +367,7 @@ func (s *adminRoleService) QueryAdminRoles(ctx context.Context, ids []int64, nam
 	if isRootRoleQualified(ids, names, includedPermissions, ranks) {
 		// Prepend root role
 		result := make([]*po.AdminRole, 0, len(roles)+1)
-		result = append(result, rootRole)
+		result = append(result, getRootRole())
 		result = append(result, roles...)
 		return result, nil
 	}
@@ -401,7 +405,7 @@ func isRootRoleQualified(ids []int64, names []string, includedPermissions []perm
 	}
 	// If includedPermissions is specified, check that root role contains all of them
 	if len(includedPermissions) > 0 {
-		root := rootRole
+		root := getRootRole()
 		rootPermSet := make(map[permission.AdminPermission]bool)
 		for _, p := range root.Permissions {
 			rootPermSet[p] = true
@@ -412,11 +416,11 @@ func isRootRoleQualified(ids []int64, names []string, includedPermissions []perm
 			}
 		}
 	}
-	// If ranks is specified, check if root rank (0) is in the list
+	// If ranks is specified, check if root role's rank (rootRoleRank) is in the list
 	if len(ranks) > 0 {
 		found := false
 		for _, r := range ranks {
-			if r == 0 {
+			if r == rootRoleRank {
 				found = true
 				break
 			}
@@ -498,7 +502,8 @@ func (s *adminRoleService) QueryHighestRankByRoleIds(ctx context.Context, roleId
 	// Bug fix: Missing root role handling — if RootRoleID is in roleIds, return MAX_VALUE rank
 	for _, id := range roleIds {
 		if id == RootRoleID {
-			return &rootRoleRankValue, nil
+			r := rootRoleRank
+			return &r, nil
 		}
 	}
 	return s.repo.FindHighestRankByRoleIds(ctx, roleIds)
@@ -718,10 +723,12 @@ func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string
 		rawPassword = randomAlphabetic(10)
 	}
 
-	// Default displayName to loginName if nil or empty
-	if displayName == nil || *displayName == "" {
-		name := loginName
-		displayName = &name
+	// Bug fix: Default displayName to loginName if nil or empty
+	displayNameStr := ""
+	if displayName != nil && *displayName != "" {
+		displayNameStr = *displayName
+	} else {
+		displayNameStr = loginName
 	}
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.DefaultCost)
@@ -739,7 +746,7 @@ func (s *adminService) AddAdmin(ctx context.Context, id *int64, loginName string
 		ID:               adminID,
 		LoginName:        loginName,
 		Password:         hashed,
-		DisplayName:      displayName,
+		DisplayName:      &displayNameStr,
 		RoleIDs:          roleIds,
 		RegistrationDate: regDate,
 	}
