@@ -30,7 +30,7 @@ const { execSync, spawn } = require('child_process');
     const content = fs.readFileSync(markdownUrl, 'utf-8');
 
     // 匹配起始锚点
-    const anchor = "- [ ] **Empty string treated as nil**: Line 47 checks ";
+    const anchor = "- [ ]";
     const anchorIndex = content.indexOf(anchor);
 
     if (anchorIndex === -1) {
@@ -138,16 +138,62 @@ while [ $count -lt $MAX_RETRIES ]; do
         git add .
         git commit -m "fix(automation): resolve parity bugs for batch ${i}" || true
         
-        # 2. 回到主代码库合并到 main 分支（使用 flock 排队防止并发 merge 导致 Git 锁文件崩溃）
-        cd "${projectRoot}"
-        (
-            flock -x 200
-            echo "[$(date)] Merging feature/fix-batch-${i} into main..."
-            git merge "feature/fix-batch-${i}" --no-edit -m "Merge auto-fix batch ${i} into main" || {
-                echo "[!] Merge conflict detected for batch ${i}. Aborting merge, please resolve manually."
-                git merge --abort
+        # 2. 回到主分支执行安全的合并。遇到冲突则让 AI 进行 Rebase + Self-Heal 自动修复
+        while true; do
+            cd "${projectRoot}"
+            
+            # 使用 flock 排队尝试 Merge
+            (
+                flock -x 200
+                echo "[$(date)] Attempting merge for feature/fix-batch-${i} into main..."
+                if git merge "feature/fix-batch-${i}" --no-edit -m "Merge auto-fix batch ${i} into main"; then
+                    echo "SUCCESS" > .git/merge_result_batch_${i}
+                else
+                    echo "[!] Conflict detected. Aborting merge."
+                    git merge --abort
+                    echo "CONFLICT" > .git/merge_result_batch_${i}
+                fi
+            ) 200>.git/merge_lock.lock
+            
+            MERGE_RESULT=$(cat .git/merge_result_batch_${i})
+            rm -f .git/merge_result_batch_${i}
+            
+            if [ "$MERGE_RESULT" = "SUCCESS" ]; then
+                echo "[$(date)] Successfully merged batch ${i} into main."
+                break
+            fi
+            
+            echo "[$(date)] Merge conflict! Initiating Sub-Agent Self-Heal Rebase..."
+            cd "${worktreePath}"
+            
+            # 开始 Rebase main
+            git rebase main || {
+                # 触发大模型自动修复冲突
+                echo "[$(date)] Handing over to Claude for conflict resolution..."
+                claude -p --dangerously-skip-permissions "A git rebase conflict was detected in feature/fix-batch-${i}.
+Please resolve it. Here is the current status:
+$(git status)
+
+And the unmerged diff:
+$(git diff --diff-filter=U)
+
+You MUST:
+1. Search and open the conflicted files to understand the collision.
+2. Fix all conflict markers (<<<<<<< ======= >>>>>>>), keeping our bug fixes while incorporating main's latest code.
+3. Run 'git add .' to stage the resolved files.
+4. Run 'git rebase --continue' to finalize the conflict resolution.
+Do NOT attempt to run standard git merge. Finish the rebase process. Keep your thoughts and logs concise."
+                
+                # 检查大模型是否成功继续了 rebase
+                if git rebase --show-current-patch >/dev/null 2>&1 || [ -d "${worktreePath}/.git/rebase-merge" ]; then
+                    echo "[!] Claude failed to finish the rebase. Aborting pipeline."
+                    git rebase --abort
+                    exit 1
+                fi
             }
-        ) 200>.git/merge_lock.lock
+            
+            echo "[$(date)] Self-Heal Rebase complete. Loop will retry the merge."
+        done
         
         echo "[$(date)] Pipeline for batch ${i} complete."
         exit 0
