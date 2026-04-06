@@ -32,9 +32,13 @@ func (r *PrivateConversationRepository) Upsert(ctx context.Context, keys []po.Pr
 		"_id": bson.M{"$in": keys},
 	}
 	if !allowMoveForward {
+		// Bug fix: Java parity — Java's ltOrNull produces:
+		//   {$or: [{rd: null}, {rd: {$lt: readDate}}]}
+		// where {rd: null} matches both missing fields AND explicitly null values.
+		// Previously Go used $exists: false which only matches missing fields.
 		filter["$or"] = []bson.M{
+			{"rd": nil},
 			{"rd": bson.M{"$lt": readDate}},
-			{"rd": bson.M{"$exists": false}},
 		}
 	}
 	update := bson.M{

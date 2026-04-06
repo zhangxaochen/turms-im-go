@@ -28,16 +28,14 @@ func (r *GroupConversationRepository) Upsert(ctx context.Context, groupID int64,
 	filter := bson.M{"_id": groupID}
 	fieldKey := fmt.Sprintf("mr.%d", memberID)
 	if !allowMoveForward {
-		filter[fieldKey] = bson.M{"$lt": readDate}
-		// Actually Java uses `filter.ltOrNull(fieldKey, readDate)`.
-		// In MongoDB that would be `{$or: [{fieldKey: {$lt: readDate}}, {fieldKey: {$exists: false}}]}`
-		// But since we are doing Upsert, if the document doesn't exist, it will be created.
-		// If the document exists but the field doesn't, we want to set it.
+		// Bug fix: Java parity — Java's ltOrNull produces:
+		//   {$or: [{fieldKey: null}, {fieldKey: {$lt: readDate}}]}
+		// where {fieldKey: null} matches both missing fields AND explicitly null values.
+		// Previously Go used $exists: false which only matches missing fields.
 		filter["$or"] = []bson.M{
+			{fieldKey: nil},
 			{fieldKey: bson.M{"$lt": readDate}},
-			{fieldKey: bson.M{"$exists": false}},
 		}
-		delete(filter, fieldKey)
 	}
 
 	update := bson.M{

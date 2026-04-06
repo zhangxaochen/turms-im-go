@@ -126,9 +126,9 @@ func (c *ConversationServiceController) HandleUpdateConversationRequest(ctx cont
 	if targetID == nil && groupID == nil {
 		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), nil
 	}
-	if targetID != nil && groupID != nil {
-		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), nil
-	}
+	// Bug fix: Java parity — Java has no check rejecting both targetID and groupID
+	// being present. When both are set, Java takes the private conversation path
+	// because hasUserId is true. Removed the ILLEGAL_ARGUMENT check for this case.
 
 	readDate := time.UnixMilli(updateRequest.GetReadDate())
 	if targetID != nil {
@@ -233,20 +233,23 @@ func (c *ConversationSettingsServiceController) HandleUpdateConversationSettings
 		settings[k] = protoValueToAny(v)
 	}
 
-	if updateRequest.GroupId != nil {
-		updated, err := c.service.UpsertGroupConversationSettings(ctx, request.UserId, updateRequest.GetGroupId(), settings)
-		if err != nil {
-			return nil, err
-		}
-		if updated && c.propertiesManager.GetLocalProperties().Service.Notification.GroupConversationSettingUpdated.NotifyRequesterOtherOnlineSessions {
-			return dto.RequestHandlerResultOfForwardNotification(true, request.TurmsRequest), nil
-		}
-	} else if updateRequest.UserId != nil {
+	// Bug fix: Java parity — Java checks hasUserId first (private takes priority).
+	// Previously Go checked GroupId first, which reversed the priority.
+	// If both userId and groupId are present, Java takes the private path.
+	if updateRequest.UserId != nil {
 		updated, err := c.service.UpsertPrivateConversationSettings(ctx, request.UserId, updateRequest.GetUserId(), settings)
 		if err != nil {
 			return nil, err
 		}
 		if updated && c.propertiesManager.GetLocalProperties().Service.Notification.PrivateConversationSettingUpdated.NotifyRequesterOtherOnlineSessions {
+			return dto.RequestHandlerResultOfForwardNotification(true, request.TurmsRequest), nil
+		}
+	} else if updateRequest.GroupId != nil {
+		updated, err := c.service.UpsertGroupConversationSettings(ctx, request.UserId, updateRequest.GetGroupId(), settings)
+		if err != nil {
+			return nil, err
+		}
+		if updated && c.propertiesManager.GetLocalProperties().Service.Notification.GroupConversationSettingUpdated.NotifyRequesterOtherOnlineSessions {
 			return dto.RequestHandlerResultOfForwardNotification(true, request.TurmsRequest), nil
 		}
 	} else {
@@ -266,15 +269,16 @@ func (c *ConversationSettingsServiceController) HandleDeleteConversationSettings
 	if err != nil {
 		return nil, err
 	}
-	if deleted {
-		hasUserId := len(userIds) > 0
-		hasGroupId := len(groupIds) > 0
-		if (hasUserId && c.propertiesManager.GetLocalProperties().Service.Notification.PrivateConversationSettingDeleted.NotifyRequesterOtherOnlineSessions) ||
-			(hasGroupId && c.propertiesManager.GetLocalProperties().Service.Notification.GroupConversationSettingDeleted.NotifyRequesterOtherOnlineSessions) {
-			return dto.RequestHandlerResultOfForwardNotification(true, request.TurmsRequest), nil
-		}
-	}
-	return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_OK), nil
+	// Bug fix: Java parity — Java always creates a notification object via
+	// RequestHandlerResult.of(deleted && (notifyCondition), turmsRequest).
+	// The boolean determines forwardToRequesterOtherOnlineSessions. When false,
+	// it still includes a notification with forward=false. Go previously returned
+	// OK with no notification when deleted was false or condition was false.
+	hasUserId := len(userIds) > 0
+	hasGroupId := len(groupIds) > 0
+	notify := deleted && ((hasUserId && c.propertiesManager.GetLocalProperties().Service.Notification.PrivateConversationSettingDeleted.NotifyRequesterOtherOnlineSessions) ||
+		(hasGroupId && c.propertiesManager.GetLocalProperties().Service.Notification.GroupConversationSettingDeleted.NotifyRequesterOtherOnlineSessions))
+	return dto.RequestHandlerResultOfForwardNotification(notify, request.TurmsRequest), nil
 }
 
 // @MappedFrom handleQueryConversationSettingsRequest()
@@ -294,10 +298,8 @@ func (c *ConversationSettingsServiceController) HandleQueryConversationSettingsR
 	if err != nil {
 		return nil, err
 	}
-	if len(poSettingsList) == 0 {
-		return dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_NO_CONTENT), nil
-	}
-
+	// Bug fix: Java parity — Java always returns OK with a ConversationSettingsList,
+	// even if empty. Previously Go returned NO_CONTENT for empty results.
 	protoSettingsList := make([]*protocol.ConversationSettings, len(poSettingsList))
 	for i, s := range poSettingsList {
 		protoSettingsList[i] = c.poSettingsToProto(s)
