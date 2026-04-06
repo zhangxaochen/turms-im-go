@@ -15,7 +15,7 @@ while [ $count -lt $MAX_RETRIES ]; do
         echo "[$(date)] Agent finished successfully. Attempting to commit and merge..."
         # 1. 兜底提交（防止 Claude 忘了主动跑 Commit 命令）
         git add .
-        git commit -m "fix(automation): resolve parity bugs for batch 2" || true
+        git commit -m "fix(automation): resolve parity bugs for batch 10" || true
 
         # 2. 回到主分支执行安全的合并。遇到冲突则让 AI 进行 Rebase + Self-Heal 自动修复
         while true; do
@@ -24,32 +24,32 @@ while [ $count -lt $MAX_RETRIES ]; do
             # 使用 flock 排队尝试 Merge
             (
                 flock -x 200
-                echo "[$(date)] Attempting merge for feature/fix-batch-2 into main..."
-                if git merge "feature/fix-batch-2" --no-edit -m "Merge auto-fix batch 2 into main"; then
-                    echo "SUCCESS" > .git/merge_result_batch_2
+                echo "[$(date)] Attempting merge for feature/fix-batch-10 into main..."
+                if git merge "feature/fix-batch-10" --no-edit -m "Merge auto-fix batch 10 into main"; then
+                    echo "SUCCESS" > .git/merge_result_batch_10
                 else
                     echo "[!] Conflict detected. Aborting merge."
                     git merge --abort
-                    echo "CONFLICT" > .git/merge_result_batch_2
+                    echo "CONFLICT" > .git/merge_result_batch_10
                 fi
             ) 200>.git/merge_lock.lock
 
-            MERGE_RESULT=$(cat .git/merge_result_batch_2)
-            rm -f .git/merge_result_batch_2
+            MERGE_RESULT=$(cat .git/merge_result_batch_10)
+            rm -f .git/merge_result_batch_10
 
             if [ "$MERGE_RESULT" = "SUCCESS" ]; then
-                echo "[$(date)] Successfully merged batch 2 into main."
+                echo "[$(date)] Successfully merged batch 10 into main."
                 break
             fi
 
             echo "[$(date)] Merge conflict! Initiating Sub-Agent Self-Heal Rebase..."
-            cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-2"
+            cd "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-10"
 
             # 开始 Rebase main
             git rebase main || {
                 # 触发大模型自动修复冲突
                 echo "[$(date)] Handing over to Claude for conflict resolution..."
-                claude -p --dangerously-skip-permissions "A git rebase conflict was detected in feature/fix-batch-2.
+                claude -p --dangerously-skip-permissions "A git rebase conflict was detected in feature/fix-batch-10.
 Please resolve it. Here is the current status:
 $(git status)
 
@@ -64,7 +64,7 @@ You MUST:
 Do NOT attempt to run standard git merge. Finish the rebase process. Keep your thoughts and logs concise."
 
                 # 检查大模型是否成功继续了 rebase
-                if git rebase --show-current-patch >/dev/null 2>&1 || [ -d "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-2/.git/rebase-merge" ]; then
+                if git rebase --show-current-patch >/dev/null 2>&1 || [ -d "/Users/11176728/gemini-cli/dev-turms-im-refactor/turms-worker-batch-10/.git/rebase-merge" ]; then
                     echo "[!] Claude failed to finish the rebase. Aborting pipeline."
                     git rebase --abort
                     exit 1
@@ -74,7 +74,7 @@ Do NOT attempt to run standard git merge. Finish the rebase process. Keep your t
             echo "[$(date)] Self-Heal Rebase complete. Loop will retry the merge."
         done
 
-        echo "[$(date)] Pipeline for batch 2 complete."
+        echo "[$(date)] Pipeline for batch 10 complete."
         exit 0
     fi
 
