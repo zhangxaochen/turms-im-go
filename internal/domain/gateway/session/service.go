@@ -586,6 +586,11 @@ func (s *SessionService) CloseLocalSessions(ctx context.Context, userIds []int64
 				})
 			}
 		}
+		for userId := range ipUserSet {
+			// nil deviceTypes means ALL device types (matches Java: ALL_AVAILABLE_DEVICE_TYPES_SET)
+			n, _ := s.CloseLocalSession(ctx, userId, nil, closeReason)
+			totalCount += n
+		}
 	}
 
 	return totalCount, nil
@@ -711,6 +716,8 @@ func (s *SessionService) UpdateLocalSession(ctx context.Context, userId int64, d
 		session.Location = &sessionbo.UserLocation{
 			Longitude: location.Longitude,
 			Latitude:  location.Latitude,
+			Timestamp: location.Timestamp,
+			Details:   location.Details,
 		}
 	}
 	return nil
