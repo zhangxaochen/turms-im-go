@@ -17,6 +17,22 @@ claude_prompt.txt
 patch.diff
 build_output.log
 
+# Mac OS X
+.DS_Store
+*.swp
+*.suo
+*.tgz
+
+# IDEs
+.idea/
+.vscode/
+*.code-workspace
+
+claude_worker_batch_*
+claude_prompt.txt
+patch.diff
+build_output.log
+
 temp_task.md
 run_agent.sh
 temp_prompt.txt
