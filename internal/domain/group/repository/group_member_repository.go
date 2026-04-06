@@ -28,15 +28,11 @@ func NewGroupMemberRepository(client *turmsmongo.Client) *GroupMemberRepository 
 	}
 }
 
-// AddGroupMember adds a member to a group or updates their role.
-// @MappedFrom addGroupMember(@RequestBody AddGroupMemberDTO addGroupMemberDTO)
-// @MappedFrom addGroupMember(@NotNull Long groupId, @NotNull Long userId, @NotNull @ValidGroupMemberRole GroupMemberRole groupMemberRole, @Nullable String name, @Nullable @PastOrPresent Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session)
+// AddGroupMember inserts a new member to a group.
+// BUG FIX: Uses InsertOne instead of UpdateOne with upsert.
+// Java uses insert() which fails on duplicate keys, preserving data integrity.
 func (r *GroupMemberRepository) AddGroupMember(ctx context.Context, member *po.GroupMember) error {
-	opts := options.Update().SetUpsert(true)
-	filter := bson.M{"_id": member.ID}
-	update := bson.M{"$set": member}
-
-	_, err := r.col.UpdateOne(ctx, filter, update, opts)
+	_, err := r.col.InsertOne(ctx, member)
 	return err
 }
 

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"im.turms/server/internal/domain/group/constant"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 )
@@ -87,4 +88,11 @@ func (s *GroupTypeService) GroupTypeExists(ctx context.Context, groupTypeID int6
 // @MappedFrom countGroupTypes()
 func (s *GroupTypeService) CountGroupTypes(ctx context.Context) (int64, error) {
 	return s.groupTypeRepo.CountGroupTypes(ctx)
+}
+
+// UpdateGroupTypesWithPointers passes nullable field pointers directly to the repository.
+// Unlike UpdateGroupTypes which takes a *po.GroupType and always sets all fields (even zero values),
+// this method only updates fields that are explicitly provided (non-nil).
+func (s *GroupTypeService) UpdateGroupTypesWithPointers(ctx context.Context, ids []int64, name *string, groupSizeLimit *int32, invitationStrategy *constant.GroupInvitationStrategy, joinStrategy *constant.GroupJoinStrategy, groupInfoUpdateStrategy *constant.GroupUpdateStrategy, memberInfoUpdateStrategy *constant.GroupUpdateStrategy, guestSpeakable *bool, selfInfoUpdatable *bool, enableReadReceipt *bool, messageEditable *bool) error {
+	return s.groupTypeRepo.UpdateTypes(ctx, ids, name, groupSizeLimit, invitationStrategy, joinStrategy, groupInfoUpdateStrategy, memberInfoUpdateStrategy, guestSpeakable, selfInfoUpdatable, enableReadReceipt, messageEditable)
 }
