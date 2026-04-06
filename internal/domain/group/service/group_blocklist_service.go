@@ -32,7 +32,7 @@ func (s *GroupBlocklistService) SetGroupMemberService(groupMemberService *GroupM
 	s.groupMemberService = groupMemberService
 }
 
-// BlockUser blocks a user from a group.
+// BlockUser blocks a user from a group without authorization checks.
 // @MappedFrom blockUser(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long userIdToBlock, @Nullable ClientSession session)
 func (s *GroupBlocklistService) BlockUser(ctx context.Context, groupID int64, userID int64, requesterID int64) error {
 	now := time.Now()
