@@ -54,7 +54,8 @@ func (s *ConversationSettingsService) UpsertGroupConversationSettings(ctx contex
 	if len(settings) == 0 {
 		return false, nil
 	}
-	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupId, ownerId)
+	// Bug fix: Use active-only check matching Java's isGroupMember(groupId, userId, true)
+	isMember, err := s.groupMemberService.IsGroupMember(ctx, groupId, ownerId, true)
 	if err != nil {
 		return false, err
 	}
