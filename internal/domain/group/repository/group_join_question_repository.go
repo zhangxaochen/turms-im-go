@@ -22,6 +22,7 @@ type GroupJoinQuestionRepository interface {
 	UpdateQuestions(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int) error
 	CheckQuestionAnswerAndGetScore(ctx context.Context, questionID int64, answer string, groupID *int64) (*int, error)
 	FindGroupId(ctx context.Context, questionID int64) (*int64, error)
+	DeleteByIds(ctx context.Context, ids []int64) error
 }
 
 type groupJoinQuestionRepository struct {
@@ -200,4 +201,14 @@ func (r *groupJoinQuestionRepository) FindGroupId(ctx context.Context, questionI
 		return nil, err
 	}
 	return &result.GroupID, nil
+}
+
+// DeleteByIds performs a batch delete of questions by their IDs.
+func (r *groupJoinQuestionRepository) DeleteByIds(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	_, err := r.coll.DeleteMany(ctx, filter)
+	return err
 }

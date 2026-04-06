@@ -379,3 +379,33 @@ func (s *GroupQuestionService) UpdateQuestions(ctx context.Context, ids []int64,
 	}
 	return nil
 }
+
+// CreateGroupJoinQuestion creates a question directly (admin-level, no ownership check).
+func (s *GroupQuestionService) CreateGroupJoinQuestion(ctx context.Context, id int64, groupID int64, question string, answers []string, score int) (*po.GroupJoinQuestion, error) {
+	q := &po.GroupJoinQuestion{
+		ID:       id,
+		GroupID:  groupID,
+		Question: question,
+		Answers:  answers,
+		Score:    score,
+	}
+	err := s.questionRepo.Insert(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return q, nil
+}
+
+// UpdateQuestionsNoVersion updates questions without updating the group version
+// (matching Java behavior where updateGroupJoinQuestions does NOT update the version)
+func (s *GroupQuestionService) UpdateQuestionsNoVersion(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int) error {
+	return s.questionRepo.UpdateQuestions(ctx, ids, groupID, question, answers, score)
+}
+
+// DeleteQuestions performs a batch delete of questions by IDs
+func (s *GroupQuestionService) DeleteQuestions(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	return s.questionRepo.DeleteByIds(ctx, ids)
+}

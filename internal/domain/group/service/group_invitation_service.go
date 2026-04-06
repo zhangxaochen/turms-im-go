@@ -416,3 +416,9 @@ func (s *GroupInvitationService) ReplyToInvitation(ctx context.Context, invitati
 	err := s.AuthAndHandleInvitation(ctx, inviteeID, invitationID, status, "")
 	return err == nil, err
 }
+
+// GetEntityExpirationDate returns the entity expiration date for response wrapping
+func (s *GroupInvitationService) GetEntityExpirationDate(ctx context.Context) *time.Time {
+	// Returns nil for now - the expiration date is managed by the turms-properties configuration
+	return nil
+}
