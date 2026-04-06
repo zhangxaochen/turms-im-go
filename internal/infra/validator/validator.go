@@ -250,18 +250,14 @@ func ValidGroupBlockedUserKey(key interface{}) error {
 // ValidNewGroupQuestion validates a NewGroupQuestion.
 // Bug fix: Already checks empty answers and null/negative score, matching Java.
 // @MappedFrom validNewGroupQuestion(NewGroupQuestion question)
-func ValidNewGroupQuestion(question interface{}) error {
+func ValidNewGroupQuestion(question *dto.NewGroupQuestion) error {
 	if question == nil {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "NewGroupQuestion must not be null")
 	}
-	q, ok := question.(*dto.NewGroupQuestion)
-	if !ok {
-		return exception.NewTurmsError(int32(codes.IllegalArgument), "NewGroupQuestion must not be null")
-	}
-	if len(q.Answers) == 0 {
+	if len(question.Answers) == 0 {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "The answers of a new group question should not be empty")
 	}
-	if q.Score == nil || *q.Score < 0 {
+	if question.Score == nil || *question.Score < 0 {
 		return exception.NewTurmsError(int32(codes.IllegalArgument), "The score of a new group question should not be null and must be greater than or equal to 0")
 	}
 	return nil

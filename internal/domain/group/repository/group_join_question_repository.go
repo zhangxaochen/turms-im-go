@@ -103,11 +103,13 @@ func (r *groupJoinQuestionRepository) FindQuestions(ctx context.Context, ids []i
 	}
 
 	opts := options.Find()
-	if page != nil {
-		opts.SetSkip(int64(*page))
-	}
-	if size != nil {
+	// BUG FIX: Java uses paginateIfNotNull which computes skip = size * page.
+	// Only apply pagination when size is non-nil (Java returns without pagination if size is null).
+	if size != nil && *size > 0 {
 		opts.SetLimit(int64(*size))
+		if page != nil {
+			opts.SetSkip(int64(*page * *size))
+		}
 	}
 
 	cursor, err := r.coll.Find(ctx, filter, opts)

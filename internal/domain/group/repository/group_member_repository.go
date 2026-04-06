@@ -209,12 +209,46 @@ func (r *GroupMemberRepository) UpdateGroupMembers(ctx context.Context, keys []p
 
 // CountMembers returns the total number of members in a group.
 // @MappedFrom countMembers(Long groupId)
-// @MappedFrom countMembers(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes)
-// @MappedFrom countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<@ValidGroupMemberRole GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)
-// @MappedFrom countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)
 func (r *GroupMemberRepository) CountMembers(ctx context.Context, groupID int64) (int64, error) {
 	filter := bson.M{
 		"_id.gid": groupID,
+	}
+	return r.col.CountDocuments(ctx, filter)
+}
+
+// CountMembersWithFilters counts members matching multiple filters.
+// @MappedFrom countMembers(@Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable Set<GroupMemberRole> roles, @Nullable DateRange joinDateRange, @Nullable DateRange muteEndDateRange)
+// BUG FIX: Added missing multi-parameter count method that Java has
+func (r *GroupMemberRepository) CountMembersWithFilters(ctx context.Context, groupIDs, userIDs []int64, roles []int, joinDateStart, joinDateEnd, muteEndDateStart, muteEndDateEnd *time.Time) (int64, error) {
+	filter := bson.M{}
+	if len(groupIDs) > 0 {
+		filter["_id.gid"] = bson.M{"$in": groupIDs}
+	}
+	if len(userIDs) > 0 {
+		filter["_id.uid"] = bson.M{"$in": userIDs}
+	}
+	if len(roles) > 0 {
+		filter["role"] = bson.M{"$in": roles}
+	}
+	if joinDateStart != nil || joinDateEnd != nil {
+		jdFilter := bson.M{}
+		if joinDateStart != nil {
+			jdFilter["$gte"] = *joinDateStart
+		}
+		if joinDateEnd != nil {
+			jdFilter["$lte"] = *joinDateEnd
+		}
+		filter["jd"] = jdFilter
+	}
+	if muteEndDateStart != nil || muteEndDateEnd != nil {
+		medFilter := bson.M{}
+		if muteEndDateStart != nil {
+			medFilter["$gte"] = *muteEndDateStart
+		}
+		if muteEndDateEnd != nil {
+			medFilter["$lte"] = *muteEndDateEnd
+		}
+		filter["med"] = medFilter
 	}
 	return r.col.CountDocuments(ctx, filter)
 }
@@ -397,7 +431,11 @@ func (r *GroupMemberRepository) FindUsersJoinedGroupIds(ctx context.Context, gro
 	}
 
 	opts := options.Find().SetProjection(bson.M{"_id.gid": 1})
-	// Pagination logic can be added if needed using page/size in opts
+	// BUG FIX: Apply pagination like Java's paginateIfNotNull(page, size)
+	if page != nil && size != nil && *size > 0 {
+		opts.SetSkip(int64(*page * *size))
+		opts.SetLimit(int64(*size))
+	}
 
 	cursor, err := r.col.Find(ctx, filter, opts)
 	if err != nil {

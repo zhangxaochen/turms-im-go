@@ -25,8 +25,8 @@ func TestGroupRelationshipPOValidation(t *testing.T) {
 	defer mCleanup()
 
 	// 2. Initialize repositories
-	joinReqRepo := repository.NewGroupJoinRequestRepository(mongoClient)
-	invRepo := repository.NewGroupInvitationRepository(mongoClient)
+	joinReqRepo := repository.NewGroupJoinRequestRepository(mongoClient, nil)
+	invRepo := repository.NewGroupInvitationRepository(mongoClient, nil)
 	blockRepo := repository.NewGroupBlockedUserRepository(mongoClient)
 	questionRepo := repository.NewGroupJoinQuestionRepository(mongoClient)
 

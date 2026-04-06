@@ -81,9 +81,9 @@ func (s *ConversationService) AuthAndUpsertGroupConversationReadDate(ctx context
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_UPDATING_READ_DATE_OF_NONEXISTENT_GROUP_CONVERSATION), "")
 	}
 
-	// Bug fix: Pass activeOnly=true to only check active members (OWNER, MANAGER, MEMBER),
+	// Bug fix: Use IsGroupMemberActiveOnly to check active members only (OWNER, MANAGER, MEMBER),
 	// matching Java's isGroupMember(groupId, memberId, true).
-	isMember, err := s.groupMemberSvc.IsGroupMember(ctx, groupID, memberID, true)
+	isMember, err := s.groupMemberSvc.IsGroupMemberActiveOnly(ctx, groupID, memberID)
 	if err != nil {
 		return err
 	}

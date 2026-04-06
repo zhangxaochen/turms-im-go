@@ -32,12 +32,13 @@ func (r *GroupRepository) InsertGroup(ctx context.Context, group *po.Group) erro
 	return err
 }
 
-// FindGroups retrieves multiple groups by their IDs without filtering by deletion date.
-// @MappedFrom findGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Integer page, @Nullable Integer size)
-// Bug fix: Java findGroups does NOT filter by deletion date. Removed incorrect "dd": {"$exists": false} filter.
+// FindGroups retrieves multiple groups by their IDs, filtering out deleted ones.
+// @MappedFrom findNotDeletedGroups(Collection<Long> ids, @Nullable Date lastUpdatedDate)
+// BUG FIX: Use nil (Java uses eq(DELETION_DATE, null)) instead of $exists: false
 func (r *GroupRepository) FindGroups(ctx context.Context, groupIDs []int64) ([]*po.Group, error) {
 	filter := bson.M{
 		"_id": bson.M{"$in": groupIDs},
+		"dd":  nil,
 	}
 
 	cursor, err := r.col.Find(ctx, filter)
@@ -65,9 +66,11 @@ func (r *GroupRepository) QueryGroups(ctx context.Context, groupIDs []int64, nam
 	if lastUpdatedDate != nil {
 		filter["lud"] = bson.M{"$gt": *lastUpdatedDate}
 	}
-	// Bug fix: Java findGroups does NOT filter by deletion date.
-	// When lastUpdatedDate is provided, it returns even deleted groups to let clients sync.
-	// Removed incorrect deletion date filter.
+	// BUG FIX: Java parity - when lastUpdatedDate is provided, returns even deleted groups for client sync.
+	// When lastUpdatedDate is nil, filter out deleted groups.
+	if lastUpdatedDate == nil {
+		filter["dd"] = nil
+	}
 
 	opts := options.Find()
 	if skip != nil {
@@ -118,8 +121,8 @@ func (r *GroupRepository) FindGroup(ctx context.Context, groupID int64) (*po.Gro
 }
 
 // CountOwnedGroups counts the number of groups owned by a specific user.
-// @MappedFrom countOwnedGroups(@NotNull Long ownerId)
-// Bug fix: Java only filters by ownerId, no deletion date check. Removed incorrect "dd": {"$exists": false}.
+// @MappedFrom countOwnedGroups(Long ownerId)
+// BUG FIX: Java version only filters by OWNER_ID, no deletion date filter
 func (r *GroupRepository) CountOwnedGroups(ctx context.Context, ownerID int64) (int64, error) {
 	filter := bson.M{"oid": ownerID}
 	return r.col.CountDocuments(ctx, filter)
@@ -127,7 +130,7 @@ func (r *GroupRepository) CountOwnedGroups(ctx context.Context, ownerID int64) (
 
 // CountOwnedGroupsByTypeId counts groups owned by a user with a specific type.
 // @MappedFrom countOwnedGroups(Long ownerId, Long groupTypeId)
-// Bug fix: Method was missing. Java filters by both OWNER_ID and TYPE_ID.
+// BUG FIX: Method was missing. Java filters by both OWNER_ID and TYPE_ID.
 func (r *GroupRepository) CountOwnedGroupsByTypeId(ctx context.Context, ownerID int64, groupTypeID int64) (int64, error) {
 	filter := bson.M{"oid": ownerID, "tid": groupTypeID}
 	return r.col.CountDocuments(ctx, filter)
@@ -141,14 +144,14 @@ func (r *GroupRepository) UpdateGroup(ctx context.Context, groupID int64, update
 }
 
 // UpdateGroupsDeletionDate updates the deletion date of groups.
-func (r *GroupRepository) UpdateGroupsDeletionDate(ctx context.Context, groupIDs []int64, deletionDate *time.Time, session mongo.SessionContext) error {
-	filter := bson.M{"_id": bson.M{"$in": groupIDs}}
-	update := bson.M{}
-	if deletionDate == nil {
-		update["$unset"] = bson.M{"dd": ""}
-	} else {
-		update["$set"] = bson.M{"dd": *deletionDate}
+// @MappedFrom updateGroupsDeletionDate(@Nullable Collection<Long> groupIds, @Nullable ClientSession session)
+// BUG FIX: Java always sets DELETION_DATE to new Date(). Also supports nullable groupIds (no filter = delete all).
+func (r *GroupRepository) UpdateGroupsDeletionDate(ctx context.Context, groupIDs []int64, deletionDate time.Time, session mongo.SessionContext) error {
+	filter := bson.M{}
+	if len(groupIDs) > 0 {
+		filter["_id"] = bson.M{"$in": groupIDs}
 	}
+	update := bson.M{"$set": bson.M{"dd": deletionDate}}
 
 	var err error
 	if session != nil {
@@ -160,8 +163,8 @@ func (r *GroupRepository) UpdateGroupsDeletionDate(ctx context.Context, groupIDs
 }
 
 // CountCreatedGroups counts groups created within a date range.
-// Bug fix: Java includes .eq(Group.Fields.DELETION_DATE, null) to only count non-deleted groups.
-// Added missing "dd": nil filter.
+// @MappedFrom countCreatedGroups(@Nullable DateRange dateRange)
+// BUG FIX: Java filters DELETION_DATE == null (non-deleted groups only)
 func (r *GroupRepository) CountCreatedGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
 	filter := bson.M{"dd": nil}
 	if dateRange != nil {
@@ -180,14 +183,21 @@ func (r *GroupRepository) CountCreatedGroups(ctx context.Context, dateRange *tur
 }
 
 // CountDeletedGroups counts groups deleted within a date range.
-// Bug fix: When dateRange is nil, Java applies no filter (counts all documents), because it
-// relies on DELETION_DATE being non-null from the date range itself.
-// When dateRange is provided, the date range filter inherently ensures dd is non-null.
-// When dateRange is nil, Java counts all groups, so we use an empty filter.
+// @MappedFrom countDeletedGroups(@Nullable DateRange dateRange)
+// BUG FIX: Java filters only on DELETION_DATE with date range, no $exists check
 func (r *GroupRepository) CountDeletedGroups(ctx context.Context, dateRange *turmsmongo.DateRange) (int64, error) {
-	if dateRange == nil {
-		// Java parity: when no date range, counts all documents (no filter)
-		return r.col.CountDocuments(ctx, bson.M{})
+	filter := bson.M{}
+	if dateRange != nil {
+		dateFilter := bson.M{}
+		if dateRange.Start != nil {
+			dateFilter["$gte"] = *dateRange.Start
+		}
+		if dateRange.End != nil {
+			dateFilter["$lte"] = *dateRange.End
+		}
+		if len(dateFilter) > 0 {
+			filter["dd"] = dateFilter
+		}
 	}
 	// When date range is provided, the date range filter inherently ensure dd is non-null
 	dateFilter := bson.M{}
@@ -235,8 +245,8 @@ func (r *GroupRepository) CountGroups(ctx context.Context, ids []int64, typeIds 
 }
 
 // FindNotDeletedGroups retrieves groups that are not deleted.
-// Bug fix: Java uses eq(DELETION_DATE, null) which matches documents where the field is absent OR explicitly null.
-// Go bson.M{"$exists": false} only matches absent fields. Changed to nil for proper parity.
+// @MappedFrom findNotDeletedGroups(Collection<Long> ids, @Nullable Date lastUpdatedDate)
+// BUG FIX: Use nil instead of $exists: false for Java parity (eq(DELETION_DATE, null))
 func (r *GroupRepository) FindNotDeletedGroups(ctx context.Context, groupIDs []int64, lastUpdatedDate *time.Time) ([]*po.Group, error) {
 	filter := bson.M{
 		"_id": bson.M{"$in": groupIDs},
@@ -304,7 +314,7 @@ func (r *GroupRepository) FindTypeID(ctx context.Context, groupID int64) (*int64
 }
 
 // FindTypeIDIfActiveAndNotDeleted retrieves the type ID if the group is active and not deleted.
-// Bug fix: Java uses eq(DELETION_DATE, null) which matches absent or null. Changed from $exists: false to nil.
+// BUG FIX: Use nil (Java uses eq(DELETION_DATE, null)) instead of $exists: false
 func (r *GroupRepository) FindTypeIDIfActiveAndNotDeleted(ctx context.Context, groupID int64) (*int64, error) {
 	filter := bson.M{
 		"_id": groupID,
@@ -342,9 +352,9 @@ func (r *GroupRepository) FindMinimumScore(ctx context.Context, groupID int64) (
 	return &res.MinimumScore, nil
 }
 
-// IsGroupMuted checks if a group is muted.
-// Bug fix: Java takes (Long groupId, Date muteEndDate) and compares stored MUTE_END_DATE against
-// the passed-in muteEndDate. Go hardcoded time.Now() instead. Added muteEndDate parameter.
+// IsGroupMuted checks if a group is muted by comparing MUTE_END_DATE against the provided muteEndDate.
+// @MappedFrom isGroupMuted(Long groupId, Date muteEndDate)
+// BUG FIX: Java takes muteEndDate as parameter, not hardcoded time.Now()
 func (r *GroupRepository) IsGroupMuted(ctx context.Context, groupID int64, muteEndDate time.Time) (bool, error) {
 	filter := bson.M{
 		"_id": groupID,
@@ -355,7 +365,7 @@ func (r *GroupRepository) IsGroupMuted(ctx context.Context, groupID int64, muteE
 }
 
 // IsGroupActiveAndNotDeleted checks if a group is active and not deleted.
-// Bug fix: Java use eq(DELETION_DATE, null) which matches absent or null. Changed from $exists: false to nil.
+// BUG FIX: Use nil (Java uses eq(DELETION_DATE, null)) instead of $exists: false
 func (r *GroupRepository) IsGroupActiveAndNotDeleted(ctx context.Context, groupID int64) (bool, error) {
 	filter := bson.M{
 		"_id": groupID,

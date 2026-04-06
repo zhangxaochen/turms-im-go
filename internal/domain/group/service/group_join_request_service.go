@@ -178,7 +178,26 @@ func (s *GroupJoinRequestService) AuthAndHandleJoinRequest(ctx context.Context, 
 
 // @MappedFrom queryJoinRequests(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Set<Long> requesterIds, @Nullable Set<Long> responderIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size)
 func (s *GroupJoinRequestService) QueryJoinRequests(ctx context.Context, groupID *int64, requesterID *int64, responderID *int64, status *po.RequestStatus, creationDate *time.Time, page int, size int) ([]*po.GroupJoinRequest, error) {
-	return s.joinReqRepo.FindRequests(ctx, groupID, requesterID, responderID, status, creationDate, nil, nil, page, size)
+	var groupIds, requesterIds, responderIds []int64
+	var statuses []po.RequestStatus
+	if groupID != nil {
+		groupIds = []int64{*groupID}
+	}
+	if requesterID != nil {
+		requesterIds = []int64{*requesterID}
+	}
+	if responderID != nil {
+		responderIds = []int64{*responderID}
+	}
+	if status != nil {
+		statuses = []po.RequestStatus{*status}
+	}
+	var creationDateRange *turmsmongo.DateRange
+	if creationDate != nil {
+		creationDateRange = &turmsmongo.DateRange{Start: creationDate}
+	}
+	p, sz := page, size
+	return s.joinReqRepo.FindRequests(ctx, nil, groupIds, requesterIds, responderIds, statuses, creationDateRange, nil, nil, &p, &sz)
 }
 
 func (s *GroupJoinRequestService) QueryJoinRequestsWithPagination(ctx context.Context, page, size *int) ([]*po.GroupJoinRequest, error) {
@@ -193,7 +212,21 @@ func (s *GroupJoinRequestService) QueryJoinRequestsWithFilter(ctx context.Contex
 	if size != nil {
 		sz = *size
 	}
-	return s.joinReqRepo.FindRequests(ctx, nil, nil, nil, nil, nil, nil, nil, p, sz)
+	var creationDateRange, responseDateRange, expirationDateRange *turmsmongo.DateRange
+	if creationDateStart != nil || creationDateEnd != nil {
+		creationDateRange = &turmsmongo.DateRange{Start: creationDateStart, End: creationDateEnd}
+	}
+	if responseDateStart != nil || responseDateEnd != nil {
+		responseDateRange = &turmsmongo.DateRange{Start: responseDateStart, End: responseDateEnd}
+	}
+	if expirationDateStart != nil || expirationDateEnd != nil {
+		expirationDateRange = &turmsmongo.DateRange{Start: expirationDateStart, End: expirationDateEnd}
+	}
+	var reqStatuses []po.RequestStatus
+	for _, st := range statuses {
+		reqStatuses = append(reqStatuses, po.RequestStatus(st))
+	}
+	return s.joinReqRepo.FindRequests(ctx, ids, groupIds, requesterIds, responderIds, reqStatuses, creationDateRange, responseDateRange, expirationDateRange, &p, &sz)
 }
 
 // AuthAndQueryGroupJoinRequestsWithVersion queries the group join requests requested.
@@ -214,7 +247,8 @@ func (s *GroupJoinRequestService) AuthAndQueryGroupJoinRequestsWithVersion(ctx c
 		return &po.GroupJoinRequestsWithVersion{LastUpdatedDate: version}, nil
 	}
 
-	reqs, err := s.joinReqRepo.FindRequests(ctx, &groupID, nil, nil, nil, nil, nil, nil, 0, 1000)
+	reqGroupIDs := []int64{groupID}
+	reqs, err := s.joinReqRepo.FindRequests(ctx, nil, reqGroupIDs, nil, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +269,8 @@ func (s *GroupJoinRequestService) QueryUserGroupJoinRequestsWithVersion(ctx cont
 		return &po.GroupJoinRequestsWithVersion{LastUpdatedDate: version}, nil
 	}
 
-	reqs, err := s.joinReqRepo.FindRequests(ctx, nil, &requesterID, nil, nil, nil, nil, nil, 0, 1000)
+	reqRequesterIDs := []int64{requesterID}
+	reqs, err := s.joinReqRepo.FindRequests(ctx, nil, nil, reqRequesterIDs, nil, nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
