@@ -10486,23 +10486,23 @@ Here is the complete bug report:
 
 ## UpsertSettings
 
-- [ ] **Early return when settings map is empty**: The Go version returns `(false, nil)` when `len(settings) == 0` (line 31-33). The Java version does NOT have this early return — it proceeds with the upsert regardless, which would still set `lastUpdatedDate`. This changes behavior when called with an empty settings map.
+- [x] **Early return when settings map is empty**: The Go version returns `(false, nil)` when `len(settings) == 0` (line 31-33). The Java version does NOT have this early return — it proceeds with the upsert regardless, which would still set `lastUpdatedDate`. This changes behavior when called with an empty settings map.
 
 ## UnsetSettings
 
-- [ ] **Missing `$set` for `lastUpdatedDate`**: The Java version includes both a `$set` for `LAST_UPDATED_DATE` (to `new Date()`) AND the `$unset` operations in the same update (lines 88-89). The Go version (lines 55-64) only performs `$unset` and never sets `lastUpdatedDate`. This means the `lastUpdatedDate` is not updated when settings are unset, which diverges from the Java behavior.
+- [x] **Missing `$set` for `lastUpdatedDate`**: The Java version includes both a `$set` for `LAST_UPDATED_DATE` (to `new Date()`) AND the `$unset` operations in the same update (lines 88-89). The Go version (lines 55-64) only performs `$unset` and never sets `lastUpdatedDate`. This means the `lastUpdatedDate` is not updated when settings are unset, which diverges from the Java behavior.
 
 ## FindByKey (findByIdAndSettingNames by ownerId)
 
-- [ ] **Wrong query filter — queries by composite key instead of ownerId only**: The Java `findByIdAndSettingNames(Long ownerId, ...)` filters by `ID_OWNER_ID` (i.e., `_id.oid`) which matches ALL conversation settings for that owner across all target IDs, returning multiple results. The Go `FindByKey` (line 94-121) filters by the full composite key `_id` (ownerId + targetId) and returns a single document. These are completely different queries with different semantics.
+- [x] **Wrong query filter — queries by composite key instead of ownerId only**: The Java `findByIdAndSettingNames(Long ownerId, ...)` filters by `ID_OWNER_ID` (i.e., `_id.oid`) which matches ALL conversation settings for that owner across all target IDs, returning multiple results. The Go `FindByKey` (line 94-121) filters by the full composite key `_id` (ownerId + targetId) and returns a single document. These are completely different queries with different semantics.
 
 ## FindSettingFields
 
-- [ ] **Fundamentally different return semantics — returns values map instead of field names**: The Java `findSettingFields` uses `findObjectFields` which returns `Flux<String>` — the **names of fields** that exist in the settings object and match the `includedFields` filter (via aggregation pipeline with `$objectToArray`, `$map`, `$getField`). The Go version (lines 197-213) returns `map[string]any` — the actual **values** of those settings fields. The return types and semantics are entirely different: Java returns which setting keys exist, Go returns the setting key-value pairs.
+- [x] **Fundamentally different return semantics — returns values map instead of field names**: The Java `findSettingFields` uses `findObjectFields` which returns `Flux<String>` — the **names of fields** that exist in the settings object and match the `includedFields` filter (via aggregation pipeline with `$objectToArray`, `$map`, `$getField`). The Go version (lines 197-213) returns `map[string]any` — the actual **values** of those settings fields. The return types and semantics are entirely different: Java returns which setting keys exist, Go returns the setting key-value pairs.
 
 ## DeleteByOwnerIds
 
-- [ ] **Missing ClientSession parameter for transactional support**: The Java version accepts `@Nullable ClientSession clientSession` and passes it to `mongoClient.deleteMany(clientSession, entityClass, filter)` (lines 156-160). The Go version (lines 216-226) does not accept or use a session, which means it cannot participate in multi-document MongoDB transactions as the Java version can.
+- [x] **Missing ClientSession parameter for transactional support**: The Java version accepts `@Nullable ClientSession clientSession` and passes it to `mongoClient.deleteMany(clientSession, entityClass, filter)` (lines 156-160). The Go version (lines 216-226) does not accept or use a session, which means it cannot participate in multi-document MongoDB transactions as the Java version can.
 
 # PrivateConversationRepository.java
 *Checked methods: upsert(Set<PrivateConversation.Key> keys, Date readDate, boolean allowMoveReadDateForward), deleteConversationsByOwnerIds(Set<Long> ownerIds, @Nullable ClientSession session), findConversations(Collection<Long> ownerIds)*
@@ -10523,7 +10523,7 @@ However, the Go implementation's `$or` uses `$exists: false` instead of checking
 
 ## Upsert
 
-- [ ] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
+- [x] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
 
 ## DeleteConversationsByOwnerIds
 
@@ -10535,7 +10535,7 @@ No bugs found. The field name `_id.oid` matches Java's `PrivateConversation.Fiel
 
 ## Upsert
 
-- [ ] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
+- [x] **`$or` condition uses `$exists: false` instead of `null` check for missing/null field**: The Java `ltOrNull` produces `{ "$or": [ { "rd": null }, { "rd": { "$lt": readDate } } ] }`, where `{ "rd": null }` matches both missing fields AND explicitly null values. The Go version uses `{ "rd": { "$exists": false } }`, which only matches documents where `rd` doesn't exist. If a document has `rd` explicitly set to `null` (e.g., from a partial update or data migration), the Go version won't match it, causing the upsert to create a duplicate or miss the update that the Java version would perform.
 
 ## DeleteConversationsByOwnerIds
 
