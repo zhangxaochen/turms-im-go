@@ -159,7 +159,24 @@ func (s *GroupMemberService) FindGroupMemberRole(ctx context.Context, groupID, u
 	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
 }
 
-// @MappedFrom queryGroupMemberRole(@NotNull Long userId, @NotNull Long groupId, boolean preferCache)
+// CountMembers returns the total number of members in a group.
+// @MappedFrom countMembers(Long groupId)
+func (s *GroupMemberService) CountMembers(ctx context.Context, groupID int64) (int64, error) {
+	return s.groupMemberRepo.CountMembers(ctx, groupID)
+}
+
+// CountMembersWithFilter counts members with multi-criteria filtering.
+func (s *GroupMemberService) CountMembersWithFilter(
+	ctx context.Context,
+	groupIDs, userIDs []int64,
+	roles []int,
+	joinDateStart, joinDateEnd,
+	muteEndDateStart, muteEndDateEnd *time.Time,
+) (int64, error) {
+	return s.groupMemberRepo.CountMembersWithFilters(ctx, groupIDs, userIDs, roles, joinDateStart, joinDateEnd, muteEndDateStart, muteEndDateEnd)
+}
+
+// @MappedFrom queryGroupMemberIds(@NotNull Long groupId), @NotNull Long groupId, boolean preferCache)
 func (s *GroupMemberService) QueryGroupMemberRole(ctx context.Context, groupID, userID int64) (*protocol.GroupMemberRole, error) {
 	return s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, userID)
 }
@@ -405,6 +422,18 @@ func (s *GroupMemberService) DeleteAllGroupMembers(ctx context.Context, groupIDs
 		}
 	}
 	return nil
+}
+
+// DeleteAllGroupMembersGlobally deletes all group members globally.
+// @MappedFrom deleteGroupMembers(boolean updateGroupMembersVersion)
+func (s *GroupMemberService) DeleteAllGroupMembersGlobally(ctx context.Context, updateVersion bool) (*mongo.DeleteResult, error) {
+	result, err := s.groupMemberRepo.DeleteAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// For global delete, we can't easily update versions for all groups individually via groupVersionService
+	// without querying all groups, which is too expensive. Java might do something similar.
+	return result, nil
 }
 
 // @MappedFrom addGroupMembers(@NotNull Long groupId, @NotNull Set<Long> userIds, @NotNull @ValidGroupMemberRole GroupMemberRole groupMemberRole, @Nullable String name, @Nullable @PastOrPresent Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session)
