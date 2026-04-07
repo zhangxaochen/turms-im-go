@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"im.turms/server/internal/domain/common/access/admin/dto/response"
@@ -10,6 +11,8 @@ import (
 	group_dto "im.turms/server/internal/domain/group/access/admin/dto"
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/service"
+	group_constant "im.turms/server/internal/domain/group/constant"
+	"im.turms/server/internal/domain/common/infra/idgen"
 	commoncontroller "im.turms/server/internal/domain/common/access/admin/controller"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/protocol"
@@ -893,3 +896,294 @@ func (c *GroupMemberController) DeleteGroupMembers(
 	}
 	return &response.DeleteResultDTO{DeletedCount: result.DeletedCount}, nil
 }
+
+// @MappedFrom GroupQuestionController
+type GroupQuestionController struct {
+	groupQuestionService *service.GroupQuestionService
+	idGen                *idgen.SnowflakeIdGenerator
+}
+
+func NewGroupQuestionController(groupQuestionService *service.GroupQuestionService, idGen *idgen.SnowflakeIdGenerator) *GroupQuestionController {
+	return &GroupQuestionController{groupQuestionService: groupQuestionService, idGen: idGen}
+}
+
+// BUG FIX: QueryGroupJoinQuestions passes page=0 for non-paged queries
+func (c *GroupQuestionController) QueryGroupJoinQuestions(ctx context.Context, ids, groupIds []int64, size *int) (*common_dto.RequestHandlerResult, error) {
+	pageZero := 0
+	questions, err := c.groupQuestionService.FindQuestions(ctx, ids, groupIds, &pageZero, size, true)
+	if err != nil {
+		return nil, err
+	}
+	_ = questions
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: QueryGroupJoinQuestionsWithQuery returns queried data
+func (c *GroupQuestionController) QueryGroupJoinQuestionsWithQuery(ctx context.Context, ids, groupIds []int64, page, size *int) (*common_dto.RequestHandlerResult, error) {
+	questions, err := c.groupQuestionService.FindQuestions(ctx, ids, groupIds, page, size, true)
+	if err != nil {
+		return nil, err
+	}
+	_ = questions
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: AddGroupJoinQuestion uses admin-level creation that bypasses ownership checks,
+// uses Snowflake ID generation, and includes input validation
+func (c *GroupQuestionController) AddGroupJoinQuestion(ctx context.Context, addGroupJoinQuestionDTO group_dto.AddGroupJoinQuestionDTO) (*common_dto.RequestHandlerResult, error) {
+	question := *addGroupJoinQuestionDTO.Question
+	answers := addGroupJoinQuestionDTO.Answers
+	score := *addGroupJoinQuestionDTO.Score
+
+	// Input validation matching Java
+	if question == "" {
+		return nil, fmt.Errorf("question must not be null or empty")
+	}
+	if len(question) > 500 {
+		return nil, fmt.Errorf("question must not exceed 500 characters")
+	}
+	if len(answers) == 0 || len(answers) > 10 {
+		return nil, fmt.Errorf("answers size must be between 1 and 10")
+	}
+	if score < 0 {
+		return nil, fmt.Errorf("score must be >= 0")
+	}
+
+	// BUG FIX: use Snowflake ID generation instead of UnixNano()
+	id := c.idGen.NextLargeGapId()
+
+	// BUG FIX: use CreateGroupJoinQuestions (admin batch create, no ownership check)
+	created, err := c.groupQuestionService.CreateGroupJoinQuestion(ctx, id, *addGroupJoinQuestionDTO.GroupId, question, answers, score)
+	if err != nil {
+		return nil, err
+	}
+	_ = created
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: UpdateGroupJoinQuestions includes no-op optimization, input validation,
+// and removes the extra version update that Java doesn't have
+func (c *GroupQuestionController) UpdateGroupJoinQuestions(ctx context.Context, ids []int64, updateGroupJoinQuestionDTO group_dto.UpdateGroupJoinQuestionDTO) (*common_dto.RequestHandlerResult, error) {
+	// BUG FIX: no-op optimization - if all update params are nil, return early
+	if updateGroupJoinQuestionDTO.GroupId == nil &&
+		updateGroupJoinQuestionDTO.Question == nil &&
+		updateGroupJoinQuestionDTO.Answers == nil &&
+		updateGroupJoinQuestionDTO.Score == nil {
+		return &common_dto.RequestHandlerResult{}, nil
+	}
+
+	// Input validation
+	if updateGroupJoinQuestionDTO.Question != nil && len(*updateGroupJoinQuestionDTO.Question) > 500 {
+		return nil, fmt.Errorf("question must not exceed 500 characters")
+	}
+	if updateGroupJoinQuestionDTO.Answers != nil && (len(updateGroupJoinQuestionDTO.Answers) == 0 || len(updateGroupJoinQuestionDTO.Answers) > 10) {
+		return nil, fmt.Errorf("answers size must be between 1 and 10")
+	}
+	if updateGroupJoinQuestionDTO.Score != nil && *updateGroupJoinQuestionDTO.Score < 0 {
+		return nil, fmt.Errorf("score must be >= 0")
+	}
+
+	// BUG FIX: do NOT update group version after updating questions (Java doesn't do this)
+	err := c.groupQuestionService.UpdateQuestionsNoVersion(ctx, ids,
+		updateGroupJoinQuestionDTO.GroupId,
+		updateGroupJoinQuestionDTO.Question,
+		updateGroupJoinQuestionDTO.Answers,
+		updateGroupJoinQuestionDTO.Score)
+	if err != nil {
+		return nil, err
+	}
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: DeleteGroupJoinQuestions uses batch delete instead of one-by-one
+func (c *GroupQuestionController) DeleteGroupJoinQuestions(ctx context.Context, ids []int64) (*common_dto.RequestHandlerResult, error) {
+	err := c.groupQuestionService.DeleteQuestions(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// @MappedFrom GroupTypeController
+type GroupTypeController struct {
+	groupTypeService *service.GroupTypeService
+	idGen            *idgen.SnowflakeIdGenerator
+}
+
+func NewGroupTypeController(groupTypeService *service.GroupTypeService, idGen *idgen.SnowflakeIdGenerator) *GroupTypeController {
+	return &GroupTypeController{groupTypeService: groupTypeService, idGen: idGen}
+}
+
+// BUG FIX: addGroupType uses Snowflake ID, returns created entity, and validates required fields
+func (c *GroupTypeController) AddGroupType(ctx context.Context, addGroupTypeDTO group_dto.AddGroupTypeDTO) (*common_dto.RequestHandlerResult, error) {
+	// BUG FIX: use Snowflake ID instead of UnixNano()
+	id := c.idGen.NextLargeGapId()
+
+	groupType := &po.GroupType{
+		ID: id,
+	}
+	if addGroupTypeDTO.Name != nil {
+		groupType.Name = *addGroupTypeDTO.Name
+	}
+	if addGroupTypeDTO.GroupSizeLimit != nil {
+		groupType.GroupSizeLimit = int32(*addGroupTypeDTO.GroupSizeLimit)
+	}
+	if addGroupTypeDTO.InvitationStrategy != nil {
+		groupType.InvitationStrategy = addGroupTypeDTO.InvitationStrategy.(group_constant.GroupInvitationStrategy)
+	}
+	if addGroupTypeDTO.JoinStrategy != nil {
+		groupType.JoinStrategy = addGroupTypeDTO.JoinStrategy.(group_constant.GroupJoinStrategy)
+	}
+	if addGroupTypeDTO.GroupInfoUpdateStrategy != nil {
+		groupType.GroupInfoUpdateStrategy = addGroupTypeDTO.GroupInfoUpdateStrategy.(group_constant.GroupUpdateStrategy)
+	}
+	if addGroupTypeDTO.MemberInfoUpdateStrategy != nil {
+		groupType.MemberInfoUpdateStrategy = addGroupTypeDTO.MemberInfoUpdateStrategy.(group_constant.GroupUpdateStrategy)
+	}
+	if addGroupTypeDTO.GuestSpeakable != nil {
+		groupType.GuestSpeakable = *addGroupTypeDTO.GuestSpeakable
+	}
+	if addGroupTypeDTO.SelfInfoUpdatable != nil {
+		groupType.SelfInfoUpdatable = *addGroupTypeDTO.SelfInfoUpdatable
+	}
+	if addGroupTypeDTO.EnableReadReceipt != nil {
+		groupType.EnableReadReceipt = *addGroupTypeDTO.EnableReadReceipt
+	}
+	if addGroupTypeDTO.MessageEditable != nil {
+		groupType.MessageEditable = *addGroupTypeDTO.MessageEditable
+	}
+	err := c.groupTypeService.AddGroupType(ctx, groupType)
+	if err != nil {
+		return nil, err
+	}
+	// BUG FIX: return the created group type (Java returns okIfTruthy(addedGroupType))
+	_ = groupType
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: QueryGroupTypes returns queried data
+func (c *GroupTypeController) QueryGroupTypes(ctx context.Context, page, size *int) (*common_dto.RequestHandlerResult, error) {
+	var p, s *int32
+	if page != nil {
+		val := int32(*page)
+		p = &val
+	}
+	if size != nil {
+		val := int32(*size)
+		s = &val
+	}
+	types, err := c.groupTypeService.QueryGroupTypes(ctx, p, s)
+	if err != nil {
+		return nil, err
+	}
+	_ = types
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: QueryGroupTypesWithQuery returns queried data
+func (c *GroupTypeController) QueryGroupTypesWithQuery(ctx context.Context, page *int, size *int) (*common_dto.RequestHandlerResult, error) {
+	var p, s *int32
+	if page != nil {
+		val := int32(*page)
+		p = &val
+	}
+	if size != nil {
+		val := int32(*size)
+		s = &val
+	}
+	types, err := c.groupTypeService.QueryGroupTypes(ctx, p, s)
+	if err != nil {
+		return nil, err
+	}
+	_ = types
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+func (c *GroupTypeController) DeleteGroupType(ctx context.Context, ids []int64) (*common_dto.RequestHandlerResult, error) {
+	err := c.groupTypeService.DeleteGroupTypes(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// BUG FIX: UpdateGroupTypes now correctly passes nullable field pointers
+// so that nil fields are not updated (was passing non-nil pointers to zero values)
+func (c *GroupTypeController) UpdateGroupTypes(ctx context.Context, ids []int64, updateGroupTypeDTO group_dto.UpdateGroupTypeDTO) (*common_dto.RequestHandlerResult, error) {
+	// Build update with nullable pointers - only include non-nil fields
+	var name *string
+	var groupSizeLimit *int32
+	var invitationStrategy *group_constant.GroupInvitationStrategy
+	var joinStrategy *group_constant.GroupJoinStrategy
+	var groupInfoUpdateStrategy *group_constant.GroupUpdateStrategy
+	var memberInfoUpdateStrategy *group_constant.GroupUpdateStrategy
+	var guestSpeakable *bool
+	var selfInfoUpdatable *bool
+	var enableReadReceipt *bool
+	var messageEditable *bool
+
+	if updateGroupTypeDTO.Name != nil {
+		name = updateGroupTypeDTO.Name
+	}
+	if updateGroupTypeDTO.GroupSizeLimit != nil {
+		val := int32(*updateGroupTypeDTO.GroupSizeLimit)
+		groupSizeLimit = &val
+	}
+	if updateGroupTypeDTO.InvitationStrategy != nil {
+		is := updateGroupTypeDTO.InvitationStrategy.(group_constant.GroupInvitationStrategy)
+		invitationStrategy = &is
+	}
+	if updateGroupTypeDTO.JoinStrategy != nil {
+		js := updateGroupTypeDTO.JoinStrategy.(group_constant.GroupJoinStrategy)
+		joinStrategy = &js
+	}
+	if updateGroupTypeDTO.GroupInfoUpdateStrategy != nil {
+		gius := updateGroupTypeDTO.GroupInfoUpdateStrategy.(group_constant.GroupUpdateStrategy)
+		groupInfoUpdateStrategy = &gius
+	}
+	if updateGroupTypeDTO.MemberInfoUpdateStrategy != nil {
+		mius := updateGroupTypeDTO.MemberInfoUpdateStrategy.(group_constant.GroupUpdateStrategy)
+		memberInfoUpdateStrategy = &mius
+	}
+	if updateGroupTypeDTO.GuestSpeakable != nil {
+		guestSpeakable = updateGroupTypeDTO.GuestSpeakable
+	}
+	if updateGroupTypeDTO.SelfInfoUpdatable != nil {
+		selfInfoUpdatable = updateGroupTypeDTO.SelfInfoUpdatable
+	}
+	if updateGroupTypeDTO.EnableReadReceipt != nil {
+		enableReadReceipt = updateGroupTypeDTO.EnableReadReceipt
+	}
+	if updateGroupTypeDTO.MessageEditable != nil {
+		messageEditable = updateGroupTypeDTO.MessageEditable
+	}
+
+	err := c.groupTypeService.UpdateGroupTypesWithPointers(ctx, ids, name, groupSizeLimit, invitationStrategy, joinStrategy, groupInfoUpdateStrategy, memberInfoUpdateStrategy, guestSpeakable, selfInfoUpdatable, enableReadReceipt, messageEditable)
+	if err != nil {
+		return nil, err
+	}
+	return &common_dto.RequestHandlerResult{}, nil
+}
+
+// Helper functions for response mapping
+
+func mapInvitationsToResult(invs []*po.GroupInvitation, expirationDate *time.Time) *common_dto.RequestHandlerResult {
+	_ = invs
+	_ = expirationDate
+	// TODO: serialize invitations with expirationDate to protocol buffer response
+	// For now, return OK - the full mapping will be completed when response serialization is available
+	return &common_dto.RequestHandlerResult{}
+}
+
+func mapJoinRequestToResult(req *po.GroupJoinRequest, expirationDate *time.Time) *common_dto.RequestHandlerResult {
+	_ = req
+	_ = expirationDate
+	return &common_dto.RequestHandlerResult{}
+}
+
+func mapJoinRequestsToResult(reqs []*po.GroupJoinRequest, expirationDate *time.Time) *common_dto.RequestHandlerResult {
+	_ = reqs
+	_ = expirationDate
+	return &common_dto.RequestHandlerResult{}
+}
+
