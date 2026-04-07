@@ -257,7 +257,7 @@ func (s *SessionService) HandleHeartbeatUpdateRequest(session *UserSession) {
 	session.SetLastHeartbeatRequestTimestampToNow()
 }
 
-func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip []byte, userId int64, password string, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation, ipStr string) (*UserSession, error) {
+func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip []byte, userId int64, password string, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus *protocol.UserStatus, location *protocol.UserLocation, ipStr string) (*UserSession, error) {
 	if ip == nil {
 		return nil, errors.New("ip cannot be nil")
 	}
@@ -275,7 +275,7 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	if password != "" {
 		passwordPtr = &password
 	}
-	loginInfo := sessionbo.NewUserLoginInfo(version, &userId, passwordPtr, deviceType, deviceDetails, &userStatus, location, ipStr)
+	loginInfo := sessionbo.NewUserLoginInfo(version, &userId, passwordPtr, deviceType, deviceDetails, userStatus, location, ipStr)
 	permissionInfo, err := s.sessionAuthenticationManager.VerifyAndGrant(ctx, loginInfo)
 	if err != nil {
 		return nil, err
@@ -289,14 +289,14 @@ func (s *SessionService) HandleLoginRequest(ctx context.Context, version int, ip
 	return s.TryRegisterOnlineUser(ctx, version, permissions, ip, userId, deviceType, deviceDetails, userStatus, location)
 }
 
-func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
+func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus *protocol.UserStatus, location *protocol.UserLocation) (*UserSession, error) {
 	if ip == nil {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "ip must not be null"}
 	}
 	if deviceType == protocol.DeviceType_UNKNOWN {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "deviceType must not be UNKNOWN"}
 	}
-	if userStatus == protocol.UserStatus_OFFLINE {
+	if userStatus != nil && *userStatus == protocol.UserStatus_OFFLINE {
 		return nil, &SessionAuthError{Code: constant.ResponseStatusCode_ILLEGAL_ARGUMENT, Message: "userStatus must not be OFFLINE"}
 	}
 	if location != nil {
@@ -346,11 +346,11 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 		isClosedSessionOnLocal := session != nil && session.Conn != nil && !session.Conn.IsConnected()
 		if isClosedSessionOnLocal {
 			// Replace disconnected connection
-			if existingUserStatus != userStatus || userStatus == 0 {
+			if userStatus == nil || existingUserStatus == *userStatus {
 				// Java checks userStatus == null || existingUserStatus == userStatus
-				// If userStatus == 0 (UNRECOGNIZED), don't update
+				// Do not update the status if the client didn't specify one or it's the same
 			} else {
-				_, err = s.userStatusService.UpdateStatus(ctx, userId, userStatus)
+				_, err = s.userStatusService.UpdateStatus(ctx, userId, *userStatus)
 				if err != nil {
 					fmt.Printf("failed to update online status for user %d: %v\n", userId, err)
 				}
@@ -385,9 +385,13 @@ func (s *SessionService) TryRegisterOnlineUser(ctx context.Context, version int,
 	return nil, &SessionAuthError{Code: constant.ResponseStatusCode_SESSION_SIMULTANEOUS_CONFLICTS_DECLINE}
 }
 
-func (s *SessionService) addOnlineDeviceIfAbsent(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus protocol.UserStatus, location *protocol.UserLocation, expectedNodeId *string, expectedDeviceTimestamp *int64) (*UserSession, error) {
+func (s *SessionService) addOnlineDeviceIfAbsent(ctx context.Context, version int, permissions map[int32]bool, ip []byte, userId int64, deviceType protocol.DeviceType, deviceDetails map[string]string, userStatus *protocol.UserStatus, location *protocol.UserLocation, expectedNodeId *string, expectedDeviceTimestamp *int64) (*UserSession, error) {
 	now := time.Now()
-	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, deviceDetails, userStatus, s.nodeID, &now, expectedNodeId, expectedDeviceTimestamp)
+	var fallbackStatus protocol.UserStatus = protocol.UserStatus_AVAILABLE
+	if userStatus != nil {
+		fallbackStatus = *userStatus
+	}
+	added, err := s.userStatusService.AddOnlineDevice(ctx, userId, deviceType, deviceDetails, fallbackStatus, s.nodeID, &now, expectedNodeId, expectedDeviceTimestamp)
 	if err != nil {
 		return nil, err
 	}
