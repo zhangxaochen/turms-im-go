@@ -101,7 +101,7 @@ func TestGroupRelationshipService(t *testing.T) {
 
 	// --- 5. Test Group Blocklist ---
 	t.Run("GroupBlocklistService", func(t *testing.T) {
-		err := blockSvc.BlockUser(ctx, groupID, userID, adminID)
+		err := blockSvc.AuthAndBlockUser(ctx, adminID, groupID, userID)
 		require.NoError(t, err)
 
 		isBlocked, err := blockSvc.IsBlocked(ctx, groupID, userID)
@@ -180,7 +180,7 @@ func TestGroupRelationshipService(t *testing.T) {
 		assert.Equal(t, "Updated Question?", questions[0].Question)
 		assert.Equal(t, 200, questions[0].Score)
 
-		result, err := questionSvc.CheckGroupJoinQuestionsAnswersAndJoin(ctx, userID, map[int64]string{
+		result, err := questionSvc.CheckGroupJoinQuestionsAnswersAndJoin(ctx, int64(30002), map[int64]string{
 			q.ID: "yes",
 		})
 		require.NoError(t, err)

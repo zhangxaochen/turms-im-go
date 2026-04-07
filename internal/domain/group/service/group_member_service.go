@@ -133,7 +133,7 @@ func (s *GroupMemberService) IsMemberMuted(ctx context.Context, groupID, userID 
 
 // @MappedFrom isOwner(@NotNull Long userId, @NotNull Long groupId, boolean preferCache)
 func (s *GroupMemberService) IsOwner(ctx context.Context, userID, groupID int64) (bool, error) {
-	role, err := s.FindGroupMemberRole(ctx, userID, groupID)
+	role, err := s.FindGroupMemberRole(ctx, groupID, userID)
 	if err != nil {
 		return false, err
 	}

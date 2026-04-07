@@ -3,12 +3,10 @@ package e2e_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	grouppo "im.turms/server/internal/domain/group/po"
 	grouprepo "im.turms/server/internal/domain/group/repository"
 	groupservice "im.turms/server/internal/domain/group/service"
 	"im.turms/server/internal/testingutil"
@@ -53,15 +51,7 @@ func TestGroup_E2E_Lifecycle(t *testing.T) {
 		groupID = group.ID
 	})
 
-	t.Run("Set Creator as Owner", func(t *testing.T) {
-		now := time.Now()
-		err := groupMemRepo.AddGroupMember(ctx, &grouppo.GroupMember{
-			ID:       grouppo.GroupMemberKey{GroupID: groupID, UserID: creatorID},
-			Role:     protocol.GroupMemberRole_OWNER,
-			JoinDate: &now,
-		})
-		require.NoError(t, err)
-	})
+	// Creator is already added as owner by CreateGroup in the service layer
 
 	t.Run("Owner Adds Manager", func(t *testing.T) {
 		userB := int64(200)
