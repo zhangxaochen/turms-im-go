@@ -104,10 +104,12 @@ func (c *GroupServiceController) HandleCreateGroupRequest(ctx context.Context, s
 		med := time.UnixMilli(*createReq.MuteEndDate)
 		muteEndDate = &med
 	}
-	group, err := c.groupService.CreateGroup(ctx, s.UserID, 0, &createReq.Name, createReq.Intro, announcement, createReq.MinScore, createReq.TypeId, nil, nil, muteEndDate, nil)
+	// BUG FIX: Java uses requesterId as both creator and owner.
+	group, err := c.groupService.CreateGroup(ctx, s.UserID, s.UserID, &createReq.Name, createReq.Intro, announcement, createReq.MinScore, createReq.TypeId, nil, nil, muteEndDate, nil)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: notificationService.notifyRequesterOtherOnlineSessionsOfGroupCreated
 	return &protocol.TurmsNotification{
 		RequestId: req.RequestId,
 		Code:      proto.Int32(1000),
@@ -138,15 +140,14 @@ func (c *GroupServiceController) HandleQueryGroupsRequest(ctx context.Context, s
 		lastUpdatedDate = &t
 	}
 
-	// BUG FIX: Protocol only has groupIds and lastUpdatedDate
 	groups, err := c.groupService.AuthAndQueryGroups(
 		ctx,
-		queryReq.GetGroupIds(),
-		nil,
+		queryReq.GroupIds,
+		queryReq.Name,
 		lastUpdatedDate,
-		nil,
-		nil,
-		nil, // fieldsToHighlight - not implemented yet
+		queryReq.Skip,
+		queryReq.Limit,
+		queryReq.FieldsToHighlight,
 	)
 	if err != nil {
 		return nil, err

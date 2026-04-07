@@ -22,11 +22,15 @@ const (
 )
 
 type QueryGroupsRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	GroupIds        []int64                `protobuf:"varint,1,rep,packed,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
-	LastUpdatedDate *int64                 `protobuf:"varint,2,opt,name=last_updated_date,json=lastUpdatedDate,proto3,oneof" json:"last_updated_date,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	GroupIds          []int64                `protobuf:"varint,1,rep,packed,name=group_ids,json=groupIds,proto3" json:"group_ids,omitempty"`
+	LastUpdatedDate   *int64                 `protobuf:"varint,2,opt,name=last_updated_date,json=lastUpdatedDate,proto3,oneof" json:"last_updated_date,omitempty"`
+	Name              *string                `protobuf:"bytes,3,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Skip              *int32                 `protobuf:"varint,10,opt,name=skip,proto3,oneof" json:"skip,omitempty"`
+	Limit             *int32                 `protobuf:"varint,11,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	FieldsToHighlight []int32                `protobuf:"varint,12,rep,packed,name=fields_to_highlight,json=fieldsToHighlight,proto3" json:"fields_to_highlight,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *QueryGroupsRequest) Reset() {
@@ -73,15 +77,51 @@ func (x *QueryGroupsRequest) GetLastUpdatedDate() int64 {
 	return 0
 }
 
+func (x *QueryGroupsRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *QueryGroupsRequest) GetSkip() int32 {
+	if x != nil && x.Skip != nil {
+		return *x.Skip
+	}
+	return 0
+}
+
+func (x *QueryGroupsRequest) GetLimit() int32 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+func (x *QueryGroupsRequest) GetFieldsToHighlight() []int32 {
+	if x != nil {
+		return x.FieldsToHighlight
+	}
+	return nil
+}
+
 var File_request_group_query_groups_request_proto protoreflect.FileDescriptor
 
 const file_request_group_query_groups_request_proto_rawDesc = "" +
 	"\n" +
-	"(request/group/query_groups_request.proto\x12\x0eim.turms.proto\"x\n" +
+	"(request/group/query_groups_request.proto\x12\x0eim.turms.proto\"\x91\x02\n" +
 	"\x12QueryGroupsRequest\x12\x1b\n" +
 	"\tgroup_ids\x18\x01 \x03(\x03R\bgroupIds\x12/\n" +
-	"\x11last_updated_date\x18\x02 \x01(\x03H\x00R\x0flastUpdatedDate\x88\x01\x01B\x14\n" +
-	"\x12_last_updated_dateB[\n" +
+	"\x11last_updated_date\x18\x02 \x01(\x03H\x00R\x0flastUpdatedDate\x88\x01\x01\x12\x17\n" +
+	"\x04name\x18\x03 \x01(\tH\x01R\x04name\x88\x01\x01\x12\x17\n" +
+	"\x04skip\x18\n" +
+	" \x01(\x05H\x02R\x04skip\x88\x01\x01\x12\x19\n" +
+	"\x05limit\x18\v \x01(\x05H\x03R\x05limit\x88\x01\x01\x12.\n" +
+	"\x13fields_to_highlight\x18\f \x03(\x05R\x11fieldsToHighlightB\x14\n" +
+	"\x12_last_updated_dateB\a\n" +
+	"\x05_nameB\a\n" +
+	"\x05_skipB\b\n" +
+	"\x06_limitB[\n" +
 	"6im.turms.server.common.access.client.dto.request.groupP\x01Z\x1cim.turms/server/pkg/protocol\xba\x02\x00b\x06proto3"
 
 var (
