@@ -279,23 +279,15 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	assert.Contains(t, *unauthResp.Reason, "not a member of the target group")
 	// Step 5. Rate Limiting Verification (High Frequency Traffic)
 	// The default throttler is 100 req/s with a burst of 100.
-	// We'll rapid-fire 110 requests and expect the last ones to be dropped with code 1400.
+	// We'll rapid-fire 200 requests and expect the last ones to be dropped with code 1101.
 	var wg sync.WaitGroup
 	var rateLimitedCount int32
 	var mu sync.Mutex
 
-	for i := 0; i < 110; i++ {
+	for i := 0; i < 200; i++ {
 		wg.Add(1)
 		go func(reqID int32) {
 			defer wg.Done()
-
-			// We need a separate connection per request otherwise we'll interleave writes
-			// However, mockTurmsE2EClient is just writing, we can use the same client
-			// if we just want to hit the router, but its ReadTurmsNotification might get mixed up.
-			// Instead of reading all 110 responses, let's just create a quick new client for the extra calls,
-			// or just blast the current client.
-			// Best approach: Use the same client (mockTurmsE2EClient is thread-safe on send),
-			// and read 110 responses.
 
 			client.SendTurmsRequest(t, reqID, &protocol.TurmsRequest{
 				RequestId: proto.Int64(int64(reqID)),
@@ -310,16 +302,16 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 	}
 	wg.Wait()
 
-	// Now read 110 responses
-	for i := 0; i < 110; i++ {
+	// Now read 200 responses
+	for i := 0; i < 200; i++ {
 		resp, err := client.ReadTurmsNotification(t)
 		require.NoError(t, err)
-		if resp.GetCode() == 1400 {
+		if resp.GetCode() == 1101 {
 			mu.Lock()
 			rateLimitedCount++
 			mu.Unlock()
 		}
 	}
 
-	assert.GreaterOrEqual(t, rateLimitedCount, int32(1), "Expected at least 1 request to be rate limited (code 1400)")
+	assert.GreaterOrEqual(t, rateLimitedCount, int32(1), "Expected at least 1 request to be rate limited (code 1101)")
 }

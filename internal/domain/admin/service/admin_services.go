@@ -33,6 +33,9 @@ const (
 	MaxRoleNameLimit = 32
 )
 
+// rootRoleRankValue is a variable copy of rootRoleRank for taking its address.
+var rootRoleRankValue = rootRoleRank
+
 // rootRole is the in-memory root admin role (not stored in DB).
 var rootRole = &po.AdminRole{
 	ID:          RootRoleID,
@@ -882,7 +885,7 @@ func (s *adminService) AuthAndUpdateAdmins(ctx context.Context, requesterId int6
 // @MappedFrom updateAdmins
 func (s *adminService) UpdateAdmins(ctx context.Context, targetAdminIds []int64, rawPassword *string, displayName *string, roleIds []int64) (int64, error) {
 	// Bug fix: Early return when all parameters are nil/empty
-	if rawPassword == nil && displayName == nil && (roleIds == nil || len(roleIds) == 0) {
+	if rawPassword == nil && displayName == nil && len(roleIds) == 0 {
 		return 0, nil
 	}
 

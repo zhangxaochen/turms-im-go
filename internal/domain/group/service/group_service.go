@@ -380,6 +380,7 @@ func (s *GroupService) AuthAndUpdateGroup(
 	isActive *bool,
 	quitAfterTransfer *bool,
 	muteEndDate *time.Time,
+	userDefinedAttributes map[string]interface{},
 ) error {
 	ownerID, err := s.groupRepo.FindGroupOwnerID(ctx, groupID)
 	if err != nil {
@@ -440,6 +441,9 @@ func (s *GroupService) AuthAndUpdateGroup(
 	}
 	if muteEndDate != nil {
 		update["med"] = *muteEndDate
+	}
+	if userDefinedAttributes != nil {
+		update["uda"] = userDefinedAttributes
 	}
 
 	if len(update) == 0 {

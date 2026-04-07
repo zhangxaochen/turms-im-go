@@ -240,13 +240,13 @@ func (f *TcpServerFactory) Create(
 		return nil, fmt.Errorf("Failed to bind the TCP server on: %s: %w", addr, err)
 	}
 
-	if props.Ssl.Enabled {
-		// Placeholder for SSL initialization to match Java parity (Bug 426)
-		/*
-			tlsConfig := &tls.Config{...}
-			l = tls.NewListener(l, tlsConfig)
-		*/
-	}
+	// if props.Ssl.Enabled {
+	// 	// Placeholder for SSL initialization to match Java parity (Bug 426)
+	// 	/*
+	// 		tlsConfig := &tls.Config{...}
+	// 		l = tls.NewListener(l, tlsConfig)
+	// 	*/
+	// }
 
 	if props.ProxyProtocolMode != common.ProxyProtocolMode_DISABLED {
 		pL := &proxyproto.Listener{Listener: l}
