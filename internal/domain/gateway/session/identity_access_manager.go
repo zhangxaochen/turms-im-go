@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	adminconstant "im.turms/server/internal/domain/admin/constant"
 	"im.turms/server/internal/domain/common/constant"
+	"im.turms/server/internal/domain/common/util"
 	"im.turms/server/internal/domain/gateway/access/client/common/authorization"
 	"im.turms/server/internal/domain/gateway/config"
 	"im.turms/server/internal/domain/gateway/session/bo"
@@ -23,6 +25,7 @@ import (
 	"im.turms/server/internal/infra/ldap/element"
 	"im.turms/server/internal/infra/plugin"
 	"im.turms/server/internal/pkg/security"
+	"path/filepath"
 )
 
 // SessionIdentityAccessManagementSupport maps to the Java support interface.
@@ -190,7 +193,7 @@ type HttpSessionIdentityAccessManager struct {
 	url                 string
 	method              string
 	requestHeaders      map[string]string
-	expectedStatusCodes map[string]struct{}
+	expectedStatusCodes []string
 	expectedHeaders     map[string]string
 	expectedBodyFields  map[string]interface{}
 	policyManager       *authorization.PolicyManager
@@ -204,11 +207,6 @@ func NewHttpSessionIdentityAccessManager(
 	reqProps := props.Request
 	respProps := props.Authentication.ResponseExpectation
 
-	statusCodes := make(map[string]struct{})
-	for _, sc := range respProps.StatusCodes {
-		statusCodes[sc] = struct{}{}
-	}
-
 	return &HttpSessionIdentityAccessManager{
 		client: &http.Client{
 			Timeout: time.Duration(reqProps.TimeoutMillis) * time.Millisecond,
@@ -216,7 +214,7 @@ func NewHttpSessionIdentityAccessManager(
 		url:                 reqProps.URL,
 		method:              string(reqProps.HttpMethod),
 		requestHeaders:      reqProps.Headers,
-		expectedStatusCodes: statusCodes,
+		expectedStatusCodes: respProps.StatusCodes,
 		expectedHeaders:     respProps.Headers,
 		expectedBodyFields:  respProps.BodyFields,
 		policyManager:       policyManager,
@@ -249,7 +247,14 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 
 	// Check status codes
 	statusStr := fmt.Sprintf("%d", resp.StatusCode)
-	if _, ok := m.expectedStatusCodes[statusStr]; !ok {
+	matched := len(m.expectedStatusCodes) == 0
+	for _, pattern := range m.expectedStatusCodes {
+		if ok, _ := filepath.Match(pattern, statusStr); ok {
+			matched = true
+			break
+		}
+	}
+	if !matched {
 		return bo.LoginAuthenticationFailed, nil
 	}
 
@@ -274,7 +279,8 @@ func (m *HttpSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 
 	// Check body fields
 	for k, v := range m.expectedBodyFields {
-		if val, ok := respMap[k]; !ok || fmt.Sprint(val) != fmt.Sprint(v) {
+		val, ok := respMap[k]
+		if !ok || !util.ContainsAllLooseComparison(val, v) {
 			return bo.LoginAuthenticationFailed, nil
 		}
 	}
@@ -304,10 +310,7 @@ func (m *HttpSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 	m.client.Timeout = time.Duration(props.Http.Request.TimeoutMillis) * time.Millisecond
 	m.requestHeaders = props.Http.Request.Headers
 
-	m.expectedStatusCodes = make(map[string]struct{})
-	for _, sc := range props.Http.Authentication.ResponseExpectation.StatusCodes {
-		m.expectedStatusCodes[sc] = struct{}{}
-	}
+	m.expectedStatusCodes = props.Http.Authentication.ResponseExpectation.StatusCodes
 	m.expectedHeaders = props.Http.Authentication.ResponseExpectation.Headers
 	m.expectedBodyFields = props.Http.Authentication.ResponseExpectation.BodyFields
 
@@ -326,13 +329,16 @@ func NewJwtSessionIdentityAccessManager(
 	props *config.JwtIdentityAccessManagementProperties,
 	policyManager *authorization.PolicyManager,
 ) *JwtSessionIdentityAccessManager {
+	expectedClaims := props.Authentication.Expectation.CustomPayloadClaims
+	if expectedClaims == nil {
+		expectedClaims = make(map[string]interface{})
+	}
 	return &JwtSessionIdentityAccessManager{
 		algorithm:     props.Algorithm,
 		secretKey:     []byte(props.SecretKey),
 		policyManager: policyManager,
 		// Java parity: expectedClaims populated from jwtProperties.getAuthentication().getExpectation().getCustomPayloadClaims()
-		// Currently empty as config doesn't expose this field yet
-		expectedClaims: make(map[string]interface{}),
+		expectedClaims: expectedClaims,
 	}
 }
 
@@ -351,9 +357,15 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 		return m.secretKey, nil
 	})
 
-	if err != nil || !token.Valid {
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
+			return bo.LoginAuthenticationFailed, nil
+		}
 		// Java parity: JWT parse failure returns error (IllegalArgumentException), not silent auth failure
 		return nil, fmt.Errorf("invalid JWT token: %w", err)
+	}
+	if !token.Valid {
+		return nil, fmt.Errorf("invalid JWT token")
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
@@ -373,7 +385,7 @@ func (m *JwtSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, lo
 
 	// Validate expected custom claims
 	for k, v := range m.expectedClaims {
-		if cv, ok := claims[k]; !ok || fmt.Sprint(cv) != fmt.Sprint(v) {
+		if cv, ok := claims[k]; !ok || !util.ContainsAllLooseComparison(cv, v) {
 			return bo.LoginAuthenticationFailed, nil
 		}
 	}
@@ -412,6 +424,12 @@ func (m *JwtSessionIdentityAccessManager) UpdateGlobalProperties(properties inte
 	m.algorithm = props.Jwt.Algorithm
 	m.secretKey = []byte(props.Jwt.SecretKey)
 
+	newExpectedClaims := props.Jwt.Authentication.Expectation.CustomPayloadClaims
+	if newExpectedClaims == nil {
+		newExpectedClaims = make(map[string]interface{})
+	}
+	m.expectedClaims = newExpectedClaims
+
 	return props.Enabled
 }
 
@@ -419,11 +437,14 @@ func (m *JwtSessionIdentityAccessManager) UpdateGlobalProperties(properties inte
 type LdapSessionIdentityAccessManager struct {
 	mu          sync.RWMutex
 	adminClient *ldap.LdapClient
-	userClient  *ldap.LdapClient
 	baseDN      string
 	userFilter  string
+	
+	// config for ephemeral user clients
+	userHost   string
+	userPort   int
+	userUseTLS bool
 
-	userBindMu    sync.Mutex
 	policyManager *authorization.PolicyManager
 }
 
@@ -438,11 +459,6 @@ func NewLdapSessionIdentityAccessManager(
 	adminClient, err := ldap.NewLdapClient(props.Admin.Host, props.Admin.Port, props.Admin.UseTLS, nil, 5*time.Second)
 	if err != nil {
 		panic(fmt.Errorf("illegal state: failed to connect to admin LDAP server: %w", err))
-	}
-	
-	userClient, err := ldap.NewLdapClient(props.User.Host, props.User.Port, props.User.UseTLS, nil, 5*time.Second)
-	if err != nil {
-		panic(fmt.Errorf("illegal state: failed to connect to user LDAP server: %w", err))
 	}
 
 	// Java parity: bind the admin client once at startup
@@ -470,9 +486,11 @@ func NewLdapSessionIdentityAccessManager(
 
 	return &LdapSessionIdentityAccessManager{
 		adminClient:   adminClient,
-		userClient:    userClient,
 		baseDN:        props.BaseDN,
 		userFilter:    props.User.SearchFilter,
+		userHost:      props.User.Host,
+		userPort:      props.User.Port,
+		userUseTLS:    props.User.UseTLS,
 		policyManager: policyManager,
 	}
 }
@@ -484,13 +502,15 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 
 	m.mu.RLock()
 	adminClient := m.adminClient
-	userClient := m.userClient
 	baseDN := m.baseDN
 	userFilter := m.userFilter
+	userHost := m.userHost
+	userPort := m.userPort
+	userUseTLS := m.userUseTLS
 	m.mu.RUnlock()
 
-	if adminClient == nil || userClient == nil {
-		return bo.LoginAuthenticationFailed, fmt.Errorf("LDAP clients not initialized")
+	if adminClient == nil {
+		return bo.LoginAuthenticationFailed, fmt.Errorf("LDAP admin client not initialized")
 	}
 
 	if loginInfo.UserID == nil {
@@ -507,7 +527,7 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 		2,     // sizeLimit: 2 so we can fail if multiple returned
 		0,     // timeLimit
 		false, // typesOnly
-		nil,   // NO_ATTRIBUTES
+		[]string{"1.1"}, // NO_ATTRIBUTES
 		filter,
 	)
 	if err != nil {
@@ -527,12 +547,15 @@ func (m *LdapSessionIdentityAccessManager) VerifyAndGrant(ctx context.Context, l
 	userDN := searchResult.Entries[0].ObjectName
 
 	// 2. Bind with the user DN and password
-	// RFC 4511: 4.2.1. Processing of the Bind Request
-	// Serialize bind requests using userBindMu to mimic Java's TaskScheduler schedule behavior
-	m.userBindMu.Lock()
-	ok, err := userClient.Bind(true, userDN, *loginInfo.Password)
-	m.userBindMu.Unlock()
-
+	// Create an ephemeral client for authentication verification to avoid static concurrency bottlenecks
+	// Note: in Java parity, adminClient is bound specifically for authentication, or an ephemeral context is used.
+	userClient, err := ldap.NewLdapClient(userHost, userPort, userUseTLS, nil, 5*time.Second)
+	if err != nil {
+		return bo.LoginAuthenticationFailed, nil
+	}
+	defer userClient.Close()
+	
+	ok, err := userClient.Bind(false, userDN, *loginInfo.Password)
 	if err != nil || !ok {
 		return bo.LoginAuthenticationFailed, nil
 	}
@@ -560,20 +583,11 @@ func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 		fmt.Printf("WARN: failed to connect to admin LDAP server: %v\n", err)
 		return false
 	}
-	
-	userClient, err := ldap.NewLdapClient(props.Ldap.User.Host, props.Ldap.User.Port, props.Ldap.User.UseTLS, nil, 5*time.Second)
-	if err != nil {
-		fmt.Printf("WARN: failed to connect to user LDAP server: %v\n", err)
-		adminClient.Close()
-		return false
-	}
-
 	if props.Ldap.Admin.Username != "" {
 		ok, err := adminClient.Bind(false, props.Ldap.Admin.Username, props.Ldap.Admin.Password)
 		if err != nil || !ok {
 			fmt.Printf("WARN: admin bind failed (ok=%v): %v\n", ok, err)
 			adminClient.Close()
-			userClient.Close()
 			return false
 		}
 	}
@@ -584,14 +598,13 @@ func (m *LdapSessionIdentityAccessManager) UpdateGlobalProperties(properties int
 	if m.adminClient != nil {
 		m.adminClient.Close()
 	}
-	if m.userClient != nil {
-		m.userClient.Close()
-	}
 
 	m.adminClient = adminClient
-	m.userClient = userClient
 	m.baseDN = props.Ldap.BaseDN
 	m.userFilter = props.Ldap.User.SearchFilter
+	m.userHost = props.Ldap.User.Host
+	m.userPort = props.Ldap.User.Port
+	m.userUseTLS = props.Ldap.User.UseTLS
 
 	return props.Enabled
 }

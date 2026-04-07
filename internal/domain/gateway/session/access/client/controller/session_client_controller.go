@@ -49,9 +49,9 @@ func (c *SessionClientController) HandleCreateSessionRequest(ctx context.Context
 		password = *req.Password
 	}
 
-	var userStatus protocol.UserStatus
+	var userStatus *protocol.UserStatus
 	if req.UserStatus != nil {
-		userStatus = *req.UserStatus
+		userStatus = req.UserStatus
 	}
 
 	deviceType := req.DeviceType

@@ -45,8 +45,17 @@ type HttpAuthenticationResponseExpectationProperties struct {
 }
 
 type JwtIdentityAccessManagementProperties struct {
-	Algorithm string `json:"algorithm" yaml:"algorithm"`
-	SecretKey string `json:"secretKey" yaml:"secretKey"`
+	Algorithm      string                      `json:"algorithm" yaml:"algorithm"`
+	SecretKey      string                      `json:"secretKey" yaml:"secretKey"`
+	Authentication JwtAuthenticationProperties `json:"authentication" yaml:"authentication"`
+}
+
+type JwtAuthenticationProperties struct {
+	Expectation JwtAuthenticationExpectationProperties `json:"expectation" yaml:"expectation"`
+}
+
+type JwtAuthenticationExpectationProperties struct {
+	CustomPayloadClaims map[string]interface{} `json:"customPayloadClaims" yaml:"customPayloadClaims"`
 }
 
 // SearchFilterPlaceholderUserID is the placeholder in the user search filter
