@@ -744,20 +744,19 @@ func (c *GroupMemberController) AddGroupMember(ctx context.Context, addDTO group
 	if addDTO.GroupId == nil || addDTO.UserId == nil {
 		return common_dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_INVALID_REQUEST), nil
 	}
+	if addDTO.Role == nil {
+		return common_dto.RequestHandlerResultOfCode(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), nil
+	}
 	role := protocol.GroupMemberRole_MEMBER
-	if addDTO.Role != nil {
-		switch v := addDTO.Role.(type) {
-		case int:
-			role = protocol.GroupMemberRole(v)
-		case int32:
-			role = protocol.GroupMemberRole(v)
-		case int64:
-			role = protocol.GroupMemberRole(v)
-		case float64:
-			role = protocol.GroupMemberRole(int(v))
-		default:
-			// Let service handle it - don't silently default
-		}
+	switch v := addDTO.Role.(type) {
+	case int:
+		role = protocol.GroupMemberRole(v)
+	case int32:
+		role = protocol.GroupMemberRole(v)
+	case int64:
+		role = protocol.GroupMemberRole(v)
+	case float64:
+		role = protocol.GroupMemberRole(int(v))
 	}
 	err := c.groupMemberService.AddGroupMember(
 		ctx, *addDTO.GroupId, *addDTO.UserId, role, nil, addDTO.MuteEndDate,
@@ -816,20 +815,13 @@ func (c *GroupMemberController) QueryGroupMembersByPage(
 	if err != nil {
 		return nil, err
 	}
-	// For total, use a simplified count: count all members in specified groups
-	var total int64
-	if len(groupIds) > 0 {
-		for _, gid := range groupIds {
-			members, err := c.groupMemberService.QueryGroupMembersWithFilter(
-				ctx, []int64{gid}, nil, nil, nil, nil, nil, nil, nil, nil,
-			)
-			if err != nil {
-				return nil, err
-			}
-			total += int64(len(members))
-		}
-	} else {
-		total = int64(len(results))
+	total, errCount := c.groupMemberService.CountMembersWithFilter(
+		ctx, groupIds, userIds, roles,
+		joinDateStart, joinDateEnd,
+		muteEndDateStart, muteEndDateEnd,
+	)
+	if errCount != nil {
+		return nil, errCount
 	}
 	return &PaginationResponse{Total: total, Records: results}, nil
 }
@@ -888,6 +880,13 @@ func (c *GroupMemberController) DeleteGroupMembers(
 	ctx context.Context,
 	keys []po.GroupMemberKey,
 ) (*response.DeleteResultDTO, error) {
+	if len(keys) == 0 {
+		result, err := c.groupMemberService.DeleteAllGroupMembersGlobally(ctx, true)
+		if err != nil {
+			return nil, err
+		}
+		return &response.DeleteResultDTO{DeletedCount: result.DeletedCount}, nil
+	}
 	result, err := c.groupMemberService.DeleteGroupMembersByKeys(ctx, keys, true)
 	if err != nil {
 		return nil, err

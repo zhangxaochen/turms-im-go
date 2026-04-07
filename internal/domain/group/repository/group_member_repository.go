@@ -162,6 +162,11 @@ func (r *GroupMemberRepository) DeleteByGroupIDs(ctx context.Context, groupIDs [
 	return r.col.DeleteMany(ctx, filter)
 }
 
+// DeleteAll removes all group members globally.
+func (r *GroupMemberRepository) DeleteAll(ctx context.Context) (*mongo.DeleteResult, error) {
+	return r.col.DeleteMany(ctx, bson.M{})
+}
+
 // UpdateGroupMembers updates multiple group members' properties.
 // @MappedFrom updateGroupMembers(List<GroupMember.Key> keys, @RequestBody UpdateGroupMemberDTO updateGroupMemberDTO)
 // @MappedFrom updateGroupMembers(Set<GroupMember.Key> keys, @Nullable String name, @Nullable GroupMemberRole role, @Nullable Date joinDate, @Nullable Date muteEndDate, @Nullable ClientSession session)
