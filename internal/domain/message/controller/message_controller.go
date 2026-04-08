@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"im.turms/server/internal/domain/gateway/session"
+	"im.turms/server/internal/domain/message/bo"
 	"im.turms/server/internal/domain/message/po"
 	"im.turms/server/internal/domain/message/service"
 	"im.turms/server/pkg/protocol"
@@ -57,19 +58,28 @@ func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *s
 		deliveryDate = &t
 	}
 
-	createdMsg, err := c.messageService.AuthAndSaveAndSendMessage(
+	var msgResult *bo.MessageAndRecipientIDs
+	msgResult, err := c.messageService.AuthAndSaveAndSendMessage(
 		ctx,
 		isGroupMessage,
 		s.UserID,
 		targetID,
+		false, // isSystemMessage - users cannot send system messages
 		text,
 		createReq.Records,
 		createReq.BurnAfter,
 		deliveryDate,
 		createReq.PreMessageId,
+		"",   // senderIP
+		nil,  // referenceID
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	var msgID int64
+	if msgResult.Message != nil {
+		msgID = msgResult.Message.ID
 	}
 
 	return &protocol.TurmsNotification{
@@ -77,7 +87,7 @@ func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *s
 		Code:      proto.Int32(1000), // SUCCESS
 		Data: &protocol.TurmsNotification_Data{
 			Kind: &protocol.TurmsNotification_Data_Long{
-				Long: createdMsg.ID,
+				Long: msgID,
 			},
 		},
 	}, nil

@@ -10,6 +10,8 @@ import (
 	"im.turms/server/internal/testingutil"
 
 	"im.turms/server/internal/domain/common/infra/idgen"
+	"im.turms/server/internal/infra/plugin"
+	"im.turms/server/internal/infra/property"
 	grouppo "im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/message/po"
 	"im.turms/server/internal/domain/message/repository"
@@ -149,23 +151,26 @@ func TestMessageService_AuthAndSaveAndSendMessage_BDD(t *testing.T) {
 			userSvc := &mockUserRelService{allowed: tt.mockUserRel}
 			groupSvc := &mockGroupMemService{allowed: tt.mockGroup}
 			delivery := &mockDelivery{delivered: make(map[int64]*po.Message)}
+			propsMgr := property.NewTurmsPropertiesManager()
+			plugMgr := plugin.NewPluginManager()
 
-			svc := NewMessageService(idGen, seqGen, msgRepo, userSvc, groupSvc, delivery)
+			svc := NewMessageService(idGen, seqGen, msgRepo, userSvc, groupSvc, nil, nil, delivery, propsMgr, plugMgr)
 			defer svc.Close()
 
-			msg, err := svc.AuthAndSaveAndSendMessage(ctx, tt.isGroup, tt.senderID, tt.targetID, tt.text, nil, nil, nil, nil)
+			result, err := svc.AuthAndSaveAndSendMessage(ctx, tt.isGroup, tt.senderID, tt.targetID, false, tt.text, nil, nil, nil, nil, "", nil)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
-				assert.Nil(t, msg)
+				assert.Nil(t, result)
 			} else {
 				require.NoError(t, err)
+				require.NotNil(t, result)
+				msg := result.Message
 				assert.NotNil(t, msg)
 				assert.Equal(t, tt.senderID, msg.SenderID)
 				assert.Equal(t, tt.targetID, msg.TargetID)
 				assert.Equal(t, tt.text, msg.Text)
-				assert.NotNil(t, msg.SequenceID)
-				assert.Condition(t, func() bool { return *msg.SequenceID > 0 })
+				assert.Condition(t, func() bool { return msg.SequenceID != nil && *msg.SequenceID > 0 })
 
 				// Validate delivered
 				assert.Contains(t, delivery.delivered, tt.targetID)

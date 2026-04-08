@@ -11,6 +11,8 @@ import (
 	"im.turms/server/internal/domain/common/infra/idgen"
 	"im.turms/server/internal/domain/message/repository"
 	"im.turms/server/internal/domain/message/service"
+	"im.turms/server/internal/infra/plugin"
+	"im.turms/server/internal/infra/property"
 	turmsredis "im.turms/server/internal/storage/redis"
 	"im.turms/server/internal/testingutil"
 )
@@ -32,7 +34,9 @@ func TestMessageCore_E2E(t *testing.T) {
 	msgRepo := repository.NewMessageRepository(db)
 
 	// Create MessageService (passing nil for user/group relation checks to isolate message testing)
-	msgService := service.NewMessageService(idGen, seqGen, msgRepo, nil, nil, nil)
+	propsMgr := property.NewTurmsPropertiesManager()
+	plugMgr := plugin.NewPluginManager()
+	msgService := service.NewMessageService(idGen, seqGen, msgRepo, nil, nil, nil, nil, nil, propsMgr, plugMgr)
 	defer msgService.Close()
 
 	t.Run("Message Creation, Recall, and Modification", func(t *testing.T) {
@@ -41,8 +45,10 @@ func TestMessageCore_E2E(t *testing.T) {
 		text := "Hello World"
 
 		// 1. Create message
-		msg, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, text, nil, nil, nil, nil)
+		result, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, false, text, nil, nil, nil, nil, "", nil)
 		require.NoError(t, err)
+		require.NotNil(t, result)
+		msg := result.Message
 		assert.NotNil(t, msg)
 		assert.Equal(t, text, msg.Text)
 		assert.Nil(t, msg.RecallDate)
@@ -79,18 +85,19 @@ func TestMessageCore_E2E(t *testing.T) {
 		targetID := int64(201)
 		text := "A private message"
 
-		msg, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, text, nil, nil, nil, nil)
+		result, err := msgService.AuthAndSaveMessage(ctx, false, senderID, targetID, false, text, nil, nil, nil, nil, "", nil)
 		require.NoError(t, err)
+		require.NotNil(t, result)
 
 		wrongSenderID := int64(999)
 
 		// Attempt to recall by wrong user
-		err = msgService.AuthAndRecallMessage(ctx, wrongSenderID, msg.ID)
+		err = msgService.AuthAndRecallMessage(ctx, wrongSenderID, result.Message.ID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unauthorized")
 
 		// Attempt to modify by wrong user
-		err = msgService.AuthAndUpdateMessageText(ctx, wrongSenderID, msg.ID, "hacked text")
+		err = msgService.AuthAndUpdateMessageText(ctx, wrongSenderID, result.Message.ID, "hacked text")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "unauthorized")
 	})

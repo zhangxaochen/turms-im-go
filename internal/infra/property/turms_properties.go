@@ -46,6 +46,19 @@ type ServiceProperties struct {
 	Conference   ConferenceProperties
 	Conversation NotificationConversationProperties
 	Notification NotificationProperties
+	Message      MessageProperties
+}
+
+type MessageProperties struct {
+	DeleteMessageLogicallyByDefault     bool
+	UseSequenceIdForGroupConversation   bool
+	UseSequenceIdForPrivateConversation bool
+	UpdateReadDateAfterMessageSent      bool
+	MaxTextLimit                        int
+	MaxRecordsSize                      int
+	AllowEditMessageBySender            bool
+	AllowRecallMessage                  bool
+	AvailableRecallDurationMillis       int64
 }
 
 type NotificationConversationProperties struct {
@@ -178,6 +191,17 @@ func NewTurmsPropertiesManager() *TurmsPropertiesManager {
 					TypingStatus: TypingStatusProperties{
 						Enabled: true,
 					},
+				},
+				Message: MessageProperties{
+					DeleteMessageLogicallyByDefault:     true,
+					UseSequenceIdForGroupConversation:   true,
+					UseSequenceIdForPrivateConversation: true,
+					UpdateReadDateAfterMessageSent:      true,
+					MaxTextLimit:                        500,
+					MaxRecordsSize:                      5,
+					AllowEditMessageBySender:            false,
+					AllowRecallMessage:                  false,
+					AvailableRecallDurationMillis:       300000, // 5 minutes
 				},
 				Notification: NotificationProperties{
 					MeetingCanceled: NotificationMeetingCanceledProperties{
