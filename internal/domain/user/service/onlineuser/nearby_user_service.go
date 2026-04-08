@@ -22,7 +22,7 @@ type NearbyUser struct {
 }
 
 type NearbyUserService interface {
-	QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *float64, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error)
+	QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *int, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error)
 }
 
 type nearbyUserService struct {
@@ -40,7 +40,7 @@ func NewNearbyUserService(userService service.UserService, sessionLocationServic
 }
 
 // @MappedFrom queryNearbyUsers(@NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Float longitude, @Nullable Float latitude, @Nullable Short maxCount, @Nullable Integer maxDistance, boolean withCoordinates, boolean withDistance, boolean withUserInfo)
-func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *float64, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error) {
+func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *int, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error) {
 	if longitude == nil || latitude == nil {
 		return []*NearbyUser{}, nil
 	}
@@ -48,7 +48,7 @@ func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, 
 	// Use go-redis GeoSearch
 	radius := 1000.0
 	if maxDistance != nil {
-		radius = *maxDistance
+		radius = float64(*maxDistance)
 	}
 	limit := 10
 	if maxCount != nil {

@@ -106,6 +106,7 @@ func (r *userFriendRequestRepository) UpdateStatusIfPending(ctx context.Context,
 func (r *userFriendRequestRepository) UpdateFriendRequests(ctx context.Context, requestIds []int64, requesterID, recipientID *int64, content *string, status *po.RequestStatus, reason *string, creationDate *time.Time) error {
 	filter := bson.M{"_id": bson.M{"$in": requestIds}}
 	updateOps := bson.M{}
+	unsetOps := bson.M{}
 	if requesterID != nil {
 		updateOps["rqid"] = *requesterID
 	}
@@ -117,6 +118,15 @@ func (r *userFriendRequestRepository) UpdateFriendRequests(ctx context.Context, 
 	}
 	if status != nil {
 		updateOps["s"] = *status
+		// Java's updateResponseDateBasedOnStatus:
+		// If status is ACCEPTED/DECLINED/IGNORED: set responseDate to now
+		// If status is PENDING/CANCELED/EXPIRED: unset responseDate
+		switch *status {
+		case po.RequestStatusAccepted, po.RequestStatusDeclined, po.RequestStatusIgnored:
+			updateOps["rd"] = time.Now()
+		case po.RequestStatusPending, po.RequestStatusCanceled, po.RequestStatusExpired:
+			unsetOps["rd"] = ""
+		}
 	}
 	if reason != nil {
 		updateOps["r"] = *reason
@@ -124,10 +134,17 @@ func (r *userFriendRequestRepository) UpdateFriendRequests(ctx context.Context, 
 	if creationDate != nil {
 		updateOps["cd"] = *creationDate
 	}
-	if len(updateOps) == 0 {
+	if len(updateOps) == 0 && len(unsetOps) == 0 {
 		return nil
 	}
-	_, err := r.coll.UpdateMany(ctx, filter, bson.M{"$set": updateOps})
+	update := bson.M{}
+	if len(updateOps) > 0 {
+		update["$set"] = updateOps
+	}
+	if len(unsetOps) > 0 {
+		update["$unset"] = unsetOps
+	}
+	_, err := r.coll.UpdateMany(ctx, filter, update)
 	return err
 }
 
@@ -260,6 +277,33 @@ func (r *userFriendRequestRepository) countOrFind(ctx context.Context, ids, requ
 			rdFilter["$lt"] = *responseDateEnd
 		}
 		filter["rd"] = rdFilter
+	}
+	// Expiration date range filtering:
+	// Java converts expirationDateRange to creationDateRange by subtracting expireAfterSeconds,
+	// then filters on the creation date field.
+	if expirationDateStart != nil || expirationDateEnd != nil {
+		expireSeconds := r.GetEntityExpireAfterSeconds()
+		if expireSeconds > 0 {
+			cdFilter := bson.M{}
+			if expirationDateStart != nil {
+				adjusted := expirationDateStart.Add(-time.Duration(expireSeconds) * time.Second)
+				cdFilter["$gte"] = adjusted
+			}
+			if expirationDateEnd != nil {
+				adjusted := expirationDateEnd.Add(-time.Duration(expireSeconds) * time.Second)
+				cdFilter["$lt"] = adjusted
+			}
+			// Merge with existing creationDate filter if present
+			if existing, ok := filter["cd"]; ok {
+				if existingMap, ok := existing.(bson.M); ok {
+					for k, v := range cdFilter {
+						existingMap[k] = v
+					}
+				}
+			} else {
+				filter["cd"] = cdFilter
+			}
+		}
 	}
 	return filter
 }

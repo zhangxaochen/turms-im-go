@@ -31,12 +31,25 @@ func (s *UserRoleService) AddUserRole(ctx context.Context, role *po.UserRole) er
 }
 
 func (s *UserRoleService) UpdateUserRoles(ctx context.Context, filter bson.M, update bson.M) error {
-	// Not implementing complex update parsing, just using bare Mongo operations right now.
-	// Since we defined UpdateRole for a single ID, let's just add an UpdateRoles if needed.
-	// But in UserRole, they update specific roles.
-	// For simplicity, we just iterate or we need UpdateRoles in repo.
-	// We'll leave it as a placeholder until we implement the actual turms query builder.
-	return nil
+	// Extract role IDs from filter and use the repository's UpdateUserRoles method
+	idsVal, ok := filter["_id"]
+	if !ok {
+		return nil
+	}
+	idsMap, ok := idsVal.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	inVal, ok := idsMap["$in"]
+	if !ok {
+		return nil
+	}
+	roleIDs, ok := inVal.([]int64)
+	if !ok {
+		return nil
+	}
+	_, err := s.roleRepo.UpdateUserRoles(ctx, roleIDs, update)
+	return err
 }
 
 // @MappedFrom deleteUserRoles(@Nullable Set<Long> groupIds)
