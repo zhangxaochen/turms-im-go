@@ -137,7 +137,8 @@ const { execSync, spawn } = require('child_process');
             + `3. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
             + `4. Very Important: You ONLY need to check off ('- [x]') the bugs in your local 'temp_task.md'. Under NO CIRCUMSTANCES should you modify 'docs/pending_bugs.md'. The main scheduler will sync it automatically.\n`
             + `5. ABSOLUTELY CRITICAL: When updating 'temp_task.md', you MUST ONLY change '- [ ]' to '- [x]'. DO NOT rewrite, reformat, or change a single word of the task description text. Changing the text will break the global regex sync script.\n`
-            + `6. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. At that point, test the code, use 'git add .', and 'git commit' with a neat descriptive message.\n`
+            + `6. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. BEFORE finishing, you MUST run 'go build ./...' to verify no compilation errors exist globally!\n`
+            + `7. Finally, use 'git add -A' (NOT git commit -a) so that ALL newly created files are staged, and then 'git commit' with a neat descriptive message.\n`
             + `KEEP LOGS CONCISE. Stop and commit when all tasks in the scratchpad are fully resolved.`;
 
         fs.writeFileSync(promptPath, promptText);
@@ -164,15 +165,24 @@ while [ $count -lt $MAX_RETRIES ]; do
             echo "[!] temp_task.md still has unfinished tasks (- [ ]). Claude agent did not complete everything!"
             EXIT_CODE=1
         else
-            echo "[Success] All tasks in temp_task.md are checked off."
-            EXIT_CODE=0
+            echo "[Checking Validation] Running 'go build ./...' to verify codebase integrity..."
+            if ! go build ./...; then
+                echo "[!] Compilation failed. Rejecting claim of completion and sending back to Claude."
+                # 回滚已打完的对勾，强制 Claude 重来并修复编译问题
+                # 兼容 macOS 的 sed 用法
+                sed -i '' 's/- \\[x\\]/- \\[ \\]/g' temp_task.md || true
+                EXIT_CODE=1
+            else
+                echo "[Success] Code compiles cleanly. All tasks in temp_task.md are checked off."
+                EXIT_CODE=0
+            fi
         fi
     fi
     
     if [ $EXIT_CODE -eq 0 ]; then
         echo "[$(date)] Agent finished successfully. Attempting to commit and merge..."
-        # 1. 兜底提交（防止 Claude 忘了主动跑 Commit 命令）
-        git add .
+        # 1. 兜底提交（防止 Claude 忘了主动跑 Commit 命令，强制使用 -A 避免漏掉新文件）
+        git add -A
         git commit -m "fix(automation): resolve parity bugs for batch ${i}" || true
         
         # 2. 回到主分支执行安全的合并。遇到冲突则让 AI 进行 Rebase + Self-Heal 自动修复
