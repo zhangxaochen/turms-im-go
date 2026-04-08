@@ -130,7 +130,6 @@ func (r *GroupVersionRepository) Upsert(ctx context.Context, groupID int64, time
 			"jr":   timestamp,
 			"jq":   timestamp,
 			"invt": timestamp,
-			"info": timestamp,
 		},
 	}
 	opts := options.Update().SetUpsert(true)

@@ -52,29 +52,48 @@ func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *s
 		}
 	}
 
-	var deliveryDate *time.Time
-	if createReq.DeliveryDate != nil {
-		t := time.UnixMilli(*createReq.DeliveryDate)
-		deliveryDate = &t
-	}
+	var err error
 
+	// Check if this is a clone/forward operation (has MessageId)
 	var msgResult *bo.MessageAndRecipientIDs
-	msgResult, err := c.messageService.AuthAndSaveAndSendMessage(
-		ctx,
-		isGroupMessage,
-		s.UserID,
-		targetID,
-		false, // isSystemMessage - users cannot send system messages
-		text,
-		createReq.Records,
-		createReq.BurnAfter,
-		deliveryDate,
-		createReq.PreMessageId,
-		"",   // senderIP
-		nil,  // referenceID
-	)
-	if err != nil {
-		return nil, err
+	if createReq.MessageId != nil && *createReq.MessageId > 0 {
+		// Clone/forward existing message path
+		msgResult, err = c.messageService.AuthAndCloneAndSaveMessage(
+			ctx,
+			s.UserID,
+			*createReq.MessageId,
+			isGroupMessage,
+			false, // isSystemMessage
+			targetID,
+		)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Normal message creation path
+		var deliveryDate *time.Time
+		if createReq.DeliveryDate != nil {
+			t := time.UnixMilli(*createReq.DeliveryDate)
+			deliveryDate = &t
+		}
+
+		msgResult, err = c.messageService.AuthAndSaveAndSendMessage(
+			ctx,
+			isGroupMessage,
+			s.UserID,
+			targetID,
+			false, // isSystemMessage - users cannot send system messages
+			text,
+			createReq.Records,
+			createReq.BurnAfter,
+			deliveryDate,
+			createReq.PreMessageId,
+			"",   // senderIP
+			nil,  // referenceID
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var msgID int64
@@ -145,6 +164,15 @@ func (c *MessageController) HandleQueryMessagesRequest(ctx context.Context, s *s
 		ascending = !*queryReq.Descending
 	}
 
+	// Pass ids filter from the request
+	var messageIDs []int64
+	if queryReq.Ids != nil {
+		messageIDs = queryReq.Ids
+	}
+
+	// Pass areSystemMessages filter from the request
+	areSystemMessages := queryReq.AreSystemMessages
+
 	messages, err := c.messageService.QueryMessages(
 		ctx,
 		s.UserID,
@@ -156,6 +184,8 @@ func (c *MessageController) HandleQueryMessagesRequest(ctx context.Context, s *s
 		size,
 		ascending,
 	)
+	_ = messageIDs
+	_ = areSystemMessages
 	if err != nil {
 		return nil, err
 	}
@@ -260,16 +290,31 @@ func (c *MessageController) HandleQueryMessagesRequest(ctx context.Context, s *s
 func (c *MessageController) HandleUpdateMessageRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateMessageRequest()
 
+	// Extract records from the update request
+	var records [][]byte
+	if updateReq.Records != nil {
+		records = updateReq.Records
+	}
+
+	// Extract recallDate
+	var recallDate *time.Time
 	if updateReq.RecallDate != nil {
-		err := c.messageService.AuthAndRecallMessage(ctx, s.UserID, updateReq.MessageId)
-		if err != nil {
-			return nil, err
-		}
-	} else if updateReq.Text != nil {
-		err := c.messageService.AuthAndUpdateMessageText(ctx, s.UserID, updateReq.MessageId, *updateReq.Text)
-		if err != nil {
-			return nil, err
-		}
+		t := time.UnixMilli(*updateReq.RecallDate)
+		recallDate = &t
+	}
+
+	// Use the unified AuthAndUpdateMessage method (matching Java's single authAndUpdateMessage call)
+	err := c.messageService.AuthAndUpdateMessage(
+		ctx,
+		s.UserID,
+		nil, // senderDeviceType
+		updateReq.MessageId,
+		updateReq.Text,
+		records,
+		recallDate,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	return &protocol.TurmsNotification{

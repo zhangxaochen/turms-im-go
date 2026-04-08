@@ -38,6 +38,6 @@ type MessageStatisticsDTO struct {
 	SentMessages                        *int64        `json:"sentMessages,omitempty"`
 	SentMessagesOnAverageRecords        []interface{} `json:"sentMessagesOnAverageRecords,omitempty"` // placeholder for StatisticsRecordDTO
 	AcknowledgedMessagesRecords         []interface{} `json:"acknowledgedMessagesRecords,omitempty"`  // placeholder for StatisticsRecordDTO
-	AcknowledgedMessagesOnAverageRecord []interface{} `json:"acknowledgedMessagesOnAverageRecords,omitempty"`
+	AcknowledgedMessagesOnAverageRecords []interface{} `json:"acknowledgedMessagesOnAverageRecords,omitempty"`
 	SentMessagesRecords                 []interface{} `json:"sentMessagesRecords,omitempty"`
 }

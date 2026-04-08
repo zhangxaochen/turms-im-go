@@ -51,49 +51,53 @@ func (s *GroupVersionService) UpdateVersionFields(ctx context.Context, groupID i
 	return s.groupVersionRepo.UpdateVersionFields(ctx, groupID, updateMembers, updateBlocklist, updateJoinRequests, updateJoinQuestions)
 }
 
+// UpdateMembersVersionForGroups batch-updates the members version for a set of group IDs.
+// @MappedFrom updateMembersVersion(@Nullable Set<Long> groupIds)
+func (s *GroupVersionService) UpdateMembersVersionForGroups(ctx context.Context, groupIDs []int64) error {
+	return s.groupVersionRepo.UpdateVersions(ctx, groupIDs, "mbr")
+}
+
+// UpdateMembersVersionForAll updates the members version for ALL groups.
+// @MappedFrom updateMembersVersion()
+func (s *GroupVersionService) UpdateMembersVersionForAll(ctx context.Context) error {
+	return s.groupVersionRepo.UpdateVersions(ctx, nil, "mbr")
+}
+
+// UpdateSpecificVersionForGroups updates a specific version field for a set of group IDs.
+// @MappedFrom updateSpecificVersion(@Nullable Set<Long> groupIds, @NotNull String field)
+func (s *GroupVersionService) UpdateSpecificVersionForGroups(ctx context.Context, groupIDs []int64, field string) error {
+	return s.groupVersionRepo.UpdateVersions(ctx, groupIDs, field)
+}
+
+// UpdateSpecificVersionForAll updates a specific version field for ALL groups.
+// @MappedFrom updateSpecificVersion(@NotNull String field)
+func (s *GroupVersionService) UpdateSpecificVersionForAll(ctx context.Context, field string) error {
+	return s.groupVersionRepo.UpdateVersions(ctx, nil, field)
+}
+
 // @MappedFrom queryGroupInvitationsVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupInvitationsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
-	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
-	if err != nil || v == nil {
-		return nil, err
-	}
-	return v.Invitations, nil
+	return s.groupVersionRepo.FindInvitations(ctx, groupID)
 }
 
 // @MappedFrom queryGroupJoinRequestsVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupJoinRequestsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
-	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
-	if err != nil || v == nil {
-		return nil, err
-	}
-	return v.JoinRequests, nil
+	return s.groupVersionRepo.FindJoinRequests(ctx, groupID)
 }
 
 // @MappedFrom queryGroupJoinQuestionsVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupJoinQuestionsVersion(ctx context.Context, groupID int64) (*time.Time, error) {
-	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
-	if err != nil || v == nil {
-		return nil, err
-	}
-	return v.JoinQuestions, nil
+	return s.groupVersionRepo.FindJoinQuestions(ctx, groupID)
 }
 
 // @MappedFrom queryMembersVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupMembersVersion(ctx context.Context, groupID int64) (*time.Time, error) {
-	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
-	if err != nil || v == nil {
-		return nil, err
-	}
-	return v.Members, nil
+	return s.groupVersionRepo.FindMembers(ctx, groupID)
 }
 
 // @MappedFrom queryBlocklistVersion(@NotNull Long groupId)
 func (s *GroupVersionService) QueryGroupBlocklistVersion(ctx context.Context, groupID int64) (*time.Time, error) {
-	v, err := s.groupVersionRepo.FindVersion(ctx, groupID)
-	if err != nil || v == nil {
-		return nil, err
-	}
-	return v.Blocklist, nil
+	return s.groupVersionRepo.FindBlocklist(ctx, groupID)
 }
 
 // Upsert creates or updates all group version records.

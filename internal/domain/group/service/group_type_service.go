@@ -168,7 +168,17 @@ func (s *GroupTypeService) QueryGroupType(ctx context.Context, groupTypeID int64
 	if cached, ok := s.idToGroupType.Load(groupTypeID); ok {
 		return cached.(*po.GroupType), nil
 	}
-	return s.groupTypeRepo.FindGroupType(ctx, groupTypeID)
+
+	// Cache miss: query database
+	gt, err := s.groupTypeRepo.FindGroupType(ctx, groupTypeID)
+	if err != nil {
+		return nil, err
+	}
+	// Cache the result
+	if gt != nil {
+		s.idToGroupType.Store(groupTypeID, gt)
+	}
+	return gt, nil
 }
 
 // @MappedFrom queryGroupTypes(@Nullable Integer page, @Nullable Integer size)
@@ -178,7 +188,34 @@ func (s *GroupTypeService) QueryGroupTypes(ctx context.Context, page, size *int3
 
 // @MappedFrom queryGroupTypes(@NotNull Collection<Long> groupTypeIds)
 func (s *GroupTypeService) QueryGroupTypesByIds(ctx context.Context, groupTypeIds []int64) ([]*po.GroupType, error) {
-	return s.groupTypeRepo.FindGroupTypes(ctx, groupTypeIds, nil, nil)
+	if len(groupTypeIds) == 0 {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "groupTypeIds must not be null")
+	}
+
+	// In-memory cache optimization: resolve all IDs against cache first
+	var results []*po.GroupType
+	var uncachedIDs []int64
+	for _, id := range groupTypeIds {
+		if cached, ok := s.idToGroupType.Load(id); ok {
+			results = append(results, cached.(*po.GroupType))
+		} else {
+			uncachedIDs = append(uncachedIDs, id)
+		}
+	}
+
+	// Only query DB for cache misses
+	if len(uncachedIDs) > 0 {
+		dbResults, err := s.groupTypeRepo.FindGroupTypes(ctx, uncachedIDs, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		// Cache the DB results
+		for _, gt := range dbResults {
+			s.idToGroupType.Store(gt.ID, gt)
+		}
+		results = append(results, dbResults...)
+	}
+	return results, nil
 }
 
 // @MappedFrom groupTypeExists(@NotNull Long groupTypeId)
