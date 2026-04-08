@@ -14906,16 +14906,16 @@ The Java version checks `onlineStatus == OFFLINE` -> calls `sessionService.disco
 - [ ] **Java uses `GEORADIUSBYMEMBER` for nearby search, Go uses `GEOSEARCH` from coordinates**: The Java `SessionLocationService.queryNearbyUsers` uses `georadiusbymember` (searches around an existing member's position). The Go `nearby_user_service.go:58` uses `GeoSearchLocation` with explicit longitude/latitude coordinates, which is a different query strategy and won't work when coordinates aren't provided.
 - [ ] **Missing location upsert before query**: The Java `NearbyUserService.queryNearbyUsers` calls `sessionLocationService.upsertUserLocation(userId, deviceType, ...)` before querying when longitude/latitude are provided, then chains `upsertLocation.then(resultMono)`. The Go version does not upsert the user's location before querying.
 - [ ] **`maxCount` type mismatch**: Java `maxCount` is `Short`, Go `maxCount` is `*int`. The controller parameter is `Short` in Java and should map to `*int16` or similar. This is a minor type discrepancy.
-- [ ] **`maxDistance` type mismatch**: Java `maxDistance` is `Integer`, Go `maxDistance` is `*float64`. Java uses integer meters, Go uses float64.
+- [x] **`maxDistance` type mismatch**: Java `maxDistance` is `Integer`, Go `maxDistance` is `*float64`. Java uses integer meters, Go uses float64.
 
 ## queryUserLocations
-- [ ] **Controller is a stub**: `QueryUserLocations()` at `user_controllers.go:68` has `// TODO: implement`.
-- [ ] **Missing handling for null deviceType parameter**: The Java controller receives `deviceType` as `@QueryParam(required=false)` — it can be null. The Java `SessionLocationService.getUserLocation` validates `deviceType` is non-null and would throw an error for null. The Go `SessionLocationService.GetUserLocation` takes a non-pointer `protocol.DeviceType` (zero value if not provided), meaning it will silently query with the zero-value device type instead of returning an error.
+- [x] **Controller is a stub**: `QueryUserLocations()` at `user_controllers.go:68` has `// TODO: implement`.
+- [x] **Missing handling for null deviceType parameter**: The Java controller receives `deviceType` as `@QueryParam(required=false)` — it can be null. The Java `SessionLocationService.getUserLocation` validates `deviceType` is non-null and would throw an error for null. The Go `SessionLocationService.GetUserLocation` takes a non-pointer `protocol.DeviceType` (zero value if not provided), meaning it will silently query with the zero-value device type instead of returning an error.
 
 ## updateUserOnlineStatus
-- [ ] **Controller is a stub**: `UpdateUserOnlineStatus()` at `user_controllers.go:73` has `// TODO: implement`.
-- [ ] **All disconnect methods are no-ops**: The Go `session_service.go` disconnect methods (`Disconnect`, `DisconnectWithDeviceTypes`, `DisconnectMultipleUsers`, etc.) all return `true, nil` without any actual implementation. The Java versions perform RPC to gateway nodes to actually close sessions. This means `updateUserOnlineStatus` with `OFFLINE` status would do nothing.
-- [ ] **Missing `updateOnlineUsersStatus` equivalent for non-OFFLINE statuses**: The Go `UserStatusService` has `UpdateStatus(ctx, userID, status)` for a single user, but the Java `updateOnlineUsersStatus(userIds, onlineStatus)` handles a set of user IDs in batch with parallel processing and an `all(true)` aggregation. The Go service only supports single-user updates, so the controller would need to loop and aggregate manually, but since the controller is a stub, this is missing entirely.
+- [x] **Controller is a stub**: `UpdateUserOnlineStatus()` at `user_controllers.go:73` has `// TODO: implement`.
+- [x] **All disconnect methods are no-ops**: The Go `session_service.go` disconnect methods (`Disconnect`, `DisconnectWithDeviceTypes`, `DisconnectMultipleUsers`, etc.) all return `true, nil` without any actual implementation. The Java versions perform RPC to gateway nodes to actually close sessions. This means `updateUserOnlineStatus` with `OFFLINE` status would do nothing.
+- [x] **Missing `updateOnlineUsersStatus` equivalent for non-OFFLINE statuses**: The Go `UserStatusService` has `UpdateStatus(ctx, userID, status)` for a single user, but the Java `updateOnlineUsersStatus(userIds, onlineStatus)` handles a set of user IDs in batch with parallel processing and an `all(true)` aggregation. The Go service only supports single-user updates, so the controller would need to loop and aggregate manually, but since the controller is a stub, this is missing entirely.
 
 # UserRoleController.java
 *Checked methods: addUserRole(@RequestBody AddUserRoleDTO addUserRoleDTO), queryUserRoles(@QueryParam(required = false), queryUserRoleGroups(int page, @QueryParam(required = false), updateUserRole(Set<Long> ids, @RequestBody UpdateUserRoleDTO updateUserRoleDTO), deleteUserRole(Set<Long> ids)*
@@ -14958,26 +14958,26 @@ Now I have all the information needed to compare the Java and Go implementations
 **Go**: Controller is a stub. Service's `DeleteUserRoles` takes a `bson.M` filter and delegates to repo — no default role protection, no "delete all except default" logic.
 
 ## addUserRole
-- [ ] Controller method `AddUserRole()` is an empty stub with no implementation — missing all logic to parse the `AddUserRoleDTO`, default `CreatableGroupTypeIDs` from nil to empty slice, default `GroupTypeIDToLimit` from nil to empty map, convert DTO fields to `po.UserRole`, and call the service.
-- [ ] Service `AddUserRole` accepts a pre-built `*po.UserRole` but does not handle ID generation when `ID == 0` (the Go zero-value equivalent of Java's `null` check `if (groupId == null) groupId = node.nextLargeGapId(ServiceType.USER_ROLE)`).
-- [ ] Missing in-memory cache update (`idToRole.put(groupId, userRole)`) equivalent — Java caches the new role in `idToRole` before DB insert.
+- [x] Controller method `AddUserRole()` is an empty stub with no implementation — missing all logic to parse the `AddUserRoleDTO`, default `CreatableGroupTypeIDs` from nil to empty slice, default `GroupTypeIDToLimit` from nil to empty map, convert DTO fields to `po.UserRole`, and call the service.
+- [x] Service `AddUserRole` accepts a pre-built `*po.UserRole` but does not handle ID generation when `ID == 0` (the Go zero-value equivalent of Java's `null` check `if (groupId == null) groupId = node.nextLargeGapId(ServiceType.USER_ROLE)`).
+- [x] Missing in-memory cache update (`idToRole.put(groupId, userRole)`) equivalent — Java caches the new role in `idToRole` before DB insert.
 
 ## queryUserRoles
-- [ ] Controller method `QueryUserRoles()` is an empty stub — missing `getPageSize(size)` call and invocation of service with `page=0, size`.
-- [ ] Service `QueryUserRoles` takes a `bson.M` filter but does not accept `(page, size)` pagination parameters, so it cannot replicate the Java `userRoleService.queryUserRoles(0, size)` call.
+- [x] Controller method `QueryUserRoles()` is an empty stub — missing `getPageSize(size)` call and invocation of service with `page=0, size`.
+- [x] Service `QueryUserRoles` takes a `bson.M` filter but does not accept `(page, size)` pagination parameters, so it cannot replicate the Java `userRoleService.queryUserRoles(0, size)` call.
 
 ## queryUserRoleGroups
-- [ ] Controller method `QueryUserRoleGroups()` is an empty stub — missing pagination logic that calls `countUserRoles()` + `queryUserRoles(page, size)` and returns a `PaginationDTO`.
-- [ ] Service `CountUserRoles` takes a `filter bson.M` parameter but Java's `countUserRoles()` takes no filter arguments (counts all roles).
+- [x] Controller method `QueryUserRoleGroups()` is an empty stub — missing pagination logic that calls `countUserRoles()` + `queryUserRoles(page, size)` and returns a `PaginationDTO`.
+- [x] Service `CountUserRoles` takes a `filter bson.M` parameter but Java's `countUserRoles()` takes no filter arguments (counts all roles).
 
 ## updateUserRole
-- [ ] Controller method `UpdateUserRole()` is an empty stub — missing all logic to parse `UpdateUserRoleDTO` fields and call the service.
-- [ ] Service `UpdateUserRoles` is a no-op placeholder that returns `nil` — missing: validation that `ids` is not empty, early return when all update fields are null (Java returns `ACKNOWLEDGED_UPDATE_RESULT`), actual repository update call, and cache invalidation for updated role IDs.
+- [x] Controller method `UpdateUserRole()` is an empty stub — missing all logic to parse `UpdateUserRoleDTO` fields and call the service.
+- [x] Service `UpdateUserRoles` is a no-op placeholder that returns `nil` — missing: validation that `ids` is not empty, early return when all update fields are null (Java returns `ACKNOWLEDGED_UPDATE_RESULT`), actual repository update call, and cache invalidation for updated role IDs.
 
 ## deleteUserRole
-- [ ] Controller method `DeleteUserRole()` is an empty stub — missing all logic to parse `ids` and call the service.
-- [ ] Service `DeleteUserRoles` takes a `filter bson.M` but missing the Java logic: when `groupIds == null`, delete all except the default role (`deleteByNotIds(Set.of(DEFAULT_USER_ROLE_ID))`); when `groupIds` contains `DEFAULT_USER_ROLE_ID`, return an error (`"The default user role cannot be deleted"`).
-- [ ] Missing cache invalidation (`idToRole.remove(groupId)`) after successful deletion, as Java does in the `doOnNext` callback.
+- [x] Controller method `DeleteUserRole()` is an empty stub — missing all logic to parse `ids` and call the service.
+- [x] Service `DeleteUserRoles` takes a `filter bson.M` but missing the Java logic: when `groupIds == null`, delete all except the default role (`deleteByNotIds(Set.of(DEFAULT_USER_ROLE_ID))`); when `groupIds` contains `DEFAULT_USER_ROLE_ID`, return an error (`"The default user role cannot be deleted"`).
+- [x] Missing cache invalidation (`idToRole.remove(groupId)`) after successful deletion, as Java does in the `doOnNext` callback.
 
 # UserFriendRequestController.java
 *Checked methods: createFriendRequest(@RequestBody AddFriendRequestDTO addFriendRequestDTO), queryFriendRequests(@QueryParam(required = false), queryFriendRequests(@QueryParam(required = false), updateFriendRequests(Set<Long> ids, @RequestBody UpdateFriendRequestDTO updateFriendRequestDTO), deleteFriendRequests(@QueryParam(required = false)*
@@ -15085,20 +15085,20 @@ The Go service receives `responseDate` as a parameter but the repository method 
 Here is my final bug report:
 
 ## createFriendRequest
-- [ ] **responseDate not set to null for non-responder-processed statuses**: In Java, `getResponseDateBasedOnStatusForNewRecord` returns `null` when status is not processed by a responder (PENDING, CANCELED, EXPIRED, null). This means responseDate is always forced to null for those statuses regardless of the input value. In Go, if a non-nil `responseDate` is passed with status PENDING, the value is preserved instead of being set to nil.
-- [ ] **Missing `notNull` validation for content**: Java validates `Validator.notNull(content, "content")`, but Go only validates `MaxLength`. While Go's `string` type defaults to `""` (not nil), this means an empty content string passes validation in Go when Java would reject null content.
-- [ ] **Missing `validRequestStatus` validation**: Java calls `DataValidator.validRequestStatus(status)` to ensure the status value is a valid enum. Go does not validate the status value at all.
-- [ ] **Version update is fire-and-forget goroutine instead of `then`/`Mono.whenDelayError`**: Java uses `Mono.whenDelayError` which waits for both version updates to complete (with error logging) before returning. Go spawns a goroutine that runs asynchronously without waiting, and silently discards errors without logging.
+- [x] **responseDate not set to null for non-responder-processed statuses**: In Java, `getResponseDateBasedOnStatusForNewRecord` returns `null` when status is not processed by a responder (PENDING, CANCELED, EXPIRED, null). This means responseDate is always forced to null for those statuses regardless of the input value. In Go, if a non-nil `responseDate` is passed with status PENDING, the value is preserved instead of being set to nil.
+- [x] **Missing `notNull` validation for content**: Java validates `Validator.notNull(content, "content")`, but Go only validates `MaxLength`. While Go's `string` type defaults to `""` (not nil), this means an empty content string passes validation in Go when Java would reject null content.
+- [x] **Missing `validRequestStatus` validation**: Java calls `DataValidator.validRequestStatus(status)` to ensure the status value is a valid enum. Go does not validate the status value at all.
+- [x] **Version update is fire-and-forget goroutine instead of `then`/`Mono.whenDelayError`**: Java uses `Mono.whenDelayError` which waits for both version updates to complete (with error logging) before returning. Go spawns a goroutine that runs asynchronously without waiting, and silently discards errors without logging.
 
 ## updateFriendRequests
-- [ ] **Missing `responseDate` handling in repository**: Java's `updateFriendRequests` repository calls `updateResponseDateBasedOnStatus` which conditionally sets `responseDate` to `new Date()` when status is ACCEPTED/DECLINED/IGNORED, or `$unset`s the responseDate field when status is PENDING/CANCELED/EXPIRED. The Go repository's `UpdateFriendRequests` completely ignores `responseDate` — it never sets or unsets it based on status.
-- [ ] **Missing `validRequestStatus` validation**: Java calls `DataValidator.validRequestStatus(status)` to ensure the status is valid. Go does not validate the status value.
+- [x] **Missing `responseDate` handling in repository**: Java's `updateFriendRequests` repository calls `updateResponseDateBasedOnStatus` which conditionally sets `responseDate` to `new Date()` when status is ACCEPTED/DECLINED/IGNORED, or `$unset`s the responseDate field when status is PENDING/CANCELED/EXPIRED. The Go repository's `UpdateFriendRequests` completely ignores `responseDate` — it never sets or unsets it based on status.
+- [x] **Missing `validRequestStatus` validation**: Java calls `DataValidator.validRequestStatus(status)` to ensure the status is valid. Go does not validate the status value.
 
 ## queryFriendRequests
-- [ ] **Missing expiration date range filtering**: Java converts `expirationDateRange` to a `creationDateRange` via `getCreationDateRange(creationDateRange, expirationDateRange)` and also applies `isExpiredOrNot(statuses, creationDate, expirationDate)` to filter expired/non-expired requests. Go's `countOrFind` method accepts `expirationDateStart`/`expirationDateEnd` parameters but never uses them in the filter — the expiration date filtering is completely missing.
+- [x] **Missing expiration date range filtering**: Java converts `expirationDateRange` to a `creationDateRange` via `getCreationDateRange(creationDateRange, expirationDateRange)` and also applies `isExpiredOrNot(statuses, creationDate, expirationDate)` to filter expired/non-expired requests. Go's `countOrFind` method accepts `expirationDateStart`/`expirationDateEnd` parameters but never uses them in the filter — the expiration date filtering is completely missing.
 
 ## queryFriendRequests (page variant) / countFriendRequests
-- [ ] **Same expiration date range filtering bug as above**: The `CountFriendRequests` repository method also fails to apply expiration date range filtering, matching the same bug in `FindFriendRequests`.
+- [x] **Same expiration date range filtering bug as above**: The `CountFriendRequests` repository method also fails to apply expiration date range filtering, matching the same bug in `FindFriendRequests`.
 
 # UserRelationshipController.java
 *Checked methods: addRelationship(@RequestBody AddRelationshipDTO addRelationshipDTO), queryRelationships(@QueryParam(required = false), queryRelationships(@QueryParam(required = false), updateRelationships(List<UserRelationship.Key> keys, @RequestBody UpdateRelationshipDTO updateRelationshipDTO), deleteRelationships(List<UserRelationship.Key> keys)*
@@ -15107,45 +15107,45 @@ Now I have a complete picture. Let me compile the analysis.
 
 ## addRelationship
 
-- [ ] **Controller method `AddRelationship()` is an empty stub** — The Java controller calls `userRelationshipService.upsertOneSidedRelationship(ownerId, relatedUserId, name, blockDate, DEFAULT_RELATIONSHIP_GROUP_INDEX, null, establishmentDate, false, null)`. The Go controller method at line 138 contains only `// TODO: implement` and does not invoke the service at all.
+- [x] **Controller method `AddRelationship()` is an empty stub** — The Java controller calls `userRelationshipService.upsertOneSidedRelationship(ownerId, relatedUserId, name, blockDate, DEFAULT_RELATIONSHIP_GROUP_INDEX, null, establishmentDate, false, null)`. The Go controller method at line 138 contains only `// TODO: implement` and does not invoke the service at all.
 
-- [ ] **Go service `UpsertOneSidedRelationship` has wrong parameter order** — Java signature is `(ownerId, relatedUserId, name, blockDate, newGroupIndex, deleteGroupIndex, establishmentDate, upsert, session)`. Go signature is `(ctx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name, session)`. The `name` and `blockDate` parameters are swapped between Java and Go. Any caller using positional arguments would pass `name` where `blockDate` is expected and vice versa.
+- [x] **Go service `UpsertOneSidedRelationship` has wrong parameter order** — Java signature is `(ownerId, relatedUserId, name, blockDate, newGroupIndex, deleteGroupIndex, establishmentDate, upsert, session)`. Go signature is `(ctx, ownerID, relatedUserID, blockDate, groupIndex, establishmentDate, name, session)`. The `name` and `blockDate` parameters are swapped between Java and Go. Any caller using positional arguments would pass `name` where `blockDate` is expected and vice versa.
 
-- [ ] **Go service `UpsertOneSidedRelationship` is missing the `upsert` boolean parameter** — The Java method takes a boolean `upsert` parameter (the controller passes `false`). The Go version omits this parameter entirely, meaning it cannot distinguish between insert-only and upsert behavior.
+- [x] **Go service `UpsertOneSidedRelationship` is missing the `upsert` boolean parameter** — The Java method takes a boolean `upsert` parameter (the controller passes `false`). The Go version omits this parameter entirely, meaning it cannot distinguish between insert-only and upsert behavior.
 
-- [ ] **Go service `UpsertOneSidedRelationship` is missing the `deleteGroupIndex` parameter** — The Java method accepts `deleteGroupIndex` (the controller passes `null`). The Go version has no equivalent parameter.
+- [x] **Go service `UpsertOneSidedRelationship` is missing the `deleteGroupIndex` parameter** — The Java method accepts `deleteGroupIndex` (the controller passes `null`). The Go version has no equivalent parameter.
 
 ## queryRelationships (non-paginated)
 
-- [ ] **Controller method `QueryRelationships()` is an empty stub** — The Java controller queries relationships via the service, converts them to DTOs (with optional group indexes via `relationship2dto`), and returns them. The Go controller at line 143 contains only `// TODO: implement`.
+- [x] **Controller method `QueryRelationships()` is an empty stub** — The Java controller queries relationships via the service, converts them to DTOs (with optional group indexes via `relationship2dto`), and returns them. The Go controller at line 143 contains only `// TODO: implement`.
 
 ## queryRelationships (paginated)
 
-- [ ] **Controller method for the paginated query variant is completely missing** — Java has a second `queryRelationships` method annotated `@GetMapping("page")` that returns `PaginationDTO<UserRelationshipDTO>` with page/size parameters and a `countRelationships` call. The Go controller has no corresponding paginated endpoint.
+- [x] **Controller method for the paginated query variant is completely missing** — Java has a second `queryRelationships` method annotated `@GetMapping("page")` that returns `PaginationDTO<UserRelationshipDTO>` with page/size parameters and a `countRelationships` call. The Go controller has no corresponding paginated endpoint.
 
 ## updateRelationships
 
-- [ ] **Controller method `UpdateRelationships()` is an empty stub** — The Java controller calls `userRelationshipService.updateUserOneSidedRelationships(CollectionUtil.newSet(keys), name, blockDate, establishmentDate)`. The Go controller at line 148 contains only `// TODO: implement`.
+- [x] **Controller method `UpdateRelationships()` is an empty stub** — The Java controller calls `userRelationshipService.updateUserOneSidedRelationships(CollectionUtil.newSet(keys), name, blockDate, establishmentDate)`. The Go controller at line 148 contains only `// TODO: implement`.
 
-- [ ] **Go service `UpdateUserOneSidedRelationships` has a fundamentally different signature** — Java takes `Set<UserRelationship.Key> keys` (a set of composite ownerId+relatedUserId pairs), then passes them directly to the repository. Go takes `userID int64, relatedUserIDs []int64` (a single owner ID with multiple related user IDs). This means Go can only update relationships for one owner at a time, whereas Java supports multiple owners in a single call.
+- [x] **Go service `UpdateUserOneSidedRelationships` has a fundamentally different signature** — Java takes `Set<UserRelationship.Key> keys` (a set of composite ownerId+relatedUserId pairs), then passes them directly to the repository. Go takes `userID int64, relatedUserIDs []int64` (a single owner ID with multiple related user IDs). This means Go can only update relationships for one owner at a time, whereas Java supports multiple owners in a single call.
 
-- [ ] **Go service `UpdateUserOneSidedRelationships` is missing `establishmentDate` parameter** — Java accepts `establishmentDate` as an update field and passes it to the repository. Go takes `lastUpdatedDate` instead, which is a different concept entirely (it's for optimistic concurrency, not a field to update).
+- [x] **Go service `UpdateUserOneSidedRelationships` is missing `establishmentDate` parameter** — Java accepts `establishmentDate` as an update field and passes it to the repository. Go takes `lastUpdatedDate` instead, which is a different concept entirely (it's for optimistic concurrency, not a field to update).
 
-- [ ] **Go service `UpdateUserOneSidedRelationships` does not call the repository's update correctly** — The Java repository method `updateUserOneSidedRelationships(keys, name, blockDate, establishmentDate)` receives all update fields. The Go version calls `s.repo.UpdateUserOneSidedRelationships(sessCtx, userID, relatedUserIDs, blockDate, lastUpdatedDate, name, sess)` which uses `lastUpdatedDate` where `establishmentDate` should be.
+- [x] **Go service `UpdateUserOneSidedRelationships` does not call the repository's update correctly** — The Java repository method `updateUserOneSidedRelationships(keys, name, blockDate, establishmentDate)` receives all update fields. The Go version calls `s.repo.UpdateUserOneSidedRelationships(sessCtx, userID, relatedUserIDs, blockDate, lastUpdatedDate, name, sess)` which uses `lastUpdatedDate` where `establishmentDate` should be.
 
 ## deleteRelationships
 
-- [ ] **Controller method `DeleteRelationships()` is an empty stub** — The Java controller calls `userRelationshipService.deleteOneSidedRelationships(CollectionUtil.newSet(keys))`. The Go controller at line 153 contains only `// TODO: implement`.
+- [x] **Controller method `DeleteRelationships()` is an empty stub** — The Java controller calls `userRelationshipService.deleteOneSidedRelationships(CollectionUtil.newSet(keys))`. The Go controller at line 153 contains only `// TODO: implement`.
 
-- [ ] **Go service `DeleteOneSidedRelationships` has a fundamentally different signature** — Java takes `Set<UserRelationship.Key> keys` (composite keys with ownerId+relatedUserId pairs, supporting multiple owners). Go takes `ownerID int64, relatedUserIDs []int64` (a single owner with multiple related user IDs). This means Go cannot delete relationships across multiple owners in a single call like Java can.
+- [x] **Go service `DeleteOneSidedRelationships` has a fundamentally different signature** — Java takes `Set<UserRelationship.Key> keys` (composite keys with ownerId+relatedUserId pairs, supporting multiple owners). Go takes `ownerID int64, relatedUserIDs []int64` (a single owner with multiple related user IDs). This means Go cannot delete relationships across multiple owners in a single call like Java can.
 
-- [ ] **Go service `DeleteOneSidedRelationships` does not perform validation** — Java validates that keys are not empty and calls `DataValidator.validRelationshipKey(key)` for each key before proceeding. Go only checks `len(relatedUserIDs) == 0`.
+- [x] **Go service `DeleteOneSidedRelationships` does not perform validation** — Java validates that keys are not empty and calls `DataValidator.validRelationshipKey(key)` for each key before proceeding. Go only checks `len(relatedUserIDs) == 0`.
 
-- [ ] **Go service `DeleteOneSidedRelationships` has incorrect operation order** — Java first deletes the relationships (`deleteByIds`), then in a transaction callback deletes from relationship groups (`deleteRelatedUsersFromAllRelationshipGroups`), then updates versions, then invalidates cache. Go deletes from relationship groups first, then deletes relationships, then invalidates cache and updates versions. The Java approach is: delete relationship → cleanup groups → update version → invalidate cache. The Go approach is: cleanup groups → delete relationship → invalidate cache → update version.
+- [x] **Go service `DeleteOneSidedRelationships` has incorrect operation order** — Java first deletes the relationships (`deleteByIds`), then in a transaction callback deletes from relationship groups (`deleteRelatedUsersFromAllRelationshipGroups`), then updates versions, then invalidates cache. Go deletes from relationship groups first, then deletes relationships, then invalidates cache and updates versions. The Java approach is: delete relationship → cleanup groups → update version → invalidate cache. The Go approach is: cleanup groups → delete relationship → invalidate cache → update version.
 
-- [ ] **Go service `DeleteOneSidedRelationships` sends notifications that Java does not** — The Go version calls `s.sendRelationshipNotification(sessCtx, ...)` after deletion (line 265). The Java version does NOT send notifications on deletion. This is a behavioral difference.
+- [x] **Go service `DeleteOneSidedRelationships` sends notifications that Java does not** — The Go version calls `s.sendRelationshipNotification(sessCtx, ...)` after deletion (line 265). The Java version does NOT send notifications on deletion. This is a behavioral difference.
 
-- [ ] **Go service `DeleteOneSidedRelationships` is missing transaction retry logic** — Java wraps the entire operation in `.retryWhen(TRANSACTION_RETRY)`. Go has no equivalent retry mechanism.
+- [x] **Go service `DeleteOneSidedRelationships` is missing transaction retry logic** — Java wraps the entire operation in `.retryWhen(TRANSACTION_RETRY)`. Go has no equivalent retry mechanism.
 
 # UserRelationshipGroupController.java
 *Checked methods: addRelationshipGroup(@RequestBody AddRelationshipGroupDTO addRelationshipGroupDTO), deleteRelationshipGroups(@QueryParam(required = false), updateRelationshipGroups(List<UserRelationshipGroup.Key> keys, @RequestBody UpdateRelationshipGroupDTO updateRelationshipGroupDTO), queryRelationshipGroups(@QueryParam(required = false), queryRelationshipGroups(@QueryParam(required = false)*
@@ -15154,29 +15154,29 @@ Now I have a comprehensive understanding of both the Java and Go code. Let me co
 
 ## addRelationshipGroup
 
-- [ ] **Method not implemented**: The Go controller `AddRelationshipGroup()` at `user_controllers.go:168` is a stub (`// TODO: implement`) and does not call the service's `CreateRelationshipGroup` at all.
+- [x] **Method not implemented**: The Go controller `AddRelationshipGroup()` at `user_controllers.go:168` is a stub (`// TODO: implement`) and does not call the service's `CreateRelationshipGroup` at all.
 
-- [ ] **Random group index generation is incorrect in service**: In `user_relationship_group_service.go:80`, when `groupIndex` is nil, Go uses `int32(time.Now().UnixNano())` which can produce negative values due to int32 overflow. The Java version uses `RandomUtil.nextPositiveInt()` which generates a positive random integer (1 to `Integer.MAX_VALUE`). The Go version should use a proper positive random int generator.
+- [x] **Random group index generation is incorrect in service**: In `user_relationship_group_service.go:80`, when `groupIndex` is nil, Go uses `int32(time.Now().UnixNano())` which can produce negative values due to int32 overflow. The Java version uses `RandomUtil.nextPositiveInt()` which generates a positive random integer (1 to `Integer.MAX_VALUE`). The Go version should use a proper positive random int generator.
 
 ## deleteRelationshipGroups
 
-- [ ] **Method not implemented**: The Go controller `DeleteRelationshipGroups()` at `user_controllers.go:173` is a stub (`// TODO: implement`).
+- [x] **Method not implemented**: The Go controller `DeleteRelationshipGroups()` at `user_controllers.go:173` is a stub (`// TODO: implement`).
 
-- [ ] **Missing no-arg delete-all path**: The Java controller has two branches: if `keys` is empty, it calls `deleteRelationshipGroups()` (no-arg, deletes ALL relationship groups in the entire collection), otherwise calls `deleteRelationshipGroups(Set<Key>)` with specific keys. The Go service's `DeleteRelationshipGroups` method at `user_relationship_group_service.go:317` only supports targeted deletion by ownerID + groupIndexes — there is no equivalent of the no-arg `deleteRelationshipGroups()` that calls `repository.deleteAll()` to wipe the entire collection. The Go repository also lacks a `deleteAll()` method.
+- [x] **Missing no-arg delete-all path**: The Java controller has two branches: if `keys` is empty, it calls `deleteRelationshipGroups()` (no-arg, deletes ALL relationship groups in the entire collection), otherwise calls `deleteRelationshipGroups(Set<Key>)` with specific keys. The Go service's `DeleteRelationshipGroups` method at `user_relationship_group_service.go:317` only supports targeted deletion by ownerID + groupIndexes — there is no equivalent of the no-arg `deleteRelationshipGroups()` that calls `repository.deleteAll()` to wipe the entire collection. The Go repository also lacks a `deleteAll()` method.
 
 ## updateRelationshipGroups
 
-- [ ] **Missing version update**: The Java service `updateRelationshipGroups` does NOT update relationship groups version — it simply calls the repository and returns an `UpdateResult`. The Go service `UpdateRelationshipGroups` at `user_relationship_group_service.go:267-279` additionally updates the relationship groups version via `userVersionService.UpdateRelationshipGroupsVersion` for all affected owner IDs. This is extra behavior not present in the Java version.
+- [x] **Missing version update**: The Java service `updateRelationshipGroups` does NOT update relationship groups version — it simply calls the repository and returns an `UpdateResult`. The Go service `UpdateRelationshipGroups` at `user_relationship_group_service.go:267-279` additionally updates the relationship groups version via `userVersionService.UpdateRelationshipGroupsVersion` for all affected owner IDs. This is extra behavior not present in the Java version.
 
-- [ ] **Return value mismatch**: The Java service returns `Mono<UpdateResult>` (MongoDB UpdateResult with matched/modified counts), and the controller maps it to `UpdateResultDTO`. The Go service returns only `error`, discarding the `int64` count from the repository. The Go controller at `user_controllers.go:185` returns an empty `RequestHandlerResult{}`, losing the update count information that the Java version provides.
+- [x] **Return value mismatch**: The Java service returns `Mono<UpdateResult>` (MongoDB UpdateResult with matched/modified counts), and the controller maps it to `UpdateResultDTO`. The Go service returns only `error`, discarding the `int64` count from the repository. The Go controller at `user_controllers.go:185` returns an empty `RequestHandlerResult{}`, losing the update count information that the Java version provides.
 
 ## queryRelationshipGroups (non-paginated)
 
-- [ ] **Method not implemented**: The Go controller `QueryRelationshipGroups()` at `user_controllers.go:189` is a stub (`// TODO: implement`).
+- [x] **Method not implemented**: The Go controller `QueryRelationshipGroups()` at `user_controllers.go:189` is a stub (`// TODO: implement`).
 
 ## queryRelationshipGroups (paginated / "page")
 
-- [ ] **Method not implemented**: There is no Go controller method for the paginated `queryRelationshipGroups` endpoint (`@GetMapping("page")` in Java). The Java paginated variant calls `countRelationshipGroups` + `queryRelationshipGroups` and wraps results in `PaginationDTO`. No equivalent exists in the Go controller.
+- [x] **Method not implemented**: There is no Go controller method for the paginated `queryRelationshipGroups` endpoint (`@GetMapping("page")` in Java). The Java paginated variant calls `countRelationshipGroups` + `queryRelationshipGroups` and wraps results in `PaginationDTO`. No equivalent exists in the Go controller.
 
 # AddUserDTO.java
 *Checked methods: AddUserDTO(Long id, @SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
