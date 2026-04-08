@@ -20,6 +20,7 @@ const { execSync, spawn } = require('child_process');
         process.exit(1);
     }
 
+    const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const projectRoot = __dirname;
     const markdownUrl = path.join(projectRoot, 'docs', 'pending_bugs.md');
     if (!fs.existsSync(markdownUrl)) {
@@ -81,9 +82,9 @@ const { execSync, spawn } = require('child_process');
 
         console.log(`\n=== Starting Worker for Batch ${i} (Bugs ${startIdx} to ${startIdx + batchBugs.length - 1}) ===`);
 
-        const worktreeName = `turms-worker-batch-${i}`;
+        const worktreeName = `turms-worker-${today}-batch-${i}`;
         const worktreePath = path.resolve(projectRoot, '..', worktreeName);
-        const branchName = `feature/fix-batch-${i}`;
+        const branchName = `feature/${today}/fix-batch-${i}`;
 
         // 1. Create worktree
         if (!fs.existsSync(worktreePath)) {
@@ -133,12 +134,13 @@ const { execSync, spawn } = require('child_process');
         const promptText = `You are a specialized coding sub-agent resolving bugs in the turms-go codebase.\n`
             + `CRITICAL RULES:\n`
             + `1. Your specific assigned bugs are listed securely in the file 'temp_task.md' located in the root of your workspace. Read 'temp_task.md' immediately to figure out what you need to do.\n`
-            + `2. Check 'git status', 'git diff', and 'git log main..HEAD' first! You might be resuming an interrupted execution where some bugs are already fixed or partially staged.\n`
-            + `3. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
-            + `4. Very Important: You ONLY need to check off ('- [x]') the bugs in your local 'temp_task.md'. Under NO CIRCUMSTANCES should you modify 'docs/pending_bugs.md'. The main scheduler will sync it automatically.\n`
-            + `5. ABSOLUTELY CRITICAL: When updating 'temp_task.md', you MUST ONLY change '- [ ]' to '- [x]'. DO NOT rewrite, reformat, or change a single word of the task description text. Changing the text will break the global regex sync script.\n`
-            + `6. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. BEFORE finishing, you MUST run 'go build ./...' to verify no compilation errors exist globally!\n`
-            + `7. Finally, use 'git add -A' (NOT git commit -a) so that ALL newly created files are staged, and then 'git commit' with a neat descriptive message.\n`
+            + `2. THIS IS A FRESH BATCH. Treat it as an independent task. Even if you have worked on similar batches before, DO NOT assume any bug is already fixed unless it is checked off in YOUR local 'temp_task.md'.\n`
+            + `3. Check 'git status', 'git diff', and 'git log main..HEAD' first! You might be resuming an interrupted execution where some bugs are already fixed or partially staged.\n`
+            + `4. As you fix each bug, YOU MUST open 'temp_task.md' and change its '- [ ]' to '- [x]'. This file acts as your single source of truth for resumption.\n`
+            + `5. Very Important: You ONLY need to check off ('- [x]') the bugs in your local 'temp_task.md'. Under NO CIRCUMSTANCES should you modify 'docs/pending_bugs.md'. The main scheduler will sync it automatically.\n`
+            + `6. ABSOLUTELY CRITICAL: When updating 'temp_task.md', you MUST ONLY change '- [ ]' to '- [x]'. DO NOT rewrite, reformat, or change a single word of the task description text. Changing the text will break the global regex sync script.\n`
+            + `7. The pipeline is only considered complete when ALL tasks in 'temp_task.md' are checked off. BEFORE finishing, you MUST run 'go build ./...' to verify no compilation errors exist globally!\n`
+            + `8. Finally, use 'git add -A' (NOT git commit -a) so that ALL newly created files are staged, and then 'git commit' with a neat descriptive message.\n`
             + `KEEP LOGS CONCISE. Stop and commit when all tasks in the scratchpad are fully resolved.`;
 
         fs.writeFileSync(promptPath, promptText);
@@ -194,8 +196,8 @@ while [ $count -lt $MAX_RETRIES ]; do
                 sleep 2
             done
             
-            echo "[$(date)] Attempting merge for feature/fix-batch-${i} into main..."
-            if git merge "feature/fix-batch-${i}" --no-edit -m "Merge auto-fix batch ${i} into main"; then
+            echo "[$(date)] Attempting merge for ${branchName} into main..."
+            if git merge "${branchName}" --no-edit -m "Merge auto-fix ${today} batch ${i} into main"; then
                 MERGE_RESULT="SUCCESS"
             else
                 echo "[!] Conflict detected. Aborting merge."
