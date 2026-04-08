@@ -220,11 +220,12 @@ func (c *GroupController) QueryGroups(
 ) ([]*po.Group, error) {
 	actualSize := c.GetPageSize(size)
 	page := 0
-	return c.groupService.QueryGroupsWithFilter(
+	return c.groupService.QueryGroupsWithFullFilters(
 		ctx, ids, typeIds, creatorIds, ownerIds, isActive,
 		creationDateStart, creationDateEnd,
 		deletionDateStart, deletionDateEnd,
 		muteEndDateStart, muteEndDateEnd,
+		lastUpdatedDateStart, lastUpdatedDateEnd,
 		memberIds, &page, &actualSize,
 	)
 }
@@ -251,16 +252,17 @@ func (c *GroupController) QueryGroupsByPage(
 	size *int,
 ) (*PaginationResponse, error) {
 	actualSize := c.GetPageSize(size)
-	// Use Count for total (simplified - uses service CountGroups)
-	total, err := c.groupService.Count(ctx)
+	// Use CountGroups with filters for total
+	total, err := c.groupService.CountGroups(ctx, ids, typeIds, creatorIds, ownerIds, isActive)
 	if err != nil {
 		return nil, err
 	}
-	results, err := c.groupService.QueryGroupsWithFilter(
+	results, err := c.groupService.QueryGroupsWithFullFilters(
 		ctx, ids, typeIds, creatorIds, ownerIds, isActive,
 		creationDateStart, creationDateEnd,
 		deletionDateStart, deletionDateEnd,
 		muteEndDateStart, muteEndDateEnd,
+		lastUpdatedDateStart, lastUpdatedDateEnd,
 		memberIds, &page, &actualSize,
 	)
 	if err != nil {
@@ -337,7 +339,7 @@ func (c *GroupController) DeleteGroups(
 	groupIDs []int64,
 	deleteLogically bool,
 ) (*response.DeleteResultDTO, error) {
-	err := c.groupService.DeleteGroupsAndGroupMembers(ctx, groupIDs, nil)
+	err := c.groupService.DeleteGroupsAndGroupMembersWithLogical(ctx, groupIDs, deleteLogically, nil)
 	if err != nil {
 		return nil, err
 	}
