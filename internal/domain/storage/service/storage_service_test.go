@@ -25,6 +25,7 @@ func TestStorageService(t *testing.T) {
 			ctx,
 			1001,
 			constants.StorageResourceTypeUserProfilePicture,
+			nil,
 			"1001.png",
 			"image/png",
 			1024*1024*5,
@@ -40,6 +41,7 @@ func TestStorageService(t *testing.T) {
 			ctx,
 			1001,
 			constants.StorageResourceTypeGroupProfilePicture,
+			nil,
 			"group_5001.png",
 		)
 
