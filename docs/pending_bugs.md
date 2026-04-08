@@ -15189,15 +15189,15 @@ Here is my analysis:
 
 ## AddUserDTO Constructor (Long id, ...)
 
-- [ ] **Field name mismatch: `roleId` renamed to `PermissionGroupID`**: The Java `AddUserDTO` has field `Long roleId` (line 37) and the `UserController` passes `addUserDTO.roleId()` to the service. The Go struct uses `PermissionGroupID *int64` (json tag `permissionGroupId`) instead. The Go `AddUser` service method also takes `permissionGroupID int64`. This is a semantic rename — `roleId` and `permissionGroupId` are conceptually different fields. The Java code uses `roleId` which maps to a user role, while Go renamed it to `permissionGroupId`. If the underlying database schema or business logic hasn't changed, this rename could cause the wrong field to be populated when the JSON key `roleId` is sent by clients (since the Go struct expects `permissionGroupId` in JSON).
+- [x] **Field name mismatch: `roleId` renamed to `PermissionGroupID`**: The Java `AddUserDTO` has field `Long roleId` (line 37) and the `UserController` passes `addUserDTO.roleId()` to the service. The Go struct uses `PermissionGroupID *int64` (json tag `permissionGroupId`) instead. The Go `AddUser` service method also takes `permissionGroupID int64`. This is a semantic rename — `roleId` and `permissionGroupId` are conceptually different fields. The Java code uses `roleId` which maps to a user role, while Go renamed it to `permissionGroupId`. If the underlying database schema or business logic hasn't changed, this rename could cause the wrong field to be populated when the JSON key `roleId` is sent by clients (since the Go struct expects `permissionGroupId` in JSON).
 
 ## @SensitiveProperty(ALLOW_DESERIALIZATION)
 
-- [ ] **Password not excluded from JSON serialization**: The Java `@SensitiveProperty(ALLOW_DESERIALIZATION)` annotation on the `password` field causes Jackson to ignore it during serialization (JSON output). The Go struct uses `json:"password,omitempty"` which allows the password to be serialized back into JSON responses when non-nil, leaking the password to clients. The Go code needs a mechanism to prevent password serialization (e.g., custom `MarshalJSON`, a separate response DTO, or omitting the field from response serialization).
+- [x] **Password not excluded from JSON serialization**: The Java `@SensitiveProperty(ALLOW_DESERIALIZATION)` annotation on the `password` field causes Jackson to ignore it during serialization (JSON output). The Go struct uses `json:"password,omitempty"` which allows the password to be serialized back into JSON responses when non-nil, leaking the password to clients. The Go code needs a mechanism to prevent password serialization (e.g., custom `MarshalJSON`, a separate response DTO, or omitting the field from response serialization).
 
 ## toString()
 
-- [ ] **Missing `String()` / `fmt.Stringer` implementation with password masking**: The Java `toString()` explicitly masks the `password` field with `SecurityValueConst.SENSITIVE_VALUE` (`"***"`). The Go `AddUserDTO` has no `String()` method at all, meaning `fmt.Sprintf("%v", dto)` or `%+v` will print all fields including the raw password in plaintext, which is a security risk in logging/debugging scenarios.
+- [x] **Missing `String()` / `fmt.Stringer` implementation with password masking**: The Java `toString()` explicitly masks the `password` field with `SecurityValueConst.SENSITIVE_VALUE` (`"***"`). The Go `AddUserDTO` has no `String()` method at all, meaning `fmt.Sprintf("%v", dto)` or `%+v` will print all fields including the raw password in plaintext, which is a security risk in logging/debugging scenarios.
 
 # UpdateUserDTO.java
 *Checked methods: UpdateUserDTO(@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION), toString()*
@@ -15210,15 +15210,15 @@ Here is my analysis:
 
 ## UpdateUserDTO (@SensitiveProperty)
 
-- [ ] **Missing `@SensitiveProperty` equivalent for password field**: In Java, the `password` field is annotated with `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)`, which configures the JSON serializer to ignore this field during serialization (response) but allow it during deserialization (request). The Go struct has no equivalent mechanism — the `password` field with tag `json:"password,omitempty"` will be serialized in API responses if non-nil, potentially leaking the password value in JSON output. In Java, `ALLOW_DESERIALIZATION` means: allowed IN (deserialization), blocked OUT (serialization) — the serialization config ignores fields where `property.value() != ALLOW_SERIALIZATION`.
+- [x] **Missing `@SensitiveProperty` equivalent for password field**: In Java, the `password` field is annotated with `@SensitiveProperty(SensitiveProperty.Access.ALLOW_DESERIALIZATION)`, which configures the JSON serializer to ignore this field during serialization (response) but allow it during deserialization (request). The Go struct has no equivalent mechanism — the `password` field with tag `json:"password,omitempty"` will be serialized in API responses if non-nil, potentially leaking the password value in JSON output. In Java, `ALLOW_DESERIALIZATION` means: allowed IN (deserialization), blocked OUT (serialization) — the serialization config ignores fields where `property.value() != ALLOW_SERIALIZATION`.
 
-- [ ] **JSON field name mismatch for `profileAccessStrategy` vs `profileAccess`**: The Java record uses `profileAccessStrategy` as the field/component name, which means the JSON key is `profileAccessStrategy`. The Go struct uses JSON tag `profileAccess`, which will fail to deserialize requests sending `{"profileAccessStrategy": ...}` and will serialize under the wrong key name.
+- [x] **JSON field name mismatch for `profileAccessStrategy` vs `profileAccess`**: The Java record uses `profileAccessStrategy` as the field/component name, which means the JSON key is `profileAccessStrategy`. The Go struct uses JSON tag `profileAccess`, which will fail to deserialize requests sending `{"profileAccessStrategy": ...}` and will serialize under the wrong key name.
 
-- [ ] **JSON field name mismatch for `roleId` vs `permissionGroupId`**: The Java record uses `roleId` as the field/component name, so the JSON key is `roleId`. The Go struct uses JSON tag `permissionGroupId`, which will fail to deserialize requests sending `{"roleId": ...}` and will serialize under the wrong key name.
+- [x] **JSON field name mismatch for `roleId` vs `permissionGroupId`**: The Java record uses `roleId` as the field/component name, so the JSON key is `roleId`. The Go struct uses JSON tag `permissionGroupId`, which will fail to deserialize requests sending `{"roleId": ...}` and will serialize under the wrong key name.
 
 ## UpdateUserDTO (toString)
 
-- [ ] **Missing `String()` method entirely**: The Java version implements `toString()` which explicitly masks the password with `SecurityValueConst.SENSITIVE_VALUE` (`"***"`) and formats all fields in a specific order. The Go struct has no `String()` method, so any logging (e.g., `fmt.Sprintf("%v", dto)` or `fmt.Println(dto)`) will dump all field values including the raw password in plaintext.
+- [x] **Missing `String()` method entirely**: The Java version implements `toString()` which explicitly masks the password with `SecurityValueConst.SENSITIVE_VALUE` (`"***"`) and formats all fields in a specific order. The Go struct has no `String()` method, so any logging (e.g., `fmt.Sprintf("%v", dto)` or `fmt.Println(dto)`) will dump all field values including the raw password in plaintext.
 
 # UserRelationshipDTO.java
 *Checked methods: UserRelationshipDTO(Key key, String name, Date blockDate, Date establishmentDate, Set<Integer> groupIndexes), fromDomain(UserRelationship relationship), fromDomain(@NotNull UserRelationship relationship, @Nullable Set<Integer> groupIndexes), Key(Long ownerId, Long relatedUserId)*
@@ -15247,16 +15247,16 @@ Now I have a complete picture. Let me analyze the comparison:
 ## Bugs identified
 
 ## UserRelationshipDTO constructor (Key key, String name, ...)
-- [ ] **Missing `Key` nested struct**: The Java version has a nested `Key` record (`UserRelationshipDTO.Key`) containing `ownerId` and `relatedUserId`. The Go version flattens `OwnerID` and `RelatedUserID` directly into the DTO struct. This changes the JSON serialization structure — Java serializes as `{"key": {"ownerId": ..., "relatedUserId": ...}, "name": ..., ...}` while Go serializes as `{"ownerId": ..., "relatedUserId": ..., "name": ..., ...}`. This is a behavioral difference in the API response format.
+- [x] **Missing `Key` nested struct**: The Java version has a nested `Key` record (`UserRelationshipDTO.Key`) containing `ownerId` and `relatedUserId`. The Go version flattens `OwnerID` and `RelatedUserID` directly into the DTO struct. This changes the JSON serialization structure — Java serializes as `{"key": {"ownerId": ..., "relatedUserId": ...}, "name": ..., ...}` while Go serializes as `{"ownerId": ..., "relatedUserId": ..., "name": ..., ...}`. This is a behavioral difference in the API response format.
 
 ## fromDomain(UserRelationship relationship)
-- [ ] **Method not implemented**: The `fromDomain(UserRelationship relationship)` static factory method, which delegates to `fromDomain(relationship, null)`, has no Go equivalent. No conversion function from `po.UserRelationship` to `UserRelationshipDTO` exists.
+- [x] **Method not implemented**: The `fromDomain(UserRelationship relationship)` static factory method, which delegates to `fromDomain(relationship, null)`, has no Go equivalent. No conversion function from `po.UserRelationship` to `UserRelationshipDTO` exists.
 
 ## fromDomain(@NotNull UserRelationship relationship, @Nullable Set<Integer> groupIndexes)
-- [ ] **Method not implemented**: The core `fromDomain` overload that maps `UserRelationship` domain object fields to the DTO (extracting `key.getOwnerId()`, `key.getRelatedUserId()`, `relationship.getName()`, `relationship.getBlockDate()`, `relationship.getEstablishmentDate()`, and `groupIndexes`) has no Go equivalent.
+- [x] **Method not implemented**: The core `fromDomain` overload that maps `UserRelationship` domain object fields to the DTO (extracting `key.getOwnerId()`, `key.getRelatedUserId()`, `relationship.getName()`, `relationship.getBlockDate()`, `relationship.getEstablishmentDate()`, and `groupIndexes`) has no Go equivalent.
 
 ## Key(Long ownerId, Long relatedUserId)
-- [ ] **Not implemented**: The Java `UserRelationshipDTO.Key` nested record does not exist in Go. The `Key` struct is a fundamental part of the DTO's API contract, used to nest the composite identifier in the JSON response.
+- [x] **Not implemented**: The Java `UserRelationshipDTO.Key` nested record does not exist in Go. The `Key` struct is a fundamental part of the DTO's API contract, used to nest the composite identifier in the JSON response.
 
 # UserStatisticsDTO.java
 *Checked methods: UserStatisticsDTO(Long deletedUsers, Long usersWhoSentMessages, Long loggedInUsers, Long maxOnlineUsers, Long registeredUsers, List<StatisticsRecordDTO> deletedUsersRecords, List<StatisticsRecordDTO> usersWhoSentMessagesRecords, List<StatisticsRecordDTO> loggedInUsersRecords, List<StatisticsRecordDTO> maxOnlineUsersRecords, List<StatisticsRecordDTO> registeredUsersRecords)*
@@ -15265,8 +15265,8 @@ Now I have all the information needed for the comparison.
 
 ## UserStatisticsDTO
 
-- [ ] `UsersWhoSentMessagesRecs` field name uses a truncated abbreviation "Recs" instead of the full "Records" matching the Java field `usersWhoSentMessagesRecords`. The JSON tag is correct (`"usersWhoSentMessagesRecords"`), but the Go field name is inconsistent with all other `*Records` fields.
-- [ ] The five `*Records` fields use `[]interface{}` as placeholder types instead of `[]StatisticsRecordDTO` (or `[]dto.StatisticsRecordDTO`), even though `StatisticsRecordDTO` is already defined in `internal/domain/common/access/admin/dto/common_dtos.go`. This loses type safety and differs from the Java record which uses `List<StatisticsRecordDTO>`.
+- [x] `UsersWhoSentMessagesRecs` field name uses a truncated abbreviation "Recs" instead of the full "Records" matching the Java field `usersWhoSentMessagesRecords`. The JSON tag is correct (`"usersWhoSentMessagesRecords"`), but the Go field name is inconsistent with all other `*Records` fields.
+- [x] The five `*Records` fields use `[]interface{}` as placeholder types instead of `[]StatisticsRecordDTO` (or `[]dto.StatisticsRecordDTO`), even though `StatisticsRecordDTO` is already defined in `internal/domain/common/access/admin/dto/common_dtos.go`. This loses type safety and differs from the Java record which uses `List<StatisticsRecordDTO>`.
 
 # UserStatusDTO.java
 *Checked methods: UserStatusDTO(Long userId, UserStatus status, Map<DeviceType, String> deviceTypeToNodeId, Date loginDate, Location loginLocation)*
@@ -15289,11 +15289,11 @@ Now I have all the information needed for the comparison.
 
 ## UserStatusDTO
 
-- [ ] **`LoginLocation` field uses wrong type**: The Java version uses `Location` which has fields `longitude` (float), `latitude` (float), `timestamp` (Date, nullable), and `details` (Map<String, String>). The Go version reuses `UserLocationDTO` which has fields `UserID`, `DeviceType`, `Longitude`, `Latitude` — a completely different structure. `UserLocationDTO` is missing the `timestamp` and `details` fields from `Location`, and incorrectly includes `UserID` and `DeviceType` fields that don't exist in the Java `Location` class.
+- [x] **`LoginLocation` field uses wrong type**: The Java version uses `Location` which has fields `longitude` (float), `latitude` (float), `timestamp` (Date, nullable), and `details` (Map<String, String>). The Go version reuses `UserLocationDTO` which has fields `UserID`, `DeviceType`, `Longitude`, `Latitude` — a completely different structure. `UserLocationDTO` is missing the `timestamp` and `details` fields from `Location`, and incorrectly includes `UserID` and `DeviceType` fields that don't exist in the Java `Location` class.
 
-- [ ] **`DeviceTypeToNodeID` map key type is `int` instead of an enum-like type**: The Java version uses `Map<DeviceType, String>` where `DeviceType` is a protobuf enum. The Go version uses `map[int]string` which is acceptable as a raw int representation, but loses the semantic type safety of the enum. This is a minor concern but worth noting — the key type should ideally represent `DeviceType` values.
+- [x] **`DeviceTypeToNodeID` map key type is `int` instead of an enum-like type**: The Java version uses `Map<DeviceType, String>` where `DeviceType` is a protobuf enum. The Go version uses `map[int]string` which is acceptable as a raw int representation, but loses the semantic type safety of the enum. This is a minor concern but worth noting — the key type should ideally represent `DeviceType` values.
 
-- [ ] **`Longitude` and `Latitude` field types differ**: The Java `Location` uses `float` (32-bit) for longitude and latitude, while the Go `UserLocationDTO` uses `*float64` (64-bit pointers). This changes precision behavior compared to the original.
+- [x] **`Longitude` and `Latitude` field types differ**: The Java `Location` uses `float` (32-bit) for longitude and latitude, while the Go `UserLocationDTO` uses `*float64` (64-bit pointers). This changes precision behavior compared to the original.
 
 # UserRelationshipServiceController.java
 *Checked methods: handleCreateFriendRequestRequest(), handleCreateRelationshipGroupRequest(), handleCreateRelationshipRequest(), handleDeleteFriendRequestRequest(), handleDeleteRelationshipGroupRequest(), handleDeleteRelationshipRequest(), handleQueryFriendRequestsRequest(), handleQueryRelatedUserIdsRequest(), handleQueryRelationshipGroupsRequest(), handleQueryRelationshipsRequest(), handleUpdateFriendRequestRequest(), handleUpdateRelationshipGroupRequest(), handleUpdateRelationshipRequest()*
@@ -15464,76 +15464,76 @@ This looks correct.
 ---
 
 ## HandleCreateFriendRequestRequest
-- [ ] Missing return of friend request ID as Long data in the response notification — Java returns `RequestHandlerResult.ofDataLong(friendRequest.getId(), ...)`, Go discards the ID and returns a plain success notification
-- [ ] Missing notification dispatching logic — Java conditionally notifies the friend request recipient and/or the requester's other online sessions based on `notifyFriendRequestRecipientOfFriendRequestCreated` and `notifyRequesterOtherOnlineSessionsOfFriendRequestCreated` properties
+- [x] Missing return of friend request ID as Long data in the response notification — Java returns `RequestHandlerResult.ofDataLong(friendRequest.getId(), ...)`, Go discards the ID and returns a plain success notification
+- [x] Missing notification dispatching logic — Java conditionally notifies the friend request recipient and/or the requester's other online sessions based on `notifyFriendRequestRecipientOfFriendRequestCreated` and `notifyRequesterOtherOnlineSessionsOfFriendRequestCreated` properties
 
 ## HandleCreateRelationshipRequest
-- [ ] Missing default of `groupIndex` to `DEFAULT_RELATIONSHIP_GROUP_INDEX` when the request doesn't have `groupIndex` set — Java defaults to `DEFAULT_RELATIONSHIP_GROUP_INDEX`, Go passes the proto field pointer directly which may be nil
-- [ ] Missing notification dispatching logic — Java conditionally notifies the related user and/or the requester's other online sessions based on `notifyNewRelationshipGroupMemberOfOneSidedRelationshipGroupMemberAdded`
-- [ ] Missing logic to patch the notification request with the defaulted `groupIndex` when `!request.hasGroupIndex()` — Java rebuilds the notification to include the defaulted groupIndex
+- [x] Missing default of `groupIndex` to `DEFAULT_RELATIONSHIP_GROUP_INDEX` when the request doesn't have `groupIndex` set — Java defaults to `DEFAULT_RELATIONSHIP_GROUP_INDEX`, Go passes the proto field pointer directly which may be nil
+- [x] Missing notification dispatching logic — Java conditionally notifies the related user and/or the requester's other online sessions based on `notifyNewRelationshipGroupMemberOfOneSidedRelationshipGroupMemberAdded`
+- [x] Missing logic to patch the notification request with the defaulted `groupIndex` when `!request.hasGroupIndex()` — Java rebuilds the notification to include the defaulted groupIndex
 
 ## HandleDeleteFriendRequestRequest
-- [ ] Missing notification dispatching logic — Java conditionally notifies the friend request recipient and/or the requester's other online sessions based on `notifyFriendRequestRecipientOfFriendRequestRecalled` and `notifyRequesterOtherOnlineSessionsOfFriendRequestRecalled`
+- [x] Missing notification dispatching logic — Java conditionally notifies the friend request recipient and/or the requester's other online sessions based on `notifyFriendRequestRecipientOfFriendRequestRecalled` and `notifyRequesterOtherOnlineSessionsOfFriendRequestRecalled`
 
 ## HandleDeleteRelationshipGroupRequest
-- [ ] Wrong branching logic — Java always calls `deleteRelationshipGroupAndMoveMembersToNewGroup` (defaulting `targetGroupIndex` to `DEFAULT_RELATIONSHIP_GROUP_INDEX` when unset), but Go branches to call `DeleteRelationshipGroups` when `TargetGroupIndex` is nil, which is a completely different method
-- [ ] Missing default of `targetGroupIndex` to `DEFAULT_RELATIONSHIP_GROUP_INDEX` when the request doesn't have `targetGroupIndex` set
-- [ ] Missing notification dispatching logic — Java queries group member IDs before deletion and conditionally notifies them and/or the requester's other online sessions
-- [ ] Missing logic to patch the notification request with the defaulted `targetGroupIndex` when `!request.hasTargetGroupIndex()`
+- [x] Wrong branching logic — Java always calls `deleteRelationshipGroupAndMoveMembersToNewGroup` (defaulting `targetGroupIndex` to `DEFAULT_RELATIONSHIP_GROUP_INDEX` when unset), but Go branches to call `DeleteRelationshipGroups` when `TargetGroupIndex` is nil, which is a completely different method
+- [x] Missing default of `targetGroupIndex` to `DEFAULT_RELATIONSHIP_GROUP_INDEX` when the request doesn't have `targetGroupIndex` set
+- [x] Missing notification dispatching logic — Java queries group member IDs before deletion and conditionally notifies them and/or the requester's other online sessions
+- [x] Missing logic to patch the notification request with the defaulted `targetGroupIndex` when `!request.hasTargetGroupIndex()`
 
 ## HandleDeleteRelationshipRequest
-- [ ] Completely different branching logic — Java branches on the `deleteTwoSidedRelationships` property (calling either `tryDeleteTwoSidedRelationships` or `deleteOneSidedRelationship` with optional groupIndex), while Go branches on the presence of `TargetGroupIndex` and `GroupIndex` fields to call `MoveRelatedUserToNewGroup`, `DeleteRelatedUserFromRelationshipGroup`, or `DeleteOneSidedRelationship`
-- [ ] Missing `deleteTwoSidedRelationships` property support — this config property does not exist in the Go codebase at all, so the two-sided delete path is never used
-- [ ] Missing notification dispatching logic — Java conditionally notifies the removed member and/or the requester's other online sessions based on `notifyRemovedRelationshipGroupMemberOfOneSidedRelationshipGroupMemberRemoved`
+- [x] Completely different branching logic — Java branches on the `deleteTwoSidedRelationships` property (calling either `tryDeleteTwoSidedRelationships` or `deleteOneSidedRelationship` with optional groupIndex), while Go branches on the presence of `TargetGroupIndex` and `GroupIndex` fields to call `MoveRelatedUserToNewGroup`, `DeleteRelatedUserFromRelationshipGroup`, or `DeleteOneSidedRelationship`
+- [x] Missing `deleteTwoSidedRelationships` property support — this config property does not exist in the Go codebase at all, so the two-sided delete path is never used
+- [x] Missing notification dispatching logic — Java conditionally notifies the removed member and/or the requester's other online sessions based on `notifyRemovedRelationshipGroupMemberOfOneSidedRelationshipGroupMemberRemoved`
 
 ## HandleQueryRelatedUserIdsRequest
-- [ ] `groupIndexes` not converted from empty list to nil — Java converts an empty `groupIndexesList` to `null`, Go passes the proto list directly which may be an empty slice instead of nil
-- [ ] `blocked` field not properly handling the unset case — Java uses `request.hasBlocked()` to distinguish between unset (null) and explicitly set to false, Go passes `queryReq.Blocked` directly which cannot represent the tri-state (unset/true/false)
+- [x] `groupIndexes` not converted from empty list to nil — Java converts an empty `groupIndexesList` to `null`, Go passes the proto list directly which may be an empty slice instead of nil
+- [x] `blocked` field not properly handling the unset case — Java uses `request.hasBlocked()` to distinguish between unset (null) and explicitly set to false, Go passes `queryReq.Blocked` directly which cannot represent the tri-state (unset/true/false)
 
 ## HandleQueryRelationshipsRequest
-- [ ] `userIds` not converted from empty list to nil — Java converts an empty `userIdsList` to `null`, Go passes the proto list directly
-- [ ] `groupIndexes` not converted from empty list to nil — Java converts an empty `groupIndexesList` to `null`, Go passes the proto list directly
-- [ ] `blocked` field not properly handling the unset case — Java uses `request.hasBlocked()` to distinguish between unset (null) and explicitly set to false, Go passes `queryReq.Blocked` directly
+- [x] `userIds` not converted from empty list to nil — Java converts an empty `userIdsList` to `null`, Go passes the proto list directly
+- [x] `groupIndexes` not converted from empty list to nil — Java converts an empty `groupIndexesList` to `null`, Go passes the proto list directly
+- [x] `blocked` field not properly handling the unset case — Java uses `request.hasBlocked()` to distinguish between unset (null) and explicitly set to false, Go passes `queryReq.Blocked` directly
 
 ## HandleUpdateFriendRequestRequest
-- [ ] Missing all notification logic — Java builds multiple notifications: one for the friend request sender about the reply, and optionally two more for group member additions when the friend request is accepted. Go discards the `AuthAndHandleFriendRequest` result and returns a plain success notification
-- [ ] `reason` field not properly nulled when unset — Java uses `request.hasReason() ? request.getReason() : null`, Go passes `updateReq.Reason` directly without checking if it was set
+- [x] Missing all notification logic — Java builds multiple notifications: one for the friend request sender about the reply, and optionally two more for group member additions when the friend request is accepted. Go discards the `AuthAndHandleFriendRequest` result and returns a plain success notification
+- [x] `reason` field not properly nulled when unset — Java uses `request.hasReason() ? request.getReason() : null`, Go passes `updateReq.Reason` directly without checking if it was set
 
 ## HandleUpdateRelationshipGroupRequest
-- [ ] Missing notification dispatching logic — Java conditionally queries group member IDs and notifies them and/or the requester's other online sessions based on `notifyRelationshipGroupMembersOfOneSidedRelationshipGroupUpdated`
-- [ ] Missing modified count check — Java returns `RequestHandlerResult.OK` when `result.getModifiedCount() == 0` (indicating no actual change), Go always returns success regardless
+- [x] Missing notification dispatching logic — Java conditionally queries group member IDs and notifies them and/or the requester's other online sessions based on `notifyRelationshipGroupMembersOfOneSidedRelationshipGroupUpdated`
+- [x] Missing modified count check — Java returns `RequestHandlerResult.OK` when `result.getModifiedCount() == 0` (indicating no actual change), Go always returns success regardless
 
 ## HandleUpdateRelationshipRequest
-- [ ] Calls a different service method — Java calls `upsertOneSidedRelationship` (with parameters: userId, relatedUserId, name, blockDate, newGroupIndex, deleteGroupIndex, null, true, null), Go calls `UpdateUserOneSidedRelationships` instead, which is a different method with different semantics
-- [ ] Missing `deleteGroupIndex` parameter — Java passes `request.hasDeleteGroupIndex() ? request.getDeleteGroupIndex() : null`, Go passes `nil` for this parameter
-- [ ] Missing notification dispatching logic — Java conditionally notifies the related user and/or the requester's other online sessions based on `notifyRelatedUserOfOneSidedRelationshipUpdated`
+- [x] Calls a different service method — Java calls `upsertOneSidedRelationship` (with parameters: userId, relatedUserId, name, blockDate, newGroupIndex, deleteGroupIndex, null, true, null), Go calls `UpdateUserOneSidedRelationships` instead, which is a different method with different semantics
+- [x] Missing `deleteGroupIndex` parameter — Java passes `request.hasDeleteGroupIndex() ? request.getDeleteGroupIndex() : null`, Go passes `nil` for this parameter
+- [x] Missing notification dispatching logic — Java conditionally notifies the related user and/or the requester's other online sessions based on `notifyRelatedUserOfOneSidedRelationshipUpdated`
 
 # UserServiceController.java
 *Checked methods: handleQueryUserProfilesRequest(), handleQueryNearbyUsersRequest(), handleQueryUserOnlineStatusesRequest(), handleUpdateUserLocationRequest(), handleUpdateUserOnlineStatusRequest(), handleUpdateUserRequest()*
 
 ## HandleQueryUserProfilesRequest
 
-- [ ] **Missing request fields**: The Go code hardcodes `""` for `name`, `0` for `skip`, and `0` for `limit` when calling `AuthAndQueryUsersProfile`. The Java code reads `request.hasName() ? request.getName() : null`, `request.hasSkip() ? request.getSkip() : null`, `request.hasLimit() ? request.getLimit() : null`, and `request.getFieldsToHighlightCount() > 0 ? request.getFieldsToHighlightList() : null` from the request. The Go code ignores the `name`, `skip`, `limit`, and `fieldsToHighlight` fields from the incoming request entirely.
-- [ ] **Missing `UserInfosWithVersion` version field**: The Java builder is named `UserInfosWithVersion` and may include a version. The Go code builds `UserInfosWithVersion` but never sets a `Version` field if one exists on the proto (Java's `userInfosWithVersionBuilder` could set it based on data). This depends on the proto definition, but if `UserInfosWithVersion` has a `version` field, it is not populated.
+- [x] **Missing request fields**: The Go code hardcodes `""` for `name`, `0` for `skip`, and `0` for `limit` when calling `AuthAndQueryUsersProfile`. The Java code reads `request.hasName() ? request.getName() : null`, `request.hasSkip() ? request.getSkip() : null`, `request.hasLimit() ? request.getLimit() : null`, and `request.getFieldsToHighlightCount() > 0 ? request.getFieldsToHighlightList() : null` from the request. The Go code ignores the `name`, `skip`, `limit`, and `fieldsToHighlight` fields from the incoming request entirely.
+- [x] **Missing `UserInfosWithVersion` version field**: The Java builder is named `UserInfosWithVersion` and may include a version. The Go code builds `UserInfosWithVersion` but never sets a `Version` field if one exists on the proto (Java's `userInfosWithVersionBuilder` could set it based on data). This depends on the proto definition, but if `UserInfosWithVersion` has a `version` field, it is not populated.
 
 ## HandleQueryNearbyUsersRequest
 
-- [ ] **Missing `maxCount` and `maxDistance` from request**: The Java code reads `request.hasMaxCount() ? (short) request.getMaxCount() : null` and `request.hasMaxDistance() ? request.getMaxDistance() : null` and passes them to `queryNearbyUsers`. The Go code passes `nil` for both `maxCount` and `maxDistance`, ignoring these fields from the request.
-- [ ] **Missing NO_CONTENT response for empty results**: When `nearbyUsers` is empty, Java returns `RequestHandlerResult.NO_CONTENT`. The Go code still builds and returns a `NearbyUsers` response with an empty `nearbyUsers` list, which differs behaviorally from the Java version (which signals "no content" distinctly).
+- [x] **Missing `maxCount` and `maxDistance` from request**: The Java code reads `request.hasMaxCount() ? (short) request.getMaxCount() : null` and `request.hasMaxDistance() ? request.getMaxDistance() : null` and passes them to `queryNearbyUsers`. The Go code passes `nil` for both `maxCount` and `maxDistance`, ignoring these fields from the request.
+- [x] **Missing NO_CONTENT response for empty results**: When `nearbyUsers` is empty, Java returns `RequestHandlerResult.NO_CONTENT`. The Go code still builds and returns a `NearbyUsers` response with an empty `nearbyUsers` list, which differs behaviorally from the Java version (which signals "no content" distinctly).
 
 ## HandleQueryUserOnlineStatusesRequest
 
-- [ ] **Missing empty-userIds early return**: The Java code checks `if (request.getUserIdsCount() == 0) { return Mono.empty(); }` and returns nothing (no response). The Go code does not check for an empty `userIDs` slice and proceeds to call `QueryUserSessions` even with an empty list.
-- [ ] **Missing `respondOfflineIfInvisible` logic**: The Java code passes `respondOfflineIfInvisible` to `ProtoModelConvertor.userSessionsStatus2proto()`, which transforms the user status so invisible users appear offline. The Go code does not apply this transformation and returns the raw `UserStatus` value from the session data, meaning invisible users would be exposed as invisible instead of offline.
+- [x] **Missing empty-userIds early return**: The Java code checks `if (request.getUserIdsCount() == 0) { return Mono.empty(); }` and returns nothing (no response). The Go code does not check for an empty `userIDs` slice and proceeds to call `QueryUserSessions` even with an empty list.
+- [x] **Missing `respondOfflineIfInvisible` logic**: The Java code passes `respondOfflineIfInvisible` to `ProtoModelConvertor.userSessionsStatus2proto()`, which transforms the user status so invisible users appear offline. The Go code does not apply this transformation and returns the raw `UserStatus` value from the session data, meaning invisible users would be exposed as invisible instead of offline.
 
 ## HandleUpdateUserLocationRequest
 
-- [ ] **Missing timestamp parameter**: The Java code passes `new Date()` (current time) as a parameter to `sessionLocationService.upsertUserLocation()`. The Go `UpsertUserLocation` does not accept a timestamp parameter, so either the timestamp is set internally in the service or it is omitted entirely. This is a behavioral difference from the Java version which explicitly passes the current timestamp at the controller level.
+- [x] **Missing timestamp parameter**: The Java code passes `new Date()` (current time) as a parameter to `sessionLocationService.upsertUserLocation()`. The Go `UpsertUserLocation` does not accept a timestamp parameter, so either the timestamp is set internally in the service or it is omitted entirely. This is a behavioral difference from the Java version which explicitly passes the current timestamp at the controller level.
 
 ## HandleUpdateUserOnlineStatusRequest
 
-- [ ] **Missing UNRECOGNIZED status validation**: The Java code checks `if (userStatus == UserStatus.UNRECOGNIZED)` and returns an `ILLEGAL_ARGUMENT` error response. The Go code does not validate the status value before calling `UpdateStatus`.
-- [ ] **Missing OFFLINE/disconnect logic**: The Java code has an explicit branch: `if (userStatus == UserStatus.OFFLINE)`, it calls `sessionService.disconnect()` (either with specific device types from `request.getDeviceTypesList()` or disconnecting all devices). The Go code simply calls `c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)` for all status values including OFFLINE, which only updates a Redis value but does not actually disconnect sessions.
+- [x] **Missing UNRECOGNIZED status validation**: The Java code checks `if (userStatus == UserStatus.UNRECOGNIZED)` and returns an `ILLEGAL_ARGUMENT` error response. The Go code does not validate the status value before calling `UpdateStatus`.
+- [x] **Missing OFFLINE/disconnect logic**: The Java code has an explicit branch: `if (userStatus == UserStatus.OFFLINE)`, it calls `sessionService.disconnect()` (either with specific device types from `request.getDeviceTypesList()` or disconnecting all devices). The Go code simply calls `c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)` for all status values including OFFLINE, which only updates a Redis value but does not actually disconnect sessions.
 - [ ] **Missing deviceTypes handling for OFFLINE**: Related to above, the Java code reads `request.getDeviceTypesCount() > 0` and `request.getDeviceTypesList()` to selectively disconnect specific devices. The Go code completely ignores the `deviceTypes` field.
 - [ ] **Missing notification to requester's other sessions**: The Java code always includes `notifyRequesterOtherOnlineSessionsOfUserOnlineStatusUpdated` in the `RequestHandlerResult`, which notifies the requester's other online sessions. The Go code has no equivalent logic — it only broadcasts to friends via `outboundMessageService`.
 - [ ] **Missing group member notification logic**: The Java code queries group members via `groupMemberService.queryMemberIdsInUsersJoinedGroups()` and includes them in the notification recipients. The Go code has no group member notification at all — `groupMemberService` is not even a dependency of the Go controller.
