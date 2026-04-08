@@ -290,13 +290,10 @@ func (c *MessageController) HandleQueryMessagesRequest(ctx context.Context, s *s
 func (c *MessageController) HandleUpdateMessageRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateMessageRequest()
 
-	// Extract records from the update request
-	var records [][]byte
-	if updateReq.Records != nil {
-		records = updateReq.Records
-	}
+	// Use unified authAndUpdateMessage (Java parity: handles text, records, recallDate in one call)
+	deviceType := int32(s.DeviceType)
 
-	// Extract recallDate
+	// Convert recallDate from millis to *time.Time
 	var recallDate *time.Time
 	if updateReq.RecallDate != nil {
 		t := time.UnixMilli(*updateReq.RecallDate)
@@ -307,11 +304,14 @@ func (c *MessageController) HandleUpdateMessageRequest(ctx context.Context, s *s
 	err := c.messageService.AuthAndUpdateMessage(
 		ctx,
 		s.UserID,
-		nil, // senderDeviceType
+		&deviceType,
 		updateReq.MessageId,
+		nil, // isSystemMessage
 		updateReq.Text,
-		records,
+		updateReq.Records,
+		nil, // burnAfter
 		recallDate,
+		nil, // senderIP
 	)
 	if err != nil {
 		return nil, err
