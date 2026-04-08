@@ -13805,11 +13805,11 @@ Now I have a thorough understanding of both codebases. Let me compile the full c
 
 ## queryGroupTypeId
 
-- [ ] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
+- [x] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
 
 ## queryGroupTypeIdIfActiveAndNotDeleted
 
-- [ ] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
+- [x] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
 
 ## queryGroupMinimumScore
 
@@ -13818,86 +13818,86 @@ Now I have a thorough understanding of both codebases. Let me compile the full c
 ## authAndTransferGroupOwnership
 
 - [ ] **Missing `successorId == requesterId` early return**: Java checks `if (successorId.equals(requesterId)) { return Mono.empty(); }` before querying the owner. Go passes `&requesterID` as `auxiliaryCurrentOwnerId` and then checks `*ownerID == successorID` later but does not check `successorID == requesterID` early — however, this is implicitly handled since `auxiliaryCurrentOwnerId != nil` and the owner check would catch it.
-- [ ] **Different authorization flow**: Java uses `groupMemberService.isOwner(requesterId, groupId, false)` to verify ownership. Go queries `FindGroupOwnerID` and checks `*ownerID != *auxiliaryCurrentOwnerId` (since `auxiliaryCurrentOwnerId` is set to `&requesterID`). This is functionally similar.
-- [ ] **Missing `isAllowedToCreateGroupAndHaveGroupType` check**: Java's `checkAndTransferGroupOwnership` (single group) calls `queryGroupTypeId(groupId)` then `isAllowedToCreateGroupAndHaveGroupType(successorId, groupTypeId)` to verify the successor is allowed to own a group of that type. Go skips this permission check entirely.
+- [x] **Different authorization flow**: Java uses `groupMemberService.isOwner(requesterId, groupId, false)` to verify ownership. Go queries `FindGroupOwnerID` and checks `*ownerID != *auxiliaryCurrentOwnerId` (since `auxiliaryCurrentOwnerId` is set to `&requesterID`). This is functionally similar.
+- [x] **Missing `isAllowedToCreateGroupAndHaveGroupType` check**: Java's `checkAndTransferGroupOwnership` (single group) calls `queryGroupTypeId(groupId)` then `isAllowedToCreateGroupAndHaveGroupType(successorId, groupTypeId)` to verify the successor is allowed to own a group of that type. Go skips this permission check entirely.
 
 ## queryGroupOwnerId
 
-- [ ] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
+- [x] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
 
 ## checkAndTransferGroupOwnership (batch)
 
-- [ ] **Missing parallel execution and error aggregation**: Java uses `Flux.merge(monos)` to execute transfers concurrently and collects results, aggregating errors — ignoring `TRANSFER_NONEXISTENT_GROUP` errors in the count. Go loops sequentially and returns on the first error.
-- [ ] **Missing validation**: Java validates `groupIds` is not empty and `successorId` is not null. Go performs no validation.
-- [ ] **Missing `UpdateResult` return**: Java returns `Mono<UpdateResult>` with matched/modified counts. Go returns only `error`.
+- [x] **Missing parallel execution and error aggregation**: Java uses `Flux.merge(monos)` to execute transfers concurrently and collects results, aggregating errors — ignoring `TRANSFER_NONEXISTENT_GROUP` errors in the count. Go loops sequentially and returns on the first error.
+- [x] **Missing validation**: Java validates `groupIds` is not empty and `successorId` is not null. Go performs no validation.
+- [x] **Missing `UpdateResult` return**: Java returns `Mono<UpdateResult>` with matched/modified counts. Go returns only `error`.
 
 ## checkAndTransferGroupOwnership (single)
 
-- [ ] **Missing `isAllowedToCreateGroupAndHaveGroupType` check**: After confirming the successor is a group member, Java queries the group type ID and calls `isAllowedToCreateGroupAndHaveGroupType(successorId, groupTypeId)` to verify the successor has permission to own this group type. Go skips this entirely.
-- [ ] **Different operation ordering**: Java first demotes/deletes the old owner, then promotes the successor. Go first promotes the successor (`UpdateGroupMemberRole` with OWNER), then either deletes or demotes the old owner. This ordering difference could cause issues if both members are owners temporarily.
-- [ ] **Missing `auxiliaryCurrentOwnerId == null` handling**: Java handles the case where `auxiliaryCurrentOwnerId == null` by calling `queryGroupOwnerId(groupId)` and returning `transferNonexistentGroup` if empty. Go always calls `FindGroupOwnerID` regardless.
+- [x] **Missing `isAllowedToCreateGroupAndHaveGroupType` check**: After confirming the successor is a group member, Java queries the group type ID and calls `isAllowedToCreateGroupAndHaveGroupType(successorId, groupTypeId)` to verify the successor has permission to own this group type. Go skips this entirely.
+- [x] **Different operation ordering**: Java first demotes/deletes the old owner, then promotes the successor. Go first promotes the successor (`UpdateGroupMemberRole` with OWNER), then either deletes or demotes the old owner. This ordering difference could cause issues if both members are owners temporarily.
+- [x] **Missing `auxiliaryCurrentOwnerId == null` handling**: Java handles the case where `auxiliaryCurrentOwnerId == null` by calling `queryGroupOwnerId(groupId)` and returning `transferNonexistentGroup` if empty. Go always calls `FindGroupOwnerID` regardless.
 
 ## updateGroupInformation
 
-- [ ] **Missing `userDefinedAttributes` parameter**: Java accepts `@Nullable Map<String, Object> userDefinedAttributes`. Go has no such parameter, so custom attributes are never updated.
-- [ ] **Missing validation**: Java validates `groupId` is not null, `minimumScore >= 0`, `creationDate`/`deletionDate` are past or present, etc. Go performs no validation.
+- [x] **Missing `userDefinedAttributes` parameter**: Java accepts `@Nullable Map<String, Object> userDefinedAttributes`. Go has no such parameter, so custom attributes are never updated.
+- [x] **Missing validation**: Java validates `groupId` is not null, `minimumScore >= 0`, `creationDate`/`deletionDate` are past or present, etc. Go performs no validation.
 
 ## updateGroupsInformation
 
-- [ ] **Missing `userDefinedAttributes` parameter and handling**: Java passes `userDefinedAttributes` to the repository for upsert. Go has no such parameter.
-- [ ] **Missing validation**: Java validates `groupIds` not empty, `minimumScore >= 0`, dates valid, etc. Go performs no validation.
-- [ ] **Missing Elasticsearch integration**: Java conditionally updates/deletes Elasticsearch docs for group name changes. Go has no Elasticsearch integration.
-- [ ] **Missing transaction support**: Java optionally uses a transaction when Elasticsearch integration requires it. Go has no transaction support for the update.
-- [ ] **Missing batch update**: Go loops and calls `UpdateGroup` for each group individually instead of using a batch `UpdateMany` operation.
-- [ ] **Silently ignoring version update errors**: Go uses `_ = s.groupVersionService.UpdateInformationVersion(...)` discarding any errors. Java's version service upsert uses `onErrorComplete` to log but not fail — the Go version silently swallows errors without logging.
+- [x] **Missing `userDefinedAttributes` parameter and handling**: Java passes `userDefinedAttributes` to the repository for upsert. Go has no such parameter.
+- [x] **Missing validation**: Java validates `groupIds` not empty, `minimumScore >= 0`, dates valid, etc. Go performs no validation.
+- [x] **Missing Elasticsearch integration**: Java conditionally updates/deletes Elasticsearch docs for group name changes. Go has no Elasticsearch integration.
+- [x] **Missing transaction support**: Java optionally uses a transaction when Elasticsearch integration requires it. Go has no transaction support for the update.
+- [x] **Missing batch update**: Go loops and calls `UpdateGroup` for each group individually instead of using a batch `UpdateMany` operation.
+- [x] **Silently ignoring version update errors**: Go uses `_ = s.groupVersionService.UpdateInformationVersion(...)` discarding any errors. Java's version service upsert uses `onErrorComplete` to log but not fail — the Go version silently swallows errors without logging.
 
 ## authAndUpdateGroupInformation
 
-- [ ] **Completely different authorization logic**: Java's authorization is based on the group type's `GroupUpdateStrategy` (OWNER, OWNER_MANAGER, OWNER_MANAGER_MEMBER, ALL). Go hardcodes a check: if not owner, check if manager; if manager, restrict typeId/successorID/isActive changes. This doesn't account for the OWNER_MANAGER_MEMBER or ALL strategies.
-- [ ] **Missing `allowGroupOwnerChangeGroupType` property check**: Java checks `allowGroupOwnerChangeGroupType` before allowing type changes. Go allows the owner to change the type without this property check (but restricts managers).
-- [ ] **Missing `isAllowedUpdateGroupToGroupType` check**: Java calls `isAllowedUpdateGroupToGroupType(requesterId, typeId, null)` when typeId is provided. Go doesn't perform this permission check.
-- [ ] **Missing `userDefinedAttributes` handling**: Java handles user-defined custom attributes via `groupInfoUserCustomAttributesService`. Go has no such support.
-- [ ] **Missing `creationDate`, `deletionDate`, `muteEndDate` parameters**: Java's `authAndUpdateGroupInformation` accepts these date fields. Go's `AuthAndUpdateGroup` does not accept them.
-- [ ] **Missing early return when all fields are null**: Java returns early (after the type permission check) when all update fields and user-defined attributes are null. Go does check this but after already querying the owner.
-- [ ] **Missing validation**: Java validates all input parameters. Go performs no validation.
+- [x] **Completely different authorization logic**: Java's authorization is based on the group type's `GroupUpdateStrategy` (OWNER, OWNER_MANAGER, OWNER_MANAGER_MEMBER, ALL). Go hardcodes a check: if not owner, check if manager; if manager, restrict typeId/successorID/isActive changes. This doesn't account for the OWNER_MANAGER_MEMBER or ALL strategies.
+- [x] **Missing `allowGroupOwnerChangeGroupType` property check**: Java checks `allowGroupOwnerChangeGroupType` before allowing type changes. Go allows the owner to change the type without this property check (but restricts managers).
+- [x] **Missing `isAllowedUpdateGroupToGroupType` check**: Java calls `isAllowedUpdateGroupToGroupType(requesterId, typeId, null)` when typeId is provided. Go doesn't perform this permission check.
+- [x] **Missing `userDefinedAttributes` handling**: Java handles user-defined custom attributes via `groupInfoUserCustomAttributesService`. Go has no such support.
+- [x] **Missing `creationDate`, `deletionDate`, `muteEndDate` parameters**: Java's `authAndUpdateGroupInformation` accepts these date fields. Go's `AuthAndUpdateGroup` does not accept them.
+- [x] **Missing early return when all fields are null**: Java returns early (after the type permission check) when all update fields and user-defined attributes are null. Go does check this but after already querying the owner.
+- [x] **Missing validation**: Java validates all input parameters. Go performs no validation.
 
 ## authAndQueryGroups
 
-- [ ] **Missing Elasticsearch search**: When `name` is not blank, Java delegates to `search()` which queries Elasticsearch. Go delegates to `groupRepo.QueryGroups()` which only does a MongoDB query — Elasticsearch search is completely missing.
-- [ ] **Missing validation and empty check**: Java validates `groupIds` is not null and returns empty list if `groupIds` is empty (when name is blank). Go doesn't validate.
-- [ ] **Missing `findNotDeletedGroups` call**: When name is blank, Java uses `groupRepository.findNotDeletedGroups(groupIds, lastUpdatedDate)`. Go uses `groupRepo.QueryGroups()` which may not have the same "not deleted" filtering behavior.
+- [x] **Missing Elasticsearch search**: When `name` is not blank, Java delegates to `search()` which queries Elasticsearch. Go delegates to `groupRepo.QueryGroups()` which only does a MongoDB query — Elasticsearch search is completely missing.
+- [x] **Missing validation and empty check**: Java validates `groupIds` is not null and returns empty list if `groupIds` is empty (when name is blank). Go doesn't validate.
+- [x] **Missing `findNotDeletedGroups` call**: When name is blank, Java uses `groupRepository.findNotDeletedGroups(groupIds, lastUpdatedDate)`. Go uses `groupRepo.QueryGroups()` which may not have the same "not deleted" filtering behavior.
 
 ## queryJoinedGroups
 
-- [ ] **Functionally equivalent but different query path**: Java calls `queryGroups(groupIds)` which uses `groupRepository.findByIds(groupIds)`. Go calls `groupRepo.QueryGroups(ctx, groupIDs, nil, nil, nil, nil)` which filters out deleted groups. The Java version does NOT filter deleted groups by default in `findByIds`.
+- [x] **Functionally equivalent but different query path**: Java calls `queryGroups(groupIds)` which uses `groupRepository.findByIds(groupIds)`. Go calls `groupRepo.QueryGroups(ctx, groupIDs, nil, nil, nil, nil)` which filters out deleted groups. The Java version does NOT filter deleted groups by default in `findByIds`.
 
 ## queryJoinedGroupIdsWithVersion
 
-- [ ] **Missing version checking logic entirely**: Java queries `userVersionService.queryJoinedGroupVersion(memberId)`, compares with `lastUpdatedDate`, and returns an `alreadyUpToUpdate` error if current. Go just returns the group IDs with a nil version, skipping the entire version check and comparison logic.
+- [x] **Missing version checking logic entirely**: Java queries `userVersionService.queryJoinedGroupVersion(memberId)`, compares with `lastUpdatedDate`, and returns an `alreadyUpToUpdate` error if current. Go just returns the group IDs with a nil version, skipping the entire version check and comparison logic.
 
 ## queryJoinedGroupsWithVersion
 
-- [ ] **Missing version checking logic entirely**: Same as above — Java queries `userVersionService.queryJoinedGroupVersion(memberId)`, compares dates, and returns proto-formatted groups with version. Go returns groups with a nil version, skipping all version logic.
+- [x] **Missing version checking logic entirely**: Same as above — Java queries `userVersionService.queryJoinedGroupVersion(memberId)`, compares dates, and returns proto-formatted groups with version. Go returns groups with a nil version, skipping all version logic.
 
 ## isAllowedToCreateGroupAndHaveGroupType
 
-- [ ] **Stub implementation**: Java queries `userRoleService`, checks owned group limits, verifies the group type exists and the user has permission. Go returns `nil` unconditionally (always allowed).
+- [x] **Stub implementation**: Java queries `userRoleService`, checks owned group limits, verifies the group type exists and the user has permission. Go returns `nil` unconditionally (always allowed).
 
 ## isAllowedToCreateGroup
 
-- [ ] **Stub implementation**: Java checks user role, owned group limits, user active status. Go returns `nil` unconditionally.
+- [x] **Stub implementation**: Java checks user role, owned group limits, user active status. Go returns `nil` unconditionally.
 
 ## isAllowedCreateGroupWithGroupType
 
-- [ ] **Stub implementation**: Java checks group type existence, user role creatable types, per-type owned group limits. Go returns `nil` unconditionally.
+- [x] **Stub implementation**: Java checks group type existence, user role creatable types, per-type owned group limits. Go returns `nil` unconditionally.
 
 ## isAllowedUpdateGroupToGroupType
 
-- [ ] **Stub implementation**: Java checks group type existence, user role creatable types, per-type owned group limits. Go returns `nil` unconditionally.
+- [x] **Stub implementation**: Java checks group type existence, user role creatable types, per-type owned group limits. Go returns `nil` unconditionally.
 
 ## countOwnedGroups (with groupTypeId)
 
-- [ ] **Missing overload with groupTypeId**: Java has `countOwnedGroups(@NotNull Long ownerId, @NotNull Long groupTypeId)` which calls `groupRepository.countOwnedGroups(ownerId, groupTypeId)`. Go only has `CountOwnedGroups(ownerID)` in the repository — the `groupTypeId` overload is completely missing.
+- [x] **Missing overload with groupTypeId**: Java has `countOwnedGroups(@NotNull Long ownerId, @NotNull Long groupTypeId)` which calls `groupRepository.countOwnedGroups(ownerId, groupTypeId)`. Go only has `CountOwnedGroups(ownerID)` in the repository — the `groupTypeId` overload is completely missing.
 
 ## countGroups (full filter)
 
@@ -13905,11 +13905,11 @@ Now I have a thorough understanding of both codebases. Let me compile the full c
 
 ## isGroupMuted
 
-- [ ] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
+- [x] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
 
 ## isGroupActiveAndNotDeleted
 
-- [ ] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
+- [x] **Missing validation**: Java validates `groupId` is not null. Go performs no validation.
 
 # GroupTypeService.java
 *Checked methods: initGroupTypes(), queryGroupTypes(@Nullable Integer page, @Nullable Integer size), addGroupType(@Nullable Long id, @NotNull @NoWhitespace String name, @NotNull @Min(1), updateGroupTypes(@NotEmpty Set<Long> ids, @Nullable @NoWhitespace String name, @Nullable @Min(1), deleteGroupTypes(@Nullable Set<Long> groupTypeIds), queryGroupType(@NotNull Long groupTypeId), queryGroupTypes(@NotNull Collection<Long> groupTypeIds), groupTypeExists(@NotNull Long groupTypeId), countGroupTypes()*
@@ -13918,31 +13918,31 @@ Now I have all the information needed for a thorough comparison. Let me compile 
 
 ## initGroupTypes
 
-- [ ] **Missing in-memory cache (`idToGroupType`)**: Java maintains a `ConcurrentHashMap<Long, GroupType>` (`idToGroupType`) as an in-memory cache that is populated during `initGroupTypes()` and used throughout all query/update/delete methods. Go has no such cache at all — every `QueryGroupType` and `QueryGroupTypesByIds` call goes directly to the database.
-- [ ] **Missing MongoDB change stream watcher**: Java sets up a `groupTypeRepository.watch(FullDocument.UPDATE_LOOKUP)` change stream listener in `initGroupTypes()` that keeps `idToGroupType` in sync with database changes (INSERT/UPDATE/REPLACE → put, DELETE → remove, INVALIDATE → clear). It also handles re-adding the default group type if it gets deleted. Go has no change stream watcher.
-- [ ] **Missing default group type fields**: Java's `addDefaultGroupType()` creates a `GroupType` with all 11 fields populated (ID=0, name="DEFAULT", groupSizeLimit=500, invitationStrategy=OWNER_MANAGER_MEMBER_REQUIRING_APPROVAL, joinStrategy=INVITATION, groupInfoUpdateStrategy=OWNER_MANAGER, memberInfoUpdateStrategy=OWNER_MANAGER, guestSpeakable=false, selfInfoUpdatable=true, enableReadReceipt=true, messageEditable=true). Go's `EnsureDefaultGroupType` only sets 3 fields: ID=0, Name="DEFAULT", GroupSizeLimit=500. The remaining 8 fields default to zero-values (strategies=0, booleans=false), which does not match the Java defaults.
-- [ ] **Missing duplicate key tolerance**: Java calls `addGroupType(...).onErrorComplete(DuplicateKeyException.class)` to silently ignore if the default group type already exists. Go has no such handling — if the insert fails for any reason (including duplicate key), the error propagates.
+- [x] **Missing in-memory cache (`idToGroupType`)**: Java maintains a `ConcurrentHashMap<Long, GroupType>` (`idToGroupType`) as an in-memory cache that is populated during `initGroupTypes()` and used throughout all query/update/delete methods. Go has no such cache at all — every `QueryGroupType` and `QueryGroupTypesByIds` call goes directly to the database.
+- [x] **Missing MongoDB change stream watcher**: Java sets up a `groupTypeRepository.watch(FullDocument.UPDATE_LOOKUP)` change stream listener in `initGroupTypes()` that keeps `idToGroupType` in sync with database changes (INSERT/UPDATE/REPLACE → put, DELETE → remove, INVALIDATE → clear). It also handles re-adding the default group type if it gets deleted. Go has no change stream watcher.
+- [x] **Missing default group type fields**: Java's `addDefaultGroupType()` creates a `GroupType` with all 11 fields populated (ID=0, name="DEFAULT", groupSizeLimit=500, invitationStrategy=OWNER_MANAGER_MEMBER_REQUIRING_APPROVAL, joinStrategy=INVITATION, groupInfoUpdateStrategy=OWNER_MANAGER, memberInfoUpdateStrategy=OWNER_MANAGER, guestSpeakable=false, selfInfoUpdatable=true, enableReadReceipt=true, messageEditable=true). Go's `EnsureDefaultGroupType` only sets 3 fields: ID=0, Name="DEFAULT", GroupSizeLimit=500. The remaining 8 fields default to zero-values (strategies=0, booleans=false), which does not match the Java defaults.
+- [x] **Missing duplicate key tolerance**: Java calls `addGroupType(...).onErrorComplete(DuplicateKeyException.class)` to silently ignore if the default group type already exists. Go has no such handling — if the insert fails for any reason (including duplicate key), the error propagates.
 
 ## queryGroupTypes (page, size)
 
-- [ ] No functional bug — the Go method correctly delegates to the repository with page/size parameters.
+- [x] No functional bug — the Go method correctly delegates to the repository with page/size parameters.
 
 ## addGroupType
 
-- [ ] **Missing ID auto-generation**: Java generates a new ID via `node.nextLargeGapId(ServiceType.GROUP_TYPE)` when `id == null`. Go has no such fallback — if the caller doesn't set `ID` on the `GroupType` struct, it defaults to `0` (which is `DEFAULT_GROUP_TYPE_ID`), potentially overwriting the default group type.
-- [ ] **Missing input validation**: Java validates that `name` is not null and has no whitespace, `groupSizeLimit >= 1`, and that all strategy/boolean parameters are not null. Go performs no validation at all.
-- [ ] **Missing in-memory cache update on success**: Java does `idToGroupType.put(groupType.getId(), groupType)` on insert success. Go has no cache to update (consistent with missing cache, but a behavioral difference).
+- [x] **Missing ID auto-generation**: Java generates a new ID via `node.nextLargeGapId(ServiceType.GROUP_TYPE)` when `id == null`. Go has no such fallback — if the caller doesn't set `ID` on the `GroupType` struct, it defaults to `0` (which is `DEFAULT_GROUP_TYPE_ID`), potentially overwriting the default group type.
+- [x] **Missing input validation**: Java validates that `name` is not null and has no whitespace, `groupSizeLimit >= 1`, and that all strategy/boolean parameters are not null. Go performs no validation at all.
+- [x] **Missing in-memory cache update on success**: Java does `idToGroupType.put(groupType.getId(), groupType)` on insert success. Go has no cache to update (consistent with missing cache, but a behavioral difference).
 
 ## updateGroupTypes
 
-- [ ] **Missing "all null" short-circuit**: Java checks if all update parameters are null and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately without hitting the database. Go always calls the repository regardless of whether there are actual fields to update.
-- [ ] **Missing in-memory cache invalidation**: Java removes all updated IDs from `idToGroupType` after a successful update. Go has no cache invalidation.
-- [ ] **Missing input validation**: Java validates `ids` is not empty, `name` has no whitespace, and `groupSizeLimit >= 1`. Go performs no validation.
+- [x] **Missing "all null" short-circuit**: Java checks if all update parameters are null and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately without hitting the database. Go always calls the repository regardless of whether there are actual fields to update.
+- [x] **Missing in-memory cache invalidation**: Java removes all updated IDs from `idToGroupType` after a successful update. Go has no cache invalidation.
+- [x] **Missing input validation**: Java validates `ids` is not empty, `name` has no whitespace, and `groupSizeLimit >= 1`. Go performs no validation.
 
 ## deleteGroupTypes
 
-- [ ] **Missing default group type deletion protection**: Java explicitly checks `if (groupTypeIds != null && groupTypeIds.contains(DEFAULT_GROUP_TYPE_ID))` and throws an `ILLEGAL_ARGUMENT` error preventing deletion of the default group type. Go's `DeleteGroupTypes` has no such guard.
-- [ ] **Missing nil/null handling distinction**: Java handles the case where `groupTypeIds` is null by removing all IDs from the cache except `DEFAULT_GROUP_TYPE_ID` (i.e., deleting all non-default types). Go takes `[]int64` (not `*[]int64` or nil-able), so it cannot distinguish between "no IDs provided" and "delete all non-default types".
+- [x] **Missing default group type deletion protection**: Java explicitly checks `if (groupTypeIds != null && groupTypeIds.contains(DEFAULT_GROUP_TYPE_ID))` and throws an `ILLEGAL_ARGUMENT` error preventing deletion of the default group type. Go's `DeleteGroupTypes` has no such guard.
+- [x] **Missing nil/null handling distinction**: Java handles the case where `groupTypeIds` is null by removing all IDs from the cache except `DEFAULT_GROUP_TYPE_ID` (i.e., deleting all non-default types). Go takes `[]int64` (not `*[]int64` or nil-able), so it cannot distinguish between "no IDs provided" and "delete all non-default types".
 - [ ] **Missing in-memory cache invalidation**: Java removes deleted IDs from `idToGroupType`. Go has no cache invalidation.
 
 ## queryGroupType (single ID)
