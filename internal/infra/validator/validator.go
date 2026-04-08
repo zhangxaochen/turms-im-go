@@ -71,6 +71,43 @@ func AreAllNull(values ...interface{}) bool {
 	return true
 }
 
+// MaxStringLengths validates that all strings in a slice are within the max length
+func MaxStringLengths(values []string, name string, max int) error {
+	for _, v := range values {
+		if len(v) > max {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), fmt.Sprintf("%s must not exceed %d characters", name, max))
+		}
+	}
+	return nil
+}
+
+// InSizeRange validates that the length of a slice is within [min, max]
+func InSizeRange(value interface{}, name string, min, max int) error {
+	if value == nil {
+		if min > 0 {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), fmt.Sprintf("%s size must be between %d and %d", name, min, max))
+		}
+		return nil
+	}
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Slice, reflect.Array:
+		length := v.Len()
+		if length < min || length > max {
+			return exception.NewTurmsError(int32(codes.IllegalArgument), fmt.Sprintf("%s size must be between %d and %d", name, min, max))
+		}
+	}
+	return nil
+}
+
+// MinInt validates that an int value is >= min
+func MinInt(value int, name string, min int) error {
+	if value < min {
+		return exception.NewTurmsError(int32(codes.IllegalArgument), fmt.Sprintf("%s must be >= %d", name, min))
+	}
+	return nil
+}
+
 // PastOrPresent returns an IllegalArgument error if date is in the future
 func PastOrPresent(date *time.Time, name string) error {
 	if date != nil && date.After(time.Now().Add(1*time.Minute)) { // Allow 1 min drift

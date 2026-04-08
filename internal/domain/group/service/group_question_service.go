@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log"
 	"time"
 
 	group_constant "im.turms/server/internal/domain/group/constant"
@@ -10,7 +11,15 @@ import (
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
+	"im.turms/server/internal/infra/validator"
+	"im.turms/server/pkg/codes"
 	"im.turms/server/pkg/protocol"
+)
+
+const (
+	questionContentLimit = 200
+	answerContentLimit   = 200
+	maxAnswerCount       = 10
 )
 
 type GroupQuestionService struct {
@@ -63,6 +72,16 @@ func (s *GroupQuestionService) CheckQuestionIdAndAnswer(questionID *int64, answe
 	return nil
 }
 
+// updateJoinQuestionsVersionNonFatal updates the join questions version, logging errors without failing the operation.
+// Java uses onErrorResume with logging; we log and swallow.
+func (s *GroupQuestionService) updateJoinQuestionsVersionNonFatal(ctx context.Context, groupID int64) {
+	if s.groupVersionService != nil {
+		if err := s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID); err != nil {
+			log.Printf("WARN: failed to update join questions version for group %d: %v", groupID, err)
+		}
+	}
+}
+
 // RBAC Operations
 
 // AuthAndCreateQuestion creates a group join question with authorization.
@@ -105,6 +124,14 @@ func (s *GroupQuestionService) AuthAndCreateQuestion(ctx context.Context, reques
 		}
 	}
 
+	// Validation: Java validates score not null and min(score, 0), answer content length
+	if score < 0 {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "score must be >= 0")
+	}
+	if err := validator.MaxStringLengths(answers, "answers", answerContentLimit); err != nil {
+		return nil, err
+	}
+
 	id := time.Now().UnixNano()
 	q := &po.GroupJoinQuestion{
 		ID:       id,
@@ -118,8 +145,9 @@ func (s *GroupQuestionService) AuthAndCreateQuestion(ctx context.Context, reques
 		return nil, err
 	}
 
-	err = s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
-	return q, err
+	// Java: version update error is logged and swallowed (non-fatal)
+	s.updateJoinQuestionsVersionNonFatal(ctx, groupID)
+	return q, nil
 }
 
 // AuthAndDeleteQuestion deletes a group join question with authorization.
@@ -138,7 +166,9 @@ func (s *GroupQuestionService) AuthAndDeleteQuestion(ctx context.Context, reques
 		return err
 	}
 
-	return s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+	// Java: version update error is logged and swallowed (non-fatal)
+	s.updateJoinQuestionsVersionNonFatal(ctx, groupID)
+	return nil
 }
 
 // AuthAndUpdateQuestion updates a group join question with authorization.
@@ -162,12 +192,21 @@ func (s *GroupQuestionService) AuthAndUpdateQuestion(ctx context.Context, reques
 		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "The score must be greater than or equal to 0")
 	}
 
+	// Validation: answer content length
+	if answers != nil {
+		if err := validator.MaxStringLengths(answers, "answers", answerContentLimit); err != nil {
+			return err
+		}
+	}
+
 	_, err = s.questionRepo.Update(ctx, questionID, question, answers, score)
 	if err != nil {
 		return err
 	}
 
-	return s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+	// Java: version update error is logged and swallowed (non-fatal)
+	s.updateJoinQuestionsVersionNonFatal(ctx, groupID)
+	return nil
 }
 
 func (s *GroupQuestionService) AuthAndCheckAnswer(ctx context.Context, requesterID int64, questionID int64, answer string) (bool, error) {
@@ -214,11 +253,15 @@ func (s *GroupQuestionService) AuthAndDeleteGroupJoinQuestions(ctx context.Conte
 		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_DELETE_GROUP_QUESTION), "Only owner or manager can delete questions")
 	}
 
+	// Use batch delete instead of one-at-a-time
 	err = s.questionRepo.DeleteByIds(ctx, questionIDs)
 	if err != nil {
 		return err
 	}
-	return s.groupVersionService.UpdateJoinQuestionsVersion(ctx, groupID)
+
+	// Java: version update error is logged and swallowed (non-fatal)
+	s.updateJoinQuestionsVersionNonFatal(ctx, groupID)
+	return nil
 }
 
 // AuthAndUpdateGroupJoinQuestion updates a join question with authorization, looking up groupId from the question itself.
@@ -400,39 +443,47 @@ func (s *GroupQuestionService) AuthAndQueryGroupJoinQuestionsWithVersion(ctx con
 		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_UPDATE_INFO_OF_NONEXISTENT_GROUP), "Group does not exist or has been deleted")
 	}
 
+	// Bug fix: Java checks isOwnerOrManager when withAnswers=true
+	if withAnswers {
+		isOwnerOrManager, err := s.groupMemberService.IsOwnerOrManager(ctx, groupID, requesterID)
+		if err != nil {
+			return nil, err
+		}
+		if !isOwnerOrManager {
+			return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_QUERY_GROUP_QUESTION_ANSWER), "Only owner or manager can query group question answers")
+		}
+	}
+
 	version, err := s.groupVersionService.QueryGroupJoinQuestionsVersion(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Bug fix: switchIfEmpty(alreadyUpToUpdate) - when version is nil, return already up to date
+	// Bug fix: Java has switchIfEmpty(alreadyUpToDate) when version mono is empty (no version record)
 	if version == nil {
-		return nil, nil
+		return nil, exception.NewTurmsError(int32(codes.AlreadyUpToDate), "already up-to-date")
 	}
 
 	if lastUpdatedDate != nil && !version.After(*lastUpdatedDate) {
-		ts := version.UnixMilli()
-		return &po.GroupJoinQuestionsWithVersion{
-			LastUpdatedDate: &ts,
-		}, nil
+		return nil, exception.NewTurmsError(int32(codes.AlreadyUpToDate), "already up-to-date")
 	}
 
+	// Bug fix: Java always queries with withAnswers=false at line 391; answers are stripped at query level
 	questions, err := s.questionRepo.FindQuestionsByGroupID(ctx, groupID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Bug fix: Return NO_CONTENT when questions are empty (Java: noContent())
+	// Bug fix: Java throws NO_CONTENT if questions are empty
 	if len(questions) == 0 {
-		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NO_CONTENT), "No questions found")
+		return nil, exception.NewTurmsError(int32(codes.NoContent), "no group join questions")
 	}
 
 	// Java: Always strips answers at query level when querying with version
 	questionPtrs := make([]*po.GroupJoinQuestion, len(questions))
 	for i := range questions {
-		if !withAnswers {
-			questions[i].Answers = nil
-		}
+		// Bug fix: Java always strips answers (queries with withAnswers=false)
+		questions[i].Answers = nil
 		questionPtrs[i] = &questions[i]
 	}
 
@@ -493,7 +544,7 @@ func (s *GroupQuestionService) FindQuestions(ctx context.Context, ids []int64, g
 // Note: Java's admin updateGroupJoinQuestions does NOT update version. Use UpdateQuestionsNoVersion for that behavior.
 func (s *GroupQuestionService) UpdateQuestions(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int) error {
 	// Bug fix: Early return when all update params are null/falsy (Java: ACKNOWLEDGED_UPDATE_RESULT)
-	if question == nil && len(answers) == 0 && score == nil {
+	if groupID == nil && question == nil && len(answers) == 0 && score == nil {
 		return nil
 	}
 
@@ -527,6 +578,21 @@ func (s *GroupQuestionService) UpdateQuestions(ctx context.Context, ids []int64,
 
 // CreateGroupJoinQuestion creates a question directly (admin-level, no ownership check).
 func (s *GroupQuestionService) CreateGroupJoinQuestion(ctx context.Context, id int64, groupID int64, question string, answers []string, score int) (*po.GroupJoinQuestion, error) {
+	// Bug fix: Add content validation matching Java
+	questionStr := question
+	if err := validator.MaxLength(&questionStr, "question", questionContentLimit); err != nil {
+		return nil, err
+	}
+	if err := validator.InSizeRange(answers, "answers", 1, maxAnswerCount); err != nil {
+		return nil, err
+	}
+	if err := validator.MaxStringLengths(answers, "answers", answerContentLimit); err != nil {
+		return nil, err
+	}
+	if err := validator.MinInt(score, "score", 0); err != nil {
+		return nil, err
+	}
+
 	q := &po.GroupJoinQuestion{
 		ID:       id,
 		GroupID:  groupID,
@@ -544,10 +610,31 @@ func (s *GroupQuestionService) CreateGroupJoinQuestion(ctx context.Context, id i
 // UpdateQuestionsNoVersion updates questions without updating the group version
 // (matching Java behavior where updateGroupJoinQuestions does NOT update the version)
 func (s *GroupQuestionService) UpdateQuestionsNoVersion(ctx context.Context, ids []int64, groupID *int64, question *string, answers []string, score *int) error {
-	// Bug fix: Early return when all update params are null/falsy (Java: ACKNOWLEDGED_UPDATE_RESULT)
-	if question == nil && len(answers) == 0 && score == nil {
+	// Bug fix: early return when all update fields are null (Java returns ACKNOWLEDGED_UPDATE_RESULT)
+	if groupID == nil && question == nil && answers == nil && score == nil {
 		return nil
 	}
+
+	// Bug fix: add content validation matching Java
+	if question != nil {
+		if err := validator.MaxLength(question, "question", questionContentLimit); err != nil {
+			return err
+		}
+	}
+	if answers != nil {
+		if err := validator.InSizeRange(answers, "answers", 1, maxAnswerCount); err != nil {
+			return err
+		}
+		if err := validator.MaxStringLengths(answers, "answers", answerContentLimit); err != nil {
+			return err
+		}
+	}
+	if score != nil {
+		if err := validator.MinInt(*score, "score", 0); err != nil {
+			return err
+		}
+	}
+
 	return s.questionRepo.UpdateQuestions(ctx, ids, groupID, question, answers, score)
 }
 

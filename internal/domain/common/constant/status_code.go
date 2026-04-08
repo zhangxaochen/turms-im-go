@@ -102,6 +102,7 @@ const (
 	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_DELETE_GROUP_QUESTION   ResponseStatusCode = 3802
 	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_QUESTION   ResponseStatusCode = 3803
 	ResponseStatusCode_CHECKING_GROUP_JOIN_QUESTION_ANSWER_IS_DISABLED       ResponseStatusCode = 3804
+	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_QUERY_GROUP_QUESTION_ANSWER ResponseStatusCode = 3303
 	ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED                     ResponseStatusCode = 3805
 	ResponseStatusCode_ANY_GROUP_QUESTION_ANSWER_IS_INCORRECT                ResponseStatusCode = 3806
 	ResponseStatusCode_GROUP_QUESTION_ANSWERER_HAS_BEEN_BLOCKED              ResponseStatusCode = 3807

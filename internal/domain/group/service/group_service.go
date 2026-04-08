@@ -14,9 +14,12 @@ import (
 	"im.turms/server/internal/domain/group/po"
 	"im.turms/server/internal/domain/group/repository"
 	"im.turms/server/internal/infra/exception"
+	"im.turms/server/internal/infra/validator"
 	turmsmongo "im.turms/server/internal/storage/mongo"
 	"im.turms/server/pkg/protocol"
 )
+
+const defaultGroupTypeID int64 = 0
 
 var (
 	ErrGroupNotFound = errors.New("group not found")
@@ -64,10 +67,21 @@ func (s *GroupService) CreateGroup(
 	muteEndDate *time.Time,
 	isActive *bool,
 ) (*po.Group, error) {
+	// Bug fix: Java validates ownerId not null
+	if err := validator.NotNull(ownerID, "ownerId"); err != nil {
+		return nil, err
+	}
+
 	// Bug fix: validate minimumScore >= 0
 	if minimumScore != nil && *minimumScore < 0 {
 		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "minimumScore must be >= 0")
 	}
+
+	// Bug fix: Java validates creationDate < deletionDate when both provided
+	if creationDate != nil && deletionDate != nil && creationDate.After(*deletionDate) {
+		return nil, exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "creationDate must be before deletionDate")
+	}
+
 	// Bug fix: validate creationDate and deletionDate are past or present
 	now := time.Now()
 	if creationDate != nil && creationDate.After(now) {
@@ -81,21 +95,41 @@ func (s *GroupService) CreateGroup(
 	if creationDate != nil {
 		cd = creationDate
 	}
+
+	// Bug fix: Java defaults isActive to activateGroupWhenCreated (true) when null
+	if isActive == nil {
+		active := true
+		isActive = &active
+	}
+
+	// Bug fix: Java defaults minimumScore to 0 when null
+	if minimumScore == nil {
+		var zero int32 = 0
+		minimumScore = &zero
+	}
+
+	// Bug fix: Java defaults groupTypeId to DEFAULT_GROUP_TYPE_ID when null
+	if groupTypeID == nil {
+		did := defaultGroupTypeID
+		groupTypeID = &did
+	}
+
 	var id int64
 	id = time.Now().UnixNano()
 	group := &po.Group{
-		ID:           id,
-		CreatorID:    &creatorID,
-		OwnerID:      &ownerID,
-		Name:         name,
-		Intro:        intro,
-		Announcement: announcement,
-		MinimumScore: minimumScore,
-		TypeID:       groupTypeID,
-		CreationDate: cd,
-		DeletionDate: deletionDate,
-		MuteEndDate:  muteEndDate,
-		IsActive:     isActive,
+		ID:              id,
+		CreatorID:       &creatorID,
+		OwnerID:         &ownerID,
+		Name:            name,
+		Intro:           intro,
+		Announcement:    announcement,
+		MinimumScore:    minimumScore,
+		TypeID:          groupTypeID,
+		CreationDate:    cd,
+		DeletionDate:    deletionDate,
+		LastUpdatedDate: &now, // Bug fix: Java sets lastUpdatedDate to now
+		MuteEndDate:     muteEndDate,
+		IsActive:        isActive,
 	}
 
 	err := s.groupRepo.InsertGroup(ctx, group)
@@ -110,9 +144,11 @@ func (s *GroupService) CreateGroup(
 		return nil, err
 	}
 
-	// Parity: upsert group version
+	// Parity: upsert group version (Java logs and swallows version errors)
 	if s.groupVersionService != nil {
-		_ = s.groupVersionService.Upsert(ctx, group.ID, now)
+		if err := s.groupVersionService.Upsert(ctx, group.ID, now); err != nil {
+			log.Printf("WARN: failed to upsert group version for group %d: %v", group.ID, err)
+		}
 	}
 
 	// TODO: add metric increment (createdGroupsCounter.increment)
@@ -693,9 +729,14 @@ func (s *GroupService) UpdateGroupsInformation(
 	if len(groupIDs) == 0 {
 		return nil
 	}
-	// Bug fix: validate minimumScore >= 0
+	// Bug fix: Java validates minimumScore >= 0
 	if minimumScore != nil && *minimumScore < 0 {
 		return exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "minimumScore must be >= 0")
+	}
+
+	// Bug fix: Java validates creationDate < deletionDate when both provided
+	if creationDate != nil && deletionDate != nil && creationDate.After(*deletionDate) {
+		return exception.NewTurmsError(int32(constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "creationDate must be before deletionDate")
 	}
 
 	update := bson.M{}
@@ -884,7 +925,36 @@ func (s *GroupService) QueryGroupsWithFullFilters(ctx context.Context, ids, type
 		l := int32(*size)
 		limit = &l
 	}
-	return s.groupRepo.QueryGroupsWithFullFilter(ctx, ids, typeIds, creatorIds, ownerIds, isActive,
+	// Bug fix: Build full filter matching Java's queryGroups with all parameters
+	idsToQuery := ids
+	if len(memberIds) > 0 {
+		// Bug fix: Java calls queryGroupIdsFromGroupIdsAndMemberIds(ids, memberIds) to intersect
+		memberGroupIDs, err := s.groupMemberService.QueryUserJoinedGroupIds(ctx, memberIds[0])
+		if err != nil {
+			return nil, err
+		}
+		if len(memberGroupIDs) == 0 {
+			return nil, nil
+		}
+		if len(idsToQuery) == 0 {
+			idsToQuery = memberGroupIDs
+		} else {
+			// Intersect
+			set := make(map[int64]bool)
+			for _, id := range idsToQuery {
+				set[id] = true
+			}
+			var intersected []int64
+			for _, id := range memberGroupIDs {
+				if set[id] {
+					intersected = append(intersected, id)
+				}
+			}
+			idsToQuery = intersected
+		}
+	}
+
+	return s.groupRepo.QueryGroupsWithFullFilter(ctx, idsToQuery, typeIds, creatorIds, ownerIds, isActive,
 		creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd,
 		muteEndDateStart, muteEndDateEnd, lastUpdatedDateStart, lastUpdatedDateEnd, skip, limit)
 }
