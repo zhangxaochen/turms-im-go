@@ -42,15 +42,19 @@ func (s *StorageService) QueryResourceUploadInfo(
 	resourceName string,
 	contentType string,
 	maxSize int64,
+	resourceIDKey string,
 ) (string, error) {
 	if resourceType == 0 { // Treat 0 as unrecognized or default
 		return "", errors.New("unrecognized storage resource type")
 	}
 
-	// resourceIdNum is passed through for MESSAGE_ATTACHMENT type; provider may use it.
-	_ = resourceIDNum
+	// Use resourceIDKey as keyStr if available, else fall back to resourceName
+	keyStr := resourceName
+	if resourceIDKey != "" {
+		keyStr = resourceIDKey
+	}
 
-	return s.provider.GetPresignedUploadURL(ctx, resourceType, resourceName, contentType, maxSize)
+	return s.provider.GetPresignedUploadURL(ctx, resourceType, keyStr, contentType, maxSize)
 }
 
 // @MappedFrom queryResourceDownloadInfo(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceIdStr, List<Value> customAttributes)

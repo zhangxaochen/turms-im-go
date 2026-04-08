@@ -112,6 +112,12 @@ func NewSessionService(
 			svc.CloseLocalSession(ctx, req.UserID, req.DeviceTypes, sessionbo.NewCloseReason(constant.SessionCloseStatus(req.SessionCloseStatus)))
 			return json.Marshal(true)
 		})
+		// Register CountOnlineUsersRequest handler (codec ID 2)
+		// Other nodes query this node's local online user count.
+		rpcService.Router().Register(2, func(ctx context.Context, payload []byte) ([]byte, error) {
+			count := svc.shardedMap.CountOnlineUsers()
+			return json.Marshal(count)
+		})
 	}
 
 	return svc
@@ -242,7 +248,38 @@ func (s *SessionService) GetAllUserSessions(userID int64) []*UserSession {
 }
 
 func (s *SessionService) CountOnlineUsers() int {
-	return s.shardedMap.CountOnlineUsers()
+	localCount := s.shardedMap.CountOnlineUsers()
+
+	if s.rpcService == nil {
+		return localCount
+	}
+
+	// Send CountOnlineUsersRequest to all other cluster members and sum responses.
+	// Java equivalent: node.getRpcService().requestResponsesFromOtherMembers(request, true)
+	// then MathFlux.sumInt(responses)
+	ctx := context.Background()
+	responses, err := s.rpcService.RequestResponsesFromOtherMembers(ctx, &rpc.CountOnlineUsersRequest{}, true)
+	if err != nil {
+		// Java: on MEMBER_NOT_FOUND, falls back to 0 per member.
+		// If we can't reach other members, just return local count.
+		return localCount
+	}
+
+	total := localCount
+	for _, resp := range responses {
+		if resp.Err != nil {
+			// Java: onErrorResume(MEMBER_NOT_FOUND -> Mono.just(0))
+			// Skip errored members (treat as 0)
+			continue
+		}
+		var nodeCount int
+		if err := json.Unmarshal(resp.Payload, &nodeCount); err != nil {
+			continue
+		}
+		total += nodeCount
+	}
+
+	return total
 }
 
 func (s *SessionService) Destroy(ctx context.Context) error {

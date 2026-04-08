@@ -80,9 +80,9 @@ func (c *MessageController) HandleCreateMessageRequest(ctx context.Context, s *s
 		msgResult, err = c.messageService.AuthAndSaveAndSendMessage(
 			ctx,
 			isGroupMessage,
+			false, // isSystemMessage - users cannot send system messages
 			s.UserID,
 			targetID,
-			false, // isSystemMessage - users cannot send system messages
 			text,
 			createReq.Records,
 			createReq.BurnAfter,

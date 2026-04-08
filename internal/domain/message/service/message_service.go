@@ -178,9 +178,9 @@ func parseSenderIP(senderIP string) (ipv4 *int32, ipv6 []byte) {
 func (s *MessageService) AuthAndSaveMessage(
 	ctx context.Context,
 	isGroupMessage bool,
+	isSystemMessage bool,
 	senderID int64,
 	targetID int64,
-	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	burnAfter *int32,
@@ -320,9 +320,9 @@ func (s *MessageService) saveMessage0(
 func (s *MessageService) AuthAndSaveAndSendMessage(
 	ctx context.Context,
 	isGroupMessage bool,
+	isSystemMessage bool,
 	senderID int64,
 	targetID int64,
-	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	burnAfter *int32,
@@ -331,7 +331,7 @@ func (s *MessageService) AuthAndSaveAndSendMessage(
 	senderIP string,
 	referenceID *int64,
 ) (*bo.MessageAndRecipientIDs, error) {
-	result, err := s.AuthAndSaveMessage(ctx, isGroupMessage, senderID, targetID, isSystemMessage, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
+	result, err := s.AuthAndSaveMessage(ctx, isGroupMessage, isSystemMessage, senderID, targetID, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
 	if err != nil {
 		return nil, err
 	}
@@ -552,9 +552,9 @@ func (s *MessageService) QueryMessage(ctx context.Context, messageID int64) (*po
 func (s *MessageService) SaveMessage(
 	ctx context.Context,
 	isGroupMessage bool,
+	isSystemMessage bool,
 	senderID int64,
 	targetID int64,
-	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	burnAfter *int32,
@@ -934,7 +934,7 @@ func (s *MessageService) SaveAndSendMessage(
 	var err error
 
 	if persist {
-		msg, err = s.SaveMessage(ctx, isGroupMessage, senderID, targetID, isSystemMessage, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
+		msg, err = s.SaveMessage(ctx, isGroupMessage, isSystemMessage, senderID, targetID, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
 		if err != nil {
 			return nil, err
 		}
@@ -948,13 +948,14 @@ func (s *MessageService) SaveAndSendMessage(
 		}
 	} else {
 		msg = &po.Message{
-			IsGroupMessage: &isGroupMessage,
-			SenderID:       senderID,
-			TargetID:       targetID,
-			Text:           text,
-			Records:        records,
-			BurnAfter:      burnAfter,
-			PreMessageID:   preMessageID,
+			IsGroupMessage:  &isGroupMessage,
+			IsSystemMessage: &isSystemMessage,
+			SenderID:        senderID,
+			TargetID:        targetID,
+			Text:            text,
+			Records:         records,
+			BurnAfter:       burnAfter,
+			PreMessageID:    preMessageID,
 		}
 	}
 
@@ -981,17 +982,26 @@ func (s *MessageService) CloneAndSaveMessage(
 		return nil, err
 	}
 
+	// Use the reference message's delivery date (Java: message.getDeliveryDate())
+	var refDeliveryDate *time.Time
+	if !refMsg.DeliveryDate.IsZero() {
+		refDeliveryDate = &refMsg.DeliveryDate
+	}
+
+	// Pass referenceID as preMessageID (Java: referenceId parameter)
+	referenceIDInt := int64(referenceID)
+
 	return s.SaveMessage(
 		ctx,
 		isGroupMessage,
+		isSystemMessage,
 		senderID,
 		targetID,
-		isSystemMessage,
 		refMsg.Text,
 		refMsg.Records,
 		refMsg.BurnAfter,
-		nil,
-		nil,
+		refDeliveryDate,
+		&referenceIDInt,
 		"",
 		&referenceID,
 	)
@@ -1112,21 +1122,37 @@ func (s *MessageService) CountMessagesForAdmin(
 }
 
 // DeleteGroupMessageSequenceIDs deletes sequence IDs associated with groups.
+// Java equivalent: deletes keys via Redis HDEL.
 func (s *MessageService) DeleteGroupMessageSequenceIDs(ctx context.Context, groupIDs []int64) error {
-	return nil
+	if s.seqGen == nil {
+		return nil
+	}
+	return s.seqGen.DeleteGroupMessageSequenceIDs(ctx, groupIDs)
 }
 
 // DeletePrivateMessageSequenceIDs deletes sequence IDs associated with users.
+// Java equivalent: uses a Lua script to atomically delete private message sequence IDs.
 func (s *MessageService) DeletePrivateMessageSequenceIDs(ctx context.Context, userIDs []int64) error {
-	return nil
+	if s.seqGen == nil {
+		return nil
+	}
+	return s.seqGen.DeletePrivateMessageSequenceIDs(ctx, userIDs)
 }
 
-// FetchGroupMessageSequenceID retrieves the max sequence ID.
+// FetchGroupMessageSequenceID retrieves the next sequence ID for a group.
+// Java equivalent: uses hincr which also increments. This is correct behavior.
 func (s *MessageService) FetchGroupMessageSequenceID(ctx context.Context, groupID int64) (int64, error) {
+	if s.seqGen == nil {
+		return 0, nil
+	}
 	return s.seqGen.NextGroupMessageSequenceId(ctx, groupID)
 }
 
-// FetchPrivateMessageSequenceID retrieves the max private sequence ID.
+// FetchPrivateMessageSequenceID retrieves the next private message sequence ID.
+// Uses both userID1 and userID2 sorted to compute a consistent key.
 func (s *MessageService) FetchPrivateMessageSequenceID(ctx context.Context, userID1 int64, userID2 int64) (int64, error) {
-	return s.seqGen.NextPrivateMessageSequenceId(ctx, userID1)
+	if s.seqGen == nil {
+		return 0, nil
+	}
+	return s.seqGen.FetchPrivateMessageSequenceIDForPair(ctx, userID1, userID2)
 }

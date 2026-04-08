@@ -157,7 +157,7 @@ func TestMessageService_AuthAndSaveAndSendMessage_BDD(t *testing.T) {
 			svc := NewMessageService(idGen, seqGen, msgRepo, userSvc, groupSvc, nil, nil, delivery, propsMgr, plugMgr)
 			defer svc.Close()
 
-			result, err := svc.AuthAndSaveAndSendMessage(ctx, tt.isGroup, tt.senderID, tt.targetID, false, tt.text, nil, nil, nil, nil, "", nil)
+			result, err := svc.AuthAndSaveAndSendMessage(ctx, tt.isGroup, false, tt.senderID, tt.targetID, tt.text, nil, nil, nil, nil, "", nil)
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

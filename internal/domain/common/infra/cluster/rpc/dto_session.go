@@ -33,6 +33,34 @@ func (req *SetUserOfflineRequest) IsAsync() bool {
 }
 
 func (req *SetUserOfflineRequest) Payload() ([]byte, error) {
-	// Simple stub json serialization for now
+	return json.Marshal(req)
+}
+
+// CountOnlineUsersRequest is sent to all other cluster members to aggregate
+// the total online user count across the cluster.
+// Java equivalent: CountOnlineUsersRequest
+type CountOnlineUsersRequest struct{}
+
+func (req *CountOnlineUsersRequest) Name() string {
+	return "CountOnlineUsersRequest"
+}
+
+func (req *CountOnlineUsersRequest) CodecID() uint16 {
+	return 2
+}
+
+func (req *CountOnlineUsersRequest) NodeTypeToRequest() NodeTypeToHandleRpc {
+	return NodeTypeToHandleRpcGateway
+}
+
+func (req *CountOnlineUsersRequest) NodeTypeToRespond() NodeTypeToHandleRpc {
+	return NodeTypeToHandleRpcGateway
+}
+
+func (req *CountOnlineUsersRequest) IsAsync() bool {
+	return false
+}
+
+func (req *CountOnlineUsersRequest) Payload() ([]byte, error) {
 	return json.Marshal(req)
 }

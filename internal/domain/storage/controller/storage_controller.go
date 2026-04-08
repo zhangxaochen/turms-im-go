@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
@@ -28,6 +29,17 @@ func NewStorageController(storageService *service.StorageService) *StorageContro
 func (c *StorageController) HandleDeleteResourceRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteResourceRequest()
 
+	requesterID := s.UserID
+	if requesterID == 0 {
+		return nil, errors.New("ILLEGAL_ARGUMENT: requesterId must not be null")
+	}
+
+	resType := mapStorageResourceType(deleteReq.Type)
+	if resType == 0 {
+		return nil, errors.New("ILLEGAL_ARGUMENT: unrecognized storage resource type")
+	}
+
+	// Build resource ID string: prefer IdStr, fallback to IdNum
 	var resourceIdStr string
 	if deleteReq.IdStr != nil {
 		resourceIdStr = *deleteReq.IdStr
@@ -35,9 +47,17 @@ func (c *StorageController) HandleDeleteResourceRequest(ctx context.Context, s *
 		resourceIdStr = strconv.FormatInt(*deleteReq.IdNum, 10)
 	}
 
-	resType := mapStorageResourceType(deleteReq.Type)
+	// Resource-type-based validation (matching Java dispatch logic)
+	switch resType {
+	case constants.StorageResourceTypeGroupProfilePicture:
+		if deleteReq.IdNum == nil {
+			return nil, errors.New("ILLEGAL_ARGUMENT: The group ID must not be null")
+		}
+	case constants.StorageResourceTypeMessageAttachment:
+		// resourceIdNum and resourceIdStr can both be nullable for MESSAGE_ATTACHMENT
+	}
 
-	err := c.storageService.DeleteResource(ctx, s.UserID, resType, resourceIdStr)
+	err := c.storageService.DeleteResource(ctx, requesterID, resType, resourceIdStr)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +72,16 @@ func (c *StorageController) HandleDeleteResourceRequest(ctx context.Context, s *
 func (c *StorageController) HandleQueryResourceUploadInfoRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	uploadReq := req.GetQueryResourceUploadInfoRequest()
 
+	requesterID := s.UserID
+	if requesterID == 0 {
+		return nil, errors.New("ILLEGAL_ARGUMENT: requesterId must not be null")
+	}
+
 	resType := mapStorageResourceType(uploadReq.Type)
+	if resType == 0 {
+		return nil, errors.New("ILLEGAL_ARGUMENT: unrecognized storage resource type")
+	}
+
 	var name, mediaType string
 	if uploadReq.Name != nil {
 		name = *uploadReq.Name
@@ -61,10 +90,36 @@ func (c *StorageController) HandleQueryResourceUploadInfoRequest(ctx context.Con
 		mediaType = *uploadReq.MediaType
 	}
 
-	// Assuming there's some custom logic or no max size provided in request, passing 0
-	url, err := c.storageService.QueryResourceUploadInfo(ctx, s.UserID, resType, uploadReq.IdNum, name, mediaType, 0)
+	// Resource-type-based validation
+	switch resType {
+	case constants.StorageResourceTypeGroupProfilePicture:
+		if uploadReq.IdNum == nil {
+			return nil, errors.New("ILLEGAL_ARGUMENT: The group ID must not be null")
+		}
+	case constants.StorageResourceTypeMessageAttachment:
+		// Java routes based on resourceIdNum:
+		// null -> queryMessageAttachmentUploadInfo
+		// negative -> queryMessageAttachmentUploadInfoInGroupConversation (with -resourceIdNum)
+		// positive/zero -> queryMessageAttachmentUploadInfoInPrivateConversation
+		// The Go service currently uses a single method, so we pass through.
+	}
+
+	// Pass resourceIdNum as part of the resource key for routing
+	var resourceKey string
+	if uploadReq.IdNum != nil {
+		resourceKey = strconv.FormatInt(*uploadReq.IdNum, 10)
+	}
+
+	url, err := c.storageService.QueryResourceUploadInfo(ctx, requesterID, resType, uploadReq.IdNum, name, mediaType, 0, resourceKey)
 	if err != nil {
 		return nil, err
+	}
+
+	// Java returns Map<String, String> serialized as alternating key-value pairs.
+	// We return the URL in a Strings array for protocol compatibility.
+	strings := []string{url}
+	if resourceKey != "" {
+		strings = []string{resourceKey, url}
 	}
 
 	return &protocol.TurmsNotification{
@@ -73,7 +128,7 @@ func (c *StorageController) HandleQueryResourceUploadInfoRequest(ctx context.Con
 		Data: &protocol.TurmsNotification_Data{
 			Kind: &protocol.TurmsNotification_Data_StringsWithVersion{
 				StringsWithVersion: &protocol.StringsWithVersion{
-					Strings: []string{url},
+					Strings: strings,
 				},
 			},
 		},
@@ -84,7 +139,16 @@ func (c *StorageController) HandleQueryResourceUploadInfoRequest(ctx context.Con
 func (c *StorageController) HandleQueryResourceDownloadInfoRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	downloadReq := req.GetQueryResourceDownloadInfoRequest()
 
+	requesterID := s.UserID
+	if requesterID == 0 {
+		return nil, errors.New("ILLEGAL_ARGUMENT: requesterId must not be null")
+	}
+
 	resType := mapStorageResourceType(downloadReq.Type)
+	if resType == 0 {
+		return nil, errors.New("ILLEGAL_ARGUMENT: unrecognized storage resource type")
+	}
+
 	var resourceIdStr string
 	if downloadReq.IdStr != nil {
 		resourceIdStr = *downloadReq.IdStr
@@ -92,7 +156,19 @@ func (c *StorageController) HandleQueryResourceDownloadInfoRequest(ctx context.C
 		resourceIdStr = strconv.FormatInt(*downloadReq.IdNum, 10)
 	}
 
-	url, err := c.storageService.QueryResourceDownloadInfo(ctx, s.UserID, resType, downloadReq.IdNum, resourceIdStr)
+	// Resource-type-based validation
+	switch resType {
+	case constants.StorageResourceTypeUserProfilePicture:
+		if downloadReq.IdNum == nil {
+			return nil, errors.New("ILLEGAL_ARGUMENT: The user ID must not be null")
+		}
+	case constants.StorageResourceTypeGroupProfilePicture:
+		if downloadReq.IdNum == nil {
+			return nil, errors.New("ILLEGAL_ARGUMENT: The group ID must not be null")
+		}
+	}
+
+	url, err := c.storageService.QueryResourceDownloadInfo(ctx, requesterID, resType, downloadReq.IdNum, resourceIdStr)
 	if err != nil {
 		return nil, err
 	}
@@ -189,22 +265,18 @@ func (c *StorageController) HandleQueryMessageAttachmentInfosRequest(ctx context
 		return nil, err
 	}
 
+	// Java's storageResourceInfo2proto sets: idNum, idStr, mediaType, uploaderId, creationDate
+	// It does NOT set the Name field on the proto.
 	protoInfos := make([]*protocol.StorageResourceInfo, 0, len(infos))
 	for _, info := range infos {
-		var name, mediaType string
-		if info.Name != "" {
-			name = info.Name
-		}
-		if info.MediaType != "" {
-			mediaType = info.MediaType
-		}
-
 		protoInfo := &protocol.StorageResourceInfo{
 			IdNum:      info.IDNum,
 			IdStr:      info.IDStr,
-			Name:       &name,
-			MediaType:  &mediaType,
 			UploaderId: info.UploaderID,
+		}
+		// Only set MediaType if non-empty (Java: .setMediaType(info.mediaType()))
+		if info.MediaType != "" {
+			protoInfo.MediaType = proto.String(info.MediaType)
 		}
 		if !info.CreationDate.IsZero() {
 			protoInfo.CreationDate = info.CreationDate.UnixMilli()

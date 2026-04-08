@@ -29,6 +29,7 @@ func TestStorageService(t *testing.T) {
 			"1001.png",
 			"image/png",
 			1024*1024*5,
+			"",
 		)
 
 		require.NoError(t, err)
