@@ -65,6 +65,13 @@ func (c *TTLCache[K, V]) Delete(key K) {
 	delete(c.data, key)
 }
 
+// Flush removes all items from the cache.
+func (c *TTLCache[K, V]) Flush() {
+	c.m.Lock()
+	defer c.m.Unlock()
+	c.data = make(map[K]item[V])
+}
+
 // Close stops the background cleanup goroutine.
 // @MappedFrom close(CloseReason closeReason)
 // @MappedFrom close(@NotNull CloseReason closeReason)

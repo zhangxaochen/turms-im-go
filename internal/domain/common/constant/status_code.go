@@ -97,13 +97,21 @@ const (
 	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_QUERY_GROUP_INVITATION            ResponseStatusCode = 3711
 
 	// Group - Question
-	ResponseStatusCode_QUERY_GROUP_JOIN_QUESTIONS_IS_DISABLED              ResponseStatusCode = 3800
-	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_CREATE_GROUP_QUESTION ResponseStatusCode = 3801
-	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_DELETE_GROUP_QUESTION ResponseStatusCode = 3802
-	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_QUESTION ResponseStatusCode = 3803
-	ResponseStatusCode_CHECKING_GROUP_JOIN_QUESTION_ANSWER_IS_DISABLED     ResponseStatusCode = 3804
-	ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED                   ResponseStatusCode = 3805
-	ResponseStatusCode_ANY_GROUP_QUESTION_ANSWER_IS_INCORRECT              ResponseStatusCode = 3806
+	ResponseStatusCode_QUERY_GROUP_JOIN_QUESTIONS_IS_DISABLED                ResponseStatusCode = 3800
+	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_CREATE_GROUP_QUESTION   ResponseStatusCode = 3801
+	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_DELETE_GROUP_QUESTION   ResponseStatusCode = 3802
+	ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_QUESTION   ResponseStatusCode = 3803
+	ResponseStatusCode_CHECKING_GROUP_JOIN_QUESTION_ANSWER_IS_DISABLED       ResponseStatusCode = 3804
+	ResponseStatusCode_ANSWER_GROUP_QUESTION_IS_DISABLED                     ResponseStatusCode = 3805
+	ResponseStatusCode_ANY_GROUP_QUESTION_ANSWER_IS_INCORRECT                ResponseStatusCode = 3806
+	ResponseStatusCode_GROUP_QUESTION_ANSWERER_HAS_BEEN_BLOCKED              ResponseStatusCode = 3807
+	ResponseStatusCode_GROUP_MEMBER_ANSWER_GROUP_QUESTION                    ResponseStatusCode = 3808
+	ResponseStatusCode_CREATE_GROUP_QUESTION_FOR_INACTIVE_GROUP              ResponseStatusCode = 3809
+	ResponseStatusCode_CREATE_GROUP_QUESTION_FOR_GROUP_USING_JOIN_REQUEST    ResponseStatusCode = 3810
+	ResponseStatusCode_CREATE_GROUP_QUESTION_FOR_GROUP_USING_INVITATION      ResponseStatusCode = 3811
+	ResponseStatusCode_CREATE_GROUP_QUESTION_FOR_GROUP_USING_MEMBERSHIP_REQUEST ResponseStatusCode = 3812
+	ResponseStatusCode_ANSWER_GROUP_QUESTION_OF_INACTIVE_GROUP              ResponseStatusCode = 3813
+	ResponseStatusCode_GROUP_INVITER_NOT_MEMBER                              ResponseStatusCode = 3814
 
 	ResponseStatusCode_BLOCKED_USER_SEND_GROUP_JOIN_REQUEST ResponseStatusCode = 3404
 	ResponseStatusCode_USER_ALREADY_GROUP_MEMBER            ResponseStatusCode = 3405

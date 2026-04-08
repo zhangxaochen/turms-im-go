@@ -221,7 +221,7 @@ func (s *GroupMemberService) IsAllowedToInviteUser(ctx context.Context, groupID,
 	}
 
 	if role == nil {
-		return false, nil
+		return false, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_GROUP_INVITER_NOT_MEMBER), "Inviter is not a group member")
 	}
 
 	switch strategy {
@@ -408,20 +408,61 @@ func (s *GroupMemberService) DeleteGroupMember(
 // DeleteAllGroupMembers deletes all members of multiple groups.
 // @MappedFrom deleteAllGroupMembers(@Nullable Set<Long> groupIds, @Nullable ClientSession session, boolean updateMembersVersion)
 // @MappedFrom deleteAllGroupMembers(@Nullable Set<Long> groupIds, @Nullable ClientSession session)
+// Bug fixes:
+// - When groupIDs is nil/empty, delete all members globally (Java: groupIds == null means delete all)
+// - Added delete count check (Java: deletedCount == 0 early return)
+// - Added cache invalidation after deletion
 func (s *GroupMemberService) DeleteAllGroupMembers(ctx context.Context, groupIDs []int64, session mongo.SessionContext, updateVersion bool) error {
+	var result *mongo.DeleteResult
+	var err error
+
 	if len(groupIDs) == 0 {
-		return nil
+		// Bug fix: nil groupIds means delete ALL members (Java: groupIds == null → deleteAll)
+		result, err = s.groupMemberRepo.DeleteAll(ctx)
+	} else {
+		result, err = s.groupMemberRepo.DeleteByGroupIDs(ctx, groupIDs)
 	}
-	_, err := s.groupMemberRepo.DeleteByGroupIDs(ctx, groupIDs)
 	if err != nil {
 		return err
 	}
-	if updateVersion {
+
+	// Bug fix: Check deleted count (Java: deletedCount == 0 → early return)
+	if result != nil && result.DeletedCount == 0 {
+		return nil
+	}
+
+	// Bug fix: Invalidate cache for affected groups
+	if len(groupIDs) > 0 {
 		for _, groupID := range groupIDs {
-			_ = s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+			// Invalidate all member caches for this group
+			s.invalidateGroupMemberCaches(ctx, groupID)
+		}
+	} else {
+		// Global delete: clear entire cache
+		s.memberCache.Flush()
+	}
+
+	if updateVersion {
+		if len(groupIDs) > 0 {
+			for _, groupID := range groupIDs {
+				_ = s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+			}
 		}
 	}
 	return nil
+}
+
+// invalidateGroupMemberCaches removes cached entries for all members of a group.
+func (s *GroupMemberService) invalidateGroupMemberCaches(ctx context.Context, groupID int64) {
+	// Get member IDs to invalidate their caches
+	memberIDs, err := s.groupMemberRepo.FindGroupMemberIDs(ctx, groupID)
+	if err != nil {
+		return
+	}
+	for _, uid := range memberIDs {
+		s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, uid))
+		s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", groupID, uid))
+	}
 }
 
 // DeleteAllGroupMembersGlobally deletes all group members globally.
@@ -636,6 +677,12 @@ func (s *GroupMemberService) AuthAndDeleteGroupMembers(
 
 // AuthAndUpdateGroupMember updates a group member's info after performing authorization checks.
 // @MappedFrom authAndUpdateGroupMember(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long memberId, @Nullable String name, @Nullable @ValidGroupMemberRole GroupMemberRole role, @Nullable Date muteEndDate)
+// Bug fixes:
+// - Added early return when all update params are null (Java: ACKNOWLEDGED_UPDATE_RESULT)
+// - Added group active check before role updates (Java: isGroupActiveAndNotDeleted)
+// - Added mute-specific authorization with role hierarchy checks
+// - Added name-update authorization with group type checks (SelfInfoUpdatable, MemberInfoUpdateStrategy)
+// - Changed to NOT update version (Java passes updateGroupMembersVersion=false)
 func (s *GroupMemberService) AuthAndUpdateGroupMember(
 	ctx context.Context,
 	requesterID int64,
@@ -645,6 +692,11 @@ func (s *GroupMemberService) AuthAndUpdateGroupMember(
 	role *protocol.GroupMemberRole,
 	muteEndDate *time.Time,
 ) error {
+	// Bug fix: Early return when all update params are null (Java: ACKNOWLEDGED_UPDATE_RESULT)
+	if name == nil && role == nil && muteEndDate == nil {
+		return nil
+	}
+
 	// 1. Authorization check
 	requesterRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
 	if err != nil {
@@ -660,6 +712,15 @@ func (s *GroupMemberService) AuthAndUpdateGroupMember(
 			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_MEMBER_INFO), "Only owner or manager can update other members' info")
 		}
 		if role != nil {
+			// Bug fix: Check group active status before role update (Java: isGroupActiveAndNotDeleted)
+			isActive, err := s.groupService.IsGroupActiveAndNotDeleted(ctx, groupID)
+			if err != nil {
+				return err
+			}
+			if !isActive {
+				return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_UPDATE_GROUP_MEMBER_ROLE_OF_NONEXISTENT_GROUP), "Group is not active or has been deleted")
+			}
+
 			if *requesterRole != protocol.GroupMemberRole_OWNER {
 				return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_TO_UPDATE_GROUP_MEMBER_ROLE), "Only owner can update others' roles")
 			}
@@ -667,9 +728,76 @@ func (s *GroupMemberService) AuthAndUpdateGroupMember(
 				return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot update member role to OWNER")
 			}
 		}
+
+		// Bug fix: Mute-specific authorization with role hierarchy checks
+		if muteEndDate != nil {
+			// Cannot mute oneself (covered by requesterID != memberID check above, but added for clarity)
+			if requesterID == memberID {
+				return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot mute yourself")
+			}
+
+			// Check role hierarchy: requester's role must be higher than target's role
+			targetRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, memberID)
+			if err != nil {
+				return err
+			}
+			if targetRole != nil {
+				requesterRoleNum := int32(*requesterRole)
+				targetRoleNum := int32(*targetRole)
+				// In proto: OWNER=1, MANAGER=2, MEMBER=3, etc. Lower number = higher role
+				if requesterRoleNum >= targetRoleNum {
+					return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_MUTE_GROUP_MEMBER_WITH_ROLE_EQUAL_TO_OR_HIGHER_THAN_REQUESTER), "Cannot mute a member with equal or higher role")
+				}
+			}
+
+			// Check group type's MemberInfoUpdateStrategy for mute authorization
+			typeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+			if err != nil {
+				return err
+			}
+			if typeID != nil {
+				groupType, err := s.groupTypeService.FindGroupType(ctx, *typeID)
+				if err != nil {
+					return err
+				}
+				if groupType != nil {
+					strategy := groupType.MemberInfoUpdateStrategy
+					switch strategy {
+					case group_constant.GroupUpdateStrategy_OWNER:
+						if *requesterRole != protocol.GroupMemberRole_OWNER {
+							return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_MUTE_GROUP_MEMBER), "Only owner can mute members in this group type")
+						}
+					case group_constant.GroupUpdateStrategy_OWNER_MANAGER:
+						if *requesterRole != protocol.GroupMemberRole_OWNER && *requesterRole != protocol.GroupMemberRole_MANAGER {
+							return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_MUTE_GROUP_MEMBER), "Only owner or manager can mute members in this group type")
+						}
+					}
+				}
+			}
+		}
 	} else {
 		if role != nil {
 			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot update your own role")
+		}
+
+		// Bug fix: Name-update authorization with group type checks
+		if name != nil {
+			typeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
+			if err != nil {
+				return err
+			}
+			if typeID != nil {
+				groupType, err := s.groupTypeService.FindGroupType(ctx, *typeID)
+				if err != nil {
+					return err
+				}
+				if groupType != nil {
+					// Check SelfInfoUpdatable
+					if !groupType.SelfInfoUpdatable {
+						return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_NOT_GROUP_OWNER_OR_MANAGER_TO_UPDATE_GROUP_MEMBER_INFO), "Self info update is not allowed for this group type")
+					}
+				}
+			}
 		}
 	}
 
@@ -684,7 +812,8 @@ func (s *GroupMemberService) AuthAndUpdateGroupMember(
 	s.memberCache.Delete(fmt.Sprintf("member:%d:%d", groupID, memberID))
 	s.memberCache.Delete(fmt.Sprintf("muted:%d:%d", groupID, memberID))
 
-	return s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+	// Bug fix: Do NOT update version (Java passes updateGroupMembersVersion=false in authAndUpdateGroupMember)
+	return nil
 }
 
 // QueryUserJoinedGroupIds returns the group IDs the user has joined.
