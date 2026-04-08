@@ -11239,20 +11239,20 @@ OK here's the clean final report:
 - [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
-- [ ] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds `PrivateConversationKey` list by pairing each owner ID with a common target ID. Java builds `Set<PrivateConversation.Key>` from `(ownerId, targetId)` pairs internally.
+- [x] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds `PrivateConversationKey` list by pairing each owner ID with a common target ID. Java builds `Set<PrivateConversation.Key>` from `(ownerId, targetId)` pairs internally.
 
 ## deletePrivateConversations (by userIds)
-- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session parameter.
+- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session parameter.
 
 ## deleteGroupConversations
-- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session parameter.
+- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session parameter.
 
 ## deleteGroupMemberConversations
-- [ ] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session parameter in either the service or repository method.
+- [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session parameter in either the service or repository method.
 
 ## authAndUpdateTypingStatus
-- [ ] `IsGroupMember` call missing active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)`; Go calls `IsGroupMember(ctx, toID, requesterID)` without the flag, potentially treating inactive/banned members as valid.
-- [ ] `FindGroupMemberIDs` call missing active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones, causing typing status to be sent to inactive members.
+- [x] `IsGroupMember` call missing active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)`; Go calls `IsGroupMember(ctx, toID, requesterID)` without the flag, potentially treating inactive/banned members as valid.
+- [x] `FindGroupMemberIDs` call missing active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones, causing typing status to be sent to inactive members.
 
 Wait, I want to reconsider the IsGroupMember flag issue. Since I'm reviewing the conversation service and the Go interface definition doesn't have the flag, the issue is really that the Go `GroupMemberService` interface should have it. Whether it's a "bug" depends on whether the Go implementation defaults to active-only. Since I can't verify that from the code provided, I should still note it as a potential behavioral difference.
 
@@ -11370,7 +11370,7 @@ Here is my final analysis:
 
 ## DeleteSettings
 
-- [ ] **Missing `ClientSession` parameter**: Java accepts a nullable `ClientSession clientSession` for transaction support and passes it to the repository. The Go version has no session/transaction support, meaning it cannot participate in multi-operation transactions.
+- [x] **Missing `ClientSession` parameter**: Java accepts a nullable `ClientSession clientSession` for transaction support and passes it to the repository. The Go version has no session/transaction support, meaning it cannot participate in multi-operation transactions.
 
 # GroupBlocklistController.java
 *Checked methods: addGroupBlockedUser(@RequestBody AddGroupBlockedUserDTO addGroupBlockedUserDTO), queryGroupBlockedUsers(@QueryParam(required = false), queryGroupBlockedUsers(@QueryParam(required = false), updateGroupBlockedUsers(List<GroupBlockedUser.Key> keys, @RequestBody UpdateGroupBlockedUserDTO updateGroupBlockedUserDTO), deleteGroupBlockedUsers(List<GroupBlockedUser.Key> keys)*
@@ -11518,27 +11518,27 @@ Bugs: Same as update — Java deduplicates keys to a `Set`, Go passes the raw sl
 
 ## queryGroupBlockedUsers (non-paginated @GetMapping)
 
-- [ ] Missing all filter parameters: `groupIds`, `userIds`, `blockDateStart`, `blockDateEnd`, `requesterIds`. The Java endpoint accepts these as optional query parameters and passes them to the service call. The Go method signature only has `page` and `size`.
+- [x] Missing all filter parameters: `groupIds`, `userIds`, `blockDateStart`, `blockDateEnd`, `requesterIds`. The Java endpoint accepts these as optional query parameters and passes them to the service call. The Go method signature only has `page` and `size`.
 - [x] Discards the queried results (uses `_`). Java returns the collection of `GroupBlockedUser` in the response.
-- [ ] Java explicitly passes `0` as the page parameter for the non-paginated query (hardcoded first page), while Go accepts a `page` parameter, changing the semantics.
-- [ ] Missing `getPageSize(size)` equivalent — Java normalizes the `size` parameter via `getPageSize()` before passing to the service.
+- [x] Java explicitly passes `0` as the page parameter for the non-paginated query (hardcoded first page), while Go accepts a `page` parameter, changing the semantics.
+- [x] Missing `getPageSize(size)` equivalent — Java normalizes the `size` parameter via `getPageSize()` before passing to the service.
 
 ## queryGroupBlockedUsers (paginated @GetMapping("page"))
 
-- [ ] Missing entirely — there is no paginated query endpoint in Go. Java has a separate `@GetMapping("page")` endpoint that calls both `countBlockedUsers()` and `queryBlockedUsers()`, returning a `PaginationDTO` with total count + records.
-- [ ] `QueryGroupBlockedUsersWithQuery` does not call `countBlockedUsers()` equivalent, so even with filters, there's no total count returned — Java returns `PaginationDTO<GroupBlockedUser>` which includes the count.
-- [ ] Discards queried results (uses `_`). Java returns records in the response.
-- [ ] Missing `getPageSize(size)` equivalent.
+- [x] Missing entirely — there is no paginated query endpoint in Go. Java has a separate `@GetMapping("page")` endpoint that calls both `countBlockedUsers()` and `queryBlockedUsers()`, returning a `PaginationDTO` with total count + records.
+- [x] `QueryGroupBlockedUsersWithQuery` does not call `countBlockedUsers()` equivalent, so even with filters, there's no total count returned — Java returns `PaginationDTO<GroupBlockedUser>` which includes the count.
+- [x] Discards queried results (uses `_`). Java returns records in the response.
+- [x] Missing `getPageSize(size)` equivalent.
 
 ## updateGroupBlockedUsers
 
-- [ ] Does not deduplicate keys. Java converts `List<GroupBlockedUser.Key>` to `Set<GroupBlockedUser.Key>` via `CollectionUtil.newSet(keys)` before passing to the service. Go passes the raw slice.
-- [ ] Returns empty `RequestHandlerResult{}` instead of `UpdateResultDTO`. Java maps the result through `UpdateResultDTO::get` and returns it, providing info about acknowledged/modified count.
+- [x] Does not deduplicate keys. Java converts `List<GroupBlockedUser.Key>` to `Set<GroupBlockedUser.Key>` via `CollectionUtil.newSet(keys)` before passing to the service. Go passes the raw slice.
+- [x] Returns empty `RequestHandlerResult{}` instead of `UpdateResultDTO`. Java maps the result through `UpdateResultDTO::get` and returns it, providing info about acknowledged/modified count.
 
 ## deleteGroupBlockedUsers
 
-- [ ] Does not deduplicate keys. Java converts `List<GroupBlockedUser.Key>` to `Set<GroupBlockedUser.Key>` via `CollectionUtil.newSet(keys)` before passing to the service. Go passes the raw slice.
-- [ ] Returns empty `RequestHandlerResult{}` instead of `DeleteResultDTO`. Java maps the result through `DeleteResultDTO::get` and returns it, providing info about deleted count.
+- [x] Does not deduplicate keys. Java converts `List<GroupBlockedUser.Key>` to `Set<GroupBlockedUser.Key>` via `CollectionUtil.newSet(keys)` before passing to the service. Go passes the raw slice.
+- [x] Returns empty `RequestHandlerResult{}` instead of `DeleteResultDTO`. Java maps the result through `DeleteResultDTO::get` and returns it, providing info about deleted count.
 
 # GroupController.java
 *Checked methods: addGroup(@RequestBody AddGroupDTO addGroupDTO), queryGroups(@QueryParam(required = false), queryGroups(@QueryParam(required = false), countGroups(@QueryParam(required = false), updateGroups(Set<Long> ids, @RequestBody UpdateGroupDTO updateGroupDTO), deleteGroups(@QueryParam(required = false)*
@@ -11547,37 +11547,37 @@ Now I have a complete picture. Let me compile the bug report.
 
 ## AddGroup
 
-- [ ] **Missing nil check for `CreatorId` before dereferencing**: At `group_controllers.go:105`, `*addGroupDTO.CreatorId` is dereferenced unconditionally, but if both `CreatorId` and `OwnerId` are `nil`, this will cause a nil pointer panic. The Java code (line 82) calls `addGroupDTO.creatorId()` which returns `null` safely, and the `ownerId` fallback logic (line 83-85) also handles null `creatorId`. In Go, the nil `ownerId` at line 91-96 is only set if `CreatorId` is non-nil (line 94-95), so when both are nil, `ownerId` stays at zero-value `0`, which is wrong but doesn't panic. However, `*addGroupDTO.CreatorId` at line 105 **will panic** if `CreatorId` is nil.
+- [x] **Missing nil check for `CreatorId` before dereferencing**: At `group_controllers.go:105`, `*addGroupDTO.CreatorId` is dereferenced unconditionally, but if both `CreatorId` and `OwnerId` are `nil`, this will cause a nil pointer panic. The Java code (line 82) calls `addGroupDTO.creatorId()` which returns `null` safely, and the `ownerId` fallback logic (line 83-85) also handles null `creatorId`. In Go, the nil `ownerId` at line 91-96 is only set if `CreatorId` is non-nil (line 94-95), so when both are nil, `ownerId` stays at zero-value `0`, which is wrong but doesn't panic. However, `*addGroupDTO.CreatorId` at line 105 **will panic** if `CreatorId` is nil.
 
-- [ ] **`ownerId` defaults to zero when both `CreatorId` and `OwnerId` are nil**: In Java (lines 83-85), when `ownerId` is null, it falls back to `creatorId()`. The Go code (lines 91-96) does the same fallback, but if both are nil, `ownerId` stays at `int64(0)` — an invalid ID. The Java code would pass `null` to the service which handles it differently. This is a behavioral difference.
+- [x] **`ownerId` defaults to zero when both `CreatorId` and `OwnerId` are nil**: In Java (lines 83-85), when `ownerId` is null, it falls back to `creatorId()`. The Go code (lines 91-96) does the same fallback, but if both are nil, `ownerId` stays at `int64(0)` — an invalid ID. The Java code would pass `null` to the service which handles it differently. This is a behavioral difference.
 
 ## QueryGroups (non-paged, GET /)
 
-- [ ] **Missing `lastUpdatedDateStart`/`lastUpdatedDateEnd` parameters**: The Java `queryGroups` method (lines 110-111) accepts `lastUpdatedDateStart` and `lastUpdatedDateEnd` and passes them as `DateRange.of(lastUpdatedDateStart, lastUpdatedDateEnd)` to `groupService.queryGroups`. The Go `QueryGroupsWithQuery` method signature at line 130 does **not** include these parameters at all — the function only has `creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd, muteEndDateStart, muteEndDateEnd` but no `lastUpdatedDate` pair.
+- [x] **Missing `lastUpdatedDateStart`/`lastUpdatedDateEnd` parameters**: The Java `queryGroups` method (lines 110-111) accepts `lastUpdatedDateStart` and `lastUpdatedDateEnd` and passes them as `DateRange.of(lastUpdatedDateStart, lastUpdatedDateEnd)` to `groupService.queryGroups`. The Go `QueryGroupsWithQuery` method signature at line 130 does **not** include these parameters at all — the function only has `creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd, muteEndDateStart, muteEndDateEnd` but no `lastUpdatedDate` pair.
 
-- [ ] **Missing `getPageSize` logic for the `size` parameter**: Java (line 116) calls `size = getPageSize(size)` which applies `defaultAvailableRecordsPerRequest` when size is null/<=0 and caps at `maxAvailableRecordsPerRequest`. The Go code passes `size` directly to the service without any defaulting or capping, and does not enforce a maximum page size. This is a behavioral difference that could allow unbounded queries.
+- [x] **Missing `getPageSize` logic for the `size` parameter**: Java (line 116) calls `size = getPageSize(size)` which applies `defaultAvailableRecordsPerRequest` when size is null/<=0 and caps at `maxAvailableRecordsPerRequest`. The Go code passes `size` directly to the service without any defaulting or capping, and does not enforce a maximum page size. This is a behavioral difference that could allow unbounded queries.
 
 ## QueryGroups (paged, GET /page)
 
-- [ ] **Entire paged endpoint is missing**: The Java code has a second `queryGroups` method (lines 132-179) mapped to `GET "page"` that accepts a `page` parameter and returns a `PaginationDTO<Group>` with both a count query and a data query. The Go code has no equivalent — `QueryGroups` (line 122) only does simple pagination, and `QueryGroupsWithQuery` (line 130) passes page/size to the service but never performs the count query needed for pagination metadata.
+- [x] **Entire paged endpoint is missing**: The Java code has a second `queryGroups` method (lines 132-179) mapped to `GET "page"` that accepts a `page` parameter and returns a `PaginationDTO<Group>` with both a count query and a data query. The Go code has no equivalent — `QueryGroups` (line 122) only does simple pagination, and `QueryGroupsWithQuery` (line 130) passes page/size to the service but never performs the count query needed for pagination metadata.
 
-- [ ] **Missing `lastUpdatedDateStart`/`lastUpdatedDateEnd` parameters** (same as the non-paged variant above).
+- [x] **Missing `lastUpdatedDateStart`/`lastUpdatedDateEnd` parameters** (same as the non-paged variant above).
 
 ## CountGroups (GET /count)
 
-- [ ] **Entire `countGroups` endpoint is missing from the Go controller**: The Java `countGroups` method (lines 181-231) is a complex statistics endpoint with `DivideBy` support, `GroupStatisticsDTO`, conditional counting of created/deleted groups and groups that sent messages, and `checkAndQueryBetweenDate` logic. None of this exists in the Go `GroupController`. There is no `CountGroups` or any statistics method on the controller.
+- [x] **Entire `countGroups` endpoint is missing from the Go controller**: The Java `countGroups` method (lines 181-231) is a complex statistics endpoint with `DivideBy` support, `GroupStatisticsDTO`, conditional counting of created/deleted groups and groups that sent messages, and `checkAndQueryBetweenDate` logic. None of this exists in the Go `GroupController`. There is no `CountGroups` or any statistics method on the controller.
 
 ## UpdateGroups
 
-- [ ] **Nil dereference on `QuitAfterTransfer`**: At line 140, `*updateGroupDTO.QuitAfterTransfer` is dereferenced unconditionally. In Java (line 256), `updateGroupDTO.quitAfterTransfer()` returns a nullable value. If `QuitAfterTransfer` is nil in the Go DTO but `SuccessorId` is non-nil, this will cause a nil pointer panic.
+- [x] **Nil dereference on `QuitAfterTransfer`**: At line 140, `*updateGroupDTO.QuitAfterTransfer` is dereferenced unconditionally. In Java (line 256), `updateGroupDTO.quitAfterTransfer()` returns a nullable value. If `QuitAfterTransfer` is nil in the Go DTO but `SuccessorId` is non-nil, this will cause a nil pointer panic.
 
-- [ ] **Missing second `nil` parameter for `GroupVersion` in `UpdateGroupsInformation` call**: The Java code (lines 240-253) calls `groupService.updateGroupsInformation(...)` with two trailing `null` parameters (for `session` and `groupVersion`). The Go code at line 151-163 passes only one trailing `nil` (for `session`). Looking at the Go `UpdateGroupsInformation` signature (lines 484-498), it takes `session mongo.SessionContext` as the last parameter. This is actually correct since Go's service method has one fewer parameter than Java's. **Not a bug** upon closer inspection — the Go service only takes `session`.
+- [x] **Missing second `nil` parameter for `GroupVersion` in `UpdateGroupsInformation` call**: The Java code (lines 240-253) calls `groupService.updateGroupsInformation(...)` with two trailing `null` parameters (for `session` and `groupVersion`). The Go code at line 151-163 passes only one trailing `nil` (for `session`). Looking at the Go `UpdateGroupsInformation` signature (lines 484-498), it takes `session mongo.SessionContext` as the last parameter. This is actually correct since Go's service method has one fewer parameter than Java's. **Not a bug** upon closer inspection — the Go service only takes `session`.
 
 ## DeleteGroups
 
-- [ ] **`deleteLogically` parameter is ignored**: The Java `deleteGroups` (lines 262-269) passes `deleteLogically` to `groupService.deleteGroupsAndGroupMembers(ids, deleteLogically)` where it determines whether to perform logical or physical deletion. The Go code (lines 171-179) ignores the `deleteLogical` parameter entirely, always passing `nil` to `DeleteGroupsAndGroupMembers`, which means the service always uses its default behavior (physical delete) instead of respecting the caller's explicit preference.
+- [x] **`deleteLogically` parameter is ignored**: The Java `deleteGroups` (lines 262-269) passes `deleteLogically` to `groupService.deleteGroupsAndGroupMembers(ids, deleteLogically)` where it determines whether to perform logical or physical deletion. The Go code (lines 171-179) ignores the `deleteLogical` parameter entirely, always passing `nil` to `DeleteGroupsAndGroupMembers`, which means the service always uses its default behavior (physical delete) instead of respecting the caller's explicit preference.
 
-- [ ] **Return value does not include `DeleteResultDTO`**: The Java code (line 266-267) maps the `DeleteResult` to `DeleteResultDTO.get()` which contains the count of deleted records, and returns it via `HttpHandlerResult.okIfTruthy`. The Go code returns an empty `RequestHandlerResult{}` with no deleted count information, losing the deletion result data.
+- [x] **Return value does not include `DeleteResultDTO`**: The Java code (line 266-267) maps the `DeleteResult` to `DeleteResultDTO.get()` which contains the count of deleted records, and returns it via `HttpHandlerResult.okIfTruthy`. The Go code returns an empty `RequestHandlerResult{}` with no deleted count information, losing the deletion result data.
 
 # GroupInvitationController.java
 *Checked methods: addGroupInvitation(@RequestBody AddGroupInvitationDTO addGroupInvitationDTO), queryGroupInvitations(@QueryParam(required = false), queryGroupInvitations(@QueryParam(required = false), updateGroupInvitations(Set<Long> ids, @RequestBody UpdateGroupInvitationDTO updateGroupInvitationDTO), deleteGroupInvitations(@QueryParam(required = false)*
@@ -11614,48 +11614,48 @@ The Go version has `QueryGroupInvitations` (page, size) and `QueryGroupInvitatio
 
 ## addGroupInvitation
 
-- [ ] **Missing fields passed to service**: Java passes 8 fields (`id`, `groupId`, `inviterId`, `inviteeId`, `content`, `status`, `creationDate`, `responseDate`) to `createGroupInvitation`. Go only passes 4 fields (`inviterId`, `groupId`, `inviteeId`, `content`) to `AuthAndCreateGroupInvitation`. Missing: `id`, `status`, `creationDate`, `responseDate`.
-- [ ] **Wrong service method**: Java calls `createGroupInvitation` (admin-level, no auth checks). Go calls `AuthAndCreateGroupInvitation` (client-level, with auth checks). The admin controller should bypass auth and directly create the invitation with all provided fields.
+- [x] **Missing fields passed to service**: Java passes 8 fields (`id`, `groupId`, `inviterId`, `inviteeId`, `content`, `status`, `creationDate`, `responseDate`) to `createGroupInvitation`. Go only passes 4 fields (`inviterId`, `groupId`, `inviteeId`, `content`) to `AuthAndCreateGroupInvitation`. Missing: `id`, `status`, `creationDate`, `responseDate`.
+- [x] **Wrong service method**: Java calls `createGroupInvitation` (admin-level, no auth checks). Go calls `AuthAndCreateGroupInvitation` (client-level, with auth checks). The admin controller should bypass auth and directly create the invitation with all provided fields.
 
 ## queryGroupInvitations (non-paged)
 
-- [ ] **Missing `GroupInvitationDTO` response mapping**: Java maps each result to `new GroupInvitationDTO(invitation, groupInvitationService.getEntityExpirationDate())`, attaching the entity expiration date. Go returns raw `RequestHandlerResult{}` without this mapping.
+- [x] **Missing `GroupInvitationDTO` response mapping**: Java maps each result to `new GroupInvitationDTO(invitation, groupInvitationService.getEntityExpirationDate())`, attaching the entity expiration date. Go returns raw `RequestHandlerResult{}` without this mapping.
 
 ## queryGroupInvitations (paged)
 
-- [ ] **Missing count query**: Java calls `groupInvitationService.countInvitations(...)` separately to get total count for pagination. Go does not call a count method for the paged variant.
-- [ ] **Missing `GroupInvitationDTO` response mapping**: Same as non-paged — Java maps results to `GroupInvitationDTO` with expiration date. Go does not.
+- [x] **Missing count query**: Java calls `groupInvitationService.countInvitations(...)` separately to get total count for pagination. Go does not call a count method for the paged variant.
+- [x] **Missing `GroupInvitationDTO` response mapping**: Same as non-paged — Java maps results to `GroupInvitationDTO` with expiration date. Go does not.
 
 ## updateGroupInvitations
 
-- [ ] **Method is a no-op stub**: The method returns an empty `RequestHandlerResult{}` without calling any service method. Java calls `groupInvitationService.updateInvitations(ids, inviterId, inviteeId, content, status, creationDate, responseDate)`.
+- [x] **Method is a no-op stub**: The method returns an empty `RequestHandlerResult{}` without calling any service method. Java calls `groupInvitationService.updateInvitations(ids, inviterId, inviteeId, content, status, creationDate, responseDate)`.
 
 ## deleteGroupInvitations
 
 This method correctly calls `DeleteInvitations`. However:
 
-- [ ] **Missing `DeleteResultDTO` response**: Java maps the delete count to `DeleteResultDTO.get`. Go returns an empty `RequestHandlerResult{}` without including the deletion count in the response.
+- [x] **Missing `DeleteResultDTO` response**: Java maps the delete count to `DeleteResultDTO.get`. Go returns an empty `RequestHandlerResult{}` without including the deletion count in the response.
 
 ---
 
 Here are the summarized bugs:
 
 ## AddGroupInvitation
-- [ ] Missing fields `id`, `status`, `creationDate`, `responseDate` from being passed to the service. Java's `createGroupInvitation` accepts all 8 fields; Go's `AuthAndCreateGroupInvitation` only receives 4.
-- [ ] Wrong service method used: Java calls `createGroupInvitation` (admin API, no auth), Go calls `AuthAndCreateGroupInvitation` (client API, with auth checks). Admin controllers should not invoke auth-gated client methods.
+- [x] Missing fields `id`, `status`, `creationDate`, `responseDate` from being passed to the service. Java's `createGroupInvitation` accepts all 8 fields; Go's `AuthAndCreateGroupInvitation` only receives 4.
+- [x] Wrong service method used: Java calls `createGroupInvitation` (admin API, no auth), Go calls `AuthAndCreateGroupInvitation` (client API, with auth checks). Admin controllers should not invoke auth-gated client methods.
 
 ## QueryGroupInvitations (non-paged)
-- [ ] Missing `GroupInvitationDTO` response mapping with `getEntityExpirationDate()`. Java wraps each invitation in `GroupInvitationDTO(invitation, expirationDate)`.
+- [x] Missing `GroupInvitationDTO` response mapping with `getEntityExpirationDate()`. Java wraps each invitation in `GroupInvitationDTO(invitation, expirationDate)`.
 
 ## QueryGroupInvitations (paged)
-- [ ] Missing `countInvitations` call for total count. Java calls `countInvitations(...)` separately before querying results for pagination.
-- [ ] Missing `GroupInvitationDTO` response mapping with `getEntityExpirationDate()`. Same issue as non-paged variant.
+- [x] Missing `countInvitations` call for total count. Java calls `countInvitations(...)` separately before querying results for pagination.
+- [x] Missing `GroupInvitationDTO` response mapping with `getEntityExpirationDate()`. Same issue as non-paged variant.
 
 ## UpdateGroupInvitations
-- [ ] Method is a no-op stub: returns empty result without calling `groupInvitationService.UpdateInvitations`. Java calls `updateInvitations(ids, inviterId, inviteeId, content, status, creationDate, responseDate)` — Go should call the existing `UpdateInvitations` service method with the DTO fields.
+- [x] Method is a no-op stub: returns empty result without calling `groupInvitationService.UpdateInvitations`. Java calls `updateInvitations(ids, inviterId, inviteeId, content, status, creationDate, responseDate)` — Go should call the existing `UpdateInvitations` service method with the DTO fields.
 
 ## DeleteGroupInvitations
-- [ ] Missing `DeleteResultDTO` response wrapping: Java maps the deleted count to `DeleteResultDTO.get()` to include the count in the response. Go returns an empty `RequestHandlerResult{}` without reporting how many records were deleted.
+- [x] Missing `DeleteResultDTO` response wrapping: Java maps the deleted count to `DeleteResultDTO.get()` to include the count in the response. Go returns an empty `RequestHandlerResult{}` without reporting how many records were deleted.
 
 # GroupJoinRequestController.java
 *Checked methods: addGroupJoinRequest(@RequestBody AddGroupJoinRequestDTO addGroupJoinRequestDTO), queryGroupJoinRequests(@QueryParam(required = false), queryGroupJoinRequests(@QueryParam(required = false), updateGroupJoinRequests(Set<Long> ids, @RequestBody UpdateGroupJoinRequestDTO updateGroupJoinRequestDTO), deleteGroupJoinRequests(@QueryParam(required = false)*
@@ -11664,25 +11664,25 @@ Now I have all the information needed for a thorough comparison. Let me summariz
 
 ## addGroupJoinRequest
 
-- [ ] **Wrong service method called**: Java calls `createGroupJoinRequest()` (admin/bypass version that accepts id, groupId, requesterId, responderId, content, status, creationDate, responseDate, responseReason and directly inserts without auth checks). Go calls `AuthAndCreateJoinRequest()` (client-facing version that performs group validation, membership checks, blocklist checks, etc.). The admin endpoint should bypass these client-side validations.
-- [ ] **Missing fields passed to creation**: Java passes 9 fields (id, groupId, requesterId, responderId, content, status, creationDate, responseDate, responseReason). Go only passes 3 fields (requesterId, groupId, content), ignoring id, responderId, status, creationDate, responseDate, and responseReason entirely.
-- [ ] **Missing expiration date in response**: Java wraps the result in `new GroupJoinRequestDTO(request, groupJoinRequestService.getEntityExpirationDate())` which includes an `expirationDate` field. The Go controller returns an empty `RequestHandlerResult{}` without any created entity data or expiration date.
+- [x] **Wrong service method called**: Java calls `createGroupJoinRequest()` (admin/bypass version that accepts id, groupId, requesterId, responderId, content, status, creationDate, responseDate, responseReason and directly inserts without auth checks). Go calls `AuthAndCreateJoinRequest()` (client-facing version that performs group validation, membership checks, blocklist checks, etc.). The admin endpoint should bypass these client-side validations.
+- [x] **Missing fields passed to creation**: Java passes 9 fields (id, groupId, requesterId, responderId, content, status, creationDate, responseDate, responseReason). Go only passes 3 fields (requesterId, groupId, content), ignoring id, responderId, status, creationDate, responseDate, and responseReason entirely.
+- [x] **Missing expiration date in response**: Java wraps the result in `new GroupJoinRequestDTO(request, groupJoinRequestService.getEntityExpirationDate())` which includes an `expirationDate` field. The Go controller returns an empty `RequestHandlerResult{}` without any created entity data or expiration date.
 
 ## queryGroupJoinRequests (non-paginated)
 
-- [ ] **Missing response data**: Java maps each result through `new GroupJoinRequestDTO(request, groupJoinRequestService.getEntityExpirationDate())` to include `expirationDate` in the response. Go discards the query results (assigns to `_`) and returns an empty `RequestHandlerResult{}`, so the client receives no data.
+- [x] **Missing response data**: Java maps each result through `new GroupJoinRequestDTO(request, groupJoinRequestService.getEntityExpirationDate())` to include `expirationDate` in the response. Go discards the query results (assigns to `_`) and returns an empty `RequestHandlerResult{}`, so the client receives no data.
 
 ## queryGroupJoinRequests (paginated - "page" endpoint)
 
-- [ ] **Entire paginated endpoint missing**: Java has a separate `@GetMapping("page")` method with pagination support (accepts `page` parameter, calls `countJoinRequests` for total count, then `queryJoinRequests` with page/size, wrapping via `HttpHandlerResult.page()`). Go has no corresponding paginated query method — the `QueryGroupJoinRequestsWithQuery` method doesn't differentiate between paginated and non-paginated queries.
+- [x] **Entire paginated endpoint missing**: Java has a separate `@GetMapping("page")` method with pagination support (accepts `page` parameter, calls `countJoinRequests` for total count, then `queryJoinRequests` with page/size, wrapping via `HttpHandlerResult.page()`). Go has no corresponding paginated query method — the `QueryGroupJoinRequestsWithQuery` method doesn't differentiate between paginated and non-paginated queries.
 
 ## updateGroupJoinRequests
 
-- [ ] **Method body is a no-op**: Java calls `groupJoinRequestService.updateJoinRequests(ids, requesterId, responderId, content, status, creationDate, responseDate)`. Go returns an empty `RequestHandlerResult{}` immediately without calling `UpdateJoinRequests` or any service method at all. All update fields (requesterId, responderId, content, status, creationDate, responseDate) are silently ignored.
+- [x] **Method body is a no-op**: Java calls `groupJoinRequestService.updateJoinRequests(ids, requesterId, responderId, content, status, creationDate, responseDate)`. Go returns an empty `RequestHandlerResult{}` immediately without calling `UpdateJoinRequests` or any service method at all. All update fields (requesterId, responderId, content, status, creationDate, responseDate) are silently ignored.
 
 ## deleteGroupJoinRequests
 
-- [ ] **Missing response data**: Java maps the result through `DeleteResultDTO::get` to return the count of deleted records. Go discards the returned count (assigns to `_`) and returns an empty `RequestHandlerResult{}`, so the client gets no information about how many records were deleted.
+- [x] **Missing response data**: Java maps the result through `DeleteResultDTO::get` to return the count of deleted records. Go discards the returned count (assigns to `_`) and returns an empty `RequestHandlerResult{}`, so the client gets no information about how many records were deleted.
 
 # GroupMemberController.java
 *Checked methods: addGroupMember(@RequestBody AddGroupMemberDTO addGroupMemberDTO), queryGroupMembers(@QueryParam(required = false), queryGroupMembers(@QueryParam(required = false), updateGroupMembers(List<GroupMember.Key> keys, @RequestBody UpdateGroupMemberDTO updateGroupMemberDTO), deleteGroupMembers(@QueryParam(required = false)*
