@@ -773,7 +773,7 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 
 ## handleHeartbeatUpdateRequest
 
-- [x] No bugs found. The Go implementation matches the Java logic.
+- [ ] No bugs found. The Go implementation matches the Java logic.
 
 ## handleLoginRequest
 
@@ -882,7 +882,7 @@ Now I have a thorough understanding of both files. Let me compile the bug report
 
 ## countLocalOnlineUsers
 
-- [x] No bugs found. The Go implementation `CountOnlineUsers()` correctly returns the size of the sharded map.
+- [ ] No bugs found. The Go implementation `CountOnlineUsers()` correctly returns the size of the sharded map.
 
 ## onSessionEstablished
 
@@ -8100,14 +8100,14 @@ Now I have a comprehensive understanding. Let me compile the final bug report.
 ## UserLoginInfo (constructor/record)
 
 - [x] Missing `Location` field: The Java record has a `Location location` field and constructor parameter, but the Go struct and `NewUserLoginInfo` function omit it entirely (commented out). The `Location` field is not present in the Go struct and is not assigned in the constructor.
-- [x] `UserID` type mismatch: The Java version uses `Long userId` (nullable boxed type), but the Go version uses `int64` (non-nullable). This means the Go version cannot represent a `nil`/missing user ID, which changes behavior if `userId` was ever expected to be unset.
+- [ ] `UserID` type mismatch: The Java version uses `Long userId` (nullable boxed type), but the Go version uses `int64` (non-nullable). This means the Go version cannot represent a `nil`/missing user ID, which changes behavior if `userId` was ever expected to be unset.
 
 # UserPermissionInfo.java
 *Checked methods: UserPermissionInfo(...)*
 
 ## NewUserPermissionInfo (2-arg constructor)
 
-- [x] **`GrantedWithAllPermissions` passes `nil` for permissions instead of the equivalent of `TurmsRequestTypePool.ALL`**. In Java, `GRANTED_WITH_ALL_PERMISSIONS` uses `TurmsRequestTypePool.ALL` (a populated set of all request types). The Go version passes `nil`, meaning the permissions set is `nil` rather than a set containing all request kinds. Any downstream code that iterates over or checks the permissions map will see zero permissions instead of all permissions.
+- [ ] **`GrantedWithAllPermissions` passes `nil` for permissions instead of the equivalent of `TurmsRequestTypePool.ALL`**. In Java, `GRANTED_WITH_ALL_PERMISSIONS` uses `TurmsRequestTypePool.ALL` (a populated set of all request types). The Go version passes `nil`, meaning the permissions set is `nil` rather than a set containing all request kinds. Any downstream code that iterates over or checks the permissions map will see zero permissions instead of all permissions.
 
 # HttpSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
@@ -8140,15 +8140,15 @@ Let me re-examine the key differences:
 
 ## verifyAndGrant
 
-- [x] **Status code matching uses exact string match instead of glob-style pattern matching**: Java uses `StringUtil.matchLatin1(response.status().toString(), httpAuthenticationExpectedStatusCodes)` which supports wildcard patterns (`*`, `?`) with AND semantics (must match ALL patterns in the set). The Go code at line 226 uses a simple `map[string]struct{}` lookup (`_, ok := m.expectedStatusCodes[statusStr]`), which only supports exact string matching. This means patterns like `"20*"`, `"2??"`, or `"*"` won't work correctly in Go.
+- [ ] **Status code matching uses exact string match instead of glob-style pattern matching**: Java uses `StringUtil.matchLatin1(response.status().toString(), httpAuthenticationExpectedStatusCodes)` which supports wildcard patterns (`*`, `?`) with AND semantics (must match ALL patterns in the set). The Go code at line 226 uses a simple `map[string]struct{}` lookup (`_, ok := m.expectedStatusCodes[statusStr]`), which only supports exact string matching. This means patterns like `"20*"`, `"2??"`, or `"*"` won't work correctly in Go.
 
-- [x] **Body field comparison is simplified and loses recursive/nested comparison support**: Java uses `CollectionUtil.containsAllLooseComparison(map, httpAuthenticationExpectedBodyFields)` which performs deep loose comparison including recursive map comparison, array/collection element-wise comparison, and primitive-to-string coercion. The Go code at line 250 uses `fmt.Sprint(val) != fmt.Sprint(v)`, which only converts both values to their string representation. This means nested maps, arrays, and collections in expected body fields won't be compared correctly. For example, if an expected body field is `{"nested": {"key": "value"}}`, the Go code would compare the `fmt.Sprint` output of a `map[string]interface{}` against another, which produces Go map dump strings rather than performing recursive comparison.
+- [ ] **Body field comparison is simplified and loses recursive/nested comparison support**: Java uses `CollectionUtil.containsAllLooseComparison(map, httpAuthenticationExpectedBodyFields)` which performs deep loose comparison including recursive map comparison, array/collection element-wise comparison, and primitive-to-string coercion. The Go code at line 250 uses `fmt.Sprint(val) != fmt.Sprint(v)`, which only converts both values to their string representation. This means nested maps, arrays, and collections in expected body fields won't be compared correctly. For example, if an expected body field is `{"nested": {"key": "value"}}`, the Go code would compare the `fmt.Sprint` output of a `map[string]interface{}` against another, which produces Go map dump strings rather than performing recursive comparison.
 
-- [x] **Policy parsing error handling differs**: In Java (lines 111-116), if `PolicyDeserializer.parse(map)` throws an exception, it's caught and an `IllegalArgumentException("Illegal request body", e)` is thrown, which would propagate as an error. In Go (lines 257-259), if `policyDeserializer.Parse(respMap)` returns an error, it returns `(nil, err)` directly. The Java version wraps the error with context ("Illegal request body"), while the Go version returns the raw error. This is a minor behavioral difference.
+- [ ] **Policy parsing error handling differs**: In Java (lines 111-116), if `PolicyDeserializer.parse(map)` throws an exception, it's caught and an `IllegalArgumentException("Illegal request body", e)` is thrown, which would propagate as an error. In Go (lines 257-259), if `policyDeserializer.Parse(respMap)` returns an error, it returns `(nil, err)` directly. The Java version wraps the error with context ("Illegal request body"), while the Go version returns the raw error. This is a minor behavioral difference.
 
-- [x] **Request headers from config are not applied to outgoing requests**: The Java constructor (lines 73-78) configures the `HttpClient` with headers from `requestProperties.getHeaders()`, which are sent with every request. The Go code at line 212-216 only sets `Content-Type: application/json` on the request and never applies the configured request headers from `reqProps.Headers`. The Go `HttpSessionIdentityAccessManager` struct doesn't even store request headers from the config.
+- [ ] **Request headers from config are not applied to outgoing requests**: The Java constructor (lines 73-78) configures the `HttpClient` with headers from `requestProperties.getHeaders()`, which are sent with every request. The Go code at line 212-216 only sets `Content-Type: application/json` on the request and never applies the configured request headers from `reqProps.Headers`. The Go `HttpSessionIdentityAccessManager` struct doesn't even store request headers from the config.
 
-- [x] **JSON parsing failure returns `LoginAuthenticationFailed` instead of an error**: In Java (lines 111-116), if `JsonUtil.readStringObjectMapValue` or `PolicyDeserializer.parse` throws, the catch block throws `IllegalArgumentException`. In Go (line 244), JSON unmarshal failure returns `LoginAuthenticationFailed`, but the policy parsing failure at line 258 returns `(nil, err)`. The Java code treats both as errors (not authentication failures), while the Go code treats the JSON parse failure as an authentication failure and the policy parse failure as a server error.
+- [ ] **JSON parsing failure returns `LoginAuthenticationFailed` instead of an error**: In Java (lines 111-116), if `JsonUtil.readStringObjectMapValue` or `PolicyDeserializer.parse` throws, the catch block throws `IllegalArgumentException`. In Go (line 244), JSON unmarshal failure returns `LoginAuthenticationFailed`, but the policy parsing failure at line 258 returns `(nil, err)`. The Java code treats both as errors (not authentication failures), while the Go code treats the JSON parse failure as an authentication failure and the policy parse failure as a server error.
 
 # JwtSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
@@ -8157,16 +8157,16 @@ Now I have a complete picture. Let me analyze the Java `verifyAndGrant` method a
 
 ## JwtSessionIdentityAccessManager.VerifyAndGrant
 
-- [x] **Missing `subject == null` check**: Java returns an `IllegalArgumentException` with message "Invalid JWT token: the sub claim in the payload must exist" when the subject is null. The Go code returns `LoginAuthenticationFailed` (a silent failure) when `sub` is missing, rather than an error. In Java, a missing `sub` produces `Mono.error(new IllegalArgumentException(...))`, not `LOGIN_AUTHENTICATION_FAILED_MONO`.
-- [x] **Blank JWT token returns wrong error type**: Java throws `Mono.error(new IllegalArgumentException("Invalid JWT token: JWT must not be blank"))` when the JWT is blank/empty. The Go code returns `LoginAuthenticationFailed` (a nil-error, non-error response) instead of an actual `error`. The Java code treats a blank token as an error (exception), not an authentication failure.
-- [x] **JWT parse failure returns wrong error type**: Java wraps `InvalidJwtException`, `NoSuchAlgorithmException`, and `JwtSignatureVerificationException` in an `IllegalArgumentException` and returns it as `Mono.error(...)`. The Go code returns `LoginAuthenticationFailed` (nil error) for all parse failures. In Java, a malformed or invalid JWT is an error, not a silent authentication failure.
-- [x] **Missing explicit expiration (`exp`) and not-before (`nbf`) time validation**: Java explicitly checks `expiresAt` and `notBefore` claims: if `expiresAt.getTime() <= now` or `notBefore.getTime() > now`, it returns `LOGIN_AUTHENTICATION_FAILED_MONO`. The Go code relies on `jwt.Parse`'s default validation behavior (which does validate `exp` and `nbf` by default in `golang-jwt/v5`), but the Java logic has a subtle difference: it only checks time claims if `hasExpiresAt || hasNotBefore`, and it uses `<=` for expiration (token expired exactly at `now` is rejected). While `golang-jwt/v5` does validate these by default, the exact semantics may differ slightly (e.g., skew defaults). This is a behavioral difference worth noting, though the practical impact may be minor.
-- [x] **Missing custom claims expectation validation via `containsAllLooseComparison`**: Java calls `CollectionUtil.containsAllLooseComparison(customClaims, jwtAuthenticationExpectedCustomPayloadClaims)` on the full set of custom claims from the JWT payload. The Go code iterates `m.expectedClaims` but does string-comparison via `fmt.Sprint`, which is not the same as Java's "loose comparison" (which handles numeric type coercion like `Integer(1)` vs `Long(1)` vs `Double(1.0)`). The `containsAllLooseComparison` in Java is specifically designed to handle cross-type numeric equality.
-- [x] **Missing policy parsing as mandatory step**: In Java, `PolicyDeserializer.parse(customClaims)` is **always** called on the custom claims, and if it throws `IllegalPolicyException`, an `IllegalArgumentException` error is returned. The Go code only looks for `claims["policy"]` as an optional `map[string]interface{}`, and if it doesn't exist or parsing fails, it falls through to `GrantedWithAllPermissions`. In Java, policy parsing is unconditionally executed on the entire custom claims map (not just a "policy" sub-key), and a failure to parse is an error, not a grant of all permissions.
-- [x] **Policy deserialized from wrong source**: Java parses policy from `customClaims` (the entire custom claims map of the JWT payload). The Go code tries to parse only `claims["policy"].(map[string]interface{})` — a specific sub-key named "policy". This is fundamentally different behavior: the Java `PolicyDeserializer` scans all custom claims for policy-related fields, not just a single "policy" key.
-- [x] **`expectedClaims` never populated from config**: In `NewJwtSessionIdentityAccessManager`, the Go code creates an empty map `make(map[string]interface{})` for `expectedClaims` with a comment "In a real system, these would be populated from properties too." This means the custom claims validation is effectively a no-op, unlike Java where `jwtAuthenticationExpectedCustomPayloadClaims` is populated from `jwtProperties.getAuthentication().getExpectation().getCustomPayloadClaims()`.
-- [x] **Constructor doesn't initialize `JwtManager`-equivalent with multiple algorithm support**: Java's constructor configures `JwtManager` with separate RSA, PS, ECDSA, and HMAC algorithm properties (12 algorithm configs). The Go version only takes a single `props.Algorithm` string and `props.SecretKey` byte slice. This means only a single HMAC secret key is supported, whereas Java supports multiple algorithm families with separate key configurations. This is a significant functional gap, though it may be a known limitation of the Go refactor.
-- [x] **Algorithm validation differs**: Java delegates algorithm handling to `JwtManager`, which supports algorithm negotiation based on the JWT header's `alg` field. The Go code validates the algorithm in the `keyFunc` callback by comparing `token.Method.Alg() != m.algorithm`, which only allows a single fixed algorithm. Java's `JwtManager` selects the appropriate verifier based on the JWT's declared algorithm, supporting multiple algorithms simultaneously.
+- [ ] **Missing `subject == null` check**: Java returns an `IllegalArgumentException` with message "Invalid JWT token: the sub claim in the payload must exist" when the subject is null. The Go code returns `LoginAuthenticationFailed` (a silent failure) when `sub` is missing, rather than an error. In Java, a missing `sub` produces `Mono.error(new IllegalArgumentException(...))`, not `LOGIN_AUTHENTICATION_FAILED_MONO`.
+- [ ] **Blank JWT token returns wrong error type**: Java throws `Mono.error(new IllegalArgumentException("Invalid JWT token: JWT must not be blank"))` when the JWT is blank/empty. The Go code returns `LoginAuthenticationFailed` (a nil-error, non-error response) instead of an actual `error`. The Java code treats a blank token as an error (exception), not an authentication failure.
+- [ ] **JWT parse failure returns wrong error type**: Java wraps `InvalidJwtException`, `NoSuchAlgorithmException`, and `JwtSignatureVerificationException` in an `IllegalArgumentException` and returns it as `Mono.error(...)`. The Go code returns `LoginAuthenticationFailed` (nil error) for all parse failures. In Java, a malformed or invalid JWT is an error, not a silent authentication failure.
+- [ ] **Missing explicit expiration (`exp`) and not-before (`nbf`) time validation**: Java explicitly checks `expiresAt` and `notBefore` claims: if `expiresAt.getTime() <= now` or `notBefore.getTime() > now`, it returns `LOGIN_AUTHENTICATION_FAILED_MONO`. The Go code relies on `jwt.Parse`'s default validation behavior (which does validate `exp` and `nbf` by default in `golang-jwt/v5`), but the Java logic has a subtle difference: it only checks time claims if `hasExpiresAt || hasNotBefore`, and it uses `<=` for expiration (token expired exactly at `now` is rejected). While `golang-jwt/v5` does validate these by default, the exact semantics may differ slightly (e.g., skew defaults). This is a behavioral difference worth noting, though the practical impact may be minor.
+- [ ] **Missing custom claims expectation validation via `containsAllLooseComparison`**: Java calls `CollectionUtil.containsAllLooseComparison(customClaims, jwtAuthenticationExpectedCustomPayloadClaims)` on the full set of custom claims from the JWT payload. The Go code iterates `m.expectedClaims` but does string-comparison via `fmt.Sprint`, which is not the same as Java's "loose comparison" (which handles numeric type coercion like `Integer(1)` vs `Long(1)` vs `Double(1.0)`). The `containsAllLooseComparison` in Java is specifically designed to handle cross-type numeric equality.
+- [ ] **Missing policy parsing as mandatory step**: In Java, `PolicyDeserializer.parse(customClaims)` is **always** called on the custom claims, and if it throws `IllegalPolicyException`, an `IllegalArgumentException` error is returned. The Go code only looks for `claims["policy"]` as an optional `map[string]interface{}`, and if it doesn't exist or parsing fails, it falls through to `GrantedWithAllPermissions`. In Java, policy parsing is unconditionally executed on the entire custom claims map (not just a "policy" sub-key), and a failure to parse is an error, not a grant of all permissions.
+- [ ] **Policy deserialized from wrong source**: Java parses policy from `customClaims` (the entire custom claims map of the JWT payload). The Go code tries to parse only `claims["policy"].(map[string]interface{})` — a specific sub-key named "policy". This is fundamentally different behavior: the Java `PolicyDeserializer` scans all custom claims for policy-related fields, not just a single "policy" key.
+- [ ] **`expectedClaims` never populated from config**: In `NewJwtSessionIdentityAccessManager`, the Go code creates an empty map `make(map[string]interface{})` for `expectedClaims` with a comment "In a real system, these would be populated from properties too." This means the custom claims validation is effectively a no-op, unlike Java where `jwtAuthenticationExpectedCustomPayloadClaims` is populated from `jwtProperties.getAuthentication().getExpectation().getCustomPayloadClaims()`.
+- [ ] **Constructor doesn't initialize `JwtManager`-equivalent with multiple algorithm support**: Java's constructor configures `JwtManager` with separate RSA, PS, ECDSA, and HMAC algorithm properties (12 algorithm configs). The Go version only takes a single `props.Algorithm` string and `props.SecretKey` byte slice. This means only a single HMAC secret key is supported, whereas Java supports multiple algorithm families with separate key configurations. This is a significant functional gap, though it may be a known limitation of the Go refactor.
+- [ ] **Algorithm validation differs**: Java delegates algorithm handling to `JwtManager`, which supports algorithm negotiation based on the JWT header's `alg` field. The Go code validates the algorithm in the `keyFunc` callback by comparing `token.Method.Alg() != m.algorithm`, which only allows a single fixed algorithm. Java's `JwtManager` selects the appropriate verifier based on the JWT's declared algorithm, supporting multiple algorithms simultaneously.
 
 # LdapSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
@@ -8175,21 +8175,21 @@ Now I have a thorough understanding of both implementations. Let me compare the 
 
 ## LdapSessionIdentityAccessManager.VerifyAndGrant
 
-- [x] **Missing two-client architecture**: The Java version uses two separate LDAP clients — `adminLdapClient` (for searching with admin credentials) and `userLdapClient` (for binding/authenticating the user). The Go version uses a single `client` for both search and bind. This means the Go version performs the admin search and user bind on the same connection. In Java, the admin connection stays bound as admin, and the user bind is done on a separate connection (with a `TaskScheduler` for serialization per RFC 4511). The Go version loses this separation — after calling `Bind(false, userDN, *loginInfo.Password)`, the shared connection is now bound as the user, which would break subsequent admin searches.
+- [ ] **Missing two-client architecture**: The Java version uses two separate LDAP clients — `adminLdapClient` (for searching with admin credentials) and `userLdapClient` (for binding/authenticating the user). The Go version uses a single `client` for both search and bind. This means the Go version performs the admin search and user bind on the same connection. In Java, the admin connection stays bound as admin, and the user bind is done on a separate connection (with a `TaskScheduler` for serialization per RFC 4511). The Go version loses this separation — after calling `Bind(false, userDN, *loginInfo.Password)`, the shared connection is now bound as the user, which would break subsequent admin searches.
 
-- [x] **Missing `Scope.WHOLE_SUBTREE` parameter**: The Java search uses `Scope.WHOLE_SUBTREE` (scope value 2). The Go search passes `2` as the second parameter to `m.client.Search()`, which maps to `scope`. However, the parameter ordering in the Go `Search` method is `(baseDn, scope, derefAliases, sizeLimit, ...)`. Looking at the Go call: `m.client.Search(m.baseDN, 2, 0, 1, 0, false, []string{"dn"}, filter)` — the scope is `2` (WHOLE_SUBTREE), derefAliases is `0` (NEVER), while Java uses `DerefAliases.ALWAYS`. This is a behavioral difference.
+- [ ] **Missing `Scope.WHOLE_SUBTREE` parameter**: The Java search uses `Scope.WHOLE_SUBTREE` (scope value 2). The Go search passes `2` as the second parameter to `m.client.Search()`, which maps to `scope`. However, the parameter ordering in the Go `Search` method is `(baseDn, scope, derefAliases, sizeLimit, ...)`. Looking at the Go call: `m.client.Search(m.baseDN, 2, 0, 1, 0, false, []string{"dn"}, filter)` — the scope is `2` (WHOLE_SUBTREE), derefAliases is `0` (NEVER), while Java uses `DerefAliases.ALWAYS`. This is a behavioral difference.
 
-- [x] **Wrong `derefAliases` value**: Java uses `DerefAliases.ALWAYS` (typically value 3 in LDAP), but Go passes `0` which is `DerefAliases.NEVER`. This can cause different search results when aliases are present in the LDAP directory.
+- [ ] **Wrong `derefAliases` value**: Java uses `DerefAliases.ALWAYS` (typically value 3 in LDAP), but Go passes `0` which is `DerefAliases.NEVER`. This can cause different search results when aliases are present in the LDAP directory.
 
-- [x] **Missing `LoggingInUserNotActive` return for 0 entries**: When the search returns 0 entries, the Java version returns `LOGGING_IN_USER_NOT_ACTIVE_MONO` (a distinct status indicating the user is not active/not found). The Go version returns `bo.LoginAuthenticationFailed` for both 0 entries and errors, losing the distinction between "user not found/not active" and "authentication failed".
+- [ ] **Missing `LoggingInUserNotActive` return for 0 entries**: When the search returns 0 entries, the Java version returns `LOGGING_IN_USER_NOT_ACTIVE_MONO` (a distinct status indicating the user is not active/not found). The Go version returns `bo.LoginAuthenticationFailed` for both 0 entries and errors, losing the distinction between "user not found/not active" and "authentication failed".
 
-- [x] **Missing error for >1 entries**: When more than 1 entry is found, the Java version returns a `ResponseException` with `SERVER_INTERNAL_ERROR` status code and a descriptive message indicating the filter is wrong. The Go version silently returns `bo.LoginAuthenticationFailed` when `len(searchResult.Entries) != 1` (which covers both 0 entries and >1 entries), losing the server-side error diagnostic.
+- [ ] **Missing error for >1 entries**: When more than 1 entry is found, the Java version returns a `ResponseException` with `SERVER_INTERNAL_ERROR` status code and a descriptive message indicating the filter is wrong. The Go version silently returns `bo.LoginAuthenticationFailed` when `len(searchResult.Entries) != 1` (which covers both 0 entries and >1 entries), losing the server-side error diagnostic.
 
-- [x] **Missing `SearchRequest.NO_ATTRIBUTES`**: The Java version uses `SearchRequest.NO_ATTRIBUTES` for the attributes parameter (requesting no attributes back, only the entry name/DN). The Go version requests `[]string{"dn"}` instead, which is functionally similar but not exactly the same — `NO_ATTRIBUTES` in LDAP is typically `1.1` (an OID that matches no attributes), while requesting `"dn"` may still return the DN attribute explicitly.
+- [ ] **Missing `SearchRequest.NO_ATTRIBUTES`**: The Java version uses `SearchRequest.NO_ATTRIBUTES` for the attributes parameter (requesting no attributes back, only the entry name/DN). The Go version requests `[]string{"dn"}` instead, which is functionally similar but not exactly the same — `NO_ATTRIBUTES` in LDAP is typically `1.1` (an OID that matches no attributes), while requesting `"dn"` may still return the DN attribute explicitly.
 
-- [x] **Missing `authenticateUser` with `TaskScheduler` serialization**: The Java version delegates user bind to `authenticateUser()` which uses a `clientBindTaskScheduler` to serialize bind operations per RFC 4511 (which states clients MUST NOT send further LDAP PDUs until receiving the BindResponse). The Go version calls `m.client.Bind()` directly without any serialization, which can cause protocol violations under concurrent login requests.
+- [ ] **Missing `authenticateUser` with `TaskScheduler` serialization**: The Java version delegates user bind to `authenticateUser()` which uses a `clientBindTaskScheduler` to serialize bind operations per RFC 4511 (which states clients MUST NOT send further LDAP PDUs until receiving the BindResponse). The Go version calls `m.client.Bind()` directly without any serialization, which can cause protocol violations under concurrent login requests.
 
-- [x] **Missing admin bind before search**: In Java, the `adminLdapClient` is already bound with admin credentials during construction, and subsequent searches use that bound admin connection. The Go version does not bind with admin credentials before searching — it relies on an anonymous or previously-established connection state, which may not have permission to search the LDAP directory.
+- [ ] **Missing admin bind before search**: In Java, the `adminLdapClient` is already bound with admin credentials during construction, and subsequent searches use that bound admin connection. The Go version does not bind with admin credentials before searching — it relies on an anonymous or previously-established connection state, which may not have permission to search the LDAP directory.
 
 # NoopSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo)*
@@ -8206,7 +8206,7 @@ The Java version passes `TurmsRequestTypePool.ALL` (a populated set containing a
 
 ## NoopSessionIdentityAccessManager.VerifyAndGrant
 
-- [x] **`GrantedWithAllPermissions` uses `nil` permissions instead of all request types**: The Java code returns `GRANTED_WITH_ALL_PERMISSIONS` which contains `TurmsRequestTypePool.ALL` — a populated `Set<TurmsRequest.KindCase>` with every request type. The Go code returns `GrantedWithAllPermissions` which is constructed as `NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil)`, passing `nil` for the permissions map. This means downstream permission checks (e.g., `permissions[requestType]`) will return `false` (zero value) for every request type instead of `true`, effectively granting zero permissions instead of all permissions.
+- [ ] **`GrantedWithAllPermissions` uses `nil` permissions instead of all request types**: The Java code returns `GRANTED_WITH_ALL_PERMISSIONS` which contains `TurmsRequestTypePool.ALL` — a populated `Set<TurmsRequest.KindCase>` with every request type. The Go code returns `GrantedWithAllPermissions` which is constructed as `NewUserPermissionInfo(constant.ResponseStatusCode_OK, nil)`, passing `nil` for the permissions map. This means downstream permission checks (e.g., `permissions[requestType]`) will return `false` (zero value) for every request type instead of `true`, effectively granting zero permissions instead of all permissions.
 
 # PasswordSessionIdentityAccessManager.java
 *Checked methods: verifyAndGrant(UserLoginInfo userLoginInfo), updateGlobalProperties(TurmsProperties properties)*
@@ -8215,13 +8215,13 @@ Now I have a clear picture. Let me verify the order of operations difference bet
 
 ## verifyAndGrant(UserLoginInfo)
 
-- [x] **Operation ordering difference**: The Java code checks `isActiveAndNotDeleted` **first**, and only fetches/authenticates the password if the user is active. The Go code (lines 130-157) fetches the password **first** (line 135), then checks active status (line 143). This changes the failure semantics: in Java, an inactive user always gets `LOGGING_IN_USER_NOT_ACTIVE` regardless of password validity; in Go, an inactive user who supplies a correct password would get `LoggingInUserNotActive` but an inactive user with an invalid password would still get `LoggingInUserNotActive` (since active is checked second). However, in Java, an inactive user gets `LOGGING_IN_USER_NOT_ACTIVE` immediately without ever checking the password. The behavioral difference is that Go makes an unnecessary password fetch for inactive users.
+- [ ] **Operation ordering difference**: The Java code checks `isActiveAndNotDeleted` **first**, and only fetches/authenticates the password if the user is active. The Go code (lines 130-157) fetches the password **first** (line 135), then checks active status (line 143). This changes the failure semantics: in Java, an inactive user always gets `LOGGING_IN_USER_NOT_ACTIVE` regardless of password validity; in Go, an inactive user who supplies a correct password would get `LoggingInUserNotActive` but an inactive user with an invalid password would still get `LoggingInUserNotActive` (since active is checked second). However, in Java, an inactive user gets `LOGGING_IN_USER_NOT_ACTIVE` immediately without ever checking the password. The behavioral difference is that Go makes an unnecessary password fetch for inactive users.
 
-- [x] **Missing password encoding algorithm support**: The Java code uses `PasswordManager.matchesUserPassword()` which supports 3 encoding algorithms (BCRYPT, SALTED_SHA256, NOOP) selected based on server configuration. The Go code (line 151) uses `bcrypt.CompareHashAndPassword()` directly, which only supports bcrypt. If the server is configured with `SALTED_SHA256` or `NOOP` encoding, the Go code will fail to authenticate valid users. The Go codebase does have a `MatchesPassword` function in `internal/pkg/security/password.go` that handles all three encodings via prefixes, but `PasswordSessionIdentityAccessManager` doesn't use it.
+- [ ] **Missing password encoding algorithm support**: The Java code uses `PasswordManager.matchesUserPassword()` which supports 3 encoding algorithms (BCRYPT, SALTED_SHA256, NOOP) selected based on server configuration. The Go code (line 151) uses `bcrypt.CompareHashAndPassword()` directly, which only supports bcrypt. If the server is configured with `SALTED_SHA256` or `NOOP` encoding, the Go code will fail to authenticate valid users. The Go codebase does have a `MatchesPassword` function in `internal/pkg/security/password.go` that handles all three encodings via prefixes, but `PasswordSessionIdentityAccessManager` doesn't use it.
 
 ## updateGlobalProperties(TurmsProperties)
 
-- [x] **Missing enabled/disable guard logic**: The Java `updateGlobalProperties` (lines 61-78) has critical guard logic: if `enableIdentityAccessManagement` is being set to `true` but the `UserService` was not enabled at startup, it logs an error and **returns false** (refusing the update). The Go `PasswordSessionIdentityAccessManager.UpdateGlobalProperties` (lines 159-162) is a no-op — it doesn't implement this guard at all. The Java code specifically checks `!userService.isEnabled()` to prevent re-enabling a disabled password manager. The Go code has no equivalent check, meaning the outer `SessionIdentityAccessManager.UpdateGlobalProperties` (line 89) will blindly set `m.enableIdentityAccessManagement = iamProps.Enabled` without the inner password manager's consent.
+- [ ] **Missing enabled/disable guard logic**: The Java `updateGlobalProperties` (lines 61-78) has critical guard logic: if `enableIdentityAccessManagement` is being set to `true` but the `UserService` was not enabled at startup, it logs an error and **returns false** (refusing the update). The Go `PasswordSessionIdentityAccessManager.UpdateGlobalProperties` (lines 159-162) is a no-op — it doesn't implement this guard at all. The Java code specifically checks `!userService.isEnabled()` to prevent re-enabling a disabled password manager. The Go code has no equivalent check, meaning the outer `SessionIdentityAccessManager.UpdateGlobalProperties` (line 89) will blindly set `m.enableIdentityAccessManagement = iamProps.Enabled` without the inner password manager's consent.
 
 - [x] **Return type discrepancy prevents refusal propagation**: The Java `updateGlobalProperties` returns `boolean` — returning `false` signals that the property update was rejected. The Go `SessionIdentityAccessManagementSupport` interface declares `UpdateGlobalProperties(properties interface{})` with no return value, making it impossible for the password manager to refuse an invalid property update. The outer `SessionIdentityAccessManager.UpdateGlobalProperties` unconditionally sets `m.enableIdentityAccessManagement = iamProps.Enabled` (line 89) even when the inner support would have rejected it in Java.
 
@@ -8304,7 +8304,7 @@ Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
 
 ## tryRegisterOnlineUser
 
-- [x] Java 有一个复杂的流程：（1）获取用户会话状态，（2）关闭已由其他节点注册的本地会话，（3）如果用户离线，则添加新设备，（4）如果设备类型的会话已存在且在本地关闭，则进行恢复/更新，（5）如果冲突策略是断开登录设备，则拒绝，（6）关闭冲突会话并添加新设备。Go 简化为：（1）获取状态，（2）解决冲突，（3）添加在线设备，（4）创建并注册会话。Java 的步骤 1（关闭已由其他节点拥有的本地会话）在 Go 中完全缺失。Java 的步骤 4（已关闭本地会话的恢复路径）在 Go 中也缺失。
+- [ ] Java 有一个复杂的流程：（1）获取用户会话状态，（2）关闭已由其他节点注册的本地会话，（3）如果用户离线，则添加新设备，（4）如果设备类型的会话已存在且在本地关闭，则进行恢复/更新，（5）如果冲突策略是断开登录设备，则拒绝，（6）关闭冲突会话并添加新设备。Go 简化为：（1）获取状态，（2）解决冲突，（3）添加在线设备，（4）创建并注册会话。Java 的步骤 1（关闭已由其他节点拥有的本地会话）在 Go 中完全缺失。Java 的步骤 4（已关闭本地会话的恢复路径）在 Go 中也缺失。
 - [x] Java 使用 `closeIdleSessionAfterSeconds` 和 `expectedNodeId`/`expectedDeviceTimestamp` 调用 `addOnlineDeviceIfAbsent` 以处理并发冲突。Go 使用 `AddOnlineDevice`，没有这些参数，这意味着 Go 没有 Java 通过 `expectedNodeId` 和 `expectedDeviceTimestamp` 参数实现的乐观锁定机制。
 - [x] Java 使用来自配置属性的过滤后的设备详细信息调用 `addOnlineDeviceIfAbsent`。Go 将 `deviceDetails` 直接传递给 `AddOnlineDevice`，而没有根据 `deviceDetailsItemPropertiesList` 进行过滤。
 - [x] Java 将位置作为 `location` 传递给 `addOnlineDeviceIfAbsent`，它会在其中由会话存储。Go 在创建会话后单独调用 `s.sessionLocationService.UpsertUserLocation`，但 Java 在 `addOnlineDeviceIfAbsent` 内部进行此操作。
@@ -8312,23 +8312,23 @@ Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
 
 ## onSessionEstablished
 
-- [x] Java 递增 `loggedInUsersCounter` 指标，并在配置后通过 `userSessionsManager.pushSessionNotification(deviceType, serverId)` 向客户端发送会话通知。Go 有一个带有 TODO 的空存根，没有实现这两个行为。
+- [ ] Java 递增 `loggedInUsersCounter` 指标，并在配置后通过 `userSessionsManager.pushSessionNotification(deviceType, serverId)` 向客户端发送会话通知。Go 有一个带有 TODO 的空存根，没有实现这两个行为。
 
 ## invokeGoOnlineHandlers
 
-- [x] Java 通过 `pluginManager.invokeExtensionPointsSimultaneously` 调用插件扩展点，返回一个 `Mono<Void>`。Go 有一个带有 TODO 注释的空存根，不调用任何插件。
+- [ ] Java 通过 `pluginManager.invokeExtensionPointsSimultaneously` 调用插件扩展点，返回一个 `Mono<Void>`。Go 有一个带有 TODO 注释的空存根，不调用任何插件。
 
 ## closeLocalSession(userId, deviceType, closeStatus) / closeLocalSession(userId, deviceType, closeReason)
 
-- [x] Java 有两个单独的单设备类型重载，它们将单个设备类型包装成一个集合。Go 有 `CloseLocalSessionByDeviceType`，它包装了基于切片的版本，但没有与 Java 中相同的参数变体（一个接收 `SessionCloseStatus`，另一个接收 `CloseReason`）。
+- [ ] Java 有两个单独的单设备类型重载，它们将单个设备类型包装成一个集合。Go 有 `CloseLocalSessionByDeviceType`，它包装了基于切片的版本，但没有与 Java 中相同的参数变体（一个接收 `SessionCloseStatus`，另一个接收 `CloseReason`）。
 
 ## addOnSessionClosedListeners
 
-- [x] Java 使用 `LinkedList` 来存储监听器，并且 `add` 方法不是同步的。Go 正确使用了互斥锁，这实际上更安全，但与 Java 的非同步 `add` 有所不同。这是一个小的风格差异，不是错误。
+- [ ] Java 使用 `LinkedList` 来存储监听器，并且 `add` 方法不是同步的。Go 正确使用了互斥锁，这实际上更安全，但与 Java 的非同步 `add` 有所不同。这是一个小的风格差异，不是错误。
 
 ## notifyOnSessionClosedListeners / notifySessionClosedListeners
 
-- [x] Java 将每个监听器调用包装在 try-catch 中，以记录异常而不传播它们。Go 没有从监听器调用中恢复 panic，因此一个有问题的监听器可能会崩溃整个关闭过程。
+- [ ] Java 将每个监听器调用包装在 try-catch 中，以记录异常而不传播它们。Go 没有从监听器调用中恢复 panic，因此一个有问题的监听器可能会崩溃整个关闭过程。
 
 ## countLocalOnlineUsers
 
@@ -8336,8 +8336,8 @@ Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
 
 ## authAndUpdateHeartbeatTimestamp
 
-- [x] Java 检查 `session.getConnection().isConnectionRecovering()` 而没有首先检查 `session.getConnection() != null`（隐式地，因为 `getConnection()` 可能在断开连接的会话上返回 null）。Go 额外检查 `session.Conn != nil && session.Conn.IsActive()`，这比 Java 更保守，但并非错误。
-- [x] Java 使用 `Validator.notNull(deviceType, "deviceType")` 和 `DeviceTypeUtil.validDeviceType(deviceType)`。Go 没有验证 `deviceType` 参数。
+- [ ] Java 检查 `session.getConnection().isConnectionRecovering()` 而没有首先检查 `session.getConnection() != null`（隐式地，因为 `getConnection()` 可能在断开连接的会话上返回 null）。Go 额外检查 `session.Conn != nil && session.Conn.IsActive()`，这比 Java 更保守，但并非错误。
+- [ ] Java 使用 `Validator.notNull(deviceType, "deviceType")` 和 `DeviceTypeUtil.validDeviceType(deviceType)`。Go 没有验证 `deviceType` 参数。
 
 ## destroy
 
@@ -8347,40 +8347,40 @@ Go 第 350 行：`constant.SessionCloseStatus_DISCONNECTED_BY_OTHER_DEVICE`
 
 ## handleLoginRequest
 
-- [x] Java validates `version != 1` (only version 1 is accepted), returning `UNSUPPORTED_CLIENT_VERSION` with a descriptive message. Go validates `version < 1` (accepts any positive version), returning `ILLEGAL_ARGUMENT` without a message. This is a different validation condition and error code.
-- [x] Go checks `userStatus == protocol.UserStatus_OFFLINE` and returns an error *before* calling the authentication manager. Java does not perform this check in `handleLoginRequest` — it is only done inside `tryRegisterOnlineUser` via `Validator.notEquals(userStatus, UserStatus.OFFLINE, ...)`. This changes the validation flow order.
-- [x] Java passes all parameters (including `userStatus`, `location`, `ipStr`) directly to `verifyAndGrant`. Go wraps parameters into a `UserLoginInfo` struct and passes `&userStatus` (a pointer to a non-nil UserStatus). In Java, `userStatus` can be `null`, and the authentication manager handles `null`. In Go, `userStatus` is never nil (it's a protocol buffer enum with a zero value), but `handleLoginRequest` takes `userStatus protocol.UserStatus` as a non-pointer, so there's no way to distinguish "not provided" from `UserStatus(0)`. This could cause behavioral differences if the authentication manager treats null/zero differently.
+- [ ] Java validates `version != 1` (only version 1 is accepted), returning `UNSUPPORTED_CLIENT_VERSION` with a descriptive message. Go validates `version < 1` (accepts any positive version), returning `ILLEGAL_ARGUMENT` without a message. This is a different validation condition and error code.
+- [ ] Go checks `userStatus == protocol.UserStatus_OFFLINE` and returns an error *before* calling the authentication manager. Java does not perform this check in `handleLoginRequest` — it is only done inside `tryRegisterOnlineUser` via `Validator.notEquals(userStatus, UserStatus.OFFLINE, ...)`. This changes the validation flow order.
+- [ ] Java passes all parameters (including `userStatus`, `location`, `ipStr`) directly to `verifyAndGrant`. Go wraps parameters into a `UserLoginInfo` struct and passes `&userStatus` (a pointer to a non-nil UserStatus). In Java, `userStatus` can be `null`, and the authentication manager handles `null`. In Go, `userStatus` is never nil (it's a protocol buffer enum with a zero value), but `handleLoginRequest` takes `userStatus protocol.UserStatus` as a non-pointer, so there's no way to distinguish "not provided" from `UserStatus(0)`. This could cause behavioral differences if the authentication manager treats null/zero differently.
 
 ## closeLocalSessions(List<byte[]> ips, CloseReason closeReason)
 
-- [x] Go merges this method with the userIds-based overload into a single `CloseLocalSessions(ctx, userIds, ips, closeReason)`. The Go version has a logic bug when both `userIds` and `ips` are provided: the IP-based lookup only closes sessions for users NOT already in `userIdSet` (line 462: `if _, ok := userIdSet[sess.UserID]; !ok`), which means sessions for users in `userIdSet` that were found via IP but have sessions on different device types may be skipped. Java has completely separate methods and always closes all sessions for each IP.
+- [ ] Go merges this method with the userIds-based overload into a single `CloseLocalSessions(ctx, userIds, ips, closeReason)`. The Go version has a logic bug when both `userIds` and `ips` are provided: the IP-based lookup only closes sessions for users NOT already in `userIdSet` (line 462: `if _, ok := userIdSet[sess.UserID]; !ok`), which means sessions for users in `userIdSet` that were found via IP but have sessions on different device types may be skipped. Java has completely separate methods and always closes all sessions for each IP.
 
 ## closeLocalSession(Long userId, SessionCloseStatus closeStatus)
 
-- [x] Go's `SetUserOffline` receives `constant.SessionCloseStatus` but passes it directly to `CloseLocalSession` which expects `bo.CloseReason`. These are different types. Java correctly wraps the status via `CloseReason.get(closeStatus)` before delegating.
+- [ ] Go's `SetUserOffline` receives `constant.SessionCloseStatus` but passes it directly to `CloseLocalSession` which expects `bo.CloseReason`. These are different types. Java correctly wraps the status via `CloseReason.get(closeStatus)` before delegating.
 
 ## closeLocalSession(Long userId, CloseReason closeReason)
 
-- [x] Same type mismatch issue as above. Java wraps via `CloseReason.get()` or passes the `CloseReason` directly. Go's `SetUserOffline` passes `constant.SessionCloseStatus` where `bo.CloseReason` is expected.
+- [ ] Same type mismatch issue as above. Java wraps via `CloseReason.get()` or passes the `CloseReason` directly. Go's `SetUserOffline` passes `constant.SessionCloseStatus` where `bo.CloseReason` is expected.
 
 ## closeLocalSessions(Set<Long> userIds, CloseReason closeReason)
 
-- [x] Go's `SetUsersOffline` delegates to `SetUserOffline` for each user, which has the same type mismatch (`constant.SessionCloseStatus` passed where `bo.CloseReason` is expected).
+- [ ] Go's `SetUsersOffline` delegates to `SetUserOffline` for each user, which has the same type mismatch (`constant.SessionCloseStatus` passed where `bo.CloseReason` is expected).
 
 ## authAndCloseLocalSession
 
-- [x] Java first looks up the manager and session, checks if `session.getId() == sessionId`, and only proceeds to close if the session ID matches. Go performs authentication first via `VerifyAndGrant`, then closes without ever checking `sessionId` against the existing session. If the session doesn't exist or has a different ID, Java returns 0 without authenticating; Go authenticates and attempts to close regardless.
-- [x] Go hardcodes `SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY` as the close reason. Java uses the `closeReason` parameter passed to the method, which is an arbitrary `CloseReason`.
+- [ ] Java first looks up the manager and session, checks if `session.getId() == sessionId`, and only proceeds to close if the session ID matches. Go performs authentication first via `VerifyAndGrant`, then closes without ever checking `sessionId` against the existing session. If the session doesn't exist or has a different ID, Java returns 0 without authenticating; Go authenticates and attempts to close regardless.
+- [ ] Go hardcodes `SessionCloseStatus_DISCONNECTED_BY_CLIENT_REDUNDANTLY` as the close reason. Java uses the `closeReason` parameter passed to the method, which is an arbitrary `CloseReason`.
 
 ## closeAllLocalSessions
 
-- [x] Java iterates over the `userIdToSessionsManager` entries snapshot and calls `closeLocalSession` with `loggedInDeviceTypes` (the specific device types that are logged in). Go calls `CloseLocalSession(ctx, userId, nil, closeReason)` which closes all device types. Functionally equivalent when all sessions are accounted for, but Java is more precise by targeting only logged-in device types.
+- [ ] Java iterates over the `userIdToSessionsManager` entries snapshot and calls `closeLocalSession` with `loggedInDeviceTypes` (the specific device types that are logged in). Go calls `CloseLocalSession(ctx, userId, nil, closeReason)` which closes all device types. Functionally equivalent when all sessions are accounted for, but Java is more precise by targeting only logged-in device types.
 
 ## closeLocalSessions (private, userId + deviceTypes + closeReason + manager)
 
-- [x] Java's `removeSessionsManagerIfEmpty` **always** invokes the `goOffline` plugin handler regardless of whether the manager is empty. Go only calls `InvokeGoOfflineHandlers` when `RemoveIfEmpty` returns non-nil (i.e., when the manager is empty). This means the goOffline plugin hook is never fired when a user still has remaining sessions.
-- [x] Java checks `sessionLocationService.isLocationEnabled()` before removing user locations. Go unconditionally calls `s.sessionLocationService.RemoveUserLocations` without checking if the location service is enabled.
-- [x] Java uses `computeIfPresent` on `ipToSessions` to atomically remove the session and clean up the entry when the queue becomes empty. Go's `unregisterSessionIp` uses `sync.Map.Delete` on the inner map but never removes empty inner maps from `ipToSessions`, causing a memory leak over time as IP entries are never cleaned up.
+- [ ] Java's `removeSessionsManagerIfEmpty` **always** invokes the `goOffline` plugin handler regardless of whether the manager is empty. Go only calls `InvokeGoOfflineHandlers` when `RemoveIfEmpty` returns non-nil (i.e., when the manager is empty). This means the goOffline plugin hook is never fired when a user still has remaining sessions.
+- [ ] Java checks `sessionLocationService.isLocationEnabled()` before removing user locations. Go unconditionally calls `s.sessionLocationService.RemoveUserLocations` without checking if the location service is enabled.
+- [ ] Java uses `computeIfPresent` on `ipToSessions` to atomically remove the session and clean up the entry when the queue becomes empty. Go's `unregisterSessionIp` uses `sync.Map.Delete` on the inner map but never removes empty inner maps from `ipToSessions`, causing a memory leak over time as IP entries are never cleaned up.
 
 ## resolveConflicts / closeSessionsWithConflictedDeviceTypes
 
@@ -8852,8 +8852,8 @@ Both of these are real behavioral differences from the Java version.
 
 ## Constructor (long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest)
 
-- [x] Missing field assignments: None. All three fields are properly assigned.
-- [x] Missing core logic: None.
+- [ ] Missing field assignments: None. All three fields are properly assigned.
+- [ ] Missing core logic: None.
 
 ## toString()
 
@@ -9036,7 +9036,7 @@ Here's my final analysis:
 
 ## AddAdmin
 
-- [x] **Missing parameters `registrationDate` and `upsert`**: The Java controller calls `authAndAddAdmin(requesterId, loginName, password, roleIds, displayName, new Date(), false)` with 7 parameters (plus the implicit `this`). The Go `AuthAndAddAdmin` only takes 6 parameters (`ctx, requesterId, loginName, rawPassword, displayName, roleIds`). However, examining the Go `AddAdmin` method at line 330, it internally uses `time.Now()` for `RegistrationDate` and always does insert (not upsert), which effectively matches `new Date()` and `false`. The Go service layer absorbs these two parameters, so this is actually **correct** — not a bug.
+- [ ] **Missing parameters `registrationDate` and `upsert`**: The Java controller calls `authAndAddAdmin(requesterId, loginName, password, roleIds, displayName, new Date(), false)` with 7 parameters (plus the implicit `this`). The Go `AuthAndAddAdmin` only takes 6 parameters (`ctx, requesterId, loginName, rawPassword, displayName, roleIds`). However, examining the Go `AddAdmin` method at line 330, it internally uses `time.Now()` for `RegistrationDate` and always does insert (not upsert), which effectively matches `new Date()` and `false`. The Go service layer absorbs these two parameters, so this is actually **correct** — not a bug.
 
 Wait, let me reconsider. The task says to compare the **controller** methods. The Go controller calls `AuthAndAddAdmin` with 6 params. The Java controller calls `authAndAddAdmin` with 7 params (requesterId, loginName, password, roleIds, displayName, new Date(), false). But the Go service signature only has 6 params, so the Go controller can't pass those extra params. The Go service internally handles them. So from the controller's perspective, this is fine — the behavior is delegated correctly to the service.
 
@@ -10235,11 +10235,11 @@ This method appears to be correctly ported.
 - [x] **Bug 3: Go queries both private and group conversations simultaneously, Java is either-or** — When both `targetIDs` and `groupIDs` are non-empty, Java only queries private conversations (the `else` branch on line 117). Go queries both independently and returns a combined result. The Java design intentionally prioritizes private conversations and ignores `groupIds` when `targetIds` is present.
 
 ## handleUpdateConversationRequest
-- [x] **Bug 4: Go incorrectly rejects request when both targetID and groupID are present** — The Go code (lines 118-120) returns `ILLEGAL_ARGUMENT` when both `targetID != nil && groupID != nil`. Java has no such check; when both fields are present, it takes the private conversation path because `hasUserId` is true. The Go code is stricter than the Java original.
-- [x] **Bug 5: Group case filters out requester from member IDs when only `notifyOtherGroupMembers` is true** — In the Go code (lines 161-166), when `notifyOtherGroupMembersOfGroupConversationReadDateUpdated=true` but `notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated=false`, the requester is explicitly filtered out from `memberIDs`. Java's `queryGroupMemberIds` returns ALL members (including requester) and passes them directly to `RequestHandlerResult.of()`. This changes notification delivery — Java notifies all group members including the requester, Go excludes the requester.
+- [ ] **Bug 4: Go incorrectly rejects request when both targetID and groupID are present** — The Go code (lines 118-120) returns `ILLEGAL_ARGUMENT` when both `targetID != nil && groupID != nil`. Java has no such check; when both fields are present, it takes the private conversation path because `hasUserId` is true. The Go code is stricter than the Java original.
+- [ ] **Bug 5: Group case filters out requester from member IDs when only `notifyOtherGroupMembers` is true** — In the Go code (lines 161-166), when `notifyOtherGroupMembersOfGroupConversationReadDateUpdated=true` but `notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated=false`, the requester is explicitly filtered out from `memberIDs`. Java's `queryGroupMemberIds` returns ALL members (including requester) and passes them directly to `RequestHandlerResult.of()`. This changes notification delivery — Java notifies all group members including the requester, Go excludes the requester.
 
 ## handleUpdateTypingStatusRequest
-- [x] No bugs found.
+- [ ] No bugs found.
 
 # ConversationSettingsServiceController.java
 *Checked methods: handleUpdateConversationSettingsRequest(), handleDeleteConversationSettingsRequest(), handleQueryConversationSettingsRequest()*
@@ -10424,22 +10424,22 @@ Now, the priority inversion: Java checks `hasUserId` first. Go checks `GroupId !
 ## Summary of Bugs
 
 ## handleUpdateConversationSettingsRequest
-- [x] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
+- [ ] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
 
 ## handleDeleteConversationSettingsRequest  
-- [x] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
+- [ ] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
 
 ## handleQueryConversationSettingsRequest
-- [x] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
+- [ ] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
 
 ## handleUpdateConversationSettingsRequest
-- [x] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
+- [ ] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
 
 ## handleDeleteConversationSettingsRequest  
-- [x] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
+- [ ] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
 
 ## handleQueryConversationSettingsRequest
-- [x] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
+- [ ] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
 
 # ConversationSettingsRepository.java
 *Checked methods: upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings), unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames), findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart), findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart), findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields), deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)*
@@ -10527,7 +10527,7 @@ However, the Go implementation's `$or` uses `$exists: false` instead of checking
 
 ## DeleteConversationsByOwnerIds
 
-- [x] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
+- [ ] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
 
 ## FindConversations
 
@@ -10539,7 +10539,7 @@ No bugs found. The field name `_id.oid` matches Java's `PrivateConversation.Fiel
 
 ## DeleteConversationsByOwnerIds
 
-- [x] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
+- [ ] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
 
 ## FindConversations
 
@@ -10881,11 +10881,11 @@ But again, all current callers pass concrete times, so this is a design issue ra
 Let me finalize. The key bugs are:
 
 ## upsertGroupConversationReadDate
-- [x] Missing null readDate defaulting to current time (uses zero-value time.Time instead)
-- [x] DuplicateKeyException always treated as error (Java swallows when readDate was null)
+- [ ] Missing null readDate defaulting to current time (uses zero-value time.Time instead)
+- [ ] DuplicateKeyException always treated as error (Java swallows when readDate was null)
 
 ## upsertGroupConversationsReadDate
-- [x] Fails fast on first error instead of running all operations and collecting errors (Java: `Mono.whenDelayError`)
+- [ ] Fails fast on first error instead of running all operations and collecting errors (Java: `Mono.whenDelayError`)
 
 ## upsertPrivateConversationReadDate
 - [x] Missing null readDate handling — delegates to UpsertPrivateConversationsReadDate with `&readDate` which is always non-nil, so zero-value `time.Time` won't be replaced with `time.Now()`
@@ -10946,7 +10946,7 @@ Let me now write up the final bug report.
 - [x] Missing null readDate defaulting: Java passes null to `upsertPrivateConversationsReadDate` which defaults it to `new Date()`. Go passes `&readDate` (always non-nil pointer), so a zero-value `time.Time` would be used as-is instead of being replaced with current time.
 
 ## upsertPrivateConversationsReadDate
-- [x] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
+- [ ] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
 
 ## queryPrivateConversations
 - [x] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds PrivateConversationKey list from owner IDs paired with a common target ID.
@@ -11020,11 +11020,11 @@ So all delete methods lost transactional session support. This is a significant 
 OK, now I have the complete list. Let me present it cleanly.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember` call missing the active-only boolean flag that Java passes as `true`.
+- [ ] `IsGroupMember` call missing the active-only boolean flag that Java passes as `true`.
 
 ## upsertGroupConversationReadDate
-- [x] Java defaults null `readDate` to `new Date()`; Go uses value type `time.Time` — zero-value (0001-01-01) would be used instead of current time if called directly.
-- [x] Java swallows `DuplicateKeyException` when original `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Java defaults null `readDate` to `new Date()`; Go uses value type `time.Time` — zero-value (0001-01-01) would be used instead of current time if called directly.
+- [ ] Java swallows `DuplicateKeyException` when original `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
 - [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all operations and aggregate errors.
@@ -11033,10 +11033,10 @@ OK, now I have the complete list. Let me present it cleanly.
 - [x] Missing null `readDate` defaulting to current time. Go passes `&readDate` (non-nil) to `UpsertPrivateConversationsReadDate`, so zero-value `time.Time` won't be replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [x] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
+- [ ] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
 
 ## queryPrivateConversations
-- [x] Missing overload that takes `(Collection<Long> ownerIds, Long targetId)` and builds keys internally.
+- [ ] Missing overload that takes `(Collection<Long> ownerIds, Long targetId)` and builds keys internally.
 
 ## deletePrivateConversations (by userIds)
 - [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to repository.
@@ -11052,41 +11052,41 @@ OK, now I have the complete list. Let me present it cleanly.
 - [x] `IsGroupMember` missing active-only filter flag. Java calls `isGroupMember(toId, requesterId, true)`.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
+- [ ] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
 
 Let me now write the final report.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
+- [ ] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
 
 ## upsertGroupConversationReadDate
-- [x] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
-- [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
+- [ ] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
+- [ ] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [x] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
-- [x] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
+- [ ] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
 
 ## deletePrivateConversations (by userIds)
-- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
+- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
 
 ## deleteGroupConversations
-- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
+- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
 
 ## deleteGroupMemberConversations
-- [x] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
+- [ ] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
 
 ## authAndUpdateTypingStatus
-- [x] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
-- [x] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
+- [ ] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
+- [ ] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
 
 Wait, I want to also verify one more thing about the PrivateConversationRepository.Upsert. The Java version uses `mongoClient.upsert()` which calls `updateOne`. The Go version uses `r.collection.UpdateMany`. But looking at the Java code more carefully:
 
@@ -11184,59 +11184,59 @@ OK, I think I should not speculate further on the repository implementation deta
 Let me finalize.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
+- [ ] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
 
 ## upsertGroupConversationReadDate
-- [x] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
-- [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
+- [ ] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
+- [ ] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [x] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
-- [x] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
+- [ ] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
 
 ## deletePrivateConversations (by userIds)
-- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
+- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
 
 ## deleteGroupConversations
-- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
+- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
 
 ## deleteGroupMemberConversations
-- [x] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
+- [ ] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
 
 ## authAndUpdateTypingStatus
-- [x] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
-- [x] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
+- [ ] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
+- [ ] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
+- [ ] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
 
 Wait, I already have `authAndUpsertGroupConversationReadDate` in my list. The IsGroupMember flag issue belongs there. Let me consolidate.
 
 OK here's the clean final report:
 
 ## authAndUpsertGroupConversationReadDate
-- [x] `IsGroupMember` call missing active-only boolean flag: Java calls `isGroupMember(groupId, memberId, true)` to verify the user is an active group member; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag, potentially allowing inactive/banned members to update read dates.
+- [ ] `IsGroupMember` call missing active-only boolean flag: Java calls `isGroupMember(groupId, memberId, true)` to verify the user is an active group member; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag, potentially allowing inactive/banned members to update read dates.
 
 ## upsertGroupConversationReadDate
-- [x] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()` before passing to repository; Go uses `time.Time` value type, so a zero-value (0001-01-01) would be used instead of current time if called with a zero value.
-- [x] Missing conditional DuplicateKeyException swallowing: Java returns silently when `readDate` was originally null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()` before passing to repository; Go uses `time.Time` value type, so a zero-value (0001-01-01) would be used instead of current time if called with a zero value.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java returns silently when `readDate` was originally null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [x] Go fails fast on first error (`return err`); Java uses `Mono.whenDelayError` to execute all group upsert operations and aggregate all errors before failing.
+- [ ] Go fails fast on first error (`return err`); Java uses `Mono.whenDelayError` to execute all group upsert operations and aggregate all errors before failing.
 
 ## upsertPrivateConversationReadDate
-- [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil pointer) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
+- [ ] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil pointer) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [ ] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
 - [x] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds `PrivateConversationKey` list by pairing each owner ID with a common target ID. Java builds `Set<PrivateConversation.Key>` from `(ownerId, targetId)` pairs internally.
@@ -14286,7 +14286,7 @@ os.system **Missing `areSystemMessages` filter in repository query**: The Go `Au
 
 ## queryMessage
 
-- [x] No bugs found. Simple pass-through to repository.
+- [ ] No bugs found. Simple pass-through to repository.
 
 ## queryMessages
 
@@ -14315,7 +14315,7 @@ os.system **Date range uses `$gt`/`$lt` instead of `$gte`/`$lte`**: Java's `Date
 
 ## queryExpiredMessageIds
 
-- [x] **No bugs found**. Core logic is equivalent — computes expiration date and delegates to repository.
+- [ ] **No bugs found**. Core logic is equivalent — computes expiration date and delegates to repository.
 
 ## deleteExpiredMessages
 
@@ -14349,15 +14349,15 @@ os.system **Date range uses `$gt`/`$lt` instead of `$gte`/`$lte`**: Java's `Date
 
 ## countUsersWhoSentMessage
 
-- [x] **No bugs found**. Both delegate to repository with date range and type filters.
+- [ ] **No bugs found**. Both delegate to repository with date range and type filters.
 
 ## countGroupsThatSentMessages
 
-- [x] **No bugs found**. Both delegate to repository.
+- [ ] **No bugs found**. Both delegate to repository.
 
 ## countSentMessages
 
-- [x] **No bugs found**. Both delegate to repository.
+- [ ] **No bugs found**. Both delegate to repository.
 
 ## countSentMessagesOnAverage
 
