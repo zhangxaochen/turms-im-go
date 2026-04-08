@@ -328,19 +328,36 @@ func (s *GroupService) AuthAndDeleteGroup(ctx context.Context, requesterID int64
 // DeleteGroupsAndGroupMembers performs cascading deletion parity.
 // @MappedFrom deleteGroupsAndGroupMembers(@Nullable Set<Long> groupIds, @Nullable Boolean deleteLogically)
 func (s *GroupService) DeleteGroupsAndGroupMembers(ctx context.Context, groupIDs []int64, session mongo.SessionContext) error {
+	return s.DeleteGroupsAndGroupMembersWithLogical(ctx, groupIDs, true, session)
+}
+
+// DeleteGroupsAndGroupMembersWithLogical supports the deleteLogically parameter from Java.
+// When deleteLogically is true (default), soft-deletes by setting deletionDate.
+// When deleteLogically is false, physically removes the documents.
+func (s *GroupService) DeleteGroupsAndGroupMembersWithLogical(ctx context.Context, groupIDs []int64, deleteLogically bool, session mongo.SessionContext) error {
 	if len(groupIDs) == 0 {
 		return nil
 	}
 
-	// BUG FIX: Java always soft-deletes by setting DELETION_DATE to new Date()
-	deletionDate := time.Now()
-	err := s.groupRepo.UpdateGroupsDeletionDate(ctx, groupIDs, deletionDate, session)
-	if err != nil {
-		return err
+	if deleteLogically {
+		// BUG FIX: Java soft-deletes by setting DELETION_DATE to new Date()
+		deletionDate := time.Now()
+		err := s.groupRepo.UpdateGroupsDeletionDate(ctx, groupIDs, deletionDate, session)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Physical deletion: actually remove the documents
+		for _, groupID := range groupIDs {
+			err := s.groupRepo.DeleteGroup(ctx, groupID)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// 2. Cascading delete all group members
-	err = s.groupMemberService.DeleteAllGroupMembers(ctx, groupIDs, session, false)
+	err := s.groupMemberService.DeleteAllGroupMembers(ctx, groupIDs, session, false)
 	if err != nil {
 		return err
 	}
@@ -629,6 +646,13 @@ func (s *GroupService) QueryGroupsWithPagination(ctx context.Context, page, size
 }
 
 func (s *GroupService) QueryGroupsWithFilter(ctx context.Context, ids, typeIds, creatorIds, ownerIds []int64, isActive *bool, creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd, muteEndDateStart, muteEndDateEnd *time.Time, memberIds []int64, page, size *int) ([]*po.Group, error) {
+	return s.QueryGroupsWithFullFilters(ctx, ids, typeIds, creatorIds, ownerIds, isActive,
+		creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd,
+		muteEndDateStart, muteEndDateEnd, nil, nil, memberIds, page, size)
+}
+
+// QueryGroupsWithFullFilters passes all filter parameters including lastUpdatedDate to the repo.
+func (s *GroupService) QueryGroupsWithFullFilters(ctx context.Context, ids, typeIds, creatorIds, ownerIds []int64, isActive *bool, creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd, muteEndDateStart, muteEndDateEnd, lastUpdatedDateStart, lastUpdatedDateEnd *time.Time, memberIds []int64, page, size *int) ([]*po.Group, error) {
 	var skip *int32
 	var limit *int32
 	if page != nil && size != nil {
@@ -640,5 +664,7 @@ func (s *GroupService) QueryGroupsWithFilter(ctx context.Context, ids, typeIds, 
 		l := int32(*size)
 		limit = &l
 	}
-	return s.groupRepo.QueryGroups(ctx, ids, nil, nil, skip, limit)
+	return s.groupRepo.QueryGroupsWithFullFilter(ctx, ids, typeIds, creatorIds, ownerIds, isActive,
+		creationDateStart, creationDateEnd, deletionDateStart, deletionDateEnd,
+		muteEndDateStart, muteEndDateEnd, lastUpdatedDateStart, lastUpdatedDateEnd, skip, limit)
 }

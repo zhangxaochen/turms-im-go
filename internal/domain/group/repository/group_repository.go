@@ -93,6 +93,96 @@ func (r *GroupRepository) QueryGroups(ctx context.Context, groupIDs []int64, nam
 	return groups, nil
 }
 
+// QueryGroupsWithFullFilter retrieves groups based on comprehensive admin-level filters.
+// @MappedFrom queryGroups with all filter params from Java's GroupAdminController.
+func (r *GroupRepository) QueryGroupsWithFullFilter(
+	ctx context.Context,
+	ids, typeIds, creatorIds, ownerIds []int64,
+	isActive *bool,
+	creationDateStart, creationDateEnd *time.Time,
+	deletionDateStart, deletionDateEnd *time.Time,
+	muteEndDateStart, muteEndDateEnd *time.Time,
+	lastUpdatedDateStart, lastUpdatedDateEnd *time.Time,
+	skip, limit *int32,
+) ([]*po.Group, error) {
+	filter := bson.M{}
+	if len(ids) > 0 {
+		filter["_id"] = bson.M{"$in": ids}
+	}
+	if len(typeIds) > 0 {
+		filter["tid"] = bson.M{"$in": typeIds}
+	}
+	if len(creatorIds) > 0 {
+		filter["cid"] = bson.M{"$in": creatorIds}
+	}
+	if len(ownerIds) > 0 {
+		filter["oid"] = bson.M{"$in": ownerIds}
+	}
+	if isActive != nil {
+		filter["ac"] = *isActive
+	}
+	if creationDateStart != nil || creationDateEnd != nil {
+		dateFilter := bson.M{}
+		if creationDateStart != nil {
+			dateFilter["$gte"] = *creationDateStart
+		}
+		if creationDateEnd != nil {
+			dateFilter["$lte"] = *creationDateEnd
+		}
+		filter["cd"] = dateFilter
+	}
+	if deletionDateStart != nil || deletionDateEnd != nil {
+		dateFilter := bson.M{}
+		if deletionDateStart != nil {
+			dateFilter["$gte"] = *deletionDateStart
+		}
+		if deletionDateEnd != nil {
+			dateFilter["$lte"] = *deletionDateEnd
+		}
+		filter["dd"] = dateFilter
+	}
+	if muteEndDateStart != nil || muteEndDateEnd != nil {
+		dateFilter := bson.M{}
+		if muteEndDateStart != nil {
+			dateFilter["$gte"] = *muteEndDateStart
+		}
+		if muteEndDateEnd != nil {
+			dateFilter["$lte"] = *muteEndDateEnd
+		}
+		filter["med"] = dateFilter
+	}
+	if lastUpdatedDateStart != nil || lastUpdatedDateEnd != nil {
+		dateFilter := bson.M{}
+		if lastUpdatedDateStart != nil {
+			dateFilter["$gte"] = *lastUpdatedDateStart
+		}
+		if lastUpdatedDateEnd != nil {
+			dateFilter["$lte"] = *lastUpdatedDateEnd
+		}
+		filter["lud"] = dateFilter
+	}
+
+	opts := options.Find()
+	if skip != nil {
+		opts.SetSkip(int64(*skip))
+	}
+	if limit != nil {
+		opts.SetLimit(int64(*limit))
+	}
+
+	cursor, err := r.col.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var groups []*po.Group
+	if err := cursor.All(ctx, &groups); err != nil {
+		return nil, err
+	}
+	return groups, nil
+}
+
 // FindGroupOwnerID retrieves the owner ID of a specific group.
 func (r *GroupRepository) FindGroupOwnerID(ctx context.Context, groupID int64) (*int64, error) {
 	filter := bson.M{"_id": groupID}
