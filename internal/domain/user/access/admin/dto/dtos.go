@@ -1,6 +1,12 @@
 package dto
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	common_dto "im.turms/server/internal/domain/common/access/admin/dto"
+)
 
 // @MappedFrom AddFriendRequestDTO.java
 type AddFriendRequestDTO struct {
@@ -32,16 +38,58 @@ type AddRelationshipGroupDTO struct {
 }
 
 // @MappedFrom AddUserDTO.java
+// password is allowed for deserialization but excluded from serialization (matching Java @SensitiveProperty).
 type AddUserDTO struct {
-	ID                *int64     `json:"id,omitempty"`
-	Password          *string    `json:"password,omitempty"`
-	Name              *string    `json:"name,omitempty"`
-	Intro             *string    `json:"intro,omitempty"`
-	ProfilePicture    *string    `json:"profilePicture,omitempty"`
-	ProfileAccess     *int       `json:"profileAccess,omitempty"`
-	PermissionGroupID *int64     `json:"permissionGroupId,omitempty"`
-	RegistrationDate  *time.Time `json:"registrationDate,omitempty"`
-	IsActive          *bool      `json:"isActive,omitempty"`
+	ID                    *int64     `json:"id,omitempty"`
+	password              *string    `json:"-"` // internal only; see UnmarshalJSON/MarshalJSON
+	Name                  *string    `json:"name,omitempty"`
+	Intro                 *string    `json:"intro,omitempty"`
+	ProfilePicture        *string    `json:"profilePicture,omitempty"`
+	ProfileAccessStrategy *int       `json:"profileAccessStrategy,omitempty"`
+	RoleID                *int64     `json:"roleId,omitempty"`
+	RegistrationDate      *time.Time `json:"registrationDate,omitempty"`
+	IsActive              *bool      `json:"isActive,omitempty"`
+}
+
+// Password returns the password field (for internal use only, never serialized to JSON).
+func (dto *AddUserDTO) Password() *string {
+	return dto.password
+}
+
+// UnmarshalJSON implements custom deserialization to handle the password field
+// which is allowed in input but excluded from output (matching Java @SensitiveProperty(ALLOW_DESERIALIZATION)).
+func (dto *AddUserDTO) UnmarshalJSON(data []byte) error {
+	type Alias AddUserDTO
+	aux := &struct {
+		Password *string `json:"password,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(dto),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	dto.password = aux.Password
+	return nil
+}
+
+// MarshalJSON implements custom serialization to exclude the password field from JSON output.
+func (dto *AddUserDTO) MarshalJSON() ([]byte, error) {
+	type Alias AddUserDTO
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(dto),
+	})
+}
+
+// String implements fmt.Stringer with password masking.
+// @MappedFrom AddUserDTO.toString()
+func (dto *AddUserDTO) String() string {
+	return fmt.Sprintf(
+		"AddUserDTO{id=%v, password=***, name=%v, intro=%v, profilePicture=%v, profileAccessStrategy=%v, roleId=%v, registrationDate=%v, isActive=%v}",
+		dto.ID, dto.Name, dto.Intro, dto.ProfilePicture, dto.ProfileAccessStrategy, dto.RoleID, dto.RegistrationDate, dto.IsActive,
+	)
 }
 
 // @MappedFrom AddUserRoleDTO.java
@@ -84,15 +132,56 @@ type UpdateRelationshipGroupDTO struct {
 }
 
 // @MappedFrom UpdateUserDTO.java
+// password is allowed for deserialization but excluded from serialization (matching Java @SensitiveProperty).
 type UpdateUserDTO struct {
-	Password          *string    `json:"password,omitempty"`
-	Name              *string    `json:"name,omitempty"`
-	Intro             *string    `json:"intro,omitempty"`
-	ProfilePicture    *string    `json:"profilePicture,omitempty"`
-	ProfileAccess     *int       `json:"profileAccess,omitempty"`
-	PermissionGroupID *int64     `json:"permissionGroupId,omitempty"`
-	RegistrationDate  *time.Time `json:"registrationDate,omitempty"`
-	IsActive          *bool      `json:"isActive,omitempty"`
+	password              *string    `json:"-"` // internal only; see UnmarshalJSON/MarshalJSON
+	Name                  *string    `json:"name,omitempty"`
+	Intro                 *string    `json:"intro,omitempty"`
+	ProfilePicture        *string    `json:"profilePicture,omitempty"`
+	ProfileAccessStrategy *int       `json:"profileAccessStrategy,omitempty"`
+	RoleID                *int64     `json:"roleId,omitempty"`
+	RegistrationDate      *time.Time `json:"registrationDate,omitempty"`
+	IsActive              *bool      `json:"isActive,omitempty"`
+}
+
+// Password returns the password field (for internal use only, never serialized to JSON).
+func (dto *UpdateUserDTO) Password() *string {
+	return dto.password
+}
+
+// UnmarshalJSON implements custom deserialization to handle the password field.
+func (dto *UpdateUserDTO) UnmarshalJSON(data []byte) error {
+	type Alias UpdateUserDTO
+	aux := &struct {
+		Password *string `json:"password,omitempty"`
+		*Alias
+	}{
+		Alias: (*Alias)(dto),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	dto.password = aux.Password
+	return nil
+}
+
+// MarshalJSON implements custom serialization to exclude the password field from JSON output.
+func (dto *UpdateUserDTO) MarshalJSON() ([]byte, error) {
+	type Alias UpdateUserDTO
+	return json.Marshal(&struct {
+		*Alias
+	}{
+		Alias: (*Alias)(dto),
+	})
+}
+
+// String implements fmt.Stringer with password masking.
+// @MappedFrom UpdateUserDTO.toString()
+func (dto *UpdateUserDTO) String() string {
+	return fmt.Sprintf(
+		"UpdateUserDTO{password=***, name=%v, intro=%v, profilePicture=%v, profileAccessStrategy=%v, roleId=%v, registrationDate=%v, isActive=%v}",
+		dto.Name, dto.Intro, dto.ProfilePicture, dto.ProfileAccessStrategy, dto.RoleID, dto.RegistrationDate, dto.IsActive,
+	)
 }
 
 // @MappedFrom UpdateUserRoleDTO.java
@@ -131,35 +220,50 @@ type UserLocationDTO struct {
 	Latitude   *float64 `json:"latitude,omitempty"`
 }
 
+// UserRelationshipDTOKey represents the nested Key record from Java's UserRelationshipDTO.Key.
+// @MappedFrom UserRelationshipDTO.Key
+type UserRelationshipDTOKey struct {
+	OwnerID       *int64 `json:"ownerId,omitempty"`
+	RelatedUserID *int64 `json:"relatedUserId,omitempty"`
+}
+
 // @MappedFrom UserRelationshipDTO.java
 type UserRelationshipDTO struct {
-	OwnerID           *int64     `json:"ownerId,omitempty"`
-	RelatedUserID     *int64     `json:"relatedUserId,omitempty"`
-	Name              *string    `json:"name,omitempty"`
-	BlockDate         *time.Time `json:"blockDate,omitempty"`
-	EstablishmentDate *time.Time `json:"establishmentDate,omitempty"`
-	GroupIndexes      []int      `json:"groupIndexes,omitempty"`
+	Key               *UserRelationshipDTOKey `json:"key,omitempty"`
+	Name              *string                 `json:"name,omitempty"`
+	BlockDate         *time.Time              `json:"blockDate,omitempty"`
+	EstablishmentDate *time.Time              `json:"establishmentDate,omitempty"`
+	GroupIndexes      []int                   `json:"groupIndexes,omitempty"`
 }
 
 // @MappedFrom UserStatisticsDTO.java
 type UserStatisticsDTO struct {
-	DeletedUsers             *int64        `json:"deletedUsers,omitempty"`
-	UsersWhoSentMessages     *int64        `json:"usersWhoSentMessages,omitempty"`
-	LoggedInUsers            *int64        `json:"loggedInUsers,omitempty"`
-	MaxOnlineUsers           *int64        `json:"maxOnlineUsers,omitempty"`
-	RegisteredUsers          *int64        `json:"registeredUsers,omitempty"`
-	DeletedUsersRecords      []interface{} `json:"deletedUsersRecords,omitempty"`         // placeholder
-	UsersWhoSentMessagesRecs []interface{} `json:"usersWhoSentMessagesRecords,omitempty"` // placeholder
-	LoggedInUsersRecords     []interface{} `json:"loggedInUsersRecords,omitempty"`        // placeholder
-	MaxOnlineUsersRecords    []interface{} `json:"maxOnlineUsersRecords,omitempty"`       // placeholder
-	RegisteredUsersRecords   []interface{} `json:"registeredUsersRecords,omitempty"`      // placeholder
+	DeletedUsers                 *int64                       `json:"deletedUsers,omitempty"`
+	UsersWhoSentMessages         *int64                       `json:"usersWhoSentMessages,omitempty"`
+	LoggedInUsers                *int64                       `json:"loggedInUsers,omitempty"`
+	MaxOnlineUsers               *int64                       `json:"maxOnlineUsers,omitempty"`
+	RegisteredUsers              *int64                       `json:"registeredUsers,omitempty"`
+	DeletedUsersRecords          []common_dto.StatisticsRecordDTO `json:"deletedUsersRecords,omitempty"`
+	UsersWhoSentMessagesRecords  []common_dto.StatisticsRecordDTO `json:"usersWhoSentMessagesRecords,omitempty"`
+	LoggedInUsersRecords         []common_dto.StatisticsRecordDTO `json:"loggedInUsersRecords,omitempty"`
+	MaxOnlineUsersRecords        []common_dto.StatisticsRecordDTO `json:"maxOnlineUsersRecords,omitempty"`
+	RegisteredUsersRecords       []common_dto.StatisticsRecordDTO `json:"registeredUsersRecords,omitempty"`
 }
 
 // @MappedFrom UserStatusDTO.java
 type UserStatusDTO struct {
-	UserID             *int64           `json:"userId,omitempty"`
-	Status             *int             `json:"status,omitempty"`
-	DeviceTypeToNodeID map[int]string   `json:"deviceTypeToNodeId,omitempty"`
-	LoginDate          *time.Time       `json:"loginDate,omitempty"`
-	LoginLocation      *UserLocationDTO `json:"loginLocation,omitempty"`
+	UserID             *int64             `json:"userId,omitempty"`
+	Status             *int               `json:"status,omitempty"`
+	DeviceTypeToNodeID map[int]string     `json:"deviceTypeToNodeId,omitempty"`
+	LoginDate          *time.Time         `json:"loginDate,omitempty"`
+	LoginLocation      *LocationDTO       `json:"loginLocation,omitempty"`
+}
+
+// LocationDTO represents the Java Location record with longitude, latitude, timestamp, and details.
+// @MappedFrom Location.java (im.turms.server.common.domain.user.po.Location)
+type LocationDTO struct {
+	Longitude *float32          `json:"longitude,omitempty"`
+	Latitude  *float32          `json:"latitude,omitempty"`
+	Timestamp *time.Time        `json:"timestamp,omitempty"`
+	Details   map[string]string `json:"details,omitempty"`
 }

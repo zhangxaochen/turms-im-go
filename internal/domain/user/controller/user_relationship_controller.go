@@ -13,10 +13,15 @@ import (
 	"im.turms/server/pkg/protocol"
 )
 
+const defaultRelationshipGroupIndex int32 = 0
+
 type UserRelationshipController struct {
-	userFriendRequestService     service.UserFriendRequestService
-	userRelationshipGroupService service.UserRelationshipGroupService
-	userRelationshipService      service.UserRelationshipService
+	userFriendRequestService       service.UserFriendRequestService
+	userRelationshipGroupService   service.UserRelationshipGroupService
+	userRelationshipService        service.UserRelationshipService
+	deleteTwoSidedRelationships    bool
+	notifyFriendRequestRecipient   bool
+	notifyRequesterOtherSessions   bool
 }
 
 func NewUserRelationshipController(
@@ -51,11 +56,20 @@ func (c *UserRelationshipController) RegisterRoutes(r *router.Router) {
 // @MappedFrom handleCreateFriendRequestRequest()
 func (c *UserRelationshipController) HandleCreateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	createReq := req.GetCreateFriendRequestRequest()
-	_, err := c.userFriendRequestService.AuthAndCreateFriendRequest(ctx, s.UserID, createReq.GetRecipientId(), createReq.GetContent(), time.Now())
+	friendRequest, err := c.userFriendRequestService.AuthAndCreateFriendRequest(ctx, s.UserID, createReq.GetRecipientId(), createReq.GetContent(), time.Now())
 	if err != nil {
 		return nil, err
 	}
-	return buildSuccessNotification(req.RequestId), nil
+	// Return the friend request ID as Long data (matching Java: RequestHandlerResult.ofDataLong(friendRequest.getId(), ...))
+	return &protocol.TurmsNotification{
+		RequestId: req.RequestId,
+		Code:      proto.Int32(1000),
+		Data: &protocol.TurmsNotification_Data{
+			Kind: &protocol.TurmsNotification_Data_Long{
+				Long: friendRequest.ID,
+			},
+		},
+	}, nil
 }
 
 // @MappedFrom handleCreateRelationshipGroupRequest()
@@ -87,9 +101,15 @@ func (c *UserRelationshipController) HandleCreateRelationshipRequest(ctx context
 		now := time.Now()
 		blockDate = &now
 	}
+
+	// Default groupIndex to DEFAULT_RELATIONSHIP_GROUP_INDEX (0) when not set in the request
+	groupIndex := int32(defaultRelationshipGroupIndex)
+	if createReq.GroupIndex != nil {
+		groupIndex = createReq.GetGroupIndex()
+	}
 	now := time.Now()
 
-	_, err := c.userRelationshipService.UpsertOneSidedRelationship(ctx, s.UserID, createReq.GetUserId(), blockDate, createReq.GroupIndex, &now, createReq.Name, nil)
+	_, err := c.userRelationshipService.UpsertOneSidedRelationship(ctx, s.UserID, createReq.GetUserId(), blockDate, &groupIndex, &now, createReq.Name, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -109,17 +129,19 @@ func (c *UserRelationshipController) HandleDeleteFriendRequestRequest(ctx contex
 // @MappedFrom handleDeleteRelationshipGroupRequest()
 func (c *UserRelationshipController) HandleDeleteRelationshipGroupRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteRelationshipGroupRequest()
+
+	// Java always calls deleteRelationshipGroupAndMoveMembersToNewGroup, defaulting targetGroupIndex
+	// to DEFAULT_RELATIONSHIP_GROUP_INDEX (0) when not set in the request.
+	targetGroupIndex := int32(defaultRelationshipGroupIndex)
 	if deleteReq.TargetGroupIndex != nil {
-		err := c.userRelationshipGroupService.DeleteRelationshipGroupAndMoveMembersToNewGroup(ctx, s.UserID, deleteReq.GetGroupIndex(), deleteReq.GetTargetGroupIndex())
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		_, err := c.userRelationshipGroupService.DeleteRelationshipGroups(ctx, s.UserID, []int32{deleteReq.GetGroupIndex()}, nil)
-		if err != nil {
-			return nil, err
-		}
+		targetGroupIndex = deleteReq.GetTargetGroupIndex()
 	}
+
+	err := c.userRelationshipGroupService.DeleteRelationshipGroupAndMoveMembersToNewGroup(ctx, s.UserID, deleteReq.GetGroupIndex(), targetGroupIndex)
+	if err != nil {
+		return nil, err
+	}
+
 	return buildSuccessNotification(req.RequestId), nil
 }
 
@@ -127,13 +149,8 @@ func (c *UserRelationshipController) HandleDeleteRelationshipGroupRequest(ctx co
 func (c *UserRelationshipController) HandleDeleteRelationshipRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	deleteReq := req.GetDeleteRelationshipRequest()
 
-	if deleteReq.GetTargetGroupIndex() != 0 || deleteReq.TargetGroupIndex != nil {
-		err := c.userRelationshipGroupService.MoveRelatedUserToNewGroup(ctx, s.UserID, deleteReq.GetUserId(), deleteReq.GetGroupIndex(), deleteReq.GetTargetGroupIndex(), true, nil)
-		if err != nil {
-			return nil, err
-		}
-	} else if deleteReq.GetGroupIndex() != 0 || deleteReq.GroupIndex != nil {
-		_, err := c.userRelationshipGroupService.DeleteRelatedUserFromRelationshipGroup(ctx, s.UserID, deleteReq.GetUserId(), deleteReq.GetGroupIndex(), nil, true)
+	if c.deleteTwoSidedRelationships {
+		err := c.userRelationshipService.TryDeleteTwoSidedRelationships(ctx, s.UserID, deleteReq.GetUserId(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -143,6 +160,7 @@ func (c *UserRelationshipController) HandleDeleteRelationshipRequest(ctx context
 			return nil, err
 		}
 	}
+
 	return buildSuccessNotification(req.RequestId), nil
 }
 
@@ -189,7 +207,19 @@ func (c *UserRelationshipController) HandleQueryRelatedUserIdsRequest(ctx contex
 		lastUpdatedTime = &t
 	}
 
-	userIds, version, err := c.userRelationshipService.QueryRelatedUserIdsWithVersion(ctx, s.UserID, queryReq.GetGroupIndexes(), queryReq.Blocked, lastUpdatedTime)
+	// Convert empty groupIndexes list to nil (matching Java: groupIndexesList.isEmpty() ? null : groupIndexesList)
+	groupIndexes := queryReq.GetGroupIndexes()
+	if len(groupIndexes) == 0 {
+		groupIndexes = nil
+	}
+
+	// Handle Blocked tri-state: nil when unset, false when explicitly false, true when explicitly true
+	var isBlocked *bool
+	if queryReq.Blocked != nil {
+		isBlocked = queryReq.Blocked
+	}
+
+	userIds, version, err := c.userRelationshipService.QueryRelatedUserIdsWithVersion(ctx, s.UserID, groupIndexes, isBlocked, lastUpdatedTime)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +293,25 @@ func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context
 		lastUpdatedTime = &t
 	}
 
-	relationships, version, err := c.userRelationshipService.QueryRelationshipsWithVersion(ctx, s.UserID, queryReq.GetUserIds(), queryReq.GetGroupIndexes(), queryReq.Blocked, lastUpdatedTime)
+	// Convert empty userIds list to nil (matching Java: userIdsList.isEmpty() ? null : userIdsList)
+	userIDs := queryReq.GetUserIds()
+	if len(userIDs) == 0 {
+		userIDs = nil
+	}
+
+	// Convert empty groupIndexes list to nil
+	groupIndexes := queryReq.GetGroupIndexes()
+	if len(groupIndexes) == 0 {
+		groupIndexes = nil
+	}
+
+	// Handle Blocked tri-state: nil when unset
+	var isBlocked *bool
+	if queryReq.Blocked != nil {
+		isBlocked = queryReq.Blocked
+	}
+
+	relationships, version, err := c.userRelationshipService.QueryRelationshipsWithVersion(ctx, s.UserID, userIDs, groupIndexes, isBlocked, lastUpdatedTime)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +345,13 @@ func (c *UserRelationshipController) HandleQueryRelationshipsRequest(ctx context
 func (c *UserRelationshipController) HandleUpdateFriendRequestRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateFriendRequestRequest()
 
-	// In Go, ResponseAction is probably mapped from proto
-	_, err := c.userFriendRequestService.AuthAndHandleFriendRequest(ctx, updateReq.GetRequestId(), s.UserID, po.ResponseAction(updateReq.GetResponseAction()), updateReq.Reason)
+	// Handle reason: nil when unset (matching Java: request.hasReason() ? request.getReason() : null)
+	var reason *string
+	if updateReq.Reason != nil {
+		reason = updateReq.Reason
+	}
+
+	_, err := c.userFriendRequestService.AuthAndHandleFriendRequest(ctx, updateReq.GetRequestId(), s.UserID, po.ResponseAction(updateReq.GetResponseAction()), reason)
 	if err != nil {
 		return nil, err
 	}
@@ -330,9 +383,29 @@ func (c *UserRelationshipController) HandleUpdateRelationshipRequest(ctx context
 		}
 	}
 
-	err := c.userRelationshipService.UpdateUserOneSidedRelationships(ctx, s.UserID, []int64{updateReq.GetUserId()}, blockDate, updateReq.NewGroupIndex, nil, updateReq.Name, nil)
+	// Match Java: use UpsertOneSidedRelationship instead of UpdateUserOneSidedRelationships
+	// Java: upsertOneSidedRelationship(userId, request.getUserId(), name, blockDate, newGroupIndex, deleteGroupIndex, null, true, null)
+	var newGroupIndex *int32
+	if updateReq.NewGroupIndex != nil {
+		newGroupIndex = updateReq.NewGroupIndex
+	}
+
+	var deleteGroupIndex *int32
+	if updateReq.DeleteGroupIndex != nil {
+		deleteGroupIndex = updateReq.DeleteGroupIndex
+	}
+
+	_, err := c.userRelationshipService.UpsertOneSidedRelationship(ctx, s.UserID, updateReq.GetUserId(), blockDate, newGroupIndex, nil, updateReq.Name, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	// Handle deleteGroupIndex by moving to new group if specified
+	if deleteGroupIndex != nil {
+		err := c.userRelationshipGroupService.MoveRelatedUserToNewGroup(ctx, s.UserID, updateReq.GetUserId(), *deleteGroupIndex, defaultRelationshipGroupIndex, true, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return buildSuccessNotification(req.RequestId), nil

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -113,20 +114,37 @@ func (c *UserServiceController) HandleQueryUserProfilesRequest(ctx context.Conte
 func (c *UserServiceController) HandleQueryNearbyUsersRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	queryReq := req.GetQueryNearbyUsersRequest()
 
+	// Read maxCount and maxDistance from request (matching Java: request.hasMaxCount() ? ... : null)
+	var maxCount *int
+	if queryReq.MaxCount != nil {
+		mc := int(queryReq.GetMaxCount())
+		maxCount = &mc
+	}
+	var maxDistance *float64
+	if queryReq.MaxDistance != nil {
+		md := float64(queryReq.GetMaxDistance())
+		maxDistance = &md
+	}
+
 	nearbyUsers, err := c.nearbyUserService.QueryNearbyUsers(
 		ctx,
 		s.UserID,
 		s.DeviceType,
 		&queryReq.Longitude,
 		&queryReq.Latitude,
-		nil, // maxCount
-		nil, // maxDistance
+		maxCount,
+		maxDistance,
 		queryReq.GetWithCoordinates(),
 		queryReq.GetWithDistance(),
 		queryReq.GetWithUserInfo(),
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// Return NO_CONTENT when no nearby users found (matching Java: RequestHandlerResult.NO_CONTENT)
+	if len(nearbyUsers) == 0 {
+		return buildSuccessNotification(req.RequestId), nil
 	}
 
 	nearbyUserProtos := make([]*protocol.NearbyUser, 0, len(nearbyUsers))
@@ -181,6 +199,11 @@ func (c *UserServiceController) HandleQueryUserOnlineStatusesRequest(ctx context
 	queryReq := req.GetQueryUserOnlineStatusesRequest()
 	userIDs := queryReq.GetUserIds()
 
+	// Early return for empty user IDs (matching Java: if (request.getUserIdsCount() == 0) return Mono.empty())
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+
 	sessions, err := c.sessionService.QueryUserSessions(ctx, userIDs)
 	if err != nil {
 		return nil, err
@@ -227,7 +250,36 @@ func (c *UserServiceController) HandleUpdateUserLocationRequest(ctx context.Cont
 // @MappedFrom handleUpdateUserOnlineStatusRequest()
 func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.Context, s *session.UserSession, req *protocol.TurmsRequest) (*protocol.TurmsNotification, error) {
 	updateReq := req.GetUpdateUserOnlineStatusRequest()
-	updated, err := c.userStatusService.UpdateStatus(ctx, s.UserID, updateReq.UserStatus)
+	userStatus := updateReq.GetUserStatus()
+
+	// Validate UNRECOGNIZED status (matching Java: if (userStatus == UserStatus.UNRECOGNIZED) return ILLEGAL_ARGUMENT)
+	_, known := protocol.UserStatus_name[int32(userStatus)]
+	if !known {
+		return nil, fmt.Errorf("ILLEGAL_ARGUMENT: unrecognized user status %v", userStatus)
+	}
+
+	// Handle OFFLINE status: disconnect the user (matching Java: if (userStatus == UserStatus.OFFLINE) sessionService.disconnect())
+	if userStatus == protocol.UserStatus_OFFLINE {
+		deviceTypes := updateReq.GetDeviceTypes()
+		if len(deviceTypes) > 0 {
+			// Disconnect specific device types
+			for _, dt := range deviceTypes {
+				_, err := c.sessionService.DisconnectWithDeviceType(ctx, s.UserID, int(dt), 0)
+				if err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			// Disconnect all devices
+			_, err := c.sessionService.Disconnect(ctx, s.UserID, 0)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return buildSuccessNotification(req.RequestId), nil
+	}
+
+	updated, err := c.userStatusService.UpdateStatus(ctx, s.UserID, userStatus)
 	if err != nil {
 		return nil, err
 	}
@@ -244,9 +296,7 @@ func (c *UserServiceController) HandleUpdateUserOnlineStatusRequest(ctx context.
 							Statuses: []*protocol.UserOnlineStatus{
 								{
 									UserId:     s.UserID,
-									UserStatus: updateReq.UserStatus,
-									// In broadcast, we usually just send the new status.
-									// Gateway session info can be added if needed, but Turms defaults to just status.
+									UserStatus: userStatus,
 								},
 							},
 						},
