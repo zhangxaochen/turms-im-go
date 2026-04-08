@@ -35,6 +35,9 @@ func TestMessageCore_E2E(t *testing.T) {
 
 	// Create MessageService (passing nil for user/group relation checks to isolate message testing)
 	propsMgr := property.NewTurmsPropertiesManager()
+	globalProps := propsMgr.GetGlobalProperties()
+	globalProps.Service.Message.AllowEditMessageBySender = true
+	globalProps.Service.Message.AllowRecallMessage = true
 	plugMgr := plugin.NewPluginManager()
 	msgService := service.NewMessageService(idGen, seqGen, msgRepo, nil, nil, nil, nil, nil, propsMgr, plugMgr)
 	defer msgService.Close()
