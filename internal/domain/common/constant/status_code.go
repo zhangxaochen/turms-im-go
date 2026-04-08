@@ -109,6 +109,12 @@ const (
 	ResponseStatusCode_USER_ALREADY_GROUP_MEMBER            ResponseStatusCode = 3405
 	ResponseStatusCode_GROUP_JOIN_STRATEGY_NOT_JOIN_REQUEST ResponseStatusCode = 3407
 
+	ResponseStatusCode_SEND_GROUP_JOIN_REQUEST_TO_GROUP_USING_MEMBERSHIP_REQUEST ResponseStatusCode = 3408
+	ResponseStatusCode_SEND_GROUP_JOIN_REQUEST_TO_GROUP_USING_INVITATION         ResponseStatusCode = 3409
+	ResponseStatusCode_SEND_GROUP_JOIN_REQUEST_TO_GROUP_USING_QUESTION           ResponseStatusCode = 3410
+	ResponseStatusCode_GROUP_OWNER_QUIT_WITHOUT_SPECIFYING_SUCCESSOR             ResponseStatusCode = 3411
+	ResponseStatusCode_EXPIRED_GROUP_JOIN_REQUEST                                ResponseStatusCode = 3412
+
 	ResponseStatusCode_SEND_GROUP_INVITATION_TO_GROUP_MEMBER ResponseStatusCode = 3712
 	ResponseStatusCode_SEND_GROUP_INVITATION_TO_BLOCKED_USER ResponseStatusCode = 3713
 

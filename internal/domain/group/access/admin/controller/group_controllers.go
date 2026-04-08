@@ -539,9 +539,9 @@ func NewGroupJoinRequestController(base *commoncontroller.BaseController, groupJ
 // Bug fix: use CreateGroupJoinRequest (admin, no auth) instead of AuthAndCreateJoinRequest.
 // Pass all 9 fields.
 func (c *GroupJoinRequestController) AddGroupJoinRequest(ctx context.Context, addDTO group_dto.AddGroupJoinRequestDTO) error {
-	var id int64
+	var id *int64
 	if addDTO.Id != nil {
-		id = *addDTO.Id
+		id = addDTO.Id
 	}
 	var groupId int64
 	if addDTO.GroupId != nil {
@@ -555,43 +555,33 @@ func (c *GroupJoinRequestController) AddGroupJoinRequest(ctx context.Context, ad
 	if addDTO.ResponderId != nil {
 		responderId = addDTO.ResponderId
 	}
-	var content string
+	var content *string
 	if addDTO.Content != nil {
-		content = *addDTO.Content
+		content = addDTO.Content
 	}
-	var status po.RequestStatus
+	var status *po.RequestStatus
 	if addDTO.Status != nil {
+		var s po.RequestStatus
 		switch v := addDTO.Status.(type) {
 		case int:
-			status = po.RequestStatus(v)
+			s = po.RequestStatus(v)
 		case int32:
-			status = po.RequestStatus(v)
+			s = po.RequestStatus(v)
 		case int64:
-			status = po.RequestStatus(v)
+			s = po.RequestStatus(v)
 		case float64:
-			status = po.RequestStatus(int(v))
+			s = po.RequestStatus(int(v))
 		default:
-			status = po.RequestStatusPending
+			s = po.RequestStatusPending
 		}
+		status = &s
 	}
-	var creationDate time.Time
+	var creationDate *time.Time
 	if addDTO.CreationDate != nil {
-		creationDate = *addDTO.CreationDate
-	} else {
-		creationDate = time.Now()
+		creationDate = addDTO.CreationDate
 	}
-	req := &po.GroupJoinRequest{
-		ID:           id,
-		GroupID:      groupId,
-		RequesterID:  requesterId,
-		ResponderID:  responderId,
-		Content:      content,
-		Status:       status,
-		CreationDate: creationDate,
-		ResponseDate: addDTO.ResponseDate,
-		Reason:       addDTO.ResponseReason,
-	}
-	return c.groupJoinRequestService.CreateGroupJoinRequest(ctx, req)
+	_, err := c.groupJoinRequestService.CreateGroupJoinRequest(ctx, id, groupId, requesterId, responderId, content, status, creationDate, addDTO.ResponseDate, addDTO.ResponseReason)
+	return err
 }
 
 // QueryGroupJoinRequests queries join requests with filters (non-paged).

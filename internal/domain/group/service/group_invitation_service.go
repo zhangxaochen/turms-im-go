@@ -166,6 +166,10 @@ func (s *GroupInvitationService) AuthAndRecallPendingGroupInvitation(
 	if err != nil {
 		return err
 	}
+	// BUG FIX: Check for zero values (invitation not found) — Java returns empty Mono with error
+	if groupID == 0 {
+		return exception.NewTurmsError(codes.RecallNonPendingGroupInvitation, "Invitation not found")
+	}
 	if status != po.RequestStatusPending {
 		return exception.NewTurmsError(codes.RecallNonPendingGroupInvitation, "Cannot recall non-pending invitation")
 	}
@@ -211,6 +215,10 @@ func (s *GroupInvitationService) AuthAndHandleInvitation(
 	inviteeID, groupID, _, currentStatus, err := s.invRepo.FindInviteeIdAndGroupIdAndCreationDateAndStatus(ctx, invitationID)
 	if err != nil {
 		return err
+	}
+	// BUG FIX: Check for zero values (invitation not found) — Java returns empty Mono with error
+	if inviteeID == 0 {
+		return exception.NewTurmsError(codes.NotInviteeToUpdateGroupInvitation, "Invitation not found")
 	}
 	if inviteeID != requesterID {
 		return exception.NewTurmsError(codes.NotInviteeToUpdateGroupInvitation, "Only invitee can handle invitation")

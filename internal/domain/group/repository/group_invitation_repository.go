@@ -207,6 +207,9 @@ func (r *groupInvitationRepository) FindGroupIdAndInviterIdAndInviteeIdAndStatus
 	opts := options.FindOne().SetProjection(bson.M{"gid": 1, "irid": 1, "ieid": 1, "stat": 1, "cd": 1})
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}, opts).Decode(&results)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, 0, 0, 0, nil
+		}
 		return 0, 0, 0, 0, err
 	}
 	// BUG FIX: Apply expiration transformation like Java's findExpirableDoc
@@ -229,6 +232,9 @@ func (r *groupInvitationRepository) FindGroupIdAndInviteeIdAndStatus(ctx context
 	opts := options.FindOne().SetProjection(bson.M{"gid": 1, "ieid": 1, "stat": 1, "cd": 1})
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}, opts).Decode(&results)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, 0, 0, nil
+		}
 		return 0, 0, 0, err
 	}
 	// BUG FIX: Apply expiration transformation like Java's findExpirableDoc
@@ -249,7 +255,13 @@ func (r *groupInvitationRepository) FindInviteeIdAndGroupIdAndCreationDateAndSta
 	}
 	opts := options.FindOne().SetProjection(bson.M{"ieid": 1, "gid": 1, "cd": 1, "stat": 1})
 	err := r.coll.FindOne(ctx, bson.M{"_id": id}, opts).Decode(&results)
-	return results.InviteeID, results.GroupID, results.CreationDate, results.Status, err
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return 0, 0, time.Time{}, 0, nil
+		}
+		return 0, 0, time.Time{}, 0, err
+	}
+	return results.InviteeID, results.GroupID, results.CreationDate, results.Status, nil
 }
 
 // @MappedFrom updateInvitations(@NotEmpty Set<Long> invitationIds, @Nullable Long inviterId, @Nullable Long inviteeId, @Nullable String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate)

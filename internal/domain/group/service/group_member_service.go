@@ -64,6 +64,11 @@ func (s *GroupMemberService) Close() {
 // AddGroupMember adds a new member with the given role.
 // If requesterID is nil, it's considered a system operation (no RBAC check).
 func (s *GroupMemberService) AddGroupMember(ctx context.Context, groupID, userID int64, role protocol.GroupMemberRole, requesterID *int64, muteEndDate *time.Time) error {
+	return s.AddGroupMemberWithDetails(ctx, groupID, userID, role, nil, nil, requesterID, muteEndDate)
+}
+
+// AddGroupMemberWithDetails adds a new member with full details including name and joinDate.
+func (s *GroupMemberService) AddGroupMemberWithDetails(ctx context.Context, groupID, userID int64, role protocol.GroupMemberRole, name *string, joinDate *time.Time, requesterID *int64, muteEndDate *time.Time) error {
 	if requesterID != nil {
 		// RBAC: check if requester is Owner/Manager
 		reqRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, *requesterID)
@@ -76,17 +81,31 @@ func (s *GroupMemberService) AddGroupMember(ctx context.Context, groupID, userID
 	}
 
 	now := time.Now()
+	finalJoinDate := &now
+	if joinDate != nil {
+		finalJoinDate = joinDate
+	}
+
 	member := &po.GroupMember{
 		ID: po.GroupMemberKey{
 			GroupID: groupID,
 			UserID:  userID,
 		},
 		Role:        role,
-		JoinDate:    &now,
+		Name:        name,
+		JoinDate:    finalJoinDate,
 		MuteEndDate: muteEndDate,
 	}
 
-	return s.groupMemberRepo.AddGroupMember(ctx, member)
+	err := s.groupMemberRepo.AddGroupMember(ctx, member)
+	if err != nil {
+		return err
+	}
+
+	// Update members version (Java: groupVersionService.updateMembersVersion)
+	_ = s.groupVersionService.UpdateMembersVersion(ctx, groupID)
+
+	return nil
 }
 
 // UpdateGroupMember updates a group member's information.
@@ -101,6 +120,11 @@ func (s *GroupMemberService) UpdateGroupMember(
 	session mongo.SessionContext,
 	updateVersion bool,
 ) error {
+	// BUG FIX: All-null early return (Java: areAllNull check)
+	if name == nil && role == nil && joinDate == nil && muteEndDate == nil {
+		return nil
+	}
+
 	keys := []po.GroupMemberKey{{GroupID: groupID, UserID: memberID}}
 	_, err := s.groupMemberRepo.UpdateGroupMembers(ctx, keys, name, role, joinDate, muteEndDate)
 	if err != nil {
@@ -490,6 +514,14 @@ func (s *GroupMemberService) AuthAndAddGroupMembers(
 		return nil, nil
 	}
 
+	// BUG FIX: Validate role (Java rejects OWNER and GUEST)
+	if role == protocol.GroupMemberRole_OWNER {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot add member with OWNER role")
+	}
+	if role == protocol.GroupMemberRole_GUEST {
+		return nil, exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot add member with GUEST role")
+	}
+
 	// 1. Check if group exists and get its type
 	typeID, err := s.groupService.QueryGroupTypeIdIfActiveAndNotDeleted(ctx, groupID)
 	if err != nil {
@@ -568,6 +600,11 @@ func (s *GroupMemberService) AuthAndDeleteGroupMembers(
 		}
 	}
 
+	// BUG FIX: Cannot quit a group while removing other members (Java: memberIdsToDelete.size() > 1)
+	if isQuitting && len(userIDs) > 1 {
+		return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_ILLEGAL_ARGUMENT), "Cannot quit a group while removing other members")
+	}
+
 	requesterRole, err := s.groupMemberRepo.FindGroupMemberRole(ctx, groupID, requesterID)
 	if err != nil {
 		return err
@@ -592,7 +629,8 @@ func (s *GroupMemberService) AuthAndDeleteGroupMembers(
 				userIDs = newUserIDs
 			}
 		} else {
-			return s.groupService.AuthAndDeleteGroup(ctx, requesterID, groupID)
+			// BUG FIX: Java returns error when owner quits without specifying successor
+			return exception.NewTurmsError(int32(common_constant.ResponseStatusCode_GROUP_OWNER_QUIT_WITHOUT_SPECIFYING_SUCCESSOR), "Group owner must specify a successor before quitting")
 		}
 	}
 

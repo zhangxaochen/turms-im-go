@@ -845,7 +845,7 @@ func (c *GroupServiceController) HandleQueryGroupJoinRequestsRequest(ctx context
 		joinRequestsWithVersion, err = c.groupJoinRequestService.AuthAndQueryGroupJoinRequestsWithVersion(
 			ctx,
 			s.UserID,
-			*queryReq.GroupId,
+			queryReq.GroupId,
 			lastUpdatedDate,
 		)
 	} else {
