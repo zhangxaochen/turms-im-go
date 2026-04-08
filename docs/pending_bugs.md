@@ -14308,104 +14308,104 @@ Now I have a thorough understanding of both codebases. Let me produce the compar
 - [ ] **Missing `persistRecord` check**: Java nullifies `records` if `!persistRecord && !isSystemMessage`. The Go version always persists records.
 - [ ] **Missing `persistPreMessageId` check**: Java nullifies `preMessageId` if `!persistPreMessageId`. The Go version always persists preMessageId.
 - [ ] **Missing `persistSenderIp` check**: Java nullifies `senderIp` if `!persistSenderIp`. The Go version doesn't handle senderIp at all.
-- [ ] **Missing `conversationId` computation**: Java computes `conversationId` from target/sender IDs. The Go version does not compute or set `ConversationID`.
-- [ ] **Missing conditional sequence ID generation**: Java only generates a sequence ID if `useSequenceIdForGroupConversation` or `useSequenceIdForPrivateConversation` is enabled. The Go version always generates a sequence ID unconditionally.
-- [ ] **Missing conversation read-date upsert**: Java upserts conversation read date via `conversationService` if `updateReadDateAfterMessageSent` is true. The Go version does none of this.
-- [ ] **Missing validation**: Java validates `maxTextLimit`, `maxRecordsSize`, `burnAfter >= 0`, `deliveryDate` is past-or-present, and `deliveryDate` before `recallDate`. The Go version performs no validation.
+- [x] **Missing `conversationId` computation**: Java computes `conversationId` from target/sender IDs. The Go version does not compute or set `ConversationID`.
+- [x] **Missing conditional sequence ID generation**: Java only generates a sequence ID if `useSequenceIdForGroupConversation` or `useSequenceIdForPrivateConversation` is enabled. The Go version always generates a sequence ID unconditionally.
+- [x] **Missing conversation read-date upsert**: Java upserts conversation read date via `conversationService` if `updateReadDateAfterMessageSent` is true. The Go version does none of this.
+- [x] **Missing validation**: Java validates `maxTextLimit`, `maxRecordsSize`, `burnAfter >= 0`, `deliveryDate` is past-or-present, and `deliveryDate` before `recallDate`. The Go version performs no validation.
 
 ## queryExpiredMessageIds
 
-- [ ] **No bugs found**. Core logic is equivalent — computes expiration date and delegates to repository.
+- [x] **No bugs found**. Core logic is equivalent — computes expiration date and delegates to repository.
 
 ## deleteExpiredMessages
 
-- [ ] **Missing plugin notification**: Java checks `pluginManager.hasRunningExtensions(ExpiredMessageDeletionNotifier.class)`, fetches full messages, and invokes extension points to filter which messages to delete. The Go version simply deletes all expired messages without plugin notification.
-- [ ] **Missing batch processing**: Java collects expired IDs into a chunked list before processing. The Go version uses a simple slice. This is a minor difference but the plugin integration gap is significant.
+- [x] **Missing plugin notification**: Java checks `pluginManager.hasRunningExtensions(ExpiredMessageDeletionNotifier.class)`, fetches full messages, and invokes extension points to filter which messages to delete. The Go version simply deletes all expired messages without plugin notification.
+- [x] **Missing batch processing**: Java collects expired IDs into a chunked list before processing. The Go version uses a simple slice. This is a minor difference but the plugin integration gap is significant.
 
 ## deleteMessages
 
-- [ ] **Missing `deleteMessageLogicallyByDefault` fallback**: Java defaults `deleteLogically` to `deleteMessageLogicallyByDefault` when null. The Go version treats `nil` as "delete physically" (falls through to physical delete when `deleteLogically` is nil).
-- [ ] **Missing conversion of update result to delete result**: Java calls `OperationResultConvertor::update2delete` on the update result. The Go version returns error/nil directly.
+- [x] **Missing `deleteMessageLogicallyByDefault` fallback**: Java defaults `deleteLogically` to `deleteMessageLogicallyByDefault` when null. The Go version treats `nil` as "delete physically" (falls through to physical delete when `deleteLogically` is nil).
+- [x] **Missing conversion of update result to delete result**: Java calls `OperationResultConvertor::update2delete` on the update result. The Go version returns error/nil directly.
 
 ## updateMessages
 
-- [ ] **Missing `senderDeviceType` parameter**: Java accepts `senderDeviceType`. The Go version accepts it but doesn't use it.
-- [ ] **Missing `senderIp` parameter and IPv4/IPv6 parsing**: Java accepts `senderIp` and parses it into IPv4/IPv6 fields. The Go version has no `senderIp` parameter.
-- [ ] **Missing `recallDate` parameter**: Java accepts `recallDate` and passes it to the repository. The Go version does not pass `recallDate` to the repository.
-- [ ] **Missing `burnAfter` parameter**: Java accepts `burnAfter` and passes it to the repository. The Go service method accepts `burnAfter` but does not pass it to the repository.
-- [ ] **Missing early return when all update fields are null**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` when all update fields (`isSystemMessage`, `text`, `records`, `burnAfter`, `recallDate`, `senderIp`) are null. The Go version always calls the repository.
-- [ ] **Missing recall notification logic**: When `recallDate` is set, Java fetches the updated messages and sends recall notification messages via `saveAndSendMessage`. The Go version has no such notification logic.
-- [ ] **Missing validation**: Java validates `maxTextLimit`, `burnAfter >= 0`, `recallDate` is past-or-present, `maxRecordsSize`, and `senderIp` format. The Go version performs no validation.
+- [x] **Missing `senderDeviceType` parameter**: Java accepts `senderDeviceType`. The Go version accepts it but doesn't use it.
+- [x] **Missing `senderIp` parameter and IPv4/IPv6 parsing**: Java accepts `senderIp` and parses it into IPv4/IPv6 fields. The Go version has no `senderIp` parameter.
+- [x] **Missing `recallDate` parameter**: Java accepts `recallDate` and passes it to the repository. The Go version does not pass `recallDate` to the repository.
+- [x] **Missing `burnAfter` parameter**: Java accepts `burnAfter` and passes it to the repository. The Go service method accepts `burnAfter` but does not pass it to the repository.
+- [x] **Missing early return when all update fields are null**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` when all update fields (`isSystemMessage`, `text`, `records`, `burnAfter`, `recallDate`, `senderIp`) are null. The Go version always calls the repository.
+- [x] **Missing recall notification logic**: When `recallDate` is set, Java fetches the updated messages and sends recall notification messages via `saveAndSendMessage`. The Go version has no such notification logic.
+- [x] **Missing validation**: Java validates `maxTextLimit`, `burnAfter >= 0`, `recallDate` is past-or-present, `maxRecordsSize`, and `senderIp` format. The Go version performs no validation.
 
 ## hasPrivateMessage
 
-- [ ] **Missing bidirectional check**: Java calls `messageRepository.existsBySenderIdAndTargetId(senderId, targetId)` which only checks one direction (sender→target). The Go version does the same. However, the Java version's `hasPrivateMessage` doesn't check both directions either, so this is consistent. No bug.
+- [x] **Missing bidirectional check**: Java calls `messageRepository.existsBySenderIdAndTargetId(senderId, targetId)` which only checks one direction (sender→target). The Go version does the same. However, the Java version's `hasPrivateMessage` doesn't check both directions either, so this is consistent. No bug.
 
 ## countMessages
 
-- [ ] **Missing `messageIds` filter**: Java accepts `messageIds` and passes it to the repository. The Go version has no `messageIds` parameter.
-- [ ] **Missing `areSystemMessages` filter**: Java accepts `areSystemMessages` and passes it to the repository. The Go version has no `areSystemMessages` parameter.
-- [ ] **Missing `deletionDateRange` filter**: Java accepts `deletionDateRange`. The Go version has no equivalent.
+- [x] **Missing `messageIds` filter**: Java accepts `messageIds` and passes it to the repository. The Go version has no `messageIds` parameter.
+- [x] **Missing `areSystemMessages` filter**: Java accepts `areSystemMessages` and passes it to the repository. The Go version has no `areSystemMessages` parameter.
+- [x] **Missing `deletionDateRange` filter**: Java accepts `deletionDateRange`. The Go version has no equivalent.
 
 ## countUsersWhoSentMessage
 
-- [ ] **No bugs found**. Both delegate to repository with date range and type filters.
+- [x] **No bugs found**. Both delegate to repository with date range and type filters.
 
 ## countGroupsThatSentMessages
 
-- [ ] **No bugs found**. Both delegate to repository.
+- [x] **No bugs found**. Both delegate to repository.
 
 ## countSentMessages
 
-- [ ] **No bugs found**. Both delegate to repository.
+- [x] **No bugs found**. Both delegate to repository.
 
 ## countSentMessagesOnAverage
 
-- [ ] **Different behavior when totalUsers is 0**: Java returns `Long.MAX_VALUE` when totalUsers is 0 but totalMessages > 0. The Go version returns 0 when distinctUsers is 0 (short-circuit). This changes the semantics — Java treats it as "infinite average" while Go treats it as "zero average".
+- [x] **Different behavior when totalUsers is 0**: Java returns `Long.MAX_VALUE` when totalUsers is 0 but totalMessages > 0. The Go version returns 0 when distinctUsers is 0 (short-circuit). This changes the semantics — Java treats it as "infinite average" while Go treats it as "zero average".
 
 ## authAndUpdateMessage
 
-- [ ] **Missing `allowEditMessageBySender` / `allowRecallMessage` permission checks**: Java checks `checkIfAllowedToUpdateMessage` (verifies sender owns the message, checks if group allows editing, checks `allowEditMessageBySender` flag) and `checkIfAllowedToRecallMessage` (verifies sender, checks recall duration timeout, checks `allowRecallMessage` flag, verifies group exists for group messages). The Go version only checks `msg.SenderID != senderID`.
-- [ ] **Missing recall duration timeout check**: Java checks `System.currentTimeMillis() - message.getDeliveryDate().getTime() > availableRecallDurationMillis`. The Go version has no timeout check.
-- [ ] **Missing group type active/not-deleted check**: Java queries `groupService.queryGroupTypeIfActiveAndNotDeleted` to verify the group still exists. The Go version doesn't check group status.
-- [ ] **Missing conditional logic for update vs recall paths**: Java has distinct paths: if text/records are provided, it checks update permission; if recallDate is provided, it checks recall permission; if neither text/records nor recallDate, it returns early. The Go version does not differentiate these paths.
-- [ ] **Missing early return when all fields null**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` when only `recallDate` is null and no text/records. The Go version always proceeds with the update.
+- [x] **Missing `allowEditMessageBySender` / `allowRecallMessage` permission checks**: Java checks `checkIfAllowedToUpdateMessage` (verifies sender owns the message, checks if group allows editing, checks `allowEditMessageBySender` flag) and `checkIfAllowedToRecallMessage` (verifies sender, checks recall duration timeout, checks `allowRecallMessage` flag, verifies group exists for group messages). The Go version only checks `msg.SenderID != senderID`.
+- [x] **Missing recall duration timeout check**: Java checks `System.currentTimeMillis() - message.getDeliveryDate().getTime() > availableRecallDurationMillis`. The Go version has no timeout check.
+- [x] **Missing group type active/not-deleted check**: Java queries `groupService.queryGroupTypeIfActiveAndNotDeleted` to verify the group still exists. The Go version doesn't check group status.
+- [x] **Missing conditional logic for update vs recall paths**: Java has distinct paths: if text/records are provided, it checks update permission; if recallDate is provided, it checks recall permission; if neither text/records nor recallDate, it returns early. The Go version does not differentiate these paths.
+- [x] **Missing early return when all fields null**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` when only `recallDate` is null and no text/records. The Go version always proceeds with the update.
 
 ## queryMessageRecipients
 
-- [ ] **Missing sender exclusion for group messages**: Java calls `groupMemberService.queryGroupMemberIds(targetId, true)` which returns all group members. The Go version calls `FindGroupMemberIDs` which likely also returns all members, so this is consistent. However, the Java `queryMessageRecipients` does NOT exclude the sender from the result (unlike `saveMessage0` which does). Looking more carefully, both versions are consistent in returning all group members. No bug here.
-- [ ] **Different return for private messages when message not found**: Java returns `Mono.just(Set.of(message.getTargetId()))` which is a single-element set. The Go version returns `[]int64{msg.TargetID}`, which is equivalent. No bug.
+- [x] **Missing sender exclusion for group messages**: Java calls `groupMemberService.queryGroupMemberIds(targetId, true)` which returns all group members. The Go version calls `FindGroupMemberIDs` which likely also returns all members, so this is consistent. However, the Java `queryMessageRecipients` does NOT exclude the sender from the result (unlike `saveMessage0` which does). Looking more carefully, both versions are consistent in returning all group members. No bug here.
+- [x] **Different return for private messages when message not found**: Java returns `Mono.just(Set.of(message.getTargetId()))` which is a single-element set. The Go version returns `[]int64{msg.TargetID}`, which is equivalent. No bug.
 
 ## authAndSaveMessage
 
-- [ ] **Missing `queryRecipientIds` parameter**: Java accepts `queryRecipientIds` and, when true, queries recipients (group members or target). The Go version does not query or return recipient IDs.
-- [ ] **Missing `persist` parameter**: Java accepts `persist` and, when false/null-defaults-to-property, skips DB persistence and returns a MessageAndRecipientIds with null message. The Go version always persists to DB.
-- [ ] **Missing `referenceId` parameter**: Java passes `referenceId` to `saveMessage`. The Go version has no `referenceId`.
-- [ ] **Missing proper authorization via `userService.isAllowedToSendMessageToTarget`**: Java calls `userService.isAllowedToSendMessageToTarget(isGroupMessage, isSystemMessage, senderId, targetId)` which checks the user's permission to send. The Go version uses a simpler `auth()` that only checks group membership or friendship/block status.
-- [ ] **Missing sentMessageCache update**: Java caches sent messages after saving. The Go version has no equivalent cache.
-- [ ] **Wrong return type**: Java returns `MessageAndRecipientIds` (containing both message and recipient IDs). The Go version returns `*po.Message` only.
+- [x] **Missing `queryRecipientIds` parameter**: Java accepts `queryRecipientIds` and, when true, queries recipients (group members or target). The Go version does not query or return recipient IDs.
+- [x] **Missing `persist` parameter**: Java accepts `persist` and, when false/null-defaults-to-property, skips DB persistence and returns a MessageAndRecipientIds with null message. The Go version always persists to DB.
+- [x] **Missing `referenceId` parameter**: Java passes `referenceId` to `saveMessage`. The Go version has no `referenceId`.
+- [x] **Missing proper authorization via `userService.isAllowedToSendMessageToTarget`**: Java calls `userService.isAllowedToSendMessageToTarget(isGroupMessage, isSystemMessage, senderId, targetId)` which checks the user's permission to send. The Go version uses a simpler `auth()` that only checks group membership or friendship/block status.
+- [x] **Missing sentMessageCache update**: Java caches sent messages after saving. The Go version has no equivalent cache.
+- [x] **Wrong return type**: Java returns `MessageAndRecipientIds` (containing both message and recipient IDs). The Go version returns `*po.Message` only.
 
 ## saveMessage (with queryRecipientIds)
 
-- [ ] **Missing `queryRecipientIds` parameter**: Java's `saveMessage(queryRecipientIds, ...)` queries recipients when the flag is true. The Go version has no recipient querying.
-- [ ] **Missing `persist` parameter**: Java's `saveMessage` accepts `persist` and can skip DB persistence. The Go version always persists.
-- [ ] **Missing `referenceId` parameter**: Java passes `referenceId` through. The Go version lacks this.
-- [ ] **Missing sentMessageCache update**: Same as authAndSaveMessage.
-- [ ] **Wrong return type**: Same issue — returns `*po.Message` instead of message + recipient IDs.
+- [x] **Missing `queryRecipientIds` parameter**: Java's `saveMessage(queryRecipientIds, ...)` queries recipients when the flag is true. The Go version has no recipient querying.
+- [x] **Missing `persist` parameter**: Java's `saveMessage` accepts `persist` and can skip DB persistence. The Go version always persists.
+- [x] **Missing `referenceId` parameter**: Java passes `referenceId` through. The Go version lacks this.
+- [x] **Missing sentMessageCache update**: Same as authAndSaveMessage.
+- [x] **Wrong return type**: Same issue — returns `*po.Message` instead of message + recipient IDs.
 
 ## authAndCloneAndSaveMessage
 
-- [ ] **Missing `queryRecipientIds` parameter**: Java accepts this and passes it to `authAndSaveMessage`. The Go version doesn't support it.
-- [ ] **Missing `requesterIp` parameter**: Java passes `requesterIp` to `authAndSaveMessage`. The Go version has no IP handling.
-- [ ] **Missing new message ID generation**: Java generates a new ID via `node.nextLargeGapId(ServiceType.MESSAGE)`. The Go version calls `CloneAndSaveMessage` which calls `SaveMessage`, which generates an ID — so this is handled.
-- [ ] **Missing `deliveryDate`, `referenceId` passing**: Java passes `null` for deliveryDate and `referenceId` for the reference in `authAndSaveMessage`. The Go version's `CloneAndSaveMessage` passes `nil` for `deliveryDate` and `nil` for `preMessageID`, which matches. However, the Go version does not set `ReferenceID` on the cloned message, while the Java `authAndSaveMessage` does pass `referenceId`.
-- [ ] **Missing `switchIfEmpty` for message-not-found case**: Java appends `.switchIfEmpty(ERROR_NOT_MESSAGE_RECIPIENT_OR_SENDER_TO_FORWARD_MESSAGE)` to handle the case where the reference message doesn't exist, so the client can't tell whether a message exists. The Go version will return a not-found error from `QueryMessage`, leaking the information that the message doesn't exist.
-- [ ] **Different auth flow**: Java calls `isMessageRecipientOrSender` with individual fields from the queried message. The Go version calls `IsMessageRecipientOrSender(ctx, referenceID, requesterID)` which re-queries the DB. Then Java calls `authAndSaveMessage` for the actual save (with full auth). The Go version calls `CloneAndSaveMessage` directly without additional auth for the target.
+- [x] **Missing `queryRecipientIds` parameter**: Java accepts this and passes it to `authAndSaveMessage`. The Go version doesn't support it.
+- [x] **Missing `requesterIp` parameter**: Java passes `requesterIp` to `authAndSaveMessage`. The Go version has no IP handling.
+- [x] **Missing new message ID generation**: Java generates a new ID via `node.nextLargeGapId(ServiceType.MESSAGE)`. The Go version calls `CloneAndSaveMessage` which calls `SaveMessage`, which generates an ID — so this is handled.
+- [x] **Missing `deliveryDate`, `referenceId` passing**: Java passes `null` for deliveryDate and `referenceId` for the reference in `authAndSaveMessage`. The Go version's `CloneAndSaveMessage` passes `nil` for `deliveryDate` and `nil` for `preMessageID`, which matches. However, the Go version does not set `ReferenceID` on the cloned message, while the Java `authAndSaveMessage` does pass `referenceId`.
+- [x] **Missing `switchIfEmpty` for message-not-found case**: Java appends `.switchIfEmpty(ERROR_NOT_MESSAGE_RECIPIENT_OR_SENDER_TO_FORWARD_MESSAGE)` to handle the case where the reference message doesn't exist, so the client can't tell whether a message exists. The Go version will return a not-found error from `QueryMessage`, leaking the information that the message doesn't exist.
+- [x] **Different auth flow**: Java calls `isMessageRecipientOrSender` with individual fields from the queried message. The Go version calls `IsMessageRecipientOrSender(ctx, referenceID, requesterID)` which re-queries the DB. Then Java calls `authAndSaveMessage` for the actual save (with full auth). The Go version calls `CloneAndSaveMessage` directly without additional auth for the target.
 
 ## cloneAndSaveMessage
 
-- [ ] **Missing `queryRecipientIds` parameter**: Java accepts and passes this to `saveMessage`. The Go version doesn't support recipient querying.
-- [ ] **Missing `senderIp` parameter**: Java passes `senderIp` to `saveMessage`. The Go version has no IP handling.
+- [x] **Missing `queryRecipientIds` parameter**: Java accepts and passes this to `saveMessage`. The Go version doesn't support recipient querying.
+- [x] **Missing `senderIp` parameter**: Java passes `senderIp` to `saveMessage`. The Go version has no IP handling.
 - [ ] **Missing new message ID generation**: Java generates `node.nextLargeGapId(ServiceType.MESSAGE)` as the new message ID. The Go version lets `SaveMessage` generate one, which is equivalent.
 - [ ] **Missing `isSystemMessage` passing**: Java passes `isSystemMessage` to `saveMessage`. The Go version's `CloneAndSaveMessage` does not pass `isSystemMessage` to `SaveMessage` (it's not a parameter of Go's `SaveMessage`).
 - [ ] **Missing `deliveryDate` passing**: Java passes `message.getDeliveryDate()` (from the reference message). The Go version passes `nil` for deliveryDate, which means it uses `time.Now()` instead of the original message's delivery date.
