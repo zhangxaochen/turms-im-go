@@ -8852,8 +8852,8 @@ Both of these are real behavioral differences from the Java version.
 
 ## Constructor (long requestId, TurmsRequest.KindCase type, CreateSessionRequest createSessionRequest)
 
-- [ ] Missing field assignments: None. All three fields are properly assigned.
-- [ ] Missing core logic: None.
+- [x] Missing field assignments: None. All three fields are properly assigned.
+- [x] Missing core logic: None.
 
 ## toString()
 
@@ -9036,7 +9036,7 @@ Here's my final analysis:
 
 ## AddAdmin
 
-- [ ] **Missing parameters `registrationDate` and `upsert`**: The Java controller calls `authAndAddAdmin(requesterId, loginName, password, roleIds, displayName, new Date(), false)` with 7 parameters (plus the implicit `this`). The Go `AuthAndAddAdmin` only takes 6 parameters (`ctx, requesterId, loginName, rawPassword, displayName, roleIds`). However, examining the Go `AddAdmin` method at line 330, it internally uses `time.Now()` for `RegistrationDate` and always does insert (not upsert), which effectively matches `new Date()` and `false`. The Go service layer absorbs these two parameters, so this is actually **correct** — not a bug.
+- [x] **Missing parameters `registrationDate` and `upsert`**: The Java controller calls `authAndAddAdmin(requesterId, loginName, password, roleIds, displayName, new Date(), false)` with 7 parameters (plus the implicit `this`). The Go `AuthAndAddAdmin` only takes 6 parameters (`ctx, requesterId, loginName, rawPassword, displayName, roleIds`). However, examining the Go `AddAdmin` method at line 330, it internally uses `time.Now()` for `RegistrationDate` and always does insert (not upsert), which effectively matches `new Date()` and `false`. The Go service layer absorbs these two parameters, so this is actually **correct** — not a bug.
 
 Wait, let me reconsider. The task says to compare the **controller** methods. The Go controller calls `AuthAndAddAdmin` with 6 params. The Java controller calls `authAndAddAdmin` with 7 params (requesterId, loginName, password, roleIds, displayName, new Date(), false). But the Go service signature only has 6 params, so the Go controller can't pass those extra params. The Go service internally handles them. So from the controller's perspective, this is fine — the behavior is delegated correctly to the service.
 
@@ -10235,11 +10235,11 @@ This method appears to be correctly ported.
 - [x] **Bug 3: Go queries both private and group conversations simultaneously, Java is either-or** — When both `targetIDs` and `groupIDs` are non-empty, Java only queries private conversations (the `else` branch on line 117). Go queries both independently and returns a combined result. The Java design intentionally prioritizes private conversations and ignores `groupIds` when `targetIds` is present.
 
 ## handleUpdateConversationRequest
-- [ ] **Bug 4: Go incorrectly rejects request when both targetID and groupID are present** — The Go code (lines 118-120) returns `ILLEGAL_ARGUMENT` when both `targetID != nil && groupID != nil`. Java has no such check; when both fields are present, it takes the private conversation path because `hasUserId` is true. The Go code is stricter than the Java original.
-- [ ] **Bug 5: Group case filters out requester from member IDs when only `notifyOtherGroupMembers` is true** — In the Go code (lines 161-166), when `notifyOtherGroupMembersOfGroupConversationReadDateUpdated=true` but `notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated=false`, the requester is explicitly filtered out from `memberIDs`. Java's `queryGroupMemberIds` returns ALL members (including requester) and passes them directly to `RequestHandlerResult.of()`. This changes notification delivery — Java notifies all group members including the requester, Go excludes the requester.
+- [x] **Bug 4: Go incorrectly rejects request when both targetID and groupID are present** — The Go code (lines 118-120) returns `ILLEGAL_ARGUMENT` when both `targetID != nil && groupID != nil`. Java has no such check; when both fields are present, it takes the private conversation path because `hasUserId` is true. The Go code is stricter than the Java original.
+- [x] **Bug 5: Group case filters out requester from member IDs when only `notifyOtherGroupMembers` is true** — In the Go code (lines 161-166), when `notifyOtherGroupMembersOfGroupConversationReadDateUpdated=true` but `notifyRequesterOtherOnlineSessionsOfGroupConversationReadDateUpdated=false`, the requester is explicitly filtered out from `memberIDs`. Java's `queryGroupMemberIds` returns ALL members (including requester) and passes them directly to `RequestHandlerResult.of()`. This changes notification delivery — Java notifies all group members including the requester, Go excludes the requester.
 
 ## handleUpdateTypingStatusRequest
-- [ ] No bugs found.
+- [x] No bugs found.
 
 # ConversationSettingsServiceController.java
 *Checked methods: handleUpdateConversationSettingsRequest(), handleDeleteConversationSettingsRequest(), handleQueryConversationSettingsRequest()*
@@ -10424,22 +10424,22 @@ Now, the priority inversion: Java checks `hasUserId` first. Go checks `GroupId !
 ## Summary of Bugs
 
 ## handleUpdateConversationSettingsRequest
-- [ ] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
+- [x] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
 
 ## handleDeleteConversationSettingsRequest  
-- [ ] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
+- [x] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
 
 ## handleQueryConversationSettingsRequest
-- [ ] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
+- [x] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
 
 ## handleUpdateConversationSettingsRequest
-- [ ] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
+- [x] Priority inversion: Go checks `GroupId` first, Java checks `UserId` first. If both are present in a request, Java calls `upsertPrivateConversationSettings` while Go calls `upsertGroupConversationSettings`.
 
 ## handleDeleteConversationSettingsRequest  
-- [ ] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
+- [x] Java always creates a notification object (with `forward=false` when condition is false), while Go only creates one when `deleted=true` AND notification condition is met. This means Java includes a notification entry in the result even when `deleted=false`.
 
 ## handleQueryConversationSettingsRequest
-- [ ] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
+- [x] Go returns `NO_CONTENT` when the result list is empty, while Java returns an OK response with an empty `ConversationSettingsList`. The Java code always returns a response with the list builder, even if empty.
 
 # ConversationSettingsRepository.java
 *Checked methods: upsertSettings(Long ownerId, Long targetId, Map<String, Object> settings), unsetSettings(Long ownerId, @Nullable Collection<Long> targetIds, @Nullable Collection<String> settingNames), findByIdAndSettingNames(Long ownerId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart), findByIdAndSettingNames(Collection<ConversationSettings.Key> keys, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart), findSettingFields(Long ownerId, Long targetId, Collection<String> includedFields), deleteByOwnerIds(Collection<Long> ownerIds, @Nullable ClientSession clientSession)*
@@ -10527,7 +10527,7 @@ However, the Go implementation's `$or` uses `$exists: false` instead of checking
 
 ## DeleteConversationsByOwnerIds
 
-- [ ] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
+- [x] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
 
 ## FindConversations
 
@@ -10539,7 +10539,7 @@ No bugs found. The field name `_id.oid` matches Java's `PrivateConversation.Fiel
 
 ## DeleteConversationsByOwnerIds
 
-- [ ] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
+- [x] **Missing optional `session` parameter**: The Java method accepts `@Nullable ClientSession session` and passes it to `mongoClient.deleteMany(session, ...)`, allowing the operation to participate in a MongoDB transaction. The Go version `DeleteConversationsByOwnerIds(ctx context.Context, ownerIDs []int64)` has no session parameter, making it impossible to include this delete in a transactional context, which diverges from the Java API contract.
 
 ## FindConversations
 
@@ -10881,11 +10881,11 @@ But again, all current callers pass concrete times, so this is a design issue ra
 Let me finalize. The key bugs are:
 
 ## upsertGroupConversationReadDate
-- [ ] Missing null readDate defaulting to current time (uses zero-value time.Time instead)
-- [ ] DuplicateKeyException always treated as error (Java swallows when readDate was null)
+- [x] Missing null readDate defaulting to current time (uses zero-value time.Time instead)
+- [x] DuplicateKeyException always treated as error (Java swallows when readDate was null)
 
 ## upsertGroupConversationsReadDate
-- [ ] Fails fast on first error instead of running all operations and collecting errors (Java: `Mono.whenDelayError`)
+- [x] Fails fast on first error instead of running all operations and collecting errors (Java: `Mono.whenDelayError`)
 
 ## upsertPrivateConversationReadDate
 - [x] Missing null readDate handling — delegates to UpsertPrivateConversationsReadDate with `&readDate` which is always non-nil, so zero-value `time.Time` won't be replaced with `time.Now()`
@@ -10946,7 +10946,7 @@ Let me now write up the final bug report.
 - [x] Missing null readDate defaulting: Java passes null to `upsertPrivateConversationsReadDate` which defaults it to `new Date()`. Go passes `&readDate` (always non-nil pointer), so a zero-value `time.Time` would be used as-is instead of being replaced with current time.
 
 ## upsertPrivateConversationsReadDate
-- [ ] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
+- [x] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
 
 ## queryPrivateConversations
 - [x] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds PrivateConversationKey list from owner IDs paired with a common target ID.
@@ -11020,11 +11020,11 @@ So all delete methods lost transactional session support. This is a significant 
 OK, now I have the complete list. Let me present it cleanly.
 
 ## authAndUpsertGroupConversationReadDate
-- [ ] `IsGroupMember` call missing the active-only boolean flag that Java passes as `true`.
+- [x] `IsGroupMember` call missing the active-only boolean flag that Java passes as `true`.
 
 ## upsertGroupConversationReadDate
-- [ ] Java defaults null `readDate` to `new Date()`; Go uses value type `time.Time` — zero-value (0001-01-01) would be used instead of current time if called directly.
-- [ ] Java swallows `DuplicateKeyException` when original `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [x] Java defaults null `readDate` to `new Date()`; Go uses value type `time.Time` — zero-value (0001-01-01) would be used instead of current time if called directly.
+- [x] Java swallows `DuplicateKeyException` when original `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
 - [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all operations and aggregate errors.
@@ -11033,10 +11033,10 @@ OK, now I have the complete list. Let me present it cleanly.
 - [x] Missing null `readDate` defaulting to current time. Go passes `&readDate` (non-nil) to `UpsertPrivateConversationsReadDate`, so zero-value `time.Time` won't be replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [ ] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
+- [x] Same DuplicateKey handling issue: Java swallows when `readDate` was null; Go always errors.
 
 ## queryPrivateConversations
-- [ ] Missing overload that takes `(Collection<Long> ownerIds, Long targetId)` and builds keys internally.
+- [x] Missing overload that takes `(Collection<Long> ownerIds, Long targetId)` and builds keys internally.
 
 ## deletePrivateConversations (by userIds)
 - [x] Missing `ClientSession` parameter for MongoDB transaction support. Java passes session to repository.
@@ -11052,7 +11052,7 @@ OK, now I have the complete list. Let me present it cleanly.
 - [x] `IsGroupMember` missing active-only filter flag. Java calls `isGroupMember(toId, requesterId, true)`.
 
 ## authAndUpsertGroupConversationReadDate
-- [ ] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
+- [x] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
 
 Let me now write the final report.
 
@@ -11070,23 +11070,23 @@ Let me now write the final report.
 - [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [ ] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [x] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
-- [ ] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
+- [x] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
 
 ## deletePrivateConversations (by userIds)
-- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
+- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
 
 ## deleteGroupConversations
-- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
+- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
 
 ## deleteGroupMemberConversations
-- [ ] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
+- [x] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
 
 ## authAndUpdateTypingStatus
-- [ ] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
-- [ ] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
+- [x] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
+- [x] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
 
 Wait, I want to also verify one more thing about the PrivateConversationRepository.Upsert. The Java version uses `mongoClient.upsert()` which calls `updateOne`. The Go version uses `r.collection.UpdateMany`. But looking at the Java code more carefully:
 
@@ -11184,59 +11184,59 @@ OK, I think I should not speculate further on the repository implementation deta
 Let me finalize.
 
 ## authAndUpsertGroupConversationReadDate
-- [ ] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
+- [x] `IsGroupMember` call missing the active-only boolean parameter. Java calls `isGroupMember(groupId, memberId, true)` to verify active membership; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag.
 
 ## upsertGroupConversationReadDate
-- [ ] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
-- [ ] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [x] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()`; Go uses `time.Time` value type so zero-value (0001-01-01) would be passed to the repository if called with a zero value.
+- [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs (because server-generated time can't move forward); Go always converts DuplicateKey to `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [ ] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
+- [x] Go fails fast on first error; Java uses `Mono.whenDelayError` to execute all group upserts and aggregate all errors before failing.
 
 ## upsertPrivateConversationReadDate
-- [ ] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
+- [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [ ] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [x] Missing conditional DuplicateKeyException swallowing: Java swallows DuplicateKey when `readDate` was null; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
-- [ ] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
+- [x] Missing overload `queryPrivateConversations(ownerIds []int64, targetID int64)` that builds `PrivateConversationKey` list by pairing each owner ID with the target ID.
 
 ## deletePrivateConversations (by userIds)
-- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
+- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository for transactional deletes; Go has no session support.
 
 ## deleteGroupConversations
-- [ ] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
+- [x] Missing `ClientSession`/transaction parameter: Java accepts `@Nullable ClientSession session` and passes it to the repository; Go has no session support.
 
 ## deleteGroupMemberConversations
-- [ ] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
+- [x] Missing `ClientSession`/transaction parameter: Java passes session to `groupConversationRepository.deleteMemberConversations(groupIds, userId, session)`; Go has no session support in either the service or repository layer.
 
 ## authAndUpdateTypingStatus
-- [ ] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
-- [ ] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
+- [x] `FindGroupMemberIDs` call missing the active-only boolean flag: Java calls `queryGroupMemberIds(toId, true)` to return only active group members; Go may return all members including inactive/banned ones.
+- [x] `IsGroupMember` call missing the active-only boolean flag: Java calls `isGroupMember(toId, requesterId, true)` to check active membership only; Go may match inactive members.
 
 ## authAndUpsertGroupConversationReadDate
-- [ ] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
+- [x] `IsGroupMember(ctx, groupID, memberID)` missing active-only boolean flag; Java calls `isGroupMember(groupId, memberId, true)`.
 
 Wait, I already have `authAndUpsertGroupConversationReadDate` in my list. The IsGroupMember flag issue belongs there. Let me consolidate.
 
 OK here's the clean final report:
 
 ## authAndUpsertGroupConversationReadDate
-- [ ] `IsGroupMember` call missing active-only boolean flag: Java calls `isGroupMember(groupId, memberId, true)` to verify the user is an active group member; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag, potentially allowing inactive/banned members to update read dates.
+- [x] `IsGroupMember` call missing active-only boolean flag: Java calls `isGroupMember(groupId, memberId, true)` to verify the user is an active group member; Go calls `IsGroupMember(ctx, groupID, memberID)` without the flag, potentially allowing inactive/banned members to update read dates.
 
 ## upsertGroupConversationReadDate
-- [ ] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()` before passing to repository; Go uses `time.Time` value type, so a zero-value (0001-01-01) would be used instead of current time if called with a zero value.
-- [ ] Missing conditional DuplicateKeyException swallowing: Java returns silently when `readDate` was originally null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [x] Missing null `readDate` defaulting: Java replaces null `readDate` with `new Date()` before passing to repository; Go uses `time.Time` value type, so a zero-value (0001-01-01) would be used instead of current time if called with a zero value.
+- [x] Missing conditional DuplicateKeyException swallowing: Java returns silently when `readDate` was originally null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## upsertGroupConversationsReadDate
-- [ ] Go fails fast on first error (`return err`); Java uses `Mono.whenDelayError` to execute all group upsert operations and aggregate all errors before failing.
+- [x] Go fails fast on first error (`return err`); Java uses `Mono.whenDelayError` to execute all group upsert operations and aggregate all errors before failing.
 
 ## upsertPrivateConversationReadDate
-- [ ] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil pointer) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
+- [x] Missing null `readDate` defaulting: Go passes `&readDate` (always non-nil pointer) to `UpsertPrivateConversationsReadDate`, so a zero-value `time.Time` is used as-is instead of being replaced with `time.Now()`.
 
 ## upsertPrivateConversationsReadDate
-- [ ] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
+- [x] Missing conditional DuplicateKeyException swallowing: Java silently returns empty when `readDate` was null and DuplicateKey occurs; Go always returns `MOVING_READ_DATE_FORWARD_IS_DISABLED` error.
 
 ## queryPrivateConversations
 - [ ] Missing overload `queryPrivateConversations(Collection<Long> ownerIds, Long targetId)` that builds `PrivateConversationKey` list by pairing each owner ID with a common target ID. Java builds `Set<PrivateConversation.Key>` from `(ownerId, targetId)` pairs internally.
@@ -14286,7 +14286,7 @@ Now I have a thorough understanding of both codebases. Let me produce the compar
 
 ## queryMessage
 
-- [ ] No bugs found. Simple pass-through to repository.
+- [x] No bugs found. Simple pass-through to repository.
 
 ## queryMessages
 
