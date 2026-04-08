@@ -13393,108 +13393,108 @@ Now I have a thorough understanding of both codebases. Let me compile the compre
 
 - [ ] **Missing all-null early return**: Java checks `Validator.areAllNull(name, role, joinDate, muteEndDate)` and returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if all null (lines 544-546). Go always proceeds with the update even when all fields are nil (the repository returns a no-op result).
 - [ ] **Missing validation of `memberId`**: Java validates `Validator.notNull(memberId, "memberId")` (line 515). Go doesn't validate.
-- [ ] **Missing member cache update**: Java calls `updateMembersCache(keys, name, role, joinDate, muteEndDate)` when `modifiedCount == keys.size()` (lines 551-552). Go only deletes cache entries (line 109-110) rather than updating them in place.
+- [x] **Missing member cache update**: Java calls `updateMembersCache(keys, name, role, joinDate, muteEndDate)` when `modifiedCount == keys.size()` (lines 551-552). Go only deletes cache entries (line 109-110) rather than updating them in place.
 
 ## updateGroupMembers (keys version)
 
-- [ ] **Missing `preferCache`/cache logic entirely**: Java has extensive member caching with `groupIdToMembersCache`, including `updateMembersCache` and `invalidMemberCache` calls. Go uses a simple TTL cache (`memberCache`) that is only deleted, never updated.
-- [ ] **Missing multi-group version update logic**: Java distinguishes between single-group and multi-group version updates (lines 562-565). Go doesn't have the `updateGroupMembers(keys...)` method at all — the keys-based overload is not implemented in the service layer.
+- [x] **Missing `preferCache`/cache logic entirely**: Java has extensive member caching with `groupIdToMembersCache`, including `updateMembersCache` and `invalidMemberCache` calls. Go uses a simple TTL cache (`memberCache`) that is only deleted, never updated.
+- [x] **Missing multi-group version update logic**: Java distinguishes between single-group and multi-group version updates (lines 562-565). Go doesn't have the `updateGroupMembers(keys...)` method at all — the keys-based overload is not implemented in the service layer.
 
 ## updateGroupMembers (groupId + memberIds version)
 
-- [ ] **Not implemented**: The Java overload `updateGroupMembers(@NotNull Long groupId, @NotEmpty Set<Long> memberIds, ...)` (lines 577-603) converts memberIds to keys and delegates to the keys version. Go does not have this overload. The admin controller (`group_controllers.go:318-333`) iterates keys individually and calls `UpdateGroupMember` per key instead.
+- [x] **Not implemented**: The Java overload `updateGroupMembers(@NotNull Long groupId, @NotEmpty Set<Long> memberIds, ...)` (lines 577-603) converts memberIds to keys and delegates to the keys version. Go does not have this overload. The admin controller (`group_controllers.go:318-333`) iterates keys individually and calls `UpdateGroupMember` per key instead.
 
 ## isGroupMember (single group)
 
-- [ ] **Missing `preferCache` parameter**: Go's `IsGroupMember` at line 322 always uses cache. Java's version respects the `preferCache` boolean — when `false`, it bypasses the cache and queries the DB directly (lines 616-624).
-- [ ] **Different cache semantics**: Java uses a per-group member map cache (`groupIdToMembersCache`) that stores full member objects and does cache lookups by key. Go uses a simple boolean TTL cache with string keys. These are fundamentally different cache architectures.
+- [x] **Missing `preferCache` parameter**: Go's `IsGroupMember` at line 322 always uses cache. Java's version respects the `preferCache` boolean — when `false`, it bypasses the cache and queries the DB directly (lines 616-624).
+- [x] **Different cache semantics**: Java uses a per-group member map cache (`groupIdToMembersCache`) that stores full member objects and does cache lookups by key. Go uses a simple boolean TTL cache with string keys. These are fundamentally different cache architectures.
 
 ## isGroupMember (multiple groups)
 
-- [ ] **Not implemented**: Java has `isGroupMember(@NotEmpty Set<Long> groupIds, @NotNull Long userId)` (lines 627-639) that checks membership across multiple groups by creating keys and calling `groupMemberRepository.existsByIds(keys)`. Go does not have this overload.
+- [x] **Not implemented**: Java has `isGroupMember(@NotEmpty Set<Long> groupIds, @NotNull Long userId)` (lines 627-639) that checks membership across multiple groups by creating keys and calling `groupMemberRepository.existsByIds(keys)`. Go does not have this overload.
 
 ## isMemberMuted
 
-- [ ] **Missing `preferCache` parameter**: Go always caches the muted status. Java respects `preferCache` — when true and cache enabled, it checks the in-memory member object's `muteEndDate` field rather than querying the DB (lines 787-796).
-- [ ] **Incorrect cache semantics**: Java's cache check looks at `member.getMuteEndDate() != null` to determine if muted (lines 792-794). Go stores a boolean that is fetched from the DB and cached. The Java version is a point-in-time check of the `muteEndDate` field value, while Go's `IsMemberMuted` repository method checks `muteEndDate > now` at query time, which is more correct but means the cached boolean can become stale.
+- [x] **Missing `preferCache` parameter**: Go always caches the muted status. Java respects `preferCache` — when true and cache enabled, it checks the in-memory member object's `muteEndDate` field rather than querying the DB (lines 787-796).
+- [x] **Incorrect cache semantics**: Java's cache check looks at `member.getMuteEndDate() != null` to determine if muted (lines 792-794). Go stores a boolean that is fetched from the DB and cached. The Java version is a point-in-time check of the `muteEndDate` field value, while Go's `IsMemberMuted` repository method checks `muteEndDate > now` at query time, which is more correct but means the cached boolean can become stale.
 
 ## queryGroupMemberRole
 
-- [ ] **Missing `preferCache` parameter**: Go always queries the DB. Java checks cache first when `preferCache=true` (lines 823-831).
+- [x] **Missing `preferCache` parameter**: Go always queries the DB. Java checks cache first when `preferCache=true` (lines 823-831).
 
 ## isAllowedToInviteUser
 
-- [ ] **Missing return of `ServicePermission` and `GroupInvitationStrategy` pair**: Java returns `Pair<ServicePermission, GroupInvitationStrategy>` (line 659) which includes both the permission status and the strategy. Go returns only a `bool` (line 179), losing the strategy information.
-- [ ] **Missing "not a member" default**: Java returns `GROUP_INVITER_NOT_MEMBER` as default if the inviter is not a group member (line 684). Go returns `false` with no error (line 206-208), which doesn't distinguish between "not a member" and "not allowed."
+- [x] **Missing return of `ServicePermission` and `GroupInvitationStrategy` pair**: Java returns `Pair<ServicePermission, GroupInvitationStrategy>` (line 659) which includes both the permission status and the strategy. Go returns only a `bool` (line 179), losing the strategy information.
+- [x] **Missing "not a member" default**: Java returns `GROUP_INVITER_NOT_MEMBER` as default if the inviter is not a group member (line 684). Go returns `false` with no error (line 206-208), which doesn't distinguish between "not a member" and "not allowed."
 
 ## isAllowedToBeInvited
 
-- [ ] **Different return type**: Java returns `ResponseStatusCode` (line 692) with specific codes for different scenarios (member, blocked, OK). Go returns a `bool` (line 224) with an error for blocked/member cases, losing the granularity of the status code.
+- [x] **Different return type**: Java returns `ResponseStatusCode` (line 692) with specific codes for different scenarios (member, blocked, OK). Go returns a `bool` (line 224) with an error for blocked/member cases, losing the granularity of the status code.
 
 ## isAllowedToSendMessage
 
-- [ ] **Missing `checkIfTargetActiveAndNotDeleted` conditional**: Java only checks if group is active and not deleted when `checkIfTargetActiveAndNotDeleted` is true (a configurable property, line 732). Go always checks (line 255-261), which may cause different behavior depending on configuration.
-- [ ] **Different control flow for member vs guest**: Java's `isAllowedToSendMessage` calls `isGroupMemberAllowedToSendMessage` or `isGuestAllowedToSendMessage` based on membership (lines 712-715). The member path first checks `isGroupMuted`, then optionally checks `isGroupActiveAndNotDeleted` (configurable). Go checks `isGroupMuted` then `isGroupActiveAndNotDeleted` then `isMember/isMuted` (lines 247-277), which has a different ordering.
+- [x] **Missing `checkIfTargetActiveAndNotDeleted` conditional**: Java only checks if group is active and not deleted when `checkIfTargetActiveAndNotDeleted` is true (a configurable property, line 732). Go always checks (line 255-261), which may cause different behavior depending on configuration.
+- [x] **Different control flow for member vs guest**: Java's `isAllowedToSendMessage` calls `isGroupMemberAllowedToSendMessage` or `isGuestAllowedToSendMessage` based on membership (lines 712-715). The member path first checks `isGroupMuted`, then optionally checks `isGroupActiveAndNotDeleted` (configurable). Go checks `isGroupMuted` then `isGroupActiveAndNotDeleted` then `isMember/isMuted` (lines 247-277), which has a different ordering.
 
 ## authAndUpdateGroupMember
 
-- [ ] **Missing group active check for role updates**: Java checks `isGroupActiveAndNotDeleted` before allowing role updates (line 1234), returning `UPDATE_GROUP_MEMBER_ROLE_OF_NONEXISTENT_GROUP` if the group is inactive. Go doesn't check group active status before role updates.
-- [ ] **Missing mute-specific authorization logic**: Java has a complex mute authorization path (lines 1246-1291) that checks: (1) requester can't mute themselves, (2) requester's role must be lower than target's role number, (3) checks member info update strategy based on group type. Go's implementation at lines 608-624 is much simpler and doesn't implement the mute-specific hierarchy checks (role number comparison) or the group type's `MemberInfoUpdateStrategy`.
-- [ ] **Missing name-update authorization logic**: Java checks group type's `SelfInfoUpdatable` and `MemberInfoUpdateStrategy` for name-only updates (lines 1293-1329). Go doesn't check group type at all for name updates.
-- [ ] **Missing "all null" early return**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` when all update parameters are null (line 1332). Go proceeds with the DB call even when `name`, `role`, and `muteEndDate` are all nil.
-- [ ] **Missing `joinDate` parameter**: Java's `authAndUpdateGroupMember` passes `null` for `joinDate` in the `updateGroupMember` call (line 1335). Go also doesn't pass a joinDate, but this is consistent.
-- [ ] **Always updates version**: Go always calls `UpdateMembersVersion` (line 637). Java passes `updateGroupMembersVersion=false` (line 1335), meaning it does NOT update the version.
+- [x] **Missing group active check for role updates**: Java checks `isGroupActiveAndNotDeleted` before allowing role updates (line 1234), returning `UPDATE_GROUP_MEMBER_ROLE_OF_NONEXISTENT_GROUP` if the group is inactive. Go doesn't check group active status before role updates.
+- [x] **Missing mute-specific authorization logic**: Java has a complex mute authorization path (lines 1246-1291) that checks: (1) requester can't mute themselves, (2) requester's role must be lower than target's role number, (3) checks member info update strategy based on group type. Go's implementation at lines 608-624 is much simpler and doesn't implement the mute-specific hierarchy checks (role number comparison) or the group type's `MemberInfoUpdateStrategy`.
+- [x] **Missing name-update authorization logic**: Java checks group type's `SelfInfoUpdatable` and `MemberInfoUpdateStrategy` for name-only updates (lines 1293-1329). Go doesn't check group type at all for name updates.
+- [x] **Missing "all null" early return**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` when all update parameters are null (line 1332). Go proceeds with the DB call even when `name`, `role`, and `muteEndDate` are all nil.
+- [x] **Missing `joinDate` parameter**: Java's `authAndUpdateGroupMember` passes `null` for `joinDate` in the `updateGroupMember` call (line 1335). Go also doesn't pass a joinDate, but this is consistent.
+- [x] **Always updates version**: Go always calls `UpdateMembersVersion` (line 637). Java passes `updateGroupMembersVersion=false` (line 1335), meaning it does NOT update the version.
 
 ## deleteAllGroupMembers
 
-- [ ] **Missing `groupIds == null` means delete all**: Java differentiates between `groupIds == null` (delete all members, invalidate entire cache) and non-null (delete members of specific groups, line 1349-1353). Go returns early if `len(groupIDs) == 0` (line 375-377), treating empty as no-op instead of "delete all."
-- [ ] **Missing delete count check**: Java checks `deletedCount == 0` and returns early (line 1345-1347). Go doesn't check the delete result.
-- [ ] **Missing cache invalidation**: Java invalidates the cache after deletion (lines 1348-1353). Go doesn't invalidate the member cache.
+- [x] **Missing `groupIds == null` means delete all**: Java differentiates between `groupIds == null` (delete all members, invalidate entire cache) and non-null (delete members of specific groups, line 1349-1353). Go returns early if `len(groupIDs) == 0` (line 375-377), treating empty as no-op instead of "delete all."
+- [x] **Missing delete count check**: Java checks `deletedCount == 0` and returns early (line 1345-1347). Go doesn't check the delete result.
+- [x] **Missing cache invalidation**: Java invalidates the cache after deletion (lines 1348-1353). Go doesn't invalidate the member cache.
 
 ## queryGroupMembers (with filters)
 
-- [ ] **Missing cache population after query**: Java populates the member cache after querying when specific conditions are met (all groupIds, no userIds, no roles, no date ranges, and page/size indicate full results) (lines 1022-1056). Go doesn't populate any cache after querying.
-- [ ] **Missing `countMembers` with filters**: The Go `CountMembers` in the repository only takes a single `groupID` (line 208-213), while Java's `countMembers` accepts `groupIds, userIds, roles, joinDateRange, muteEndDateRange` (lines 1061-1078) for a complex filtered count. The Go version doesn't support the full filter-based count.
+- [x] **Missing cache population after query**: Java populates the member cache after querying when specific conditions are met (all groupIds, no userIds, no roles, no date ranges, and page/size indicate full results) (lines 1022-1056). Go doesn't populate any cache after querying.
+- [x] **Missing `countMembers` with filters**: The Go `CountMembers` in the repository only takes a single `groupID` (line 208-213), while Java's `countMembers` accepts `groupIds, userIds, roles, joinDateRange, muteEndDateRange` (lines 1061-1078) for a complex filtered count. The Go version doesn't support the full filter-based count.
 
 ## queryGroupMemberIds (single group)
 
-- [ ] **Missing cache-aware implementation**: Java has extensive cache logic for `queryGroupMemberIds(@NotNull Long groupId, boolean preferCache)` — it returns from cache if available, and if cache is enabled but not populated, it queries all members and caches them (lines 916-949). Go's `QueryGroupMemberIds` just queries the repository directly without any caching.
+- [x] **Missing cache-aware implementation**: Java has extensive cache logic for `queryGroupMemberIds(@NotNull Long groupId, boolean preferCache)` — it returns from cache if available, and if cache is enabled but not populated, it queries all members and caches them (lines 916-949). Go's `QueryGroupMemberIds` just queries the repository directly without any caching.
 
 ## queryGroupMemberIds (multiple groups)
 
-- [ ] **Missing cache-aware implementation**: Java's `queryGroupMemberIds(@NotEmpty Set<Long> groupIds, boolean preferCache)` has sophisticated cache handling — it checks which groups are cached, returns cached member IDs for those, and queries the DB only for uncached groups (lines 952-996). Go's version just queries the repository.
+- [x] **Missing cache-aware implementation**: Java's `queryGroupMemberIds(@NotEmpty Set<Long> groupIds, boolean preferCache)` has sophisticated cache handling — it checks which groups are cached, returns cached member IDs for those, and queries the DB only for uncached groups (lines 952-996). Go's version just queries the repository.
 
 ## deleteGroupMembers(boolean updateGroupMembersVersion)
 
-- [ ] **Not implemented**: Java has `deleteGroupMembers(boolean updateGroupMembersVersion)` (lines 1080-1086) that calls `groupMemberRepository.deleteAll()` and optionally updates the version. Go does not have this method.
+- [x] **Not implemented**: Java has `deleteGroupMembers(boolean updateGroupMembersVersion)` (lines 1080-1086) that calls `groupMemberRepository.deleteAll()` and optionally updates the version. Go does not have this method.
 
 ## queryGroupMembers (single group, preferCache)
 
-- [ ] **Missing cache lookup and population**: Java's `queryGroupMembers(@NotNull Long groupId, boolean preferCache)` (lines 1088-1117) checks the cache first when `preferCache=true`, and populates the cache after DB query. Go doesn't have this method — the `FindGroupMembers` in the repository is always called directly.
+- [x] **Missing cache lookup and population**: Java's `queryGroupMembers(@NotNull Long groupId, boolean preferCache)` (lines 1088-1117) checks the cache first when `preferCache=true`, and populates the cache after DB query. Go doesn't have this method — the `FindGroupMembers` in the repository is always called directly.
 
 ## queryGroupMembers (single group, memberIds, preferCache)
 
-- [ ] **Missing cache-aware implementation**: Java's `queryGroupMembers(@NotNull Long groupId, @NotEmpty Set<Long> memberIds, boolean preferCache)` (lines 1119-1145) checks the cache first when `preferCache=true`. Go's `AuthAndQueryGroupMembers` always queries the DB.
+- [x] **Missing cache-aware implementation**: Java's `queryGroupMembers(@NotNull Long groupId, @NotEmpty Set<Long> memberIds, boolean preferCache)` (lines 1119-1145) checks the cache first when `preferCache=true`. Go's `AuthAndQueryGroupMembers` always queries the DB.
 
 ## authAndQueryGroupMembers
 
-- [ ] **Missing `withStatus` parameter handling**: Java fills member online status via `userStatusService.getUserSessionsStatus` when `withStatus=true` (lines 1168-1175). Go's `AuthAndQueryGroupMembers` at line 673 accepts `withStatus` but never uses it — the parameter is completely ignored.
-- [ ] **Missing no-content check**: Java checks if `members.isEmpty()` and returns `noContent()` error (line 1163-1165). Go returns the empty result without error.
-- [ ] **Missing `memberIds` empty delegation**: When `memberIds` is empty in Java, `queryGroupMembers(groupId, memberIds, false)` returns an empty list. Go's code delegates differently.
+- [x] **Missing `withStatus` parameter handling**: Java fills member online status via `userStatusService.getUserSessionsStatus` when `withStatus=true` (lines 1168-1175). Go's `AuthAndQueryGroupMembers` at line 673 accepts `withStatus` but never uses it — the parameter is completely ignored.
+- [x] **Missing no-content check**: Java checks if `members.isEmpty()` and returns `noContent()` error (line 1163-1165). Go returns the empty result without error.
+- [x] **Missing `memberIds` empty delegation**: When `memberIds` is empty in Java, `queryGroupMembers(groupId, memberIds, false)` returns an empty list. Go's code delegates differently.
 
 ## authAndQueryGroupMembersWithVersion
 
-- [ ] **Missing `withStatus` parameter**: Go's `AuthAndQueryGroupMembersWithVersion` at line 715 doesn't accept `withStatus`. The Java version supports filling online status (lines 1199-1200). The controller at `group_service_controller.go:393-409` doesn't pass `withStatus` either.
-- [ ] **Missing `switchIfEmpty(alreadyUpToUpdate)` fallback**: Java has a `switchIfEmpty(ResponseExceptionPublisherPool.alreadyUpToDate())` at line 1210 that returns an "already up to date" response when the version is empty (group has no version entry). Go returns `nil, nil, nil` (line 737-738) when not modified, which is a different response.
-- [ ] **Version comparison uses `Before`/`Equal` instead of `isAfterOrSame`**: Java uses `DateTimeUtil.isAfterOrSame(lastUpdatedDate, version)` (line 1189), which returns true if `lastUpdatedDate >= version`. Go checks `v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate)` (line 736), which is equivalent to `lastUpdatedDate > v || lastUpdatedDate == v`, i.e., `lastUpdatedDate >= v`. This appears correct.
+- [x] **Missing `withStatus` parameter**: Go's `AuthAndQueryGroupMembersWithVersion` at line 715 doesn't accept `withStatus`. The Java version supports filling online status (lines 1199-1200). The controller at `group_service_controller.go:393-409` doesn't pass `withStatus` either.
+- [x] **Missing `switchIfEmpty(alreadyUpToUpdate)` fallback**: Java has a `switchIfEmpty(ResponseExceptionPublisherPool.alreadyUpToDate())` at line 1210 that returns an "already up to date" response when the version is empty (group has no version entry). Go returns `nil, nil, nil` (line 737-738) when not modified, which is a different response.
+- [x] **Version comparison uses `Before`/`Equal` instead of `isAfterOrSame`**: Java uses `DateTimeUtil.isAfterOrSame(lastUpdatedDate, version)` (line 1189), which returns true if `lastUpdatedDate >= version`. Go checks `v.Before(*lastUpdatedDate) || v.Equal(*lastUpdatedDate)` (line 736), which is equivalent to `lastUpdatedDate > v || lastUpdatedDate == v`, i.e., `lastUpdatedDate >= v`. This appears correct.
 
 ## queryGroupManagersAndOwnerId
 
-- [ ] **Missing cache population per member**: Java's version (lines 1369-1374) calls `cacheMember(key.getGroupId(), member)` for each member returned. Go's `QueryGroupManagersAndOwnerId` at line 701 just returns the raw results without caching.
+- [x] **Missing cache population per member**: Java's version (lines 1369-1374) calls `cacheMember(key.getGroupId(), member)` for each member returned. Go's `QueryGroupManagersAndOwnerId` at line 701 just returns the raw results without caching.
 
 ## FindUsersJoinedGroupIds (repository)
 
-- [ ] **Missing pagination**: The Go repository `FindUsersJoinedGroupIds` at line 372 has a comment "Pagination logic can be added if needed" but doesn't implement `page`/`size` parameters. The Java version passes `page` and `size` to the repository for pagination.
+- [x] **Missing pagination**: The Go repository `FindUsersJoinedGroupIds` at line 372 has a comment "Pagination logic can be added if needed" but doesn't implement `page`/`size` parameters. The Java version passes `page` and `size` to the repository for pagination.
 
 # GroupQuestionService.java
 *Checked methods: checkGroupQuestionAnswerAndGetScore(@NotNull Long questionId, @NotNull String answer, @Nullable Long groupId), authAndCheckGroupQuestionAnswerAndJoin(@NotNull Long requesterId, @NotNull @ValidGroupQuestionIdAndAnswer Map<Long, String> questionIdToAnswer), authAndCreateGroupJoinQuestions(@NotNull Long requesterId, @NotNull Long groupId, @NotNull List<NewGroupQuestion> questions), createGroupJoinQuestions(@NotNull Long groupId, @NotNull List<NewGroupQuestion> questions), authAndDeleteGroupJoinQuestions(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Set<Long> questionIds), queryGroupJoinQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds, @Nullable Integer page, @Nullable Integer size, boolean withAnswers), countGroupJoinQuestions(@Nullable Set<Long> ids, @Nullable Set<Long> groupIds), deleteGroupJoinQuestions(@Nullable Set<Long> ids), authAndQueryGroupJoinQuestionsWithVersion(@NotNull Long requesterId, @NotNull Long groupId, boolean withAnswers, @Nullable Date lastUpdatedDate), authAndUpdateGroupJoinQuestion(@NotNull Long requesterId, @NotNull Long questionId, @Nullable String question, @Nullable Set<String> answers, @Nullable @Min(0), updateGroupJoinQuestions(@NotEmpty Set<Long> ids, @Nullable Long groupId, @Nullable String question, @Nullable Set<String> answers, @Nullable @Min(0)*
@@ -13698,21 +13698,21 @@ Minor difference but not a bug per se: Go handles single item, Java handles batc
 - No bugs
 
 ## authAndCheckGroupQuestionAnswerAndJoin
-- [ ] Missing blocklist check: Java checks `groupBlocklistService.isBlocked(groupId, requesterId)` and returns `GROUP_QUESTION_ANSWERER_HAS_BEEN_BLOCKED` error if blocked. Go completely skips this check.
-- [ ] Missing group member check: Java checks `groupMemberService.isGroupMember(groupId, requesterId, false)` and returns `GROUP_MEMBER_ANSWER_GROUP_QUESTION` if already a member. Go skips this check entirely.
-- [ ] Missing join strategy validation: Java verifies `type.getJoinStrategy() == GroupJoinStrategy.QUESTION` and returns specific error codes (`ANSWER_INACTIVE_GROUP_QUESTION` or `ANSWER_GROUP_QUESTION_OF_INACTIVE_GROUP`). Go doesn't validate the join strategy at all.
-- [ ] Missing group active/not-deleted validation before score check: Java calls `groupService.queryGroupTypeIfActiveAndNotDeleted(groupId)` and returns `ANSWER_GROUP_QUESTION_OF_INACTIVE_GROUP` if null. Go calls `QueryGroupMinimumScoreIfActiveAndNotDeleted` which partially covers this but doesn't return the same specific error codes for inactive groups.
-- [ ] Missing `GroupId` in result: Java returns `groupId` in `CheckGroupQuestionAnswerResult`. Go's `GroupJoinQuestionsAnswerResult` has no `GroupId` field.
+- [x] Missing blocklist check: Java checks `groupBlocklistService.isBlocked(groupId, requesterId)` and returns `GROUP_QUESTION_ANSWERER_HAS_BEEN_BLOCKED` error if blocked. Go completely skips this check.
+- [x] Missing group member check: Java checks `groupMemberService.isGroupMember(groupId, requesterId, false)` and returns `GROUP_MEMBER_ANSWER_GROUP_QUESTION` if already a member. Go skips this check entirely.
+- [x] Missing join strategy validation: Java verifies `type.getJoinStrategy() == GroupJoinStrategy.QUESTION` and returns specific error codes (`ANSWER_INACTIVE_GROUP_QUESTION` or `ANSWER_GROUP_QUESTION_OF_INACTIVE_GROUP`). Go doesn't validate the join strategy at all.
+- [x] Missing group active/not-deleted validation before score check: Java calls `groupService.queryGroupTypeIfActiveAndNotDeleted(groupId)` and returns `ANSWER_GROUP_QUESTION_OF_INACTIVE_GROUP` if null. Go calls `QueryGroupMinimumScoreIfActiveAndNotDeleted` which partially covers this but doesn't return the same specific error codes for inactive groups.
+- [x] Missing `GroupId` in result: Java returns `groupId` in `CheckGroupQuestionAnswerResult`. Go's `GroupJoinQuestionsAnswerResult` has no `GroupId` field.
 
 ## authAndCreateGroupJoinQuestions
-- [ ] Missing group active/not-deleted check: Java calls `groupService.queryGroupTypeIfActiveAndNotDeleted(groupId)` and returns `CREATE_GROUP_QUESTION_FOR_INACTIVE_GROUP` if the group is inactive. Go skips this check.
-- [ ] Missing join strategy validation: Java validates the group's join strategy is QUESTION and returns specific error codes for other strategies (JOIN_REQUEST → `CREATE_GROUP_QUESTION_FOR_GROUP_USING_JOIN_REQUEST`, INVITATION → `CREATE_GROUP_QUESTION_FOR_GROUP_USING_INVITATION`, MEMBERSHIP_REQUEST → `CREATE_GROUP_QUESTION_FOR_GROUP_USING_MEMBERSHIP_REQUEST`). Go doesn't validate join strategy.
-- [ ] No batch creation support: Java accepts `List<NewGroupQuestion> questions` and creates all in batch. Go's `AuthAndCreateQuestion` handles only a single question.
-- [ ] ID generation differs: Java uses `node.nextLargeGapId(ServiceType.GROUP_JOIN_QUESTION)` (distributed, collision-free). Go uses `time.Now().UnixNano()` which is not collision-safe in distributed deployments.
+- [x] Missing group active/not-deleted check: Java calls `groupService.queryGroupTypeIfActiveAndNotDeleted(groupId)` and returns `CREATE_GROUP_QUESTION_FOR_INACTIVE_GROUP` if the group is inactive. Go skips this check.
+- [x] Missing join strategy validation: Java validates the group's join strategy is QUESTION and returns specific error codes for other strategies (JOIN_REQUEST → `CREATE_GROUP_QUESTION_FOR_GROUP_USING_JOIN_REQUEST`, INVITATION → `CREATE_GROUP_QUESTION_FOR_GROUP_USING_INVITATION`, MEMBERSHIP_REQUEST → `CREATE_GROUP_QUESTION_FOR_GROUP_USING_MEMBERSHIP_REQUEST`). Go doesn't validate join strategy.
+- [x] No batch creation support: Java accepts `List<NewGroupQuestion> questions` and creates all in batch. Go's `AuthAndCreateQuestion` handles only a single question.
+- [x] ID generation differs: Java uses `node.nextLargeGapId(ServiceType.GROUP_JOIN_QUESTION)` (distributed, collision-free). Go uses `time.Now().UnixNano()` which is not collision-safe in distributed deployments.
 
 ## createGroupJoinQuestions
-- [ ] Missing content length validation for question text: Java validates `Validator.maxLength(question, "question", questionContentLimit)`. Go has no such check.
-- [ ] Missing answer count validation: Java validates `Validator.inSizeRange(answers, "answers", 1, maxAnswerCount)`. Go only checks `len(answers) == 0` (in `CheckNewGroupQuestion`) but doesn't enforce a maximum count.
+- [x] Missing content length validation for question text: Java validates `Validator.maxLength(question, "question", questionContentLimit)`. Go has no such check.
+- [x] Missing answer count validation: Java validates `Validator.inSizeRange(answers, "answers", 1, maxAnswerCount)`. Go only checks `len(answers) == 0` (in `CheckNewGroupQuestion`) but doesn't enforce a maximum count.
 - [ ] Missing answer content length validation: Java validates `Validator.maxLength(answers, "answers", answerContentLimit)`. Go has no such check.
 - [ ] Missing score null and min validation in batch create: Java validates `Validator.notNull(score, "score")` and `Validator.min(score, "score", 0)`. Go's `AuthAndCreateQuestion` doesn't validate score.
 - [ ] Missing batch insert: Java creates a list of `GroupJoinQuestion` objects and calls `insertAllOfSameType`. Go inserts one at a time.
