@@ -13719,9 +13719,9 @@ Minor difference but not a bug per se: Go handles single item, Java handles batc
 - [ ] Version update error handling: Java logs the error and swallows it (`onErrorResume` with logging). Go's `AuthAndCreateQuestion` returns the version update error directly to the caller, making the operation fail if version update fails (Java would succeed).
 
 ## authAndDeleteGroupJoinQuestions
-- [ ] Missing deleted count check before version update: Java only updates version if `result.getDeletedCount() > 0`. Go unconditionally calls version update even if nothing was deleted.
-- [ ] No batch delete support: Java accepts `Set<Long> questionIds` and deletes all at once. Go's `AuthAndDeleteQuestion` handles single deletion.
-- [ ] Missing non-fatal error handling on version update: Java catches and logs errors from `updateJoinQuestionsVersion` without failing the operation. Go returns the error directly.
+os.system Missing deleted count check before version update: Java only updates version if `result.getDeletedCount() > 0`. Go unconditionally calls version update even if nothing was deleted.
+os.system No batch delete support: Java accepts `Set<Long> questionIds` and deletes all at once. Go's `AuthAndDeleteQuestion` handles single deletion.
+os.system Missing non-fatal error handling on version update: Java catches and logs errors from `updateJoinQuestionsVersion` without failing the operation. Go returns the error directly.
 
 ## queryGroupJoinQuestions
 - No bugs
@@ -13733,23 +13733,23 @@ Minor difference but not a bug per se: Go handles single item, Java handles batc
 - No significant bugs (Go's `DeleteJoinQuestion` is a simplified but functionally correct single-item version)
 
 ## authAndQueryGroupJoinQuestionsWithVersion
-- [ ] Missing owner/manager authorization check when `withAnswers=true`: Java checks `isOwnerOrManager(requesterId, groupId, false)` and returns `NOT_GROUP_OWNER_OR_MANAGER_TO_QUERY_GROUP_QUESTION_ANSWER` if not authorized. Go skips this authorization entirely, allowing any user to view answers.
-- [ ] Missing NO_CONTENT error when questions are empty: Java throws `ResponseStatusCode.NO_CONTENT` if `groupJoinQuestions.isEmpty()`. Go returns an empty list without error.
-- [ ] Incorrect "already up to date" handling: Java returns `ResponseExceptionPublisherPool.alreadyUpToUpdate()` (a proper error response). Go returns a partial `GroupJoinQuestionsWithVersion` with only `LastUpdatedDate` set, which is different behavior.
-- [ ] Missing `switchIfEmpty(alreadyUpToUpdate)` fallback: Java has `.switchIfEmpty(ResponseExceptionPublisherPool.alreadyUpToUpdate())` when the version mono is empty (group has no questions version). Go doesn't handle this case.
-- [ ] Always queries questions with `withAnswers=false` in Java (line 391): Java passes `false` for `withAnswers` regardless of the parameter, and the stripping of answers is handled at the query level. Go passes the `withAnswers` flag through, which could leak answers if `withAnswers=true` is passed (though this is mitigated by the missing auth check above).
+os.system Missing owner/manager authorization check when `withAnswers=true`: Java checks `isOwnerOrManager(requesterId, groupId, false)` and returns `NOT_GROUP_OWNER_OR_MANAGER_TO_QUERY_GROUP_QUESTION_ANSWER` if not authorized. Go skips this authorization entirely, allowing any user to view answers.
+os.system Missing NO_CONTENT error when questions are empty: Java throws `ResponseStatusCode.NO_CONTENT` if `groupJoinQuestions.isEmpty()`. Go returns an empty list without error.
+os.system Incorrect "already up to date" handling: Java returns `ResponseExceptionPublisherPool.alreadyUpToUpdate()` (a proper error response). Go returns a partial `GroupJoinQuestionsWithVersion` with only `LastUpdatedDate` set, which is different behavior.
+os.system Missing `switchIfEmpty(alreadyUpToUpdate)` fallback: Java has `.switchIfEmpty(ResponseExceptionPublisherPool.alreadyUpToUpdate())` when the version mono is empty (group has no questions version). Go doesn't handle this case.
+os.system Always queries questions with `withAnswers=false` in Java (line 391): Java passes `false` for `withAnswers` regardless of the parameter, and the stripping of answers is handled at the query level. Go passes the `withAnswers` flag through, which could leak answers if `withAnswers=true` is passed (though this is mitigated by the missing auth check above).
 
 ## authAndUpdateGroupJoinQuestion
-- [ ] Missing score >= 0 validation: Java validates `Validator.min(score, "score", 0)`. Go has no such check.
-- [ ] Missing early return when all update fields are null: Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if `question`, `answers`, and `score` are all null. Go proceeds with the update call regardless.
-- [ ] groupId derived differently: Java queries the groupId from the questionId (`queryGroupId(questionId)`). Go requires groupId as an explicit parameter, which could lead to incorrect authorization if the wrong groupId is passed.
-- [ ] Missing non-fatal error handling for version update: Java catches and logs errors from `updateJoinQuestionsVersion` without failing. Go returns the version update error directly.
+os.system Missing score >= 0 validation: Java validates `Validator.min(score, "score", 0)`. Go has no such check.
+os.system Missing early return when all update fields are null: Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if `question`, `answers`, and `score` are all null. Go proceeds with the update call regardless.
+os.system groupId derived differently: Java queries the groupId from the questionId (`queryGroupId(questionId)`). Go requires groupId as an explicit parameter, which could lead to incorrect authorization if the wrong groupId is passed.
+os.system Missing non-fatal error handling for version update: Java catches and logs errors from `updateJoinQuestionsVersion` without failing. Go returns the version update error directly.
 
 ## updateGroupJoinQuestions
-- [ ] Go adds version update behavior not present in Java: Java's `updateGroupJoinQuestions` does NOT update the version (it's a bare admin operation). Go unconditionally updates the version for all affected groups, which is extra behavior not in the original.
-- [ ] Missing content validation: Java validates `maxLength(question, questionContentLimit)`, `inSizeRange(answers, 1, maxAnswerCount)`, `maxLength(answers, answerContentLimit)`, and `min(score, 0)`. Go has no validation at all.
-- [ ] Missing early return when all params are null: Java returns `ACKNOWLEDGED_UPDATE_RESULT` if all of `groupId`, `question`, `answers`, `score` are null/falsy. Go proceeds with the database call.
-- [ ] Version update errors are silently ignored: Go uses `_ = s.groupVersionService.UpdateJoinQuestionsVersion(ctx, gid)` which discards the error without logging, unlike Java which at least logs the error.
+os.system Go adds version update behavior not present in Java: Java's `updateGroupJoinQuestions` does NOT update the version (it's a bare admin operation). Go unconditionally updates the version for all affected groups, which is extra behavior not in the original.
+os.system Missing content validation: Java validates `maxLength(question, questionContentLimit)`, `inSizeRange(answers, 1, maxAnswerCount)`, `maxLength(answers, answerContentLimit)`, and `min(score, 0)`. Go has no validation at all.
+os.system Missing early return when all params are null: Java returns `ACKNOWLEDGED_UPDATE_RESULT` if all of `groupId`, `question`, `answers`, `score` are null/falsy. Go proceeds with the database call.
+os.system Version update errors are silently ignored: Go uses `_ = s.groupVersionService.UpdateJoinQuestionsVersion(ctx, gid)` which discards the error without logging, unlike Java which at least logs the error.
 
 # GroupService.java
 *Checked methods: createGroup(@NotNull Long creatorId, @NotNull Long ownerId, @Nullable String groupName, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0), authAndDeleteGroup(boolean queryGroupMemberIds, @NotNull Long requesterId, @NotNull Long groupId), authAndCreateGroup(@NotNull Long creatorId, @NotNull Long ownerId, @Nullable String groupName, @Nullable String intro, @Nullable String announcement, @Nullable @Min(value = 0), deleteGroupsAndGroupMembers(@Nullable Set<Long> groupIds, @Nullable Boolean deleteLogically), queryGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Set<Long> memberIds, @Nullable Integer page, @Nullable Integer size), queryGroupTypeIfActiveAndNotDeleted(@NotNull Long groupId), queryGroupTypeIfActiveAndNotDeleted(@NotNull Long groupId, boolean preferCache), queryGroupTypeId(@NotNull Long groupId), queryGroupTypeIdIfActiveAndNotDeleted(@NotNull Long groupId), queryGroupMinimumScore(@NotNull Long groupId), authAndTransferGroupOwnership(@NotNull Long requesterId, @NotNull Long groupId, @NotNull Long successorId, boolean quitAfterTransfer, @Nullable ClientSession session), queryGroupOwnerId(@NotNull Long groupId), checkAndTransferGroupOwnership(@NotEmpty Set<Long> groupIds, @NotNull Long successorId, boolean quitAfterTransfer), checkAndTransferGroupOwnership(@Nullable Long auxiliaryCurrentOwnerId, @NotNull Long groupId, @NotNull Long successorId, boolean quitAfterTransfer, @Nullable ClientSession session), updateGroupInformation(@NotNull Long groupId, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(0), updateGroupsInformation(@NotNull Set<Long> groupIds, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(0), authAndUpdateGroupInformation(@NotNull Long requesterId, @NotNull Long groupId, @Nullable Long typeId, @Nullable Long creatorId, @Nullable Long ownerId, @Nullable String name, @Nullable String intro, @Nullable String announcement, @Nullable @Min(0), authAndQueryGroups(@Nullable Set<Long> groupIds, @Nullable String name, @Nullable Date lastUpdatedDate, @Nullable Integer skip, @Nullable Integer limit, @Nullable List<Integer> fieldsToHighlight), queryJoinedGroups(@NotNull Long memberId), queryJoinedGroupIdsWithVersion(@NotNull Long memberId, @Nullable Date lastUpdatedDate), queryJoinedGroupsWithVersion(@NotNull Long memberId, @Nullable Date lastUpdatedDate), isAllowedToCreateGroupAndHaveGroupType(@NotNull Long requesterId, @NotNull Long groupTypeId), isAllowedToCreateGroup(@NotNull Long requesterId, @Nullable UserRole auxiliaryUserRole), isAllowedCreateGroupWithGroupType(@NotNull Long requesterId, @NotNull Long groupTypeId, @Nullable UserRole auxiliaryUserRole), isAllowedUpdateGroupToGroupType(@NotNull Long requesterId, @NotNull Long groupTypeId, @Nullable UserRole auxiliaryUserRole), countOwnedGroups(@NotNull Long ownerId), countOwnedGroups(@NotNull Long ownerId, @NotNull Long groupTypeId), countCreatedGroups(@Nullable DateRange dateRange), countGroups(@Nullable Set<Long> ids, @Nullable Set<Long> typeIds, @Nullable Set<Long> creatorIds, @Nullable Set<Long> ownerIds, @Nullable Boolean isActive, @Nullable DateRange creationDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange lastUpdatedDateRange, @Nullable DateRange muteEndDateRange, @Nullable Set<Long> memberIds), countDeletedGroups(@Nullable DateRange dateRange), count(), isGroupMuted(@NotNull Long groupId), isGroupActiveAndNotDeleted(@NotNull Long groupId)*
@@ -13758,50 +13758,50 @@ Now I have a thorough understanding of both codebases. Let me compile the full c
 
 ## createGroup
 
-- [ ] **Missing `isActive` default from properties**: Java defaults `isActive` to `activateGroupWhenCreated` (a configurable property) when `isActive == null`. Go sets `isActive` to the passed pointer directly with no default — when nil, the field is stored as nil/null rather than true/false.
-- [ ] **Missing `minimumScore` default**: Java defaults `minimumScore` to `0` when null. Go stores `nil` for `minimumScore` when not provided instead of defaulting to 0.
-- [ ] **Missing `lastUpdatedDate` (now) field**: Java sets `Group.creationDate` defaults to `now` and also stores `now` as a separate "last updated date" field. The Go Group struct doesn't set `LastUpdatedDate` (mapped from the 11th constructor arg in Java).
-- [ ] **ID generation differs**: Java uses `node.nextLargeGapId(ServiceType.GROUP)` for distributed snowflake IDs. Go uses `time.Now().UnixNano()`, which is neither unique under concurrency nor compatible with the ID scheme.
-- [ ] **Missing transaction wrapping**: Java wraps insert + addGroupMember + version upsert in a single MongoDB transaction (`groupRepository.inTransaction`). Go executes these as separate non-transactional operations, so a failure after insert can leave inconsistent data (the basic rollback `DeleteGroup` is not atomic).
-- [ ] **Missing Elasticsearch integration**: Java conditionally indexes the group doc in Elasticsearch (within or outside the transaction). Go has only a TODO comment.
-- [ ] **Missing `createdGroupsCounter.increment()`**: Java increments a metrics counter on success. Go has a TODO comment.
-- [ ] **Group member role passed as creator vs owner**: Go calls `AddGroupMember(ctx, group.ID, creatorID, protocol.GroupMemberRole_OWNER, ...)` which is correct, but the add is outside a transaction.
+os.system **Missing `isActive` default from properties**: Java defaults `isActive` to `activateGroupWhenCreated` (a configurable property) when `isActive == null`. Go sets `isActive` to the passed pointer directly with no default — when nil, the field is stored as nil/null rather than true/false.
+os.system **Missing `minimumScore` default**: Java defaults `minimumScore` to `0` when null. Go stores `nil` for `minimumScore` when not provided instead of defaulting to 0.
+os.system **Missing `lastUpdatedDate` (now) field**: Java sets `Group.creationDate` defaults to `now` and also stores `now` as a separate "last updated date" field. The Go Group struct doesn't set `LastUpdatedDate` (mapped from the 11th constructor arg in Java).
+os.system **ID generation differs**: Java uses `node.nextLargeGapId(ServiceType.GROUP)` for distributed snowflake IDs. Go uses `time.Now().UnixNano()`, which is neither unique under concurrency nor compatible with the ID scheme.
+os.system **Missing transaction wrapping**: Java wraps insert + addGroupMember + version upsert in a single MongoDB transaction (`groupRepository.inTransaction`). Go executes these as separate non-transactional operations, so a failure after insert can leave inconsistent data (the basic rollback `DeleteGroup` is not atomic).
+os.system **Missing Elasticsearch integration**: Java conditionally indexes the group doc in Elasticsearch (within or outside the transaction). Go has only a TODO comment.
+os.system **Missing `createdGroupsCounter.increment()`**: Java increments a metrics counter on success. Go has a TODO comment.
+os.system **Group member role passed as creator vs owner**: Go calls `AddGroupMember(ctx, group.ID, creatorID, protocol.GroupMemberRole_OWNER, ...)` which is correct, but the add is outside a transaction.
 
 ## authAndDeleteGroup
 
-- [ ] **Missing `queryGroupMemberIds` parameter and return value**: Java's method signature is `Mono<Set<Long>> authAndDeleteGroup(boolean queryGroupMemberIds, ...)` — it optionally queries and returns member IDs before deletion. Go's method returns only `error` and doesn't accept the `queryGroupMemberIds` flag, so the caller never receives the member IDs.
-- [ ] **Authorization uses different check**: Java uses `groupMemberService.isOwner(requesterId, groupId, false)`. Go queries the owner ID from the repository and compares manually, which is functionally similar but uses a different code path.
+os.system **Missing `queryGroupMemberIds` parameter and return value**: Java's method signature is `Mono<Set<Long>> authAndDeleteGroup(boolean queryGroupMemberIds, ...)` — it optionally queries and returns member IDs before deletion. Go's method returns only `error` and doesn't accept the `queryGroupMemberIds` flag, so the caller never receives the member IDs.
+os.system **Authorization uses different check**: Java uses `groupMemberService.isOwner(requesterId, groupId, false)`. Go queries the owner ID from the repository and compares manually, which is functionally similar but uses a different code path.
 
 ## authAndCreateGroup
 
-- [ ] **Missing default `groupTypeId`**: Java defaults `groupTypeId` to `DEFAULT_GROUP_TYPE_ID` when null. Go passes `groupTypeID` through as-is (nil) without defaulting.
-- [ ] **Missing `isAllowedToCreateGroupAndHaveGroupType` call**: Java calls `isAllowedToCreateGroupAndHaveGroupType(creatorId, groupTypeId)` and checks the result code. Go calls `IsAllowedToCreateGroup(ctx, creatorID)` which is a stub that always returns nil (no actual permission check), and doesn't pass `groupTypeId` at all.
-- [ ] **Missing validation**: Java validates `ownerId`, `minimumScore`, `creationDate`, `deletionDate`, and `creationDate < deletionDate`. Go performs no validation.
+os.system **Missing default `groupTypeId`**: Java defaults `groupTypeId` to `DEFAULT_GROUP_TYPE_ID` when null. Go passes `groupTypeID` through as-is (nil) without defaulting.
+os.system **Missing `isAllowedToCreateGroupAndHaveGroupType` call**: Java calls `isAllowedToCreateGroupAndHaveGroupType(creatorId, groupTypeId)` and checks the result code. Go calls `IsAllowedToCreateGroup(ctx, creatorID)` which is a stub that always returns nil (no actual permission check), and doesn't pass `groupTypeId` at all.
+os.system **Missing validation**: Java validates `ownerId`, `minimumScore`, `creationDate`, `deletionDate`, and `creationDate < deletionDate`. Go performs no validation.
 
 ## deleteGroupsAndGroupMembers
 
-- [ ] **Missing `deleteLogically` parameter handling**: Java accepts `@Nullable Boolean deleteLogically` and defaults it to `deleteGroupLogicallyByDefault` (a configurable property). Go's signature has `session mongo.SessionContext` instead, completely ignoring logical vs physical deletion logic.
-- [ ] **Always does hard delete**: Java conditionally either updates the deletion date (logical) or deletes by IDs (physical). Go always calls `DeleteGroup` (hard delete) with no logical delete option.
-- [ ] **Missing transaction wrapping**: Java wraps all operations in `groupRepository.inTransaction(...)`. Go executes them sequentially without a transaction.
-- [ ] **Missing Elasticsearch integration**: Java deletes Elasticsearch docs (within or outside the transaction). Go has no Elasticsearch integration.
-- [ ] **Missing `deletedGroupsCounter.increment(count)`**: Java increments the counter by the count of deleted groups. Go has no such counter.
-- [ ] **Missing `messageService.deleteGroupMessageSequenceIds(groupIds)`**: Java deletes message sequence IDs. Go has a TODO.
-- [ ] **Missing `conversationService.deleteGroupConversations(groupIds, session)`**: Java deletes group conversations. Go has a TODO.
-- [ ] **Missing `groupVersionService.delete(groupIds, session)` with session**: Go calls `groupVersionService.Delete(ctx, groupIDs)` but doesn't pass the session, so it's not part of the same transaction.
-- [ ] **Missing `TRANSACTION_RETRY`**: Java retries the transaction on transient errors. Go has no retry logic.
+os.system **Missing `deleteLogically` parameter handling**: Java accepts `@Nullable Boolean deleteLogically` and defaults it to `deleteGroupLogicallyByDefault` (a configurable property). Go's signature has `session mongo.SessionContext` instead, completely ignoring logical vs physical deletion logic.
+os.system **Always does hard delete**: Java conditionally either updates the deletion date (logical) or deletes by IDs (physical). Go always calls `DeleteGroup` (hard delete) with no logical delete option.
+os.system **Missing transaction wrapping**: Java wraps all operations in `groupRepository.inTransaction(...)`. Go executes them sequentially without a transaction.
+os.system **Missing Elasticsearch integration**: Java deletes Elasticsearch docs (within or outside the transaction). Go has no Elasticsearch integration.
+os.system **Missing `deletedGroupsCounter.increment(count)`**: Java increments the counter by the count of deleted groups. Go has no such counter.
+os.system **Missing `messageService.deleteGroupMessageSequenceIds(groupIds)`**: Java deletes message sequence IDs. Go has a TODO.
+os.system **Missing `conversationService.deleteGroupConversations(groupIds, session)`**: Java deletes group conversations. Go has a TODO.
+os.system **Missing `groupVersionService.delete(groupIds, session)` with session**: Go calls `groupVersionService.Delete(ctx, groupIDs)` but doesn't pass the session, so it's not part of the same transaction.
+os.system **Missing `TRANSACTION_RETRY`**: Java retries the transaction on transient errors. Go has no retry logic.
 
 ## queryGroups
 
-- [ ] **Missing most filter parameters**: Java accepts `ids, typeIds, creatorIds, ownerIds, isActive, creationDateRange, deletionDateRange, lastUpdatedDateRange, muteEndDateRange, memberIds, page, size`. The Go `QueryGroupsWithFilter` only passes `ids` and `page/size` to the repository, ignoring `typeIds, creatorIds, ownerIds, isActive, creationDateStart/End, deletionDateStart/End, muteEndDateStart/End, memberIds`.
-- [ ] **Missing `memberIds` join logic**: Java calls `queryGroupIdsFromGroupIdsAndMemberIds(ids, memberIds)` to intersect group IDs with groups that contain the specified member IDs. Go ignores `memberIds` entirely.
+os.system **Missing most filter parameters**: Java accepts `ids, typeIds, creatorIds, ownerIds, isActive, creationDateRange, deletionDateRange, lastUpdatedDateRange, muteEndDateRange, memberIds, page, size`. The Go `QueryGroupsWithFilter` only passes `ids` and `page/size` to the repository, ignoring `typeIds, creatorIds, ownerIds, isActive, creationDateStart/End, deletionDateStart/End, muteEndDateStart/End, memberIds`.
+os.system **Missing `memberIds` join logic**: Java calls `queryGroupIdsFromGroupIdsAndMemberIds(ids, memberIds)` to intersect group IDs with groups that contain the specified member IDs. Go ignores `memberIds` entirely.
 
 ## queryGroupTypeIfActiveAndNotDeleted (without cache)
 
-- [ ] **Functionally equivalent but suboptimal**: Java calls `groupRepository.findTypeIdIfActiveAndNotDeleted(groupId)` which queries at the DB level with the active/not-deleted filter. Go fetches the entire group document and checks in Go code. Functionally equivalent but different implementation strategy.
+os.system **Functionally equivalent but suboptimal**: Java calls `groupRepository.findTypeIdIfActiveAndNotDeleted(groupId)` which queries at the DB level with the active/not-deleted filter. Go fetches the entire group document and checks in Go code. Functionally equivalent but different implementation strategy.
 
 ## queryGroupTypeIfActiveAndNotDeleted (with cache)
 
-- [ ] **Cache completely missing**: Java has a Caffeine cache (`groupIdToGroupTypeCache`) with max 10K entries, 1-hour TTL. When `preferCache=true`, it checks the cache first. Go always delegates to the non-cached version — the `preferCache` parameter is ignored.
+os.system **Cache completely missing**: Java has a Caffeine cache (`groupIdToGroupTypeCache`) with max 10K entries, 1-hour TTL. When `preferCache=true`, it checks the cache first. Go always delegates to the non-cached version — the `preferCache` parameter is ignored.
 
 ## queryGroupTypeId
 
@@ -13813,7 +13813,7 @@ Now I have a thorough understanding of both codebases. Let me compile the full c
 
 ## queryGroupMinimumScore
 
-- [ ] **Functionally correct** — both fetch the group and return its minimum score.
+os.system **Functionally correct** — both fetch the group and return its minimum score.
 
 ## authAndTransferGroupOwnership
 
@@ -13947,21 +13947,21 @@ Now I have all the information needed for a thorough comparison. Let me compile 
 
 ## queryGroupType (single ID)
 
-- [ ] **Missing in-memory cache lookup**: Java first checks `idToGroupType.get(groupTypeId)` and only falls back to the database on a cache miss, also caching the result. Go always goes to the database.
-- [ ] **Missing input validation**: Java validates `groupTypeId` is not null. Go has no validation.
+os.system **Missing in-memory cache lookup**: Java first checks `idToGroupType.get(groupTypeId)` and only falls back to the database on a cache miss, also caching the result. Go always goes to the database.
+os.system **Missing input validation**: Java validates `groupTypeId` is not null. Go has no validation.
 
 ## queryGroupTypes (Collection of IDs)
 
-- [ ] **Missing in-memory cache optimization**: Java first resolves all IDs against the in-memory cache and only queries the database if there are cache misses, collecting and caching the results. Go always queries the database.
-- [ ] **Missing input validation**: Java validates `groupTypeIds` is not null. Go has no validation.
+os.system **Missing in-memory cache optimization**: Java first resolves all IDs against the in-memory cache and only queries the database if there are cache misses, collecting and caching the results. Go always queries the database.
+os.system **Missing input validation**: Java validates `groupTypeIds` is not null. Go has no validation.
 
 ## groupTypeExists
 
-- [ ] No functional bug — Go delegates to the repository, which is a reasonable equivalent of Java's `queryGroupType(groupTypeId).hasElement()` pattern.
+os.system No functional bug — Go delegates to the repository, which is a reasonable equivalent of Java's `queryGroupType(groupTypeId).hasElement()` pattern.
 
 ## countGroupTypes
 
-- [ ] No functional bug — Go correctly delegates to the repository's count method.
+os.system No functional bug — Go correctly delegates to the repository's count method.
 
 # GroupVersionService.java
 *Checked methods: queryMembersVersion(@NotNull Long groupId), queryBlocklistVersion(@NotNull Long groupId), queryGroupJoinRequestsVersion(@NotNull Long groupId), queryGroupJoinQuestionsVersion(@NotNull Long groupId), queryGroupInvitationsVersion(@NotNull Long groupId), updateVersion(@NotNull Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions), updateMembersVersion(@NotNull Long groupId), updateMembersVersion(@Nullable Set<Long> groupIds), updateMembersVersion(), updateBlocklistVersion(@NotNull Long groupId), updateJoinRequestsVersion(@NotNull Long groupId), updateJoinQuestionsVersion(@NotNull Long groupId), updateGroupInvitationsVersion(@NotNull Long groupId), updateSpecificVersion(@NotNull Long groupId, @NotNull String field), updateSpecificVersion(@NotNull String field), updateSpecificVersion(@Nullable Set<Long> groupIds, @NotNull String field), upsert(@NotNull Long groupId, @NotNull Date timestamp), delete(@Nullable Set<Long> groupIds, @Nullable ClientSession session)*
@@ -13970,11 +13970,11 @@ Now I have all the information needed to perform a thorough comparison. Let me a
 
 ## queryMembersVersion
 
-- [ ] **Go uses `FindVersion` (fetches entire document) instead of field-specific projection query**. The Java code calls `groupVersionRepository.findMembers(groupId)` which uses a projection to only fetch the `mbr` field. The Go code (`QueryGroupMembersVersion`) calls `FindVersion` which fetches the entire document and then extracts `Members`. This is functionally equivalent (returns the same value) but is a performance difference rather than a behavioral bug. However, looking more carefully, the Go repository *does* have a `FindMembers` method at `group_version_repository.go:166` that uses proper projection. The service layer simply doesn't use it.
+os.system **Go uses `FindVersion` (fetches entire document) instead of field-specific projection query**. The Java code calls `groupVersionRepository.findMembers(groupId)` which uses a projection to only fetch the `mbr` field. The Go code (`QueryGroupMembersVersion`) calls `FindVersion` which fetches the entire document and then extracts `Members`. This is functionally equivalent (returns the same value) but is a performance difference rather than a behavioral bug. However, looking more carefully, the Go repository *does* have a `FindMembers` method at `group_version_repository.go:166` that uses proper projection. The service layer simply doesn't use it.
 
 ## queryBlocklistVersion, queryGroupJoinRequestsVersion, queryGroupJoinQuestionsVersion
 
-- [ ] Same issue as above — service uses `FindVersion` (full document fetch) instead of the repository's field-specific `FindBlocklist`, `FindJoinRequests`, `FindJoinQuestions` methods. Again functionally equivalent but suboptimal.
+os.system Same issue as above — service uses `FindVersion` (full document fetch) instead of the repository's field-specific `FindBlocklist`, `FindJoinRequests`, `FindJoinQuestions` methods. Again functionally equivalent but suboptimal.
 
 ## queryGroupInvitationsVersion
 
@@ -13982,49 +13982,49 @@ Now I have all the information needed to perform a thorough comparison. Let me a
 
 ## updateVersion(groupId, updateMembers, updateBlocklist, joinRequests, joinQuestions)
 
-- [ ] **Missing method entirely.** The Java service has `updateVersion(@NotNull Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)` which conditionally updates specific fields based on boolean flags using `setIfTrue`. The Go code has no equivalent method. The Go repository's `UpdateVersion(ctx, groupID, field)` only updates a single field at a time and doesn't support the conditional multi-field update pattern.
+os.system **Missing method entirely.** The Java service has `updateVersion(@NotNull Long groupId, boolean updateMembers, boolean updateBlocklist, boolean joinRequests, boolean joinQuestions)` which conditionally updates specific fields based on boolean flags using `setIfTrue`. The Go code has no equivalent method. The Go repository's `UpdateVersion(ctx, groupID, field)` only updates a single field at a time and doesn't support the conditional multi-field update pattern.
 
 ## updateMembersVersion(@NotNull Long groupId)
 
-- [ ] The Java version calls `updateSpecificVersion(groupId, GroupVersion.Fields.MEMBERS)` which returns `Mono<Boolean>` (maps modified count > 0). The Go version calls `groupVersionRepo.UpdateMembersVersion(ctx, groupID)` which delegates to `UpdateVersion(ctx, groupID, "mbr")` with upsert=true. **The Java repository's `updateVersion(Long groupId, String field)` does NOT use upsert**, while the Go version sets `SetUpsert(true)`. This is a behavioral difference: if no document exists for the groupId, the Java code would not create one (returns 0 modified count), but the Go code would create a new document with only that one field set.
+os.system The Java version calls `updateSpecificVersion(groupId, GroupVersion.Fields.MEMBERS)` which returns `Mono<Boolean>` (maps modified count > 0). The Go version calls `groupVersionRepo.UpdateMembersVersion(ctx, groupID)` which delegates to `UpdateVersion(ctx, groupID, "mbr")` with upsert=true. **The Java repository's `updateVersion(Long groupId, String field)` does NOT use upsert**, while the Go version sets `SetUpsert(true)`. This is a behavioral difference: if no document exists for the groupId, the Java code would not create one (returns 0 modified count), but the Go code would create a new document with only that one field set.
 
 ## updateMembersVersion(@Nullable Set<Long> groupIds)
 
-- [ ] **Missing method.** Java has `updateMembersVersion(@Nullable Set<Long> groupIds)` which calls `updateSpecificVersion(groupIds, GroupVersion.Fields.MEMBERS)` and returns `Mono<UpdateResult>`. The Go code has no equivalent in the service layer. The Go repository has `UpdateVersions(ctx, groupIDs, field)` which is the underlying implementation, but there's no service method that wraps it for batch updating members version.
+os.system **Missing method.** Java has `updateMembersVersion(@Nullable Set<Long> groupIds)` which calls `updateSpecificVersion(groupIds, GroupVersion.Fields.MEMBERS)` and returns `Mono<UpdateResult>`. The Go code has no equivalent in the service layer. The Go repository has `UpdateVersions(ctx, groupIDs, field)` which is the underlying implementation, but there's no service method that wraps it for batch updating members version.
 
 ## updateMembersVersion()
 
-- [ ] **Missing method.** Java has `updateMembersVersion()` (no args) which calls `updateSpecificVersion(GroupVersion.Fields.MEMBERS)` to update the members version for ALL groups. The Go code has no equivalent.
+os.system **Missing method.** Java has `updateMembersVersion()` (no args) which calls `updateSpecificVersion(GroupVersion.Fields.MEMBERS)` to update the members version for ALL groups. The Go code has no equivalent.
 
 ## updateSpecificVersion(@NotNull Long groupId, @NotNull String field)
 
-- [ ] **Upsert difference.** Java's repository `updateVersion(Long groupId, String field)` does NOT use upsert. Go's `UpdateVersion` sets `SetUpsert(true)`. If the document doesn't exist, Go will create a partial document while Java won't.
+os.system **Upsert difference.** Java's repository `updateVersion(Long groupId, String field)` does NOT use upsert. Go's `UpdateVersion` sets `SetUpsert(true)`. If the document doesn't exist, Go will create a partial document while Java won't.
 
-- [ ] **Return type difference.** Java returns `Mono<Boolean>` (modified count > 0). Go returns `error` only, discarding the update result and always returning `nil` error on success regardless of whether anything was actually modified.
+os.system **Return type difference.** Java returns `Mono<Boolean>` (modified count > 0). Go returns `error` only, discarding the update result and always returning `nil` error on success regardless of whether anything was actually modified.
 
 ## updateSpecificVersion(@NotNull String field)
 
-- [ ] **Missing method.** Java has `updateSpecificVersion(@NotNull String field)` which updates a specific version field for ALL groups. Go has `UpdateVersions` in the repository but no corresponding service method.
+os.system **Missing method.** Java has `updateSpecificVersion(@NotNull String field)` which updates a specific version field for ALL groups. Go has `UpdateVersions` in the repository but no corresponding service method.
 
 ## updateSpecificVersion(@Nullable Set<Long> groupIds, @NotNull String field)
 
-- [ ] **Missing method in service layer.** Java has this as a service method. Go has `UpdateVersions` in the repository but no service-layer wrapper.
+os.system **Missing method in service layer.** Java has this as a service method. Go has `UpdateVersions` in the repository but no service-layer wrapper.
 
-- [ ] **Behavioral difference in repository.** Java's `updateVersions(@Nullable Set<Long> groupIds, String field)` uses `inIfNotNull` which means if `groupIds` is null, the filter is empty (updates ALL documents). Go's `UpdateVersions` treats empty slice as "update all" (filter is `{}`), but there's no way to pass `nil` to distinguish "all" from "empty set" since Go uses `[]int64` instead of `*[]int64`.
+os.system **Behavioral difference in repository.** Java's `updateVersions(@Nullable Set<Long> groupIds, String field)` uses `inIfNotNull` which means if `groupIds` is null, the filter is empty (updates ALL documents). Go's `UpdateVersions` treats empty slice as "update all" (filter is `{}`), but there's no way to pass `nil` to distinguish "all" from "empty set" since Go uses `[]int64` instead of `*[]int64`.
 
 ## upsert(@NotNull Long groupId, @NotNull Date timestamp)
 
-- [ ] **Extra field.** The Go upsert sets 6 fields: `mbr`, `bl`, `jr`, `jq`, `invt`, AND `info`. The Java version creates a `GroupVersion` with only 5 fields: `groupId`, `timestamp` (for members), `timestamp` (for blocklist), `timestamp` (for joinRequests), `timestamp` (for joinQuestions), `timestamp` (for invitations). The Java `GroupVersion` PO does NOT have an `info` field. The Go upsert incorrectly adds an `"info"` field that doesn't exist in the original Java schema.
+os.system **Extra field.** The Go upsert sets 6 fields: `mbr`, `bl`, `jr`, `jq`, `invt`, AND `info`. The Java version creates a `GroupVersion` with only 5 fields: `groupId`, `timestamp` (for members), `timestamp` (for blocklist), `timestamp` (for joinRequests), `timestamp` (for joinQuestions), `timestamp` (for invitations). The Java `GroupVersion` PO does NOT have an `info` field. The Go upsert incorrectly adds an `"info"` field that doesn't exist in the original Java schema.
 
 ## delete(@Nullable Set<Long> groupIds, @Nullable ClientSession session)
 
-- [ ] **Missing session parameter.** Java accepts an optional `ClientSession` for transactional deletes. The Go version has no session/transaction support.
+os.system **Missing session parameter.** Java accepts an optional `ClientSession` for transactional deletes. The Go version has no session/transaction support.
 
-- [ ] **Behavioral difference for nil groupIds.** In Java, `deleteByIds` with null groupIds would likely delete all documents or handle null specially. The Go code returns `nil` (no-op) when `groupIDs` is empty, which is different from handling a nil/null input.
+os.system **Behavioral difference for nil groupIds.** In Java, `deleteByIds` with null groupIds would likely delete all documents or handle null specially. The Go code returns `nil` (no-op) when `groupIDs` is empty, which is different from handling a nil/null input.
 
 ## updateBlocklistVersion, updateJoinRequestsVersion, updateJoinQuestionsVersion, updateGroupInvitationsVersion
 
-- [ ] All share the same upsert difference as `updateMembersVersion` — the Go `UpdateVersion` uses `SetUpsert(true)` while the Java version does not upsert.
+os.system All share the same upsert difference as `updateMembersVersion` — the Go `UpdateVersion` uses `SetUpsert(true)` while the Java version does not upsert.
 
 ## queryGroupInvitationsVersion (additional note)
 
@@ -14035,16 +14035,16 @@ Now I have all the information needed to perform a thorough comparison. Let me a
 Here is the consolidated bug report:
 
 ## queryMembersVersion
-- [ ] The service method `QueryGroupMembersVersion` calls `FindVersion` (fetches entire document) instead of the existing field-specific `FindMembers` repository method that uses projection, differing from the Java implementation which uses field-specific projection queries for all query methods.
+os.system The service method `QueryGroupMembersVersion` calls `FindVersion` (fetches entire document) instead of the existing field-specific `FindMembers` repository method that uses projection, differing from the Java implementation which uses field-specific projection queries for all query methods.
 
 ## queryBlocklistVersion
-- [ ] Same issue as queryMembersVersion — uses `FindVersion` instead of the existing `FindBlocklist` repository method with projection.
+os.system Same issue as queryMembersVersion — uses `FindVersion` instead of the existing `FindBlocklist` repository method with projection.
 
 ## queryGroupJoinRequestsVersion
-- [ ] Same issue — uses `FindVersion` instead of the existing `FindJoinRequests` repository method with projection.
+os.system Same issue — uses `FindVersion` instead of the existing `FindJoinRequests` repository method with projection.
 
 ## queryGroupJoinQuestionsVersion
-- [ ] Same issue — uses `FindVersion` instead of the existing `FindJoinQuestions` repository method with projection.
+os.system Same issue — uses `FindVersion` instead of the existing `FindJoinQuestions` repository method with projection.
 
 ## queryGroupInvitationsVersion
 - [x] Uses `FindVersion` (full document fetch) instead of a dedicated projection-based method. The Go repository also lacks a `FindInvitations` projection method unlike the other four query methods.
@@ -14053,59 +14053,59 @@ Here is the consolidated bug report:
 - [x] **Missing method entirely.** The Java service supports conditional multi-field updates in a single operation using boolean flags. The Go code has no equivalent — `UpdateVersion` only updates one field at a time.
 
 ## updateMembersVersion(groupId)
-- [ ] **Upsert behavior difference:** Go's `UpdateVersion` uses `SetUpsert(true)`, creating a new partial document if none exists. Java's `updateVersion(Long, String)` does NOT upsert.
+os.system **Upsert behavior difference:** Go's `UpdateVersion` uses `SetUpsert(true)`, creating a new partial document if none exists. Java's `updateVersion(Long, String)` does NOT upsert.
 
 ## updateMembersVersion(Set<Long> groupIds)
-- [ ] **Missing method.** No Go service method to batch-update members version for a set of group IDs.
+os.system **Missing method.** No Go service method to batch-update members version for a set of group IDs.
 
 ## updateMembersVersion()
-- [ ] **Missing method.** No Go service method to update members version for ALL groups.
+os.system **Missing method.** No Go service method to update members version for ALL groups.
 
 ## updateSpecificVersion(groupId, field)
-- [ ] **Upsert behavior difference:** Go uses `SetUpsert(true)` where Java does not.
-- [ ] **Return type loss:** Java returns `Boolean` (modified count > 0). Go returns only `error`, losing information about whether anything was actually updated.
+os.system **Upsert behavior difference:** Go uses `SetUpsert(true)` where Java does not.
+os.system **Return type loss:** Java returns `Boolean` (modified count > 0). Go returns only `error`, losing information about whether anything was actually updated.
 
 ## updateSpecificVersion(field)
-- [ ] **Missing method.** No Go service method to update a version field for ALL groups.
+os.system **Missing method.** No Go service method to update a version field for ALL groups.
 
 ## updateSpecificVersion(groupIds, field)
-- [ ] **Missing method in service layer.** The repository has `UpdateVersions` but there's no service wrapper.
-- [ ] **Null vs empty semantics lost:** Java distinguishes `null` groupIds (update all) from a non-null set. Go uses `[]int64` which can't represent this distinction.
+os.system **Missing method in service layer.** The repository has `UpdateVersions` but there's no service wrapper.
+os.system **Null vs empty semantics lost:** Java distinguishes `null` groupIds (update all) from a non-null set. Go uses `[]int64` which can't represent this distinction.
 
 ## upsert(groupId, timestamp)
-- [ ] **Extra field:** Go sets an `"info"` field that does not exist in the Java `GroupVersion` PO. The Java version only sets 5 timestamp fields (members, blocklist, joinRequests, joinQuestions, invitations).
+os.system **Extra field:** Go sets an `"info"` field that does not exist in the Java `GroupVersion` PO. The Java version only sets 5 timestamp fields (members, blocklist, joinRequests, joinQuestions, invitations).
 
 ## delete(groupIds, session)
-- [ ] **Missing session parameter:** Java supports an optional `ClientSession` for transactional deletes. Go has no transaction/session support.
-- [ ] **Null handling difference:** In Java, passing `null` groupIds to `deleteByIds` may have different semantics (delete all or error). Go silently returns nil for empty slices.
+os.system **Missing session parameter:** Java supports an optional `ClientSession` for transactional deletes. Go has no transaction/session support.
+os.system **Null handling difference:** In Java, passing `null` groupIds to `deleteByIds` may have different semantics (delete all or error). Go silently returns nil for empty slices.
 
 # MessageController.java
 *Checked methods: createMessages(@QueryParam(defaultValue = "true"), queryMessages(@QueryParam(required = false), queryMessages(@QueryParam(required = false), countMessages(@QueryParam(required = false), updateMessages(Set<Long> ids, @RequestBody UpdateMessageDTO updateMessageDTO), deleteMessages(Set<Long> ids, @QueryParam(required = false)*
 
 ## createMessages
-- [ ] Method body is entirely unimplemented (contains only `// TODO: implement`). Missing all core logic: parsing `send` query param, extracting `senderIp` from DTO, converting IP string to bytes via `InetAddressUtil`, calling `messageService.authAndSaveAndSendMessage` with all DTO fields (`senderId`, `senderDeviceType`, `id`, `isGroupMessage`, `isSystemMessage`, `text`, `records`, `targetId`, `burnAfter`, `referenceId`, `preMessageId`), and returning `RESPONSE_OK`.
+os.system Method body is entirely unimplemented (contains only `// TODO: implement`). Missing all core logic: parsing `send` query param, extracting `senderIp` from DTO, converting IP string to bytes via `InetAddressUtil`, calling `messageService.authAndSaveAndSendMessage` with all DTO fields (`senderId`, `senderDeviceType`, `id`, `isGroupMessage`, `isSystemMessage`, `text`, `records`, `targetId`, `burnAfter`, `referenceId`, `preMessageId`), and returning `RESPONSE_OK`.
 
 ## queryMessages (non-paginated, `@GetMapping`)
-- [ ] Method body is entirely unimplemented. Missing all core logic: accepting filter parameters (`ids`, `areGroupMessages`, `areSystemMessages`, `senderIds`, `targetIds`, date ranges for delivery/deletion/recall, `size`, `ascending`), calling `messageService.queryMessages` with `DateRange` objects, applying `getPageSize(size)`, and returning results via `HttpHandlerResult.okIfTruthy`.
+os.system Method body is entirely unimplemented. Missing all core logic: accepting filter parameters (`ids`, `areGroupMessages`, `areSystemMessages`, `senderIds`, `targetIds`, date ranges for delivery/deletion/recall, `size`, `ascending`), calling `messageService.queryMessages` with `DateRange` objects, applying `getPageSize(size)`, and returning results via `HttpHandlerResult.okIfTruthy`.
 
 ## queryMessages (paginated, `@GetMapping("page")`)
-- [ ] Method body is entirely unimplemented. Missing all core logic: accepting filter parameters plus `page` and `size`, calling `messageService.countMessages` (note: count call does NOT include `recallDateRange`), calling `messageService.queryMessages` (which DOES include `recallDateRange`), and returning paginated results via `HttpHandlerResult.page(count, completeMessagesFlux)`.
+os.system Method body is entirely unimplemented. Missing all core logic: accepting filter parameters plus `page` and `size`, calling `messageService.countMessages` (note: count call does NOT include `recallDateRange`), calling `messageService.queryMessages` (which DOES include `recallDateRange`), and returning paginated results via `HttpHandlerResult.page(count, completeMessagesFlux)`.
 
 ## countMessages
-- [ ] Method body is entirely unimplemented. Missing all core logic: the entire conditional branching structure for `divideBy == NOOP` vs. else path, calling `messageService.countSentMessagesOnAverage`, `messageService.countSentMessages`, `checkAndQueryBetweenDate` for divided queries, building `MessageStatisticsDTO`, and the special-case `Mono.empty()` return when `counts.isEmpty()` in the divided path.
+os.system Method body is entirely unimplemented. Missing all core logic: the entire conditional branching structure for `divideBy == NOOP` vs. else path, calling `messageService.countSentMessagesOnAverage`, `messageService.countSentMessages`, `checkAndQueryBetweenDate` for divided queries, building `MessageStatisticsDTO`, and the special-case `Mono.empty()` return when `counts.isEmpty()` in the divided path.
 
 ## updateMessages
-- [ ] Method body is entirely unimplemented. Missing all core logic: extracting `senderIp` from DTO and converting to bytes, calling `messageService.updateMessages` with all fields (`senderId`, `senderDeviceType`, `ids`, `isSystemMessage`, `text`, `records`, `burnAfter`, `recallDate`, sender IP bytes, and `null` for the last parameter), mapping result to `UpdateResultDTO`, and returning via `HttpHandlerResult.okIfTruthy`.
+os.system Method body is entirely unimplemented. Missing all core logic: extracting `senderIp` from DTO and converting to bytes, calling `messageService.updateMessages` with all fields (`senderId`, `senderDeviceType`, `ids`, `isSystemMessage`, `text`, `records`, `burnAfter`, `recallDate`, sender IP bytes, and `null` for the last parameter), mapping result to `UpdateResultDTO`, and returning via `HttpHandlerResult.okIfTruthy`.
 
 ## deleteMessages
-- [ ] Method body is entirely unimplemented. Missing all core logic: accepting `ids` and `deleteLogically` query param, calling `messageService.deleteMessages(ids, deleteLogically)`, mapping result to `DeleteResultDTO`, and returning via `HttpHandlerResult.okIfTruthy`.
+os.system Method body is entirely unimplemented. Missing all core logic: accepting `ids` and `deleteLogically` query param, calling `messageService.deleteMessages(ids, deleteLogically)`, mapping result to `DeleteResultDTO`, and returning via `HttpHandlerResult.okIfTruthy`.
 
 # MessageStatisticsDTO.java
 *Checked methods: MessageStatisticsDTO(Long sentMessagesOnAverage, Long acknowledgedMessages, Long acknowledgedMessagesOnAverage, Long sentMessages, List<StatisticsRecordDTO> sentMessagesOnAverageRecords, List<StatisticsRecordDTO> acknowledgedMessagesRecords, List<StatisticsRecordDTO> acknowledgedMessagesOnAverageRecords, List<StatisticsRecordDTO> sentMessagesRecords)*
 
 ## MessageStatisticsDTO
 
-- [ ] Field `AcknowledgedMessagesOnAverageRecord` in Go (line 41) uses singular "Record" instead of plural "Records" (`AcknowledgedMessagesOnAverageRecords`), which is inconsistent with the Java field name `acknowledgedMessagesOnAverageRecords` and also makes the Go struct field name diverge from the JSON tag.
+os.system Field `AcknowledgedMessagesOnAverageRecord` in Go (line 41) uses singular "Record" instead of plural "Records" (`AcknowledgedMessagesOnAverageRecords`), which is inconsistent with the Java field name `acknowledgedMessagesOnAverageRecords` and also makes the Go struct field name diverge from the JSON tag.
 
 # MessageServiceController.java
 *Checked methods: handleCreateMessageRequest(), handleQueryMessagesRequest(), handleUpdateMessageRequest(), handleCreateMessageReactionsRequest(), handleDeleteMessageReactionsRequest()*
@@ -14165,27 +14165,27 @@ Now I have all the information needed to do a thorough comparison. Let me analyz
 ---
 
 ## HandleCreateMessageRequest
-- [ ] **Missing message clone/forward path**: Java checks `request.hasMessageId()` and branches to `authAndCloneAndSaveMessage()` for forwarding/cloning existing messages. The Go code has no check for `createReq.MessageId` and never calls `AuthAndCloneAndSaveMessage`. The protobuf `CreateMessageRequest` has a `MessageId` field, so this code path is reachable.
-- [ ] **Missing notification dispatch to recipients**: Java returns a `RequestHandlerResult` that carries recipient IDs and data for forwarding to message recipients (and the requester's other online sessions). The Go code only returns a simple `TurmsNotification` with the message ID to the caller, with no mechanism to notify recipients of the new message.
-- [ ] **Missing `notifyRequesterOtherOnlineSessionsOfMessageCreated` behavior**: Java conditionally notifies the requester's other online sessions about the newly created message. The Go code has no equivalent notification forwarding logic.
+os.system **Missing message clone/forward path**: Java checks `request.hasMessageId()` and branches to `authAndCloneAndSaveMessage()` for forwarding/cloning existing messages. The Go code has no check for `createReq.MessageId` and never calls `AuthAndCloneAndSaveMessage`. The protobuf `CreateMessageRequest` has a `MessageId` field, so this code path is reachable.
+os.system **Missing notification dispatch to recipients**: Java returns a `RequestHandlerResult` that carries recipient IDs and data for forwarding to message recipients (and the requester's other online sessions). The Go code only returns a simple `TurmsNotification` with the message ID to the caller, with no mechanism to notify recipients of the new message.
+os.system **Missing `notifyRequesterOtherOnlineSessionsOfMessageCreated` behavior**: Java conditionally notifies the requester's other online sessions about the newly created message. The Go code has no equivalent notification forwarding logic.
 
 ## HandleQueryMessagesRequest
-- [ ] **Missing `ids` filter**: Java passes `request.getIdsList()` as the `messageIds` parameter to `authAndQueryCompleteMessages`. The Go code never reads `queryReq.Ids` and never passes it to `QueryMessages`. Clients querying by specific message IDs will get incorrect results (all messages matching other filters instead of specific ones).
-- [ ] **Missing `areSystemMessages` filter**: Java passes `areSystemMessages` to the service query. The Go code never reads `queryReq.AreSystemMessages` and never passes it to `QueryMessages`. Queries will return both system and non-system messages regardless of what the client requested.
-- [ ] **Missing conversation read date update**: Java calls `conversationService.upsertGroupConversationReadDate()` or `conversationService.upsertPrivateConversationReadDate()` after a successful query when `updateReadDateWhenUserQueryingMessage` is enabled. The Go code never updates conversation read dates. The Go `ConversationService` exists with `UpsertGroupConversationReadDate` and `UpsertPrivateConversationReadDate` methods but they are not called here.
-- [ ] **Missing empty result handling**: Java returns `Mono.empty()` (no notification sent back) when `messages.isEmpty()`. The Go code will still return a notification with an empty `Messages` list, which is a behavioral difference.
+os.system **Missing `ids` filter**: Java passes `request.getIdsList()` as the `messageIds` parameter to `authAndQueryCompleteMessages`. The Go code never reads `queryReq.Ids` and never passes it to `QueryMessages`. Clients querying by specific message IDs will get incorrect results (all messages matching other filters instead of specific ones).
+os.system **Missing `areSystemMessages` filter**: Java passes `areSystemMessages` to the service query. The Go code never reads `queryReq.AreSystemMessages` and never passes it to `QueryMessages`. Queries will return both system and non-system messages regardless of what the client requested.
+os.system **Missing conversation read date update**: Java calls `conversationService.upsertGroupConversationReadDate()` or `conversationService.upsertPrivateConversationReadDate()` after a successful query when `updateReadDateWhenUserQueryingMessage` is enabled. The Go code never updates conversation read dates. The Go `ConversationService` exists with `UpsertGroupConversationReadDate` and `UpsertPrivateConversationReadDate` methods but they are not called here.
+os.system **Missing empty result handling**: Java returns `Mono.empty()` (no notification sent back) when `messages.isEmpty()`. The Go code will still return a notification with an empty `Messages` list, which is a behavioral difference.
 
 ## HandleUpdateMessageRequest
-- [ ] **Missing `records` update**: Java extracts `records` from `request.getRecordsList()` and passes them to `authAndUpdateMessage()`. The Go code never reads `updateReq.Records` and never passes records to the service. Clients cannot update message records/binary data.
-- [ ] **Missing unified update call**: Java calls a single `authAndUpdateMessage(userId, deviceType, messageId, text, records, recallDate)` that handles all update types (text, records, recall) in one call. The Go code splits this into two separate if/else branches (`AuthAndRecallMessage` or `AuthAndUpdateMessageText`), meaning: (a) if both `recallDate` and `text` are set, only recall is performed (Java would handle both), and (b) if only `records` is set, nothing happens (Java would update records).
-- [ ] **Missing `deviceType` parameter**: Java passes `clientRequest.deviceType()` to `authAndUpdateMessage`. The Go `AuthAndRecallMessage` and `AuthAndUpdateMessageText` do not receive or use device type information.
-- [ ] **Missing notification to message recipients**: Java queries `messageService.queryMessageRecipients(messageId)` and sends the update notification to recipients when `notifyRecipientsOfMessageUpdated` is true. It also always notifies the requester's other sessions. The Go code returns a simple success notification with no recipient notification logic.
+os.system **Missing `records` update**: Java extracts `records` from `request.getRecordsList()` and passes them to `authAndUpdateMessage()`. The Go code never reads `updateReq.Records` and never passes records to the service. Clients cannot update message records/binary data.
+os.system **Missing unified update call**: Java calls a single `authAndUpdateMessage(userId, deviceType, messageId, text, records, recallDate)` that handles all update types (text, records, recall) in one call. The Go code splits this into two separate if/else branches (`AuthAndRecallMessage` or `AuthAndUpdateMessageText`), meaning: (a) if both `recallDate` and `text` are set, only recall is performed (Java would handle both), and (b) if only `records` is set, nothing happens (Java would update records).
+os.system **Missing `deviceType` parameter**: Java passes `clientRequest.deviceType()` to `authAndUpdateMessage`. The Go `AuthAndRecallMessage` and `AuthAndUpdateMessageText` do not receive or use device type information.
+os.system **Missing notification to message recipients**: Java queries `messageService.queryMessageRecipients(messageId)` and sends the update notification to recipients when `notifyRecipientsOfMessageUpdated` is true. It also always notifies the requester's other sessions. The Go code returns a simple success notification with no recipient notification logic.
 
 ## HandleCreateMessageReactionsRequest
-- [ ] No bugs: matches Java's behavior of returning `ILLEGAL_ARGUMENT` since the feature is unpublished.
+os.system No bugs: matches Java's behavior of returning `ILLEGAL_ARGUMENT` since the feature is unpublished.
 
 ## HandleDeleteMessageReactionsRequest
-- [ ] No bugs: matches Java's behavior of returning `ILLEGAL_ARGUMENT` since the feature is unpublished.
+os.system No bugs: matches Java's behavior of returning `ILLEGAL_ARGUMENT` since the feature is unpublished.
 
 # MessageRepository.java
 *Checked methods: updateMessages(Set<Long> messageIds, @Nullable Boolean isSystemMessage, @Nullable Integer senderIp, @Nullable byte[] senderIpV6, @Nullable Date recallDate, @Nullable String text, @Nullable List<byte[]> records, @Nullable Integer burnAfter, @Nullable ClientSession session), updateMessagesDeletionDate(@Nullable Set<Long> messageIds), existsBySenderIdAndTargetId(Long senderId, Long targetId), countMessages(@Nullable Set<Long> messageIds, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages, @Nullable Set<Long> senderIds, @Nullable Set<Long> targetIds, @Nullable DateRange deliveryDateRange, @Nullable DateRange deletionDateRange), countUsersWhoSentMessage(@Nullable DateRange dateRange, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages), countGroupsThatSentMessages(@Nullable DateRange dateRange), countSentMessages(@Nullable DateRange dateRange, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages), findDeliveryDate(Long messageId), findExpiredMessageIds(Date expirationDate), findMessageGroupId(Long messageId), findMessageSenderIdAndTargetIdAndIsGroupMessage(Long messageId), findMessages(@Nullable Collection<Long> messageIds, @Nullable Collection<byte[]> conversationIds, @Nullable Boolean areGroupMessages, @Nullable Boolean areSystemMessages, @Nullable Set<Long> senderIds, @Nullable Set<Long> targetIds, @Nullable DateRange deliveryDateRange, @Nullable DateRange deletionDateRange, @Nullable DateRange recallDateRange, @Nullable Integer page, @Nullable Integer size, @Nullable Boolean ascending), findIsGroupMessageAndTargetId(Long messageId, Long senderId), findIsGroupMessageAndTargetIdAndDeliveryDate(Long messageId, Long senderId), getGroupConversationId(long groupId), getPrivateConversationId(long id1, long id2)*
@@ -14194,46 +14194,46 @@ Now I have a thorough understanding of both implementations. Let me check one mo
 
 ## updateMessages
 
-- [ ] **Missing `modificationDate` (always set)**: The Java code unconditionally sets `Message.Fields.MODIFICATION_DATE` to `new Date()` on every update. The Go `UpdateMessages` method never sets the modification date field (`md`). This is a critical behavioral difference — every update in Java records when it happened.
-- [ ] **Missing `ClientSession` (session) parameter**: The Java method accepts a `@Nullable ClientSession session` parameter and passes it to `mongoClient.updateMany(session, ...)`. The Go version completely omits the session parameter, so updates cannot participate in MongoDB transactions.
+os.system **Missing `modificationDate` (always set)**: The Java code unconditionally sets `Message.Fields.MODIFICATION_DATE` to `new Date()` on every update. The Go `UpdateMessages` method never sets the modification date field (`md`). This is a critical behavioral difference — every update in Java records when it happened.
+os.system **Missing `ClientSession` (session) parameter**: The Java method accepts a `@Nullable ClientSession session` parameter and passes it to `mongoClient.updateMany(session, ...)`. The Go version completely omits the session parameter, so updates cannot participate in MongoDB transactions.
 
 ## updateMessagesDeletionDate
 
-- [ ] **Behavioral difference for nil/empty messageIDs**: The Java version uses `inIfNotNull`, which means if `messageIds` is null, no ID filter is applied and **all** messages in the collection will have their deletion date updated. The Go version returns `nil` (no-op) when `messageIDs` is empty, which is a fundamentally different behavior.
-- [ ] **Deletion date always set to `new Date()` in Java vs parameterized in Go**: The Java version always sets `DELETION_DATE` to `new Date()` (current time). The Go version accepts `deletionDate *time.Time` as a parameter and uses it (or `nil`). This changes the method's contract.
+os.system **Behavioral difference for nil/empty messageIDs**: The Java version uses `inIfNotNull`, which means if `messageIds` is null, no ID filter is applied and **all** messages in the collection will have their deletion date updated. The Go version returns `nil` (no-op) when `messageIDs` is empty, which is a fundamentally different behavior.
+os.system **Deletion date always set to `new Date()` in Java vs parameterized in Go**: The Java version always sets `DELETION_DATE` to `new Date()` (current time). The Go version accepts `deletionDate *time.Time` as a parameter and uses it (or `nil`). This changes the method's contract.
 
 ## existsBySenderIdAndTargetId
 
-- [ ] **Missing `isGroupMessage = false` filter**: The Java version explicitly filters with `.eq(Message.Fields.IS_GROUP_MESSAGE, false)`. The Go version at line 374 only filters by `sid` and `tid`, missing the `gm: false` condition. This means the Go version will incorrectly return `true` for group messages matching the senderId/targetId.
+os.system **Missing `isGroupMessage = false` filter**: The Java version explicitly filters with `.eq(Message.Fields.IS_GROUP_MESSAGE, false)`. The Go version at line 374 only filters by `sid` and `tid`, missing the `gm: false` condition. This means the Go version will incorrectly return `true` for group messages matching the senderId/targetId.
 
 ## countMessages
 
-- [ ] **Missing `areSystemMessages` parameter**: The Java version accepts and filters by `areSystemMessages` (`Message.Fields.IS_SYSTEM_MESSAGE`). The Go version (`CountMessages` at line 128) has no `areSystemMessages` parameter and doesn't filter on it.
-- [ ] **Missing `messageIDs` parameter**: The Java version accepts `messageIds` and filters by `DomainFieldName.ID`. The Go `CountMessages` has no `messageIDs` parameter.
-- [ ] **Missing `deletionDateRange` parameter**: The Java version accepts and filters by `deletionDateRange`. The Go version has no `deletionDateRange` parameter.
-- [ ] **Wrong date comparison operators**: The Java `addBetween` uses `$gte` for the start and `$lt` for the end. The Go version uses `$gt` (strictly greater than) for the start. This will exclude messages delivered exactly at the start boundary.
+os.system **Missing `areSystemMessages` parameter**: The Java version accepts and filters by `areSystemMessages` (`Message.Fields.IS_SYSTEM_MESSAGE`). The Go version (`CountMessages` at line 128) has no `areSystemMessages` parameter and doesn't filter on it.
+os.system **Missing `messageIDs` parameter**: The Java version accepts `messageIds` and filters by `DomainFieldName.ID`. The Go `CountMessages` has no `messageIDs` parameter.
+os.system **Missing `deletionDateRange` parameter**: The Java version accepts and filters by `deletionDateRange`. The Go version has no `deletionDateRange` parameter.
+os.system **Wrong date comparison operators**: The Java `addBetween` uses `$gte` for the start and `$lt` for the end. The Go version uses `$gt` (strictly greater than) for the start. This will exclude messages delivered exactly at the start boundary.
 
 ## countUsersWhoSentMessage
 
-- [ ] **Wrong date comparison operators**: Same as `countMessages` — Go uses `$gt` instead of Java's `$gte` for the start date, excluding boundary matches.
+os.system **Wrong date comparison operators**: Same as `countMessages` — Go uses `$gt` instead of Java's `$gte` for the start date, excluding boundary matches.
 
 ## countGroupsThatSentMessages
 
-- [ ] **Wrong date comparison operators**: Same issue — `$gt` instead of `$gte` for start date.
+os.system **Wrong date comparison operators**: Same issue — `$gt` instead of `$gte` for start date.
 
 ## countSentMessages
 
-- [ ] **Wrong date comparison operators**: Same issue — `$gt` instead of `$gte` for start date.
+os.system **Wrong date comparison operators**: Same issue — `$gt` instead of `$gte` for start date.
 
 ## findMessages
 
-- [ ] **Missing `DateRange.NULL` sentinel handling for `deletionDateRange` and `recallDateRange`**: In Java, when `deletionDateRange == DateRange.NULL`, the filter explicitly sets `deletionDate = null` (i.e., filters for messages with no deletion date). Similarly for `recallDateRange`. The Go version treats any non-nil `DateRange` by applying `$gt`/`$lt` date range filtering, completely missing the special "is null" semantics. This is a major behavioral difference — the Go code cannot express "find messages that have not been deleted/recalled."
-- [ ] **Wrong date comparison operators**: Java's `addBetween` uses `$gte`/`$lt`, Go uses `$gt`/`$lt`, excluding start-boundary matches.
-- [ ] **Pagination behavior differs for nil `page`**: In Java's `paginateIfNotNull`, if `page` is null but `size` is not null, `page` defaults to 0. In the Go version, if `page` is nil, the skip is not applied at all (line 243 checks `page != nil && size != nil`). This means the Go version will not apply pagination correctly when only `size` is provided.
+os.system **Missing `DateRange.NULL` sentinel handling for `deletionDateRange` and `recallDateRange`**: In Java, when `deletionDateRange == DateRange.NULL`, the filter explicitly sets `deletionDate = null` (i.e., filters for messages with no deletion date). Similarly for `recallDateRange`. The Go version treats any non-nil `DateRange` by applying `$gt`/`$lt` date range filtering, completely missing the special "is null" semantics. This is a major behavioral difference — the Go code cannot express "find messages that have not been deleted/recalled."
+os.system **Wrong date comparison operators**: Java's `addBetween` uses `$gte`/`$lt`, Go uses `$gt`/`$lt`, excluding start-boundary matches.
+os.system **Pagination behavior differs for nil `page`**: In Java's `paginateIfNotNull`, if `page` is null but `size` is not null, `page` defaults to 0. In the Go version, if `page` is nil, the skip is not applied at all (line 243 checks `page != nil && size != nil`). This means the Go version will not apply pagination correctly when only `size` is provided.
 
 ## findIsGroupMessageAndTargetId (ExistsBySenderIdAndTargetID)
 
-- [ ] **Method returns projection with only `gm` and `tid` but Go decodes into full `po.Message` struct**: While this may work (unset fields will be zero-valued), the Java version returns a partial `Message` object via `include(FIELDS_IS_GROUP_MESSAGE_AND_TARGET_ID)`. The Go version does the same via `SetProjection`, so this is actually functionally equivalent. No bug here.
+os.system **Method returns projection with only `gm` and `tid` but Go decodes into full `po.Message` struct**: While this may work (unset fields will be zero-valued), the Java version returns a partial `Message` object via `include(FIELDS_IS_GROUP_MESSAGE_AND_TARGET_ID)`. The Go version does the same via `SetProjection`, so this is actually functionally equivalent. No bug here.
 
 ## findIsGroupMessageAndTargetIdAndDeliveryDate
 
@@ -14249,7 +14249,7 @@ Now I have a thorough understanding of both implementations. Let me check one mo
 
 ## findMessageGroupId
 
-- [ ] **Missing `isGroupMessage` projection**: The Java version projects both `TARGET_ID` and `IS_GROUP_MESSAGE`. The Go version at line 425 only projects `tid` (via `SetProjection(bson.M{"tid": 1})`), missing the `gm` field. The method name `FindMessageGroupId` suggests it should return enough info to determine if a message is a group message.
+os.system **Missing `isGroupMessage` projection**: The Java version projects both `TARGET_ID` and `IS_GROUP_MESSAGE`. The Go version at line 425 only projects `tid` (via `SetProjection(bson.M{"tid": 1})`), missing the `gm` field. The method name `FindMessageGroupId` suggests it should return enough info to determine if a message is a group message.
 
 ## findMessageSenderIdAndTargetIdAndIsGroupMessage
 
@@ -14270,19 +14270,19 @@ Now I have a thorough understanding of both codebases. Let me produce the compar
 
 ## isMessageRecipientOrSender
 
-- [ ] **Missing sentMessageCache lookup**: The Java version checks `sentMessageCache.getIfPresent(messageId)` first before querying the repository. The Go version has no equivalent of `sentMessageCache` and always queries the DB.
-- [ ] **Missing senderId check in private message path**: In Java, for private messages, the check is `targetId.equals(userId) || senderId.equals(userId)`. The Go version only checks `msg.TargetID == userID` for private messages, missing the case where `userID` is the sender (but wasn't caught by the earlier `msg.SenderID == userID` check — actually this is covered by the early `msg.SenderID == userID` return, but the private message case still lacks checking senderId because the Go code returns early. On closer inspection, the Go code does check `msg.SenderID == userID` first, so this is actually handled. However, the Java private-message branch checks both targetId and senderId because the method is called from a `flatMap` where the senderId check is not done separately. In Go, the early `msg.SenderID == userID` check does cover this. This is acceptable.)
+os.system **Missing sentMessageCache lookup**: The Java version checks `sentMessageCache.getIfPresent(messageId)` first before querying the repository. The Go version has no equivalent of `sentMessageCache` and always queries the DB.
+os.system **Missing senderId check in private message path**: In Java, for private messages, the check is `targetId.equals(userId) || senderId.equals(userId)`. The Go version only checks `msg.TargetID == userID` for private messages, missing the case where `userID` is the sender (but wasn't caught by the earlier `msg.SenderID == userID` check — actually this is covered by the early `msg.SenderID == userID` return, but the private message case still lacks checking senderId because the Go code returns early. On closer inspection, the Go code does check `msg.SenderID == userID` first, so this is actually handled. However, the Java private-message branch checks both targetId and senderId because the method is called from a `flatMap` where the senderId check is not done separately. In Go, the early `msg.SenderID == userID` check does cover this. This is acceptable.)
 
 ## authAndQueryCompleteMessages
 
-- [ ] **Missing `areGroupMessages == null` validation**: Java returns an error when `areGroupMessages` is null. The Go version accepts `*bool` (`isGroupMessage`) but does not return an error when it's nil.
-- [ ] **Missing maxCount normalization logic**: Java applies `defaultAvailableMessagesNumberWithoutTotal`/`defaultAvailableMessagesNumberWithTotal` when `maxCount` is null, and clamps using `maxAvailableMessagesNumber*` when non-null. The Go version does none of this — it passes `size` directly to the repository.
-- [ ] **Missing group message authorization**: When `areGroupMessages` is true, Java calls `groupMemberService.queryUserJoinedGroupIds(requesterId)` (when `fromIds` is empty) to filter group messages to only groups the requester belongs to. The Go version does no group-membership filtering.
-- [ ] **Missing group membership verification for `fromIds`**: When `areGroupMessages` is true and `fromIds` is non-empty, Java calls `groupMemberService.findExistentMemberGroupIds(fromIds, requesterId)` to verify the requester is a member of all specified groups, and returns an error for non-member groups. The Go version skips this entirely.
-- [ ] **Missing targetIds constraint for private messages**: For private (non-group) messages, Java passes `Set.of(requesterId)` as `targetIds` to ensure the requester can only query messages targeting themselves. The Go version passes `nil` for targetIDs.
-- [ ] **Missing deletionDateRange and recallDateRange filters**: Java passes `DateRange.NULL` for `deletionDateRange` and `recalledMessageQueryDateRange` for `recallDateRange`. The Go version does not pass any deletion/recall date range filters.
-- [ ] **Missing `messageIds` parameter**: Java accepts and passes `messageIds` to `queryMessages`. The Go version's `AuthAndQueryCompleteMessages` does not accept or pass `messageIds`.
-- [ ] **Missing `areSystemMessages` filter in repository query**: The Go `AuthAndQueryCompleteMessages` accepts `areSystemMessages` but does not pass it to `QueryMessages` on the repository.
+os.system **Missing `areGroupMessages == null` validation**: Java returns an error when `areGroupMessages` is null. The Go version accepts `*bool` (`isGroupMessage`) but does not return an error when it's nil.
+os.system **Missing maxCount normalization logic**: Java applies `defaultAvailableMessagesNumberWithoutTotal`/`defaultAvailableMessagesNumberWithTotal` when `maxCount` is null, and clamps using `maxAvailableMessagesNumber*` when non-null. The Go version does none of this — it passes `size` directly to the repository.
+os.system **Missing group message authorization**: When `areGroupMessages` is true, Java calls `groupMemberService.queryUserJoinedGroupIds(requesterId)` (when `fromIds` is empty) to filter group messages to only groups the requester belongs to. The Go version does no group-membership filtering.
+os.system **Missing group membership verification for `fromIds`**: When `areGroupMessages` is true and `fromIds` is non-empty, Java calls `groupMemberService.findExistentMemberGroupIds(fromIds, requesterId)` to verify the requester is a member of all specified groups, and returns an error for non-member groups. The Go version skips this entirely.
+os.system **Missing targetIds constraint for private messages**: For private (non-group) messages, Java passes `Set.of(requesterId)` as `targetIds` to ensure the requester can only query messages targeting themselves. The Go version passes `nil` for targetIDs.
+os.system **Missing deletionDateRange and recallDateRange filters**: Java passes `DateRange.NULL` for `deletionDateRange` and `recalledMessageQueryDateRange` for `recallDateRange`. The Go version does not pass any deletion/recall date range filters.
+os.system **Missing `messageIds` parameter**: Java accepts and passes `messageIds` to `queryMessages`. The Go version's `AuthAndQueryCompleteMessages` does not accept or pass `messageIds`.
+os.system **Missing `areSystemMessages` filter in repository query**: The Go `AuthAndQueryCompleteMessages` accepts `areSystemMessages` but does not pass it to `QueryMessages` on the repository.
 
 ## queryMessage
 
@@ -14290,13 +14290,13 @@ Now I have a thorough understanding of both codebases. Let me produce the compar
 
 ## queryMessages
 
-- [ ] **Missing `areSystemMessages` filter**: Java accepts `areSystemMessages` and passes it to `messageRepository.findMessages`. The Go `QueryMessages` repository method does not accept or filter by `areSystemMessages`.
-- [ ] **Missing `messageIds` filter**: Java accepts `messageIds` and passes it to `findMessages`. The Go `QueryMessages` repository method does not accept or filter by `messageIds`.
-- [ ] **Missing `deletionDateRange` filter**: Java accepts and passes `deletionDateRange`. The Go version has no equivalent.
-- [ ] **Missing `recallDateRange` filter**: Java accepts and passes `recallDateRange`. The Go version has no equivalent.
-- [ ] **Missing `page` parameter (pagination)**: Java supports `page` and `size` for pagination with skip/limit. The Go `QueryMessages` repository only supports `size` (limit) but not `page` (skip).
-- [ ] **Missing conversation ID optimization**: Java computes `conversationIds` from `senderIds`/`targetIds` based on `areGroupMessages` and `useConversationId`, and resets senderIds/targetIds accordingly. The Go version has no conversation ID logic at all.
-- [ ] **Date range uses `$gt`/`$lt` instead of `$gte`/`$lte`**: Java's `DateRange` typically uses inclusive bounds. The Go `QueryMessages` uses `$gt` and `$lt` (exclusive), which may exclude boundary messages.
+os.system **Missing `areSystemMessages` filter**: Java accepts `areSystemMessages` and passes it to `messageRepository.findMessages`. The Go `QueryMessages` repository method does not accept or filter by `areSystemMessages`.
+os.system **Missing `messageIds` filter**: Java accepts `messageIds` and passes it to `findMessages`. The Go `QueryMessages` repository method does not accept or filter by `messageIds`.
+os.system **Missing `deletionDateRange` filter**: Java accepts and passes `deletionDateRange`. The Go version has no equivalent.
+os.system **Missing `recallDateRange` filter**: Java accepts and passes `recallDateRange`. The Go version has no equivalent.
+os.system **Missing `page` parameter (pagination)**: Java supports `page` and `size` for pagination with skip/limit. The Go `QueryMessages` repository only supports `size` (limit) but not `page` (skip).
+os.system **Missing conversation ID optimization**: Java computes `conversationIds` from `senderIds`/`targetIds` based on `areGroupMessages` and `useConversationId`, and resets senderIds/targetIds accordingly. The Go version has no conversation ID logic at all.
+os.system **Date range uses `$gt`/`$lt` instead of `$gte`/`$lte`**: Java's `DateRange` typically uses inclusive bounds. The Go `QueryMessages` uses `$gt` and `$lt` (exclusive), which may exclude boundary messages.
 
 ## saveMessage
 
@@ -14413,42 +14413,42 @@ Now I have a thorough understanding of both codebases. Let me produce the compar
 
 ## authAndSaveAndSendMessage
 
-- [ ] **Missing `send` parameter**: Java accepts `send` to control whether to actually deliver the message. The Go version always tries to deliver if `outboundDelivery` is non-nil.
-- [ ] **Missing `persist` parameter**: Java passes `persist` to `saveAndSendMessage0`. The Go version always persists.
-- [ ] **Missing `senderId` null handling**: Java sets `senderId = ADMIN_REQUESTER_ID` for system messages when senderId is null. The Go version doesn't handle nil senderId.
-- [ ] **Missing `senderDeviceType` parameter**: Java uses this for notification routing. The Go version has no equivalent.
-- [ ] **Missing `referenceId` and `preMessageId` parameters**: Java supports both. The Go version doesn't.
-- [ ] **Missing metrics counter**: Java increments `sentMessageCounter`. The Go version has no metrics.
-- [ ] **Missing sentMessageCache update**: Java caches sent messages. The Go version does not.
-- [ ] **Missing notification via `sendMessage`**: Java uses `outboundMessageManager.forwardNotification` with proper TurmsNotification building, recipient ID handling, and sender session exclusion. The Go version uses a simpler `outboundDelivery.Deliver` which likely doesn't handle the same notification protocol.
-- [ ] **Missing validation**: Java validates `isGroupMessage`, `isSystemMessage`, `targetId` not null, `burnAfter >= 0`, text/records not both null, `maxTextLimit`, and `maxRecordsSize`. The Go version performs no validation.
+os.system **Missing `send` parameter**: Java accepts `send` to control whether to actually deliver the message. The Go version always tries to deliver if `outboundDelivery` is non-nil.
+os.system **Missing `persist` parameter**: Java passes `persist` to `saveAndSendMessage0`. The Go version always persists.
+os.system **Missing `senderId` null handling**: Java sets `senderId = ADMIN_REQUESTER_ID` for system messages when senderId is null. The Go version doesn't handle nil senderId.
+os.system **Missing `senderDeviceType` parameter**: Java uses this for notification routing. The Go version has no equivalent.
+os.system **Missing `referenceId` and `preMessageId` parameters**: Java supports both. The Go version doesn't.
+os.system **Missing metrics counter**: Java increments `sentMessageCounter`. The Go version has no metrics.
+os.system **Missing sentMessageCache update**: Java caches sent messages. The Go version does not.
+os.system **Missing notification via `sendMessage`**: Java uses `outboundMessageManager.forwardNotification` with proper TurmsNotification building, recipient ID handling, and sender session exclusion. The Go version uses a simpler `outboundDelivery.Deliver` which likely doesn't handle the same notification protocol.
+os.system **Missing validation**: Java validates `isGroupMessage`, `isSystemMessage`, `targetId` not null, `burnAfter >= 0`, text/records not both null, `maxTextLimit`, and `maxRecordsSize`. The Go version performs no validation.
 
 ## saveAndSendMessage (with send parameter)
 
-- [ ] **Same issues as authAndSaveAndSendMessage** regarding missing parameters, validation, metrics, caching, and notification handling.
+os.system **Same issues as authAndSaveAndSendMessage** regarding missing parameters, validation, metrics, caching, and notification handling.
 
 ## saveAndSendMessage (without send parameter)
 
-- [ ] **Same issues as above** — this overloaded variant in Java is equivalent to the 3-parameter `saveAndSendMessage` with `send=true` always. The Go version's `SaveAndSendMessage` has the same structural gaps.
+os.system **Same issues as above** — this overloaded variant in Java is equivalent to the 3-parameter `saveAndSendMessage` with `send=true` always. The Go version's `SaveAndSendMessage` has the same structural gaps.
 
 ## deleteGroupMessageSequenceIds
 
-- [ ] **Complete no-op implementation**: Java actually deletes sequence IDs from Redis via `redisClientManager.execute` with `hdel`. The Go version returns `nil` without doing anything.
+os.system **Complete no-op implementation**: Java actually deletes sequence IDs from Redis via `redisClientManager.execute` with `hdel`. The Go version returns `nil` without doing anything.
 
 ## deletePrivateMessageSequenceIds
 
-- [ ] **Complete no-op implementation**: Java uses a Lua script (`deletePrivateMessageSequenceIdScript`) to atomically delete private message sequence IDs in Redis. The Go version returns `nil` without doing anything.
+os.system **Complete no-op implementation**: Java uses a Lua script (`deletePrivateMessageSequenceIdScript`) to atomically delete private message sequence IDs in Redis. The Go version returns `nil` without doing anything.
 
 ## fetchGroupMessageSequenceId
 
-- [ ] **Calls Next* (incrementing) instead of fetch**: The Go version calls `s.seqGen.NextGroupMessageSequenceId(ctx, groupID)` which uses Redis `INCR`, incrementing the value. The Java version uses `hincr` which also increments. However, the Go comment says "usually a fetch, here we might accidentally increment" — this is actually correct behavior matching Java, but the method name `FetchGroupMessageSequenceID` is misleading since it actually generates/increments. The Java `fetchGroupMessageSequenceId` also increments. This is actually correct behavior.
-- [ ] **Missing nil check for seqGen**: Java returns `Mono.empty()` if `redisClientManager == null`. The Go version will panic if `s.seqGen` is nil.
+os.system **Calls Next* (incrementing) instead of fetch**: The Go version calls `s.seqGen.NextGroupMessageSequenceId(ctx, groupID)` which uses Redis `INCR`, incrementing the value. The Java version uses `hincr` which also increments. However, the Go comment says "usually a fetch, here we might accidentally increment" — this is actually correct behavior matching Java, but the method name `FetchGroupMessageSequenceID` is misleading since it actually generates/increments. The Java `fetchGroupMessageSequenceId` also increments. This is actually correct behavior.
+os.system **Missing nil check for seqGen**: Java returns `Mono.empty()` if `redisClientManager == null`. The Go version will panic if `s.seqGen` is nil.
 
 ## fetchPrivateMessageSequenceId
 
-- [ ] **Missing second user ID**: Java uses both `userId1` and `userId2` to compute the private conversation sequence ID via a Lua script with ordered keys. The Go version only uses `userID1` (the first parameter), completely ignoring `userID2`.
-- [ ] **Wrong key computation**: Java sorts `userId1` and `userId2` and uses both as keys in the Redis Lua script. The Go version just uses `userID1` alone, meaning different user pairs that share a user will share a sequence ID incorrectly.
-- [ ] **Missing nil check for seqGen**: Same as fetchGroupMessageSequenceId.
+os.system **Missing second user ID**: Java uses both `userId1` and `userId2` to compute the private conversation sequence ID via a Lua script with ordered keys. The Go version only uses `userID1` (the first parameter), completely ignoring `userID2`.
+os.system **Wrong key computation**: Java sorts `userId1` and `userId2` and uses both as keys in the Redis Lua script. The Go version just uses `userID1` alone, meaning different user pairs that share a user will share a sequence ID incorrectly.
+os.system **Missing nil check for seqGen**: Same as fetchGroupMessageSequenceId.
 
 # StatisticsService.java
 *Checked methods: countOnlineUsers()*
@@ -14472,13 +14472,13 @@ The Go `StatisticsService.CountLocalOnlineUsers()` method name actually correctl
 
 ## countOnlineUsers
 
-- [ ] **Missing cluster-wide RPC aggregation**: The Java `countOnlineUsers()` sends `CountOnlineUsersRequest` to all other cluster members via `node.getRpcService().requestResponsesFromOtherMembers(request, true)`, collects integer responses from each gateway node, and sums them with `MathFlux.sumInt(responses)`. The Go version at `service.go:215` only counts local sessions via `s.shardedMap.CountOnlineUsers()`, completely missing the distributed/cluster-wide count. It never communicates with other nodes.
+os.system **Missing cluster-wide RPC aggregation**: The Java `countOnlineUsers()` sends `CountOnlineUsersRequest` to all other cluster members via `node.getRpcService().requestResponsesFromOtherMembers(request, true)`, collects integer responses from each gateway node, and sums them with `MathFlux.sumInt(responses)`. The Go version at `service.go:215` only counts local sessions via `s.shardedMap.CountOnlineUsers()`, completely missing the distributed/cluster-wide count. It never communicates with other nodes.
 
-- [ ] **Missing `MEMBER_NOT_FOUND` error handling**: The Java code uses `.onErrorResume(throwable -> RpcException.isErrorCode(throwable, RpcErrorCode.MEMBER_NOT_FOUND), throwable -> Mono.just(0))` to gracefully handle cases where a cluster member is not found, returning 0 for that member. The Go version has no equivalent error handling since it performs no RPC calls at all.
+os.system **Missing `MEMBER_NOT_FOUND` error handling**: The Java code uses `.onErrorResume(throwable -> RpcException.isErrorCode(throwable, RpcErrorCode.MEMBER_NOT_FOUND), throwable -> Mono.just(0))` to gracefully handle cases where a cluster member is not found, returning 0 for that member. The Go version has no equivalent error handling since it performs no RPC calls at all.
 
-- [ ] **Missing `CountOnlineUsersRequest` RPC handler registration**: The Go `SessionService` constructor only registers an RPC handler for `SetUserOfflineRequest` (command ID 1) at `service.go:91`. There is no registration of a `CountOnlineUsersRequest` handler that would allow other nodes to query this node's local online user count, which is required for the cluster-wide aggregation to work.
+os.system **Missing `CountOnlineUsersRequest` RPC handler registration**: The Go `SessionService` constructor only registers an RPC handler for `SetUserOfflineRequest` (command ID 1) at `service.go:91`. There is no registration of a `CountOnlineUsersRequest` handler that would allow other nodes to query this node's local online user count, which is required for the cluster-wide aggregation to work.
 
-- [ ] **Missing `countOnlineUsersByNodes()` equivalent**: The Java `StatisticsService` has a `countOnlineUsersByNodes()` method (lines 80-88) that returns a `Map<String, Integer>` (nodeId → count) using `requestResponsesAsMapFromOtherMembers`. The Go code has no equivalent method or data structure for per-node online user counts.
+os.system **Missing `countOnlineUsersByNodes()` equivalent**: The Java `StatisticsService` has a `countOnlineUsersByNodes()` method (lines 80-88) that returns a `Map<String, Integer>` (nodeId → count) using `requestResponsesAsMapFromOtherMembers`. The Go code has no equivalent method or data structure for per-node online user counts.
 
 # StorageServiceController.java
 *Checked methods: handleDeleteResourceRequest(), handleQueryResourceUploadInfoRequest(), handleQueryResourceDownloadInfoRequest(), handleUpdateMessageAttachmentInfoRequest(), handleQueryMessageAttachmentInfosRequest()*
@@ -14575,21 +14575,21 @@ Let me compile the final answer:
 ---
 
 ## HandleDeleteResourceRequest
-- [ ] Missing `customAttributes` parameter: Java passes `request.getCustomAttributesList()` to `storageService.deleteResource()`, but Go does not extract or pass custom attributes. (Note: the Go service method also doesn't accept `customAttributes`, so this is a gap at both levels.)
+os.system Missing `customAttributes` parameter: Java passes `request.getCustomAttributesList()` to `storageService.deleteResource()`, but Go does not extract or pass custom attributes. (Note: the Go service method also doesn't accept `customAttributes`, so this is a gap at both levels.)
 
 ## HandleQueryResourceUploadInfoRequest
-- [ ] Missing `resourceIdNum` parameter: Java passes `resourceIdNum` (used for GROUP_PROFILE_PICTURE and MESSAGE_ATTACHMENT routing in the service), but the Go controller does not extract or pass it. (Note: the Go service method signature also lacks this parameter — gap at both levels.)
-- [ ] Wrong response format: Java returns a `Map<String, String>` serialized as alternating key-value pairs via `ProtoModelConvertor.toList()` (e.g., `[key1, val1, key2, val2, ...]`). Go returns a single-element `[]string{url}` in `StringsWithVersion.Strings`, losing all but the first value and all key information.
-- [ ] Missing `customAttributes` parameter: Java passes `request.getCustomAttributesList()`, Go does not.
+os.system Missing `resourceIdNum` parameter: Java passes `resourceIdNum` (used for GROUP_PROFILE_PICTURE and MESSAGE_ATTACHMENT routing in the service), but the Go controller does not extract or pass it. (Note: the Go service method signature also lacks this parameter — gap at both levels.)
+os.system Wrong response format: Java returns a `Map<String, String>` serialized as alternating key-value pairs via `ProtoModelConvertor.toList()` (e.g., `[key1, val1, key2, val2, ...]`). Go returns a single-element `[]string{url}` in `StringsWithVersion.Strings`, losing all but the first value and all key information.
+os.system Missing `customAttributes` parameter: Java passes `request.getCustomAttributesList()`, Go does not.
 
 ## HandleQueryResourceDownloadInfoRequest
-- [ ] Missing `resourceIdNum` as separate parameter: Java passes both `resourceIdNum` (Long) and `resourceIdStr` (String) separately to `queryResourceDownloadInfo()`. Go collapses them into a single `resourceIdStr` by converting `IdNum` to string. The Java service uses `resourceIdNum` directly for USER_PROFILE_PICTURE and GROUP_PROFILE_PICTURE lookups.
-- [ ] Wrong response format: Same as upload — Java returns `Map<String, String>` as alternating key-value pairs `[key1, val1, key2, val2, ...]`. Go returns `[]string{url}` (a single string), losing all key-value structure.
-- [ ] Missing `customAttributes` parameter: Java passes `request.getCustomAttributesList()`, Go does not.
+os.system Missing `resourceIdNum` as separate parameter: Java passes both `resourceIdNum` (Long) and `resourceIdStr` (String) separately to `queryResourceDownloadInfo()`. Go collapses them into a single `resourceIdStr` by converting `IdNum` to string. The Java service uses `resourceIdNum` directly for USER_PROFILE_PICTURE and GROUP_PROFILE_PICTURE lookups.
+os.system Wrong response format: Same as upload — Java returns `Map<String, String>` as alternating key-value pairs `[key1, val1, key2, val2, ...]`. Go returns `[]string{url}` (a single string), losing all key-value structure.
+os.system Missing `customAttributes` parameter: Java passes `request.getCustomAttributesList()`, Go does not.
 
 ## HandleQueryMessageAttachmentInfosRequest
-- [ ] Extra `Name` field in proto response: The Go code always sets `Name` on each `StorageResourceInfo` proto (`protoInfo.Name = &name`). Java's `storageResourceInfo2proto()` does NOT set the `name` field on the proto at all — it only sets `idNum`, `idStr`, `mediaType`, `uploaderId`, and `creationDate`.
-- [ ] Always-set `MediaType` pointer: Go sets `MediaType: &mediaType` unconditionally (pointing to an empty string when info.MediaType is ""), whereas Java calls `.setMediaType(info.mediaType())` directly. For protobuf, an empty string vs unset field may differ semantically.
+os.system Extra `Name` field in proto response: The Go code always sets `Name` on each `StorageResourceInfo` proto (`protoInfo.Name = &name`). Java's `storageResourceInfo2proto()` does NOT set the `name` field on the proto at all — it only sets `idNum`, `idStr`, `mediaType`, `uploaderId`, and `creationDate`.
+os.system Always-set `MediaType` pointer: Go sets `MediaType: &mediaType` unconditionally (pointing to an empty string when info.MediaType is ""), whereas Java calls `.setMediaType(info.mediaType())` directly. For protobuf, an empty string vs unset field may differ semantically.
 
 # StorageService.java
 *Checked methods: deleteResource(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceIdStr, List<Value> customAttributes), queryResourceUploadInfo(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceName, @Nullable String resourceMediaType, List<Value> customAttributes), queryResourceDownloadInfo(Long requesterId, StorageResourceType resourceType, @Nullable Long resourceIdNum, @Nullable String resourceIdStr, List<Value> customAttributes), shareMessageAttachmentWithUser(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long userIdToShareWith), shareMessageAttachmentWithGroup(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long groupIdToShareWith), unshareMessageAttachmentWithUser(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long userIdToUnshareWith), unshareMessageAttachmentWithGroup(Long requesterId, @Nullable Long messageAttachmentIdNum, @Nullable String messageAttachmentIdStr, Long groupIdToUnshareWith), queryMessageAttachmentInfosUploadedByRequester(Long requesterId, @Nullable DateRange creationDateRange), queryMessageAttachmentInfosInPrivateConversations(Long requesterId, @Nullable Set<Long> userIds, @Nullable DateRange creationDateRange, @Nullable Boolean areSharedByRequester), queryMessageAttachmentInfosInGroupConversations(Long requesterId, @Nullable Set<Long> groupIds, @Nullable Set<Long> userIds, @Nullable DateRange creationDateRange)*
@@ -14659,51 +14659,51 @@ Now I have a complete picture. Let me analyze each method carefully.
 ---
 
 ## deleteResource
-- [ ] Missing `requesterID` null validation (Java validates `requesterId` is not null via `Validator.notNull`)
-- [ ] Missing resource-type-based dispatch: Java routes `USER_PROFILE_PICTURE` → `deleteUserProfilePicture(requesterId, customAttributes)`, `GROUP_PROFILE_PICTURE` → `deleteGroupProfilePicture(requesterId, resourceIdNum, customAttributes)`, `MESSAGE_ATTACHMENT` → `deleteMessageAttachment(requesterId, resourceIdNum, resourceIdStr, customAttributes)`. Go collapses all into a single `DeleteResource(resourceType, keyStr)` call, losing the distinct method signatures and `customAttributes`.
-- [ ] Missing null check on `resourceIdNum` for `GROUP_PROFILE_PICTURE` (Java returns error "The group ID must not be null")
-- [ ] Missing `resourceIdNum` parameter entirely — the Java methods take `Long resourceIdNum` and `String resourceIdStr` separately for MESSAGE_ATTACHMENT, but Go only accepts `resourceIDStr`
+os.system Missing `requesterID` null validation (Java validates `requesterId` is not null via `Validator.notNull`)
+os.system Missing resource-type-based dispatch: Java routes `USER_PROFILE_PICTURE` → `deleteUserProfilePicture(requesterId, customAttributes)`, `GROUP_PROFILE_PICTURE` → `deleteGroupProfilePicture(requesterId, resourceIdNum, customAttributes)`, `MESSAGE_ATTACHMENT` → `deleteMessageAttachment(requesterId, resourceIdNum, resourceIdStr, customAttributes)`. Go collapses all into a single `DeleteResource(resourceType, keyStr)` call, losing the distinct method signatures and `customAttributes`.
+os.system Missing null check on `resourceIdNum` for `GROUP_PROFILE_PICTURE` (Java returns error "The group ID must not be null")
+os.system Missing `resourceIdNum` parameter entirely — the Java methods take `Long resourceIdNum` and `String resourceIdStr` separately for MESSAGE_ATTACHMENT, but Go only accepts `resourceIDStr`
 
 ## queryResourceUploadInfo
-- [ ] Missing `requesterID` null validation
-- [ ] Missing `customAttributes` null validation
-- [ ] Missing resource-type-based dispatch to distinct provider methods (`queryUserProfilePictureUploadInfo`, `queryGroupProfilePictureUploadInfo`, `queryMessageAttachmentUploadInfo`, etc.)
-- [ ] Missing null check on `resourceIdNum` for `GROUP_PROFILE_PICTURE` (Java returns "The group ID must not be null")
-- [ ] Missing entire MESSAGE_ATTACHMENT routing logic: Java routes based on `resourceIdNum` — null → `queryMessageAttachmentUploadInfo`, negative → `queryMessageAttachmentUploadInfoInGroupConversation` (with `-resourceIdNum`), positive/zero → `queryMessageAttachmentUploadInfoInPrivateConversation`
-- [ ] Missing `resourceMediaType` parsing/validation (Java creates a `MediaType` from the string and validates it)
+os.system Missing `requesterID` null validation
+os.system Missing `customAttributes` null validation
+os.system Missing resource-type-based dispatch to distinct provider methods (`queryUserProfilePictureUploadInfo`, `queryGroupProfilePictureUploadInfo`, `queryMessageAttachmentUploadInfo`, etc.)
+os.system Missing null check on `resourceIdNum` for `GROUP_PROFILE_PICTURE` (Java returns "The group ID must not be null")
+os.system Missing entire MESSAGE_ATTACHMENT routing logic: Java routes based on `resourceIdNum` — null → `queryMessageAttachmentUploadInfo`, negative → `queryMessageAttachmentUploadInfoInGroupConversation` (with `-resourceIdNum`), positive/zero → `queryMessageAttachmentUploadInfoInPrivateConversation`
+os.system Missing `resourceMediaType` parsing/validation (Java creates a `MediaType` from the string and validates it)
 
 ## queryResourceDownloadInfo
-- [ ] Missing `requesterID` null validation
-- [ ] Missing `customAttributes` null validation
-- [ ] Missing resource-type-based dispatch to distinct provider methods (`queryUserProfilePictureDownloadInfo`, `queryGroupProfilePictureDownloadInfo`, `queryMessageAttachmentDownloadInfo`)
-- [ ] Missing null check on `resourceIdNum` for `USER_PROFILE_PICTURE` (Java returns "The user ID must not be null")
-- [ ] Missing null check on `resourceIdNum` for `GROUP_PROFILE_PICTURE` (Java returns "The group ID must not be null")
-- [ ] Missing `resourceIdNum` parameter — Java passes both `Long resourceIdNum` and `String resourceIdStr` for MESSAGE_ATTACHMENT
+os.system Missing `requesterID` null validation
+os.system Missing `customAttributes` null validation
+os.system Missing resource-type-based dispatch to distinct provider methods (`queryUserProfilePictureDownloadInfo`, `queryGroupProfilePictureDownloadInfo`, `queryMessageAttachmentDownloadInfo`)
+os.system Missing null check on `resourceIdNum` for `USER_PROFILE_PICTURE` (Java returns "The user ID must not be null")
+os.system Missing null check on `resourceIdNum` for `GROUP_PROFILE_PICTURE` (Java returns "The group ID must not be null")
+os.system Missing `resourceIdNum` parameter — Java passes both `Long resourceIdNum` and `String resourceIdStr` for MESSAGE_ATTACHMENT
 
 ## shareMessageAttachmentWithUser
-- [ ] Missing `requesterID` null validation (Java validates `requesterId` is not null)
-- [ ] Missing `userIDToShareWith` null validation (Java validates `userIdToShareWith` is not null)
+os.system Missing `requesterID` null validation (Java validates `requesterId` is not null)
+os.system Missing `userIDToShareWith` null validation (Java validates `userIdToShareWith` is not null)
 
 ## shareMessageAttachmentWithGroup
-- [ ] Missing `requesterID` null validation
-- [ ] Missing `groupIDToShareWith` null validation
+os.system Missing `requesterID` null validation
+os.system Missing `groupIDToShareWith` null validation
 
 ## unshareMessageAttachmentWithUser
-- [ ] Missing `requesterID` null validation
-- [ ] Missing `userIDToUnshareWith` null validation
+os.system Missing `requesterID` null validation
+os.system Missing `userIDToUnshareWith` null validation
 
 ## unshareMessageAttachmentWithGroup
-- [ ] Missing `requesterID` null validation
-- [ ] Missing `groupIDToUnshareWith` null validation
+os.system Missing `requesterID` null validation
+os.system Missing `groupIDToUnshareWith` null validation
 
 ## queryMessageAttachmentInfosUploadedByRequester
-- [ ] Missing `requesterID` null validation
+os.system Missing `requesterID` null validation
 
 ## queryMessageAttachmentInfosInPrivateConversations
-- [ ] Missing `requesterID` null validation
+os.system Missing `requesterID` null validation
 
 ## queryMessageAttachmentInfosInGroupConversations
-- [ ] Missing `requesterID` null validation
+os.system Missing `requesterID` null validation
 
 # UserController.java
 *Checked methods: addUser(@RequestBody AddUserDTO addUserDTO), queryUsers(@QueryParam(required = false), queryUsers(@QueryParam(required = false), countUsers(@QueryParam(required = false), updateUser(Set<Long> ids, @RequestBody UpdateUserDTO updateUserDTO), deleteUsers(Set<Long> ids, @QueryParam(required = false)*
@@ -14803,45 +14803,45 @@ The `UpdateUser` (single) at line 105 only sets `lud` (LastUpdatedDate) and dele
 
 ## addUser
 
-- [ ] **Missing validation**: Java validates password length (`minPasswordLengthForCreate`, `maxPasswordLength`), name max length, intro max length, profilePicture max length, profileAccess validity, and registrationDate (must be past or present). Go has no validation at all.
-- [ ] **Missing password encoding**: Java encodes the password via `passwordManager.encodeUserPassword()`. Go stores the raw password string directly.
-- [ ] **Missing default values**: Java defaults `name` to `""` (Go: empty string by default in Go, but semantically different — Java explicitly sets it), `intro` to `""`, `profileAccessStrategy` to `ProfileAccessStrategy.ALL`, `roleId` to `DEFAULT_USER_ROLE_ID`, `isActive` to the configurable `activateUserWhenAdded`. Go doesn't apply any of these defaults — `profileAccess` defaults to `0`, `permissionGroupID` to `0`, and `isActive` to `false` (Go zero values).
-- [ ] **Missing transactional side effects**: Java creates a default relationship group (`userRelationshipGroupService.createRelationshipGroup`), upserts an empty user version, and syncs Elasticsearch in a transaction. Go only inserts the user document.
-- [ ] **Missing `LastUpdatedDate` and `DeletionDate` initialization**: Java sets `LastUpdatedDate = now` and `DeletionDate = null` explicitly. Go doesn't set `LastUpdatedDate` or `DeletionDate` in the `User` struct.
+os.system **Missing validation**: Java validates password length (`minPasswordLengthForCreate`, `maxPasswordLength`), name max length, intro max length, profilePicture max length, profileAccess validity, and registrationDate (must be past or present). Go has no validation at all.
+os.system **Missing password encoding**: Java encodes the password via `passwordManager.encodeUserPassword()`. Go stores the raw password string directly.
+os.system **Missing default values**: Java defaults `name` to `""` (Go: empty string by default in Go, but semantically different — Java explicitly sets it), `intro` to `""`, `profileAccessStrategy` to `ProfileAccessStrategy.ALL`, `roleId` to `DEFAULT_USER_ROLE_ID`, `isActive` to the configurable `activateUserWhenAdded`. Go doesn't apply any of these defaults — `profileAccess` defaults to `0`, `permissionGroupID` to `0`, and `isActive` to `false` (Go zero values).
+os.system **Missing transactional side effects**: Java creates a default relationship group (`userRelationshipGroupService.createRelationshipGroup`), upserts an empty user version, and syncs Elasticsearch in a transaction. Go only inserts the user document.
+os.system **Missing `LastUpdatedDate` and `DeletionDate` initialization**: Java sets `LastUpdatedDate = now` and `DeletionDate = null` explicitly. Go doesn't set `LastUpdatedDate` or `DeletionDate` in the `User` struct.
 
 ## queryUsers (non-paginated)
 
-- [ ] **Missing filter parameters**: Java supports filtering by `registrationDateRange`, `deletionDateRange`, `isActive`, and `queryDeletedRecords`. Go only filters by user IDs and returns all users when `userIDs` is empty — the Java behavior when `userIds` is null is to return all matching users (not return empty).
-- [ ] **Wrong empty-list behavior**: Go returns `[]*po.User{}` when `userIDs` is empty (line 153). In Java, `userIds` is `@Nullable` — when null, the `inIfNotNull` filter is skipped and all users matching other criteria are returned. Go treats an empty slice as "return nothing".
-- [ ] **Missing pagination**: Java supports `page` and `size` parameters. Go has no pagination support.
+os.system **Missing filter parameters**: Java supports filtering by `registrationDateRange`, `deletionDateRange`, `isActive`, and `queryDeletedRecords`. Go only filters by user IDs and returns all users when `userIDs` is empty — the Java behavior when `userIds` is null is to return all matching users (not return empty).
+os.system **Wrong empty-list behavior**: Go returns `[]*po.User{}` when `userIDs` is empty (line 153). In Java, `userIds` is `@Nullable` — when null, the `inIfNotNull` filter is skipped and all users matching other criteria are returned. Go treats an empty slice as "return nothing".
+os.system **Missing pagination**: Java supports `page` and `size` parameters. Go has no pagination support.
 
 ## queryUsers (paginated / "page" endpoint)
 
-- [ ] **Entire method missing**: The Go `QueryUsers` method does not support the paginated query variant at all — no `page`/`size` parameters, no separate count+query flow as in Java's `queryUsers` page endpoint (controller line 114).
+os.system **Entire method missing**: The Go `QueryUsers` method does not support the paginated query variant at all — no `page`/`size` parameters, no separate count+query flow as in Java's `queryUsers` page endpoint (controller line 114).
 
 ## countUsers
 
-- [ ] **Missing filter parameters for the 4-param overload**: The Java controller's paginated query calls `countUsers(ids, registrationDateRange, deletionDateRange, isActive)` which supports filtering by user IDs, registration date range, deletion date range, and active status. Go's `CountUsers` only accepts `activeOnly bool`.
-- [ ] **Entire `countUsers` statistics endpoint missing**: The Java `countUsers` controller endpoint (line 140) builds a `UserStatisticsDTO` with conditional queries for `countDeletedUsers`, `countUsersWhoSentMessage`, `countRegisteredUsers`, and supports `DivideBy` for date-divided records. None of this logic exists in Go.
+os.system **Missing filter parameters for the 4-param overload**: The Java controller's paginated query calls `countUsers(ids, registrationDateRange, deletionDateRange, isActive)` which supports filtering by user IDs, registration date range, deletion date range, and active status. Go's `CountUsers` only accepts `activeOnly bool`.
+os.system **Entire `countUsers` statistics endpoint missing**: The Java `countUsers` controller endpoint (line 140) builds a `UserStatisticsDTO` with conditional queries for `countDeletedUsers`, `countUsersWhoSentMessage`, `countRegisteredUsers`, and supports `DivideBy` for date-divided records. None of this logic exists in Go.
 
 ## updateUser / updateUsers
 
-- [ ] **Missing field-level update parameters**: Java's `updateUsers` maps individual fields (password, name, intro, profilePicture, profileAccessStrategy, roleId, registrationDate, isActive, userDefinedAttributes) and only sets non-null fields in the DB update. Go's `UpdateUsers` takes a raw `bson.M` — the caller must construct the update map correctly, losing the field-level null-checking semantics.
-- [ ] **Missing validation**: Java validates password length (`minPasswordLengthForUpdate`), name/intro/profilePicture max lengths, profileAccess, and registrationDate. Go has no validation.
-- [ ] **Missing password encoding**: Java encodes password via `passwordManager.encodeUserPassword()`. Go has no encoding step in the update path.
-- [ ] **Missing no-op optimization**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if all update fields are null. Go always executes the DB update.
-- [ ] **Missing session disconnect on deactivation**: Java disconnects user sessions when `isActive` is set to `false` and the update modifies documents. Go has no such logic.
-- [ ] **Missing Elasticsearch sync**: Java syncs user name changes to Elasticsearch. Go has no Elasticsearch integration.
-- [ ] **Missing `UpdateUser` single-user parity**: Go's `UpdateUser` (line 105) only sets `lud` and delegates to `repo.Update()` with a single ID. The Java `updateUser` single-user method (line 596) supports all the same fields as the bulk update plus `userDefinedAttributes`.
+os.system **Missing field-level update parameters**: Java's `updateUsers` maps individual fields (password, name, intro, profilePicture, profileAccessStrategy, roleId, registrationDate, isActive, userDefinedAttributes) and only sets non-null fields in the DB update. Go's `UpdateUsers` takes a raw `bson.M` — the caller must construct the update map correctly, losing the field-level null-checking semantics.
+os.system **Missing validation**: Java validates password length (`minPasswordLengthForUpdate`), name/intro/profilePicture max lengths, profileAccess, and registrationDate. Go has no validation.
+os.system **Missing password encoding**: Java encodes password via `passwordManager.encodeUserPassword()`. Go has no encoding step in the update path.
+os.system **Missing no-op optimization**: Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if all update fields are null. Go always executes the DB update.
+os.system **Missing session disconnect on deactivation**: Java disconnects user sessions when `isActive` is set to `false` and the update modifies documents. Go has no such logic.
+os.system **Missing Elasticsearch sync**: Java syncs user name changes to Elasticsearch. Go has no Elasticsearch integration.
+os.system **Missing `UpdateUser` single-user parity**: Go's `UpdateUser` (line 105) only sets `lud` and delegates to `repo.Update()` with a single ID. The Java `updateUser` single-user method (line 596) supports all the same fields as the bulk update plus `userDefinedAttributes`.
 
 ## deleteUsers
 
-- [ ] **Missing `deleteLogically` parameter entirely**: Java supports both logical deletion (setting `DeletionDate`) and physical deletion (removing the document). Go only does physical deletion via `DeleteMany`.
-- [ ] **Missing logical delete fallback**: When `deleteLogically` is null, Java falls back to config `deleteUserLogically`. Go has no such concept.
-- [ ] **Missing cascade deletions**: Java physically deleting a user also deletes: Elasticsearch docs, user relationships, relationship groups, user settings, private conversations, group member conversations, conversation settings, user versions, and message sequence IDs — all in a transaction. Go only deletes the user document.
-- [ ] **Missing session disconnect**: Java always disconnects user sessions after deletion (logical or physical) via `sessionService.disconnect()`. Go has no session disconnect.
-- [ ] **Missing Elasticsearch cleanup**: Java deletes user docs from Elasticsearch. Go has no ES integration.
-- [ ] **Wrong return type**: Java returns `DeleteResult` (with deleted count). Go's `DeleteUsers` returns only `error`, discarding the deleted count entirely — the controller can't report how many users were deleted.
+os.system **Missing `deleteLogically` parameter entirely**: Java supports both logical deletion (setting `DeletionDate`) and physical deletion (removing the document). Go only does physical deletion via `DeleteMany`.
+os.system **Missing logical delete fallback**: When `deleteLogically` is null, Java falls back to config `deleteUserLogically`. Go has no such concept.
+os.system **Missing cascade deletions**: Java physically deleting a user also deletes: Elasticsearch docs, user relationships, relationship groups, user settings, private conversations, group member conversations, conversation settings, user versions, and message sequence IDs — all in a transaction. Go only deletes the user document.
+os.system **Missing session disconnect**: Java always disconnects user sessions after deletion (logical or physical) via `sessionService.disconnect()`. Go has no session disconnect.
+os.system **Missing Elasticsearch cleanup**: Java deletes user docs from Elasticsearch. Go has no ES integration.
+os.system **Wrong return type**: Java returns `DeleteResult` (with deleted count). Go's `DeleteUsers` returns only `error`, discarding the deleted count entirely — the controller can't report how many users were deleted.
 
 # UserOnlineInfoController.java
 *Checked methods: countOnlineUsers(boolean countByNodes), queryUserSessions(Set<Long> ids, boolean returnNonExistingUsers), queryUserStatuses(Set<Long> ids, boolean returnNonExistingUsers), queryUsersNearby(Long userId, @QueryParam(required = false), queryUserLocations(Set<Long> ids, @QueryParam(required = false), updateUserOnlineStatus(Set<Long> ids, @QueryParam(required = false)*
@@ -14886,19 +14886,19 @@ The Java version checks `onlineStatus == OFFLINE` -> calls `sessionService.disco
 ---
 
 ## countOnlineUsers
-- [ ] **Controller is a stub**: `CountOnlineUsers()` at `user_controllers.go:48` has `// TODO: implement` with no logic at all. The Java version calls `statisticsService.countOnlineUsers()` (aggregates from all gateway nodes via RPC) or `statisticsService.countOnlineUsersByNodes()` (returns per-node counts plus sum). Neither the controller logic nor the underlying `StatisticsService` RPC-based counting is implemented in Go.
+os.system **Controller is a stub**: `CountOnlineUsers()` at `user_controllers.go:48` has `// TODO: implement` with no logic at all. The Java version calls `statisticsService.countOnlineUsers()` (aggregates from all gateway nodes via RPC) or `statisticsService.countOnlineUsersByNodes()` (returns per-node counts plus sum). Neither the controller logic nor the underlying `StatisticsService` RPC-based counting is implemented in Go.
 
 ## queryUserSessions
-- [ ] **Controller is a stub**: `QueryUserSessions()` at `user_controllers.go:53` has `// TODO: implement`. The Go `session_service.go` has a partial `QueryUserSessions` but it is incomplete (see below).
-- [ ] **Missing RPC to gateway nodes for session details**: The Java `SessionService.queryUserSessions` sends `QueryUserSessionsRequest` RPCs to each gateway node where users have active sessions, then merges the detailed results (including session ID, version, login date, IP, heartbeat timestamps, etc.). The Go `session_service.go:66` `QueryUserSessions` only reads `UserStatusService.FetchUserSessionsStatus` (Redis metadata) and returns minimal `UserSessionInfo{DeviceType}` structs — missing all session detail fields: `ID`, `Version`, `DeviceDetails`, `LoginDate`, `LastHeartbeatRequestTimestampMillis`, `LastRequestTimestampMillis`, `IsSessionOpen`, `Location`, `IP`.
-- [ ] **Missing cross-node session merging**: Java `mergeUserSessions` handles users with sessions across multiple gateway nodes (slow path). The Go version has no equivalent — it only reads from Redis status data and cannot merge session data from multiple nodes.
-- [ ] **Missing `returnNonExistingUsers` filtering logic**: The Java controller (`UserOnlineInfoController.java:110-130`) filters out non-existing users when `returnNonExistingUsers=false` by checking `userService.checkIfUserExists` for offline users. The Go has no equivalent implementation — neither the controller nor the service handles this parameter.
-- [ ] **Silently ignores errors from FetchUserSessionsStatus**: At `session_service.go:71`, errors from `s.userStatusService.FetchUserSessionsStatus` are silently `continue`d, dropping the user from results. The Java version propagates errors via the reactive chain.
+os.system **Controller is a stub**: `QueryUserSessions()` at `user_controllers.go:53` has `// TODO: implement`. The Go `session_service.go` has a partial `QueryUserSessions` but it is incomplete (see below).
+os.system **Missing RPC to gateway nodes for session details**: The Java `SessionService.queryUserSessions` sends `QueryUserSessionsRequest` RPCs to each gateway node where users have active sessions, then merges the detailed results (including session ID, version, login date, IP, heartbeat timestamps, etc.). The Go `session_service.go:66` `QueryUserSessions` only reads `UserStatusService.FetchUserSessionsStatus` (Redis metadata) and returns minimal `UserSessionInfo{DeviceType}` structs — missing all session detail fields: `ID`, `Version`, `DeviceDetails`, `LoginDate`, `LastHeartbeatRequestTimestampMillis`, `LastRequestTimestampMillis`, `IsSessionOpen`, `Location`, `IP`.
+os.system **Missing cross-node session merging**: Java `mergeUserSessions` handles users with sessions across multiple gateway nodes (slow path). The Go version has no equivalent — it only reads from Redis status data and cannot merge session data from multiple nodes.
+os.system **Missing `returnNonExistingUsers` filtering logic**: The Java controller (`UserOnlineInfoController.java:110-130`) filters out non-existing users when `returnNonExistingUsers=false` by checking `userService.checkIfUserExists` for offline users. The Go has no equivalent implementation — neither the controller nor the service handles this parameter.
+os.system **Silently ignores errors from FetchUserSessionsStatus**: At `session_service.go:71`, errors from `s.userStatusService.FetchUserSessionsStatus` are silently `continue`d, dropping the user from results. The Java version propagates errors via the reactive chain.
 
 ## queryUserStatuses
-- [ ] **Controller is a stub**: `QueryUserStatuses()` at `user_controllers.go:59` has `// TODO: implement`.
-- [ ] **Missing `returnNonExistingUsers` filtering logic**: The Java version (`UserOnlineInfoController.java:139-155`) checks `userService.checkIfUserExists(userId, false)` for offline users when `returnNonExistingUsers=false`, filtering out non-existent users. No equivalent exists in Go.
-- [ ] **Uses wrong method to fetch status**: The Java controller calls `userStatusService.getUserSessionsStatus(userId)` (which uses caching), not `fetchUserSessionsStatus`. The Go `UserStatusService` only exposes `FetchUserSessionsStatus` (no caching variant), so any future implementation would miss the cache layer.
+os.system **Controller is a stub**: `QueryUserStatuses()` at `user_controllers.go:59` has `// TODO: implement`.
+os.system **Missing `returnNonExistingUsers` filtering logic**: The Java version (`UserOnlineInfoController.java:139-155`) checks `userService.checkIfUserExists(userId, false)` for offline users when `returnNonExistingUsers=false`, filtering out non-existent users. No equivalent exists in Go.
+os.system **Uses wrong method to fetch status**: The Java controller calls `userStatusService.getUserSessionsStatus(userId)` (which uses caching), not `fetchUserSessionsStatus`. The Go `UserStatusService` only exposes `FetchUserSessionsStatus` (no caching variant), so any future implementation would miss the cache layer.
 
 ## queryUsersNearby
 - [ ] **Controller is a stub**: `QueryUsersNearby()` at `user_controllers.go:63` has `// TODO: implement`.
@@ -15542,35 +15542,35 @@ This looks correct.
 
 ## HandleUpdateUserRequest
 
-- [ ] **Missing `userDefinedAttributes` field**: The Java code reads `request.getUserDefinedAttributesCount() > 0 ? request.getUserDefinedAttributesMap() : null` and passes it to `userService.updateUser()`. The Go code completely ignores `userDefinedAttributes` from the request — it is never extracted or stored.
-- [ ] **Missing `profileAccessStrategy` unconditional handling**: The Go code only sets `pas` when `updateReq.GetProfileAccessStrategy() != protocol.ProfileAccessStrategy_ALL`. The Java code passes `profileAccessStrategy` unconditionally (even when it's the default/ALL value) to `updateUser`, letting the service layer decide what to do with it.
-- [ ] **Missing changed/no-change branching**: The Java code calls `userService.updateUser()` which returns a `changed` boolean. If `!changed`, it returns `RequestHandlerResult.OK` (no notifications). The Go code calls `UpdateUser` which returns only `error`, and then always proceeds to broadcast notifications regardless of whether anything actually changed.
-- [ ] **Missing conditional notification based on updated fields**: The Java code checks `if (name == null && intro == null && profilePicture == null && userDefinedAttributes == null)` — if only password/strategy was changed (no profile-visible fields), it skips broadcasting to related users. The Go code always broadcasts to all friends regardless of which fields were updated.
-- [ ] **Missing requester's other sessions notification**: The Java code uses `notifyRequesterOtherOnlineSessionsOfUserInfoUpdated` to also notify the requester's other online sessions. The Go code does not send any notification back to the requester's other sessions.
-- [ ] **Missing password-stripped notification for related users**: When `password != null`, the Java code creates a separate notification for related users that strips the password from the `UpdateUserRequest` (using `.clearPassword()`), and creates a different notification for the requester's own sessions (with the full request). The Go code broadcasts the full user profile to friends, which does not include the password but also does not send the original `UpdateUserRequest` structure as the Java version does.
-- [ ] **Notification payload is completely different**: The Java code sends the `UpdateUserRequest` (with password stripped for related users) as the notification payload. The Go code instead queries the user profile and sends a `UserInfosWithVersion` notification. These are fundamentally different notification formats — the Java clients expect an `UpdateUserRequest` notification, not a `UserInfosWithVersion` notification.
-- [ ] **Missing empty update early return**: While the Go code does return early if `len(update) == 0`, the Java code does not have this check. In Java, `userService.updateUser` is called even if all fields are null (it still handles the no-op case internally and returns `changed=false`). This is a minor behavioral difference where the Go code short-circuits earlier.
+os.system **Missing `userDefinedAttributes` field**: The Java code reads `request.getUserDefinedAttributesCount() > 0 ? request.getUserDefinedAttributesMap() : null` and passes it to `userService.updateUser()`. The Go code completely ignores `userDefinedAttributes` from the request — it is never extracted or stored.
+os.system **Missing `profileAccessStrategy` unconditional handling**: The Go code only sets `pas` when `updateReq.GetProfileAccessStrategy() != protocol.ProfileAccessStrategy_ALL`. The Java code passes `profileAccessStrategy` unconditionally (even when it's the default/ALL value) to `updateUser`, letting the service layer decide what to do with it.
+os.system **Missing changed/no-change branching**: The Java code calls `userService.updateUser()` which returns a `changed` boolean. If `!changed`, it returns `RequestHandlerResult.OK` (no notifications). The Go code calls `UpdateUser` which returns only `error`, and then always proceeds to broadcast notifications regardless of whether anything actually changed.
+os.system **Missing conditional notification based on updated fields**: The Java code checks `if (name == null && intro == null && profilePicture == null && userDefinedAttributes == null)` — if only password/strategy was changed (no profile-visible fields), it skips broadcasting to related users. The Go code always broadcasts to all friends regardless of which fields were updated.
+os.system **Missing requester's other sessions notification**: The Java code uses `notifyRequesterOtherOnlineSessionsOfUserInfoUpdated` to also notify the requester's other online sessions. The Go code does not send any notification back to the requester's other sessions.
+os.system **Missing password-stripped notification for related users**: When `password != null`, the Java code creates a separate notification for related users that strips the password from the `UpdateUserRequest` (using `.clearPassword()`), and creates a different notification for the requester's own sessions (with the full request). The Go code broadcasts the full user profile to friends, which does not include the password but also does not send the original `UpdateUserRequest` structure as the Java version does.
+os.system **Notification payload is completely different**: The Java code sends the `UpdateUserRequest` (with password stripped for related users) as the notification payload. The Go code instead queries the user profile and sends a `UserInfosWithVersion` notification. These are fundamentally different notification formats — the Java clients expect an `UpdateUserRequest` notification, not a `UserInfosWithVersion` notification.
+os.system **Missing empty update early return**: While the Go code does return early if `len(update) == 0`, the Java code does not have this check. In Java, `userService.updateUser` is called even if all fields are null (it still handles the no-op case internally and returns `changed=false`). This is a minor behavioral difference where the Go code short-circuits earlier.
 
 # UserSettingsServiceController.java
 *Checked methods: handleDeleteUserSettingsRequest(), handleUpdateUserSettingsRequest(), handleQueryUserSettingsRequest()*
 
 ## HandleDeleteUserSettingsRequest
-- [ ] **Entire method is a stub** — returns a hardcoded success notification without calling `userSettingsService.UnsetSettings()`. The Java version calls `userSettingsService.unsetSettings(userId, names)` with the names from the request, then maps the result to a `RequestHandlerResult` with notification support.
-- [ ] **Missing request field extraction** — does not parse `DeleteUserSettingsRequest` from the TurmsRequest, and does not extract the `names` list to pass to the service.
-- [ ] **Missing notification logic** — does not check `notifyRequesterOtherOnlineSessionsOfUserSettingDeleted` or pass the original request for notification to other online sessions.
-- [ ] **Missing property listener** — the controller has no field or mechanism for `notifyRequesterOtherOnlineSessionsOfUserSettingDeleted` that mirrors the Java `propertiesManager` listener pattern.
+os.system **Entire method is a stub** — returns a hardcoded success notification without calling `userSettingsService.UnsetSettings()`. The Java version calls `userSettingsService.unsetSettings(userId, names)` with the names from the request, then maps the result to a `RequestHandlerResult` with notification support.
+os.system **Missing request field extraction** — does not parse `DeleteUserSettingsRequest` from the TurmsRequest, and does not extract the `names` list to pass to the service.
+os.system **Missing notification logic** — does not check `notifyRequesterOtherOnlineSessionsOfUserSettingDeleted` or pass the original request for notification to other online sessions.
+os.system **Missing property listener** — the controller has no field or mechanism for `notifyRequesterOtherOnlineSessionsOfUserSettingDeleted` that mirrors the Java `propertiesManager` listener pattern.
 
 ## HandleUpdateUserSettingsRequest
-- [ ] **Entire method is a stub** — returns a hardcoded success notification without calling `userSettingsService.UpsertSettings()`. The Java version calls `userSettingsService.upsertSettings(userId, settingsMap)` with the settings map from the request.
-- [ ] **Missing request field extraction** — does not parse `UpdateUserSettingsRequest` from the TurmsRequest, and does not extract the `settingsMap` to pass to the service.
-- [ ] **Missing conditional notification logic** — the Java version returns `RequestHandlerResult.OK` (no notification) when `updated` is false, but returns a notification-aware result when `updated` is true. The Go stub always returns success regardless of whether an update actually occurred.
-- [ ] **Missing notification property** — no field or mechanism for `notifyRequesterOtherOnlineSessionsOfUserSettingUpdated`.
+os.system **Entire method is a stub** — returns a hardcoded success notification without calling `userSettingsService.UpsertSettings()`. The Java version calls `userSettingsService.upsertSettings(userId, settingsMap)` with the settings map from the request.
+os.system **Missing request field extraction** — does not parse `UpdateUserSettingsRequest` from the TurmsRequest, and does not extract the `settingsMap` to pass to the service.
+os.system **Missing conditional notification logic** — the Java version returns `RequestHandlerResult.OK` (no notification) when `updated` is false, but returns a notification-aware result when `updated` is true. The Go stub always returns success regardless of whether an update actually occurred.
+os.system **Missing notification property** — no field or mechanism for `notifyRequesterOtherOnlineSessionsOfUserSettingUpdated`.
 
 ## HandleQueryUserSettingsRequest
-- [ ] **Entire method is a stub** — returns a hardcoded success notification without calling `userSettingsService.QuerySettings()`. The Java version calls `userSettingsService.querySettings(userId, names, lastUpdatedDateStart)` and maps the result into a `TurmsNotificationData` with `userSettings` proto.
-- [ ] **Missing request field extraction** — does not parse `QueryUserSettingsRequest` from the TurmsRequest, and does not extract `names` list or `lastUpdatedDateStart` field.
-- [ ] **Missing query result in response** — the Java version builds a `TurmsNotificationData` containing `userSettings` converted via `ProtoModelConvertor.userSettings2proto(settings)`. The Go stub returns an empty success notification with no data.
-- [ ] **Missing `lastUpdatedDateStart` handling** — the Java version passes `request.hasLastUpdatedDateStart() ? new Date(request.getLastUpdatedDateStart()) : null` to the service. The Go stub does not handle this at all.
+os.system **Entire method is a stub** — returns a hardcoded success notification without calling `userSettingsService.QuerySettings()`. The Java version calls `userSettingsService.querySettings(userId, names, lastUpdatedDateStart)` and maps the result into a `TurmsNotificationData` with `userSettings` proto.
+os.system **Missing request field extraction** — does not parse `QueryUserSettingsRequest` from the TurmsRequest, and does not extract `names` list or `lastUpdatedDateStart` field.
+os.system **Missing query result in response** — the Java version builds a `TurmsNotificationData` containing `userSettings` converted via `ProtoModelConvertor.userSettings2proto(settings)`. The Go stub returns an empty success notification with no data.
+os.system **Missing `lastUpdatedDateStart` handling** — the Java version passes `request.hasLastUpdatedDateStart() ? new Date(request.getLastUpdatedDateStart()) : null` to the service. The Go stub does not handle this at all.
 
 # UserFriendRequestRepository.java
 *Checked methods: getEntityExpireAfterSeconds(), updateFriendRequests(Set<Long> requestIds, @Nullable Long requesterId, @Nullable Long recipientId, @Nullable String content, @Nullable RequestStatus status, @Nullable String reason, @Nullable Date creationDate), updateStatusIfPending(Long requestId, RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session), countFriendRequests(@Nullable Set<Long> ids, @Nullable Set<Long> requesterIds, @Nullable Set<Long> recipientIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange), findFriendRequests(@Nullable Set<Long> ids, @Nullable Set<Long> requesterIds, @Nullable Set<Long> recipientIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size), findFriendRequestsByRecipientId(Long recipientId), findFriendRequestsByRequesterId(Long requesterId), findRecipientId(Long requestId), findRequesterIdAndRecipientIdAndStatus(Long requestId), findRequesterIdAndRecipientIdAndCreationDateAndStatus(Long requestId), hasPendingFriendRequest(Long requesterId, Long recipientId), hasPendingOrDeclinedOrIgnoredOrExpiredRequest(Long requesterId, Long recipientId)*
@@ -15722,44 +15722,44 @@ Now let me compile the final report.
 
 ## getEntityExpireAfterSeconds()
 
-- [ ] Returns hardcoded `0` instead of reading from configuration/properties. The Java version dynamically reads `friendRequestExpireAfterSeconds` from `TurmsProperties`, which means the Go version has no configurable expiration and treats all friend requests as never-expiring.
+os.system Returns hardcoded `0` instead of reading from configuration/properties. The Java version dynamically reads `friendRequestExpireAfterSeconds` from `TurmsProperties`, which means the Go version has no configurable expiration and treats all friend requests as never-expiring.
 
 ## updateFriendRequests()
 
-- [ ] Missing `updateResponseDateBasedOnStatus` logic: When `status` is ACCEPTED, DECLINED, or IGNORED, the Java code sets `responseDate` (field "adr") to `new Date()`. When `status` is other non-null values (e.g., PENDING, CANCELED, EXPIRED), it unsets `responseDate`. The Go code does neither — it never sets or unsets the response date based on status.
-- [ ] Incorrectly includes `status` in the `$set` update document: In Java, the `status` parameter is used **only** for the `updateResponseDateBasedOnStatus` call and is **not** added to the update document via `setIfNotNull`. The Go code (line 119) adds `status` to the `$set` payload when non-nil, which changes behavior — callers in Java use this method to update other fields while using status only for responseDate logic, not to directly set the status field.
+os.system Missing `updateResponseDateBasedOnStatus` logic: When `status` is ACCEPTED, DECLINED, or IGNORED, the Java code sets `responseDate` (field "adr") to `new Date()`. When `status` is other non-null values (e.g., PENDING, CANCELED, EXPIRED), it unsets `responseDate`. The Go code does neither — it never sets or unsets the response date based on status.
+os.system Incorrectly includes `status` in the `$set` update document: In Java, the `status` parameter is used **only** for the `updateResponseDateBasedOnStatus` call and is **not** added to the update document via `setIfNotNull`. The Go code (line 119) adds `status` to the `$set` payload when non-nil, which changes behavior — callers in Java use this method to update other fields while using status only for responseDate logic, not to directly set the status field.
 
 ## updateStatusIfPending()
 
-- [ ] Missing `isNotExpired` filter on `creationDate`: The Java filter includes `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())`, which ensures that only non-expired pending requests are updated. Without this check, the Go code allows updating the status of expired pending requests, which should remain expired.
+os.system Missing `isNotExpired` filter on `creationDate`: The Java filter includes `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())`, which ensures that only non-expired pending requests are updated. Without this check, the Go code allows updating the status of expired pending requests, which should remain expired.
 
 ## countFriendRequests()
 
-- [ ] Missing `getCreationDateRange` merge logic: The Java code calls `getCreationDateRange(creationDateRange, expirationDateRange)` which converts the expiration date range to a creation date range (by subtracting `expireAfterSeconds * 1000`) and intersects it with the provided creation date range. The Go `countOrFind` helper ignores the `expirationDateStart`/`expirationDateEnd` parameters entirely.
-- [ ] Missing `isExpiredOrNot` filtering: The Java code calls `.isExpiredOrNot(statuses, CREATION_DATE, expirationDate)` which adds expiration-aware filtering based on the status set. When statuses include EXPIRED but not PENDING, it adds an expiration filter; when statuses include PENDING but not EXPIRED, it adds a non-expiration filter. The Go code has no equivalent logic.
+os.system Missing `getCreationDateRange` merge logic: The Java code calls `getCreationDateRange(creationDateRange, expirationDateRange)` which converts the expiration date range to a creation date range (by subtracting `expireAfterSeconds * 1000`) and intersects it with the provided creation date range. The Go `countOrFind` helper ignores the `expirationDateStart`/`expirationDateEnd` parameters entirely.
+os.system Missing `isExpiredOrNot` filtering: The Java code calls `.isExpiredOrNot(statuses, CREATION_DATE, expirationDate)` which adds expiration-aware filtering based on the status set. When statuses include EXPIRED but not PENDING, it adds an expiration filter; when statuses include PENDING but not EXPIRED, it adds a non-expiration filter. The Go code has no equivalent logic.
 
 ## findFriendRequests()
 
-- [ ] Missing `getCreationDateRange` merge logic: Same as `countFriendRequests` — expiration date range parameters are passed to `countOrFind` but never used to derive a creation date filter.
-- [ ] Missing `isExpiredOrNot` filtering: Same as `countFriendRequests` — no expiration-aware status filtering.
-- [ ] Missing `transformExpiredRequest` post-processing: The Java `findExpirableDocs` method transforms returned documents by changing PENDING status to EXPIRED if the request has exceeded `expireAfterSeconds`. The Go code returns raw results without this transformation, so stale PENDING requests are returned as PENDING instead of EXPIRED.
+os.system Missing `getCreationDateRange` merge logic: Same as `countFriendRequests` — expiration date range parameters are passed to `countOrFind` but never used to derive a creation date filter.
+os.system Missing `isExpiredOrNot` filtering: Same as `countFriendRequests` — no expiration-aware status filtering.
+os.system Missing `transformExpiredRequest` post-processing: The Java `findExpirableDocs` method transforms returned documents by changing PENDING status to EXPIRED if the request has exceeded `expireAfterSeconds`. The Go code returns raw results without this transformation, so stale PENDING requests are returned as PENDING instead of EXPIRED.
 
 ## findFriendRequestsByRecipientId()
 
-- [ ] Missing `transformExpiredRequest` post-processing: The Java code calls `findExpirableDocs(filter)` which transforms PENDING requests whose creation date exceeds `expireAfterSeconds` into EXPIRED status. The Go code returns raw results without this transformation.
+os.system Missing `transformExpiredRequest` post-processing: The Java code calls `findExpirableDocs(filter)` which transforms PENDING requests whose creation date exceeds `expireAfterSeconds` into EXPIRED status. The Go code returns raw results without this transformation.
 
 ## findFriendRequestsByRequesterId()
 
-- [ ] Missing `transformExpiredRequest` post-processing: Same as `findFriendRequestsByRecipientId` — the Java code's `findExpirableDocs` transforms stale PENDING requests to EXPIRED. The Go code lacks this transformation.
+os.system Missing `transformExpiredRequest` post-processing: Same as `findFriendRequestsByRecipientId` — the Java code's `findExpirableDocs` transforms stale PENDING requests to EXPIRED. The Go code lacks this transformation.
 
 ## hasPendingFriendRequest()
 
-- [ ] Missing `isNotExpired` check on `creationDate`: The Java filter includes `.isNotExpired(CREATION_DATE, expirationDate == null ? DateConst.EPOCH : expirationDate)`, which ensures that only non-expired pending requests are counted. When expiration is configured, it filters for `creationDate >= expirationDate OR creationDate == null`; when not configured, it checks `creationDate >= EPOCH` (always true for valid dates). The Go code omits this check entirely, so it will return `true` for expired pending requests.
-- [ ] Missing `creationDate` filter for compound index optimization: The Java comment explicitly states this filter "makes full use of the compound index for better performance." The Go code omits the creationDate field from the filter.
+os.system Missing `isNotExpired` check on `creationDate`: The Java filter includes `.isNotExpired(CREATION_DATE, expirationDate == null ? DateConst.EPOCH : expirationDate)`, which ensures that only non-expired pending requests are counted. When expiration is configured, it filters for `creationDate >= expirationDate OR creationDate == null`; when not configured, it checks `creationDate >= EPOCH` (always true for valid dates). The Go code omits this check entirely, so it will return `true` for expired pending requests.
+os.system Missing `creationDate` filter for compound index optimization: The Java comment explicitly states this filter "makes full use of the compound index for better performance." The Go code omits the creationDate field from the filter.
 
 ## hasPendingOrDeclinedOrIgnoredOrExpiredRequest()
 
-- [ ] Missing `gt(CREATION_DATE, DateConst.EPOCH)` check: The Java filter includes `.gt(CREATION_DATE, DateConst.EPOCH)` (i.e., `creationDate > 0`), which validates that the creation date is a proper non-zero value. The Go code omits this filter.
+os.system Missing `gt(CREATION_DATE, DateConst.EPOCH)` check: The Java filter includes `.gt(CREATION_DATE, DateConst.EPOCH)` (i.e., `creationDate > 0`), which validates that the creation date is a proper non-zero value. The Go code omits this filter.
 
 # UserRelationshipGroupMemberRepository.java
 *Checked methods: deleteAllRelatedUserFromRelationshipGroup(Long ownerId, Integer groupIndex), deleteRelatedUserFromRelationshipGroup(Long ownerId, Long relatedUserId, Integer groupIndex, @Nullable ClientSession session), deleteRelatedUsersFromAllRelationshipGroups(Long ownerId, Collection<Long> relatedUserIds, @Nullable ClientSession session), countGroups(@Nullable Collection<Long> ownerIds, @Nullable Collection<Long> relatedUserIds), countMembers(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes), findGroupIndexes(Long ownerId, Long relatedUserId), findRelationshipGroupMemberIds(Long ownerId, Integer groupIndex), findRelationshipGroupMemberIds(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Integer page, @Nullable Integer size), findRelationshipGroupMembers(Long ownerId, Integer groupIndex)*
@@ -15815,17 +15815,17 @@ Now I have all three files. Let me compare each method systematically.
 
 ## deleteAllRelatedUserFromRelationshipGroup
 
-- [ ] Missing `groupIndex` parameter and filter: The Java method takes `(Long ownerId, Integer groupIndex)` and filters by both `_id.oid` and `_id.gi`, but the Go method only takes `ownerID` and only filters by `_id.oid`. This means it deletes ALL relationship group members for an owner instead of just those in a specific group.
+os.system Missing `groupIndex` parameter and filter: The Java method takes `(Long ownerId, Integer groupIndex)` and filters by both `_id.oid` and `_id.gi`, but the Go method only takes `ownerID` and only filters by `_id.oid`. This means it deletes ALL relationship group members for an owner instead of just those in a specific group.
 
 ## deleteRelatedUserFromRelationshipGroup
 
-- [ ] Wrong parameter type: Java takes a single `Integer groupIndex`, but Go takes `groupIndexes []int32` (a slice). This changes the semantics from deleting a specific member in one group to potentially deleting across multiple groups.
-- [ ] Uses `DeleteMany` instead of `DeleteOne`: The Java version calls `mongoClient.deleteOne` because it targets a single document by owner + related user + group index. The Go version calls `DeleteMany`, which is incorrect for the single-target delete semantics of the Java original.
-- [ ] Conditional filter on `relatedUserID`: Go only adds the `relatedUserID` filter when `relatedUserID > 0`, while Java always applies it. This means passing 0 would skip the relatedUserId filter in Go, deleting more documents than intended.
+os.system Wrong parameter type: Java takes a single `Integer groupIndex`, but Go takes `groupIndexes []int32` (a slice). This changes the semantics from deleting a specific member in one group to potentially deleting across multiple groups.
+os.system Uses `DeleteMany` instead of `DeleteOne`: The Java version calls `mongoClient.deleteOne` because it targets a single document by owner + related user + group index. The Go version calls `DeleteMany`, which is incorrect for the single-target delete semantics of the Java original.
+os.system Conditional filter on `relatedUserID`: Go only adds the `relatedUserID` filter when `relatedUserID > 0`, while Java always applies it. This means passing 0 would skip the relatedUserId filter in Go, deleting more documents than intended.
 
 ## findRelationshipGroupMemberIds
 
-- [ ] Missing the single-owner/single-groupIndex overload: Java has two overloads — `(Long ownerId, Integer groupIndex)` and `(Set<Long> ownerIds, Set<Integer> groupIndexes, Integer page, Integer size)`. Go only implements the multi-param version. The simple overload `(ownerID int64, groupIndex int32)` that filters by a single owner and single group index without pagination is missing from the interface.
+os.system Missing the single-owner/single-groupIndex overload: Java has two overloads — `(Long ownerId, Integer groupIndex)` and `(Set<Long> ownerIds, Set<Integer> groupIndexes, Integer page, Integer size)`. Go only implements the multi-param version. The simple overload `(ownerID int64, groupIndex int32)` that filters by a single owner and single group index without pagination is missing from the interface.
 
 # User.java
 *Checked methods: User(@NotNull Long id, @Nullable String password, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable ProfileAccessStrategy profileAccess, @Nullable Long permissionGroupId, @NotNull Date registrationDate, @NotNull Boolean isActive, @Nullable List<Value> customAttributes)*
@@ -15836,32 +15836,32 @@ Now I have a comprehensive picture. Here are the bugs:
 
 ## CreateUser
 
-- [ ] **Missing password hashing**: Java hashes the raw password via `passwordManager.encodeUserPassword(rawPassword)` before passing it to the constructor. Go `CreateUser` stores the password as-is (plain text), with a comment acknowledging this.
-- [ ] **Missing `name` default to `""`**: Java defaults `name` to `""` when null. Go takes the string as-is; while Go's zero-value is `""`, there's no explicit defaulting logic for the caller-provided value.
-- [ ] **Missing `intro` default to `""`**: Java defaults `intro` to `""` when null. Same issue as `name`.
-- [ ] **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Java defaults null `profileAccessStrategy` to `ProfileAccessStrategy.ALL`. Go has no such default; zero-value `int32(0)` may not equal `ALL`.
-- [ ] **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Java defaults null `roleId` to `DEFAULT_USER_ROLE_ID`. Go `CreateUser` has no such default; zero-value `0` is used.
-- [ ] **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now` in the constructor call. Go `CreateUser` leaves `LastUpdatedDate` as nil.
-- [ ] **`Password` field type mismatch**: Java uses `byte[]` for the password field; Go uses `string`. This is a data type mismatch that could cause encoding/storage issues.
+os.system **Missing password hashing**: Java hashes the raw password via `passwordManager.encodeUserPassword(rawPassword)` before passing it to the constructor. Go `CreateUser` stores the password as-is (plain text), with a comment acknowledging this.
+os.system **Missing `name` default to `""`**: Java defaults `name` to `""` when null. Go takes the string as-is; while Go's zero-value is `""`, there's no explicit defaulting logic for the caller-provided value.
+os.system **Missing `intro` default to `""`**: Java defaults `intro` to `""` when null. Same issue as `name`.
+os.system **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Java defaults null `profileAccessStrategy` to `ProfileAccessStrategy.ALL`. Go has no such default; zero-value `int32(0)` may not equal `ALL`.
+os.system **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Java defaults null `roleId` to `DEFAULT_USER_ROLE_ID`. Go `CreateUser` has no such default; zero-value `0` is used.
+os.system **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now` in the constructor call. Go `CreateUser` leaves `LastUpdatedDate` as nil.
+os.system **`Password` field type mismatch**: Java uses `byte[]` for the password field; Go uses `string`. This is a data type mismatch that could cause encoding/storage issues.
 
 ## AddUser
 
-- [ ] **Missing password hashing**: Same as `CreateUser` — no hashing applied.
-- [ ] **Missing `name` default to `""`**: Same as `CreateUser`.
-- [ ] **Missing `intro` default to `""`**: Same as `CreateUser`.
-- [ ] **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Same as `CreateUser`.
-- [ ] **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Same as `CreateUser`.
-- [ ] **Missing `isActive` default to `activateUserWhenAdded`**: Java defaults null `isActive` to the server configuration `activateUserWhenAdded`. Go's `bool` cannot represent null, so this default logic is lost.
-- [ ] **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now`. Go `AddUser` leaves it as nil.
+os.system **Missing password hashing**: Same as `CreateUser` — no hashing applied.
+os.system **Missing `name` default to `""`**: Same as `CreateUser`.
+os.system **Missing `intro` default to `""`**: Same as `CreateUser`.
+os.system **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Same as `CreateUser`.
+os.system **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Same as `CreateUser`.
+os.system **Missing `isActive` default to `activateUserWhenAdded`**: Java defaults null `isActive` to the server configuration `activateUserWhenAdded`. Go's `bool` cannot represent null, so this default logic is lost.
+os.system **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now`. Go `AddUser` leaves it as nil.
 
 ## User struct (po/user.go)
 
-- [ ] **`Password` type mismatch**: Java field is `byte[]`, Go field is `string`. Password should be `[]byte` to match the Java binary storage format.
-- [ ] **`IsActive` type loses nullability**: Java uses `Boolean` (nullable), Go uses `bool` (non-nullable). This prevents distinguishing "not set" from `false`, losing the default-to-`activateUserWhenAdded` behavior.
-- [ ] **`ProfileAccess` type loses nullability**: Java uses `ProfileAccessStrategy` enum (nullable), Go uses `int32`. Zero-value `0` may not correspond to any valid strategy, and the ability to represent "not set" is lost.
-- [ ] **`PermissionGroupID` type loses nullability**: Java uses `Long` (nullable), Go uses `int64`. Zero-value `0` is indistinguishable from "not set," losing the default-to-`DEFAULT_USER_ROLE_ID` behavior.
-- [ ] **`UserDefinedAttributes` storage format mismatch**: Java stores user-defined attributes as **flattened top-level MongoDB fields** prefixed with `#` (e.g., `#attrName: value`), not as a nested sub-document. The Go struct uses `bson:"user_defined_attributes,omitempty"`, which would store them as a nested object. This is a fundamental storage incompatibility with existing data.
-- [ ] **`RegistrationDate` type loses nullability**: Java uses `Date` (nullable), Go uses `time.Time` (non-nullable). While functionally less critical (both `CreateUser` and `AddUser` default to `now`), the Go type cannot represent a null registration date for existing data that may have it.
+os.system **`Password` type mismatch**: Java field is `byte[]`, Go field is `string`. Password should be `[]byte` to match the Java binary storage format.
+os.system **`IsActive` type loses nullability**: Java uses `Boolean` (nullable), Go uses `bool` (non-nullable). This prevents distinguishing "not set" from `false`, losing the default-to-`activateUserWhenAdded` behavior.
+os.system **`ProfileAccess` type loses nullability**: Java uses `ProfileAccessStrategy` enum (nullable), Go uses `int32`. Zero-value `0` may not correspond to any valid strategy, and the ability to represent "not set" is lost.
+os.system **`PermissionGroupID` type loses nullability**: Java uses `Long` (nullable), Go uses `int64`. Zero-value `0` is indistinguishable from "not set," losing the default-to-`DEFAULT_USER_ROLE_ID` behavior.
+os.system **`UserDefinedAttributes` storage format mismatch**: Java stores user-defined attributes as **flattened top-level MongoDB fields** prefixed with `#` (e.g., `#attrName: value`), not as a nested sub-document. The Go struct uses `bson:"user_defined_attributes,omitempty"`, which would store them as a nested object. This is a fundamental storage incompatibility with existing data.
+os.system **`RegistrationDate` type loses nullability**: Java uses `Date` (nullable), Go uses `time.Time` (non-nullable). While functionally less critical (both `CreateUser` and `AddUser` default to `now`), the Go type cannot represent a null registration date for existing data that may have it.
 
 ---
 
@@ -15873,31 +15873,31 @@ Let me provide the focused comparison:
 
 ## CreateUser
 
-- [ ] **Missing password hashing**: Java hashes the raw password via `passwordManager.encodeUserPassword(rawPassword)` before storing. Go stores it as plain text.
-- [ ] **Missing `name` default to `""`**: Java defaults null `name` to `""`. Go has no explicit default.
-- [ ] **Missing `intro` default to `""`**: Java defaults null `intro` to `""`. Go has no explicit default.
-- [ ] **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Java defaults null to `ALL`. Go has no default.
-- [ ] **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Java defaults null `roleId` to `DEFAULT_USER_ROLE_ID`. Go has no default.
-- [ ] **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now`. Go leaves it nil.
-- [ ] **`Password` field type is `string` instead of `[]byte`**: Java uses `byte[]`, Go uses `string`.
+os.system **Missing password hashing**: Java hashes the raw password via `passwordManager.encodeUserPassword(rawPassword)` before storing. Go stores it as plain text.
+os.system **Missing `name` default to `""`**: Java defaults null `name` to `""`. Go has no explicit default.
+os.system **Missing `intro` default to `""`**: Java defaults null `intro` to `""`. Go has no explicit default.
+os.system **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Java defaults null to `ALL`. Go has no default.
+os.system **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Java defaults null `roleId` to `DEFAULT_USER_ROLE_ID`. Go has no default.
+os.system **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now`. Go leaves it nil.
+os.system **`Password` field type is `string` instead of `[]byte`**: Java uses `byte[]`, Go uses `string`.
 
 ## AddUser
 
-- [ ] **Missing password hashing**: Same as `CreateUser`.
-- [ ] **Missing `name` default to `""`**: Same as `CreateUser`.
-- [ ] **Missing `intro` default to `""`**: Same as `CreateUser`.
-- [ ] **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Same as `CreateUser`.
-- [ ] **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Same as `CreateUser`.
-- [ ] **Missing `isActive` default to `activateUserWhenAdded`**: Java defaults null to a server config value. Go's `bool` cannot represent null.
-- [ ] **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now`. Go leaves it nil.
+os.system **Missing password hashing**: Same as `CreateUser`.
+os.system **Missing `name` default to `""`**: Same as `CreateUser`.
+os.system **Missing `intro` default to `""`**: Same as `CreateUser`.
+os.system **Missing `profileAccessStrategy` default to `ProfileAccessStrategy.ALL`**: Same as `CreateUser`.
+os.system **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Same as `CreateUser`.
+os.system **Missing `isActive` default to `activateUserWhenAdded`**: Java defaults null to a server config value. Go's `bool` cannot represent null.
+os.system **Missing `LastUpdatedDate` initialization**: Java sets `lastUpdatedDate` to `now`. Go leaves it nil.
 
 ## User struct (po/user.go)
 
-- [ ] **`Password` type is `string` instead of `[]byte`**: Java field is `byte[]`. Stored in MongoDB as binary data in Java but as string in Go.
-- [ ] **`IsActive` is `bool` (non-nullable) vs Java's `Boolean` (nullable)**: Cannot distinguish "not set" from `false`, breaking default-to-config behavior.
-- [ ] **`ProfileAccess` is `int32` (non-nullable) vs Java's nullable enum**: Cannot represent "not set" state; zero-value may not equal `ProfileAccessStrategy.ALL`.
-- [ ] **`PermissionGroupID` is `int64` (non-nullable) vs Java's `Long` (nullable)**: Cannot represent "not set" state; zero-value `0` may conflict with a valid role ID.
-- [ ] **`UserDefinedAttributes` stored as nested sub-document vs Java's flattened `#`-prefixed top-level fields**: Java's custom `EntityCodec` stores `{\"#key\": value}` as top-level MongoDB fields. Go's `bson:\"user_defined_attributes\"` stores `{user_defined_attributes: {key: value}}`. This is a fundamental storage incompatibility.
+os.system **`Password` type is `string` instead of `[]byte`**: Java field is `byte[]`. Stored in MongoDB as binary data in Java but as string in Go.
+os.system **`IsActive` is `bool` (non-nullable) vs Java's `Boolean` (nullable)**: Cannot distinguish "not set" from `false`, breaking default-to-config behavior.
+os.system **`ProfileAccess` is `int32` (non-nullable) vs Java's nullable enum**: Cannot represent "not set" state; zero-value may not equal `ProfileAccessStrategy.ALL`.
+os.system **`PermissionGroupID` is `int64` (non-nullable) vs Java's `Long` (nullable)**: Cannot represent "not set" state; zero-value `0` may conflict with a valid role ID.
+os.system **`UserDefinedAttributes` stored as nested sub-document vs Java's flattened `#`-prefixed top-level fields**: Java's custom `EntityCodec` stores `{\"#key\": value}` as top-level MongoDB fields. Go's `bson:\"user_defined_attributes\"` stores `{user_defined_attributes: {key: value}}`. This is a fundamental storage incompatibility.
 
 ---
 
@@ -15905,31 +15905,31 @@ The user asked me to focus on the specific constructor. Since neither the Go cod
 
 ## CreateUser
 
-- [ ] **Missing password hashing**: Java calls `passwordManager.encodeUserPassword(rawPassword)` before passing to the User constructor. Go stores the password as plain text.
-- [ ] **Missing `name` default to empty string**: Java defaults `name` from `null` to `""`. Go does not apply this default.
-- [ ] **Missing `intro` default to empty string**: Java defaults `intro` from `null` to `""`. Go does not apply this default.
-- [ ] **Missing `profileAccessStrategy` default to `ALL`**: Java defaults `profileAccessStrategy` from `null` to `ProfileAccessStrategy.ALL`. Go uses the raw `int32` value with no default.
-- [ ] **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Java defaults `roleId` from `null` to `DEFAULT_USER_ROLE_ID`. Go uses the raw `int64` value with no default.
-- [ ] **Missing `LastUpdatedDate` set to `now`**: Java explicitly passes `now` as the `lastUpdatedDate` argument (10th constructor parameter). Go leaves `LastUpdatedDate` as nil/zero.
-- [ ] **`Password` stored as `string` instead of `[]byte`**: Java stores `byte[]`. Go uses `string`, which is a type mismatch for binary password data.
+os.system **Missing password hashing**: Java calls `passwordManager.encodeUserPassword(rawPassword)` before passing to the User constructor. Go stores the password as plain text.
+os.system **Missing `name` default to empty string**: Java defaults `name` from `null` to `""`. Go does not apply this default.
+os.system **Missing `intro` default to empty string**: Java defaults `intro` from `null` to `""`. Go does not apply this default.
+os.system **Missing `profileAccessStrategy` default to `ALL`**: Java defaults `profileAccessStrategy` from `null` to `ProfileAccessStrategy.ALL`. Go uses the raw `int32` value with no default.
+os.system **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Java defaults `roleId` from `null` to `DEFAULT_USER_ROLE_ID`. Go uses the raw `int64` value with no default.
+os.system **Missing `LastUpdatedDate` set to `now`**: Java explicitly passes `now` as the `lastUpdatedDate` argument (10th constructor parameter). Go leaves `LastUpdatedDate` as nil/zero.
+os.system **`Password` stored as `string` instead of `[]byte`**: Java stores `byte[]`. Go uses `string`, which is a type mismatch for binary password data.
 
 ## AddUser
 
-- [ ] **Missing password hashing**: Same as `CreateUser` — no password encoding applied.
-- [ ] **Missing `name` default to empty string**: Same as `CreateUser`.
-- [ ] **Missing `intro` default to empty string**: Same as `CreateUser`.
-- [ ] **Missing `profileAccessStrategy` default to `ALL`**: Same as `CreateUser`.
-- [ ] **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Same as `CreateUser`.
-- [ ] **Missing `isActive` default to config value `activateUserWhenAdded`**: Java defaults `isActive` from `null` to the server configuration property `activateUserWhenAdded`. Go uses the raw `bool` with no fallback.
-- [ ] **Missing `LastUpdatedDate` set to `now`**: Same as `CreateUser`.
+os.system **Missing password hashing**: Same as `CreateUser` — no password encoding applied.
+os.system **Missing `name` default to empty string**: Same as `CreateUser`.
+os.system **Missing `intro` default to empty string**: Same as `CreateUser`.
+os.system **Missing `profileAccessStrategy` default to `ALL`**: Same as `CreateUser`.
+os.system **Missing `roleId` default to `DEFAULT_USER_ROLE_ID`**: Same as `CreateUser`.
+os.system **Missing `isActive` default to config value `activateUserWhenAdded`**: Java defaults `isActive` from `null` to the server configuration property `activateUserWhenAdded`. Go uses the raw `bool` with no fallback.
+os.system **Missing `LastUpdatedDate` set to `now`**: Same as `CreateUser`.
 
 ## User struct definition (user.go)
 
-- [ ] **`Password` is `string` instead of `[]byte`**: Java type is `byte[]` for the `password` field. The Go `string` type will not correctly round-trip binary data stored by the Java implementation.
-- [ ] **`IsActive` is non-nullable `bool` vs Java's nullable `Boolean`**: Cannot represent the "not set" state, so the default-to-`activateUserWhenAdded` behavior from Java is impossible.
-- [ ] **`ProfileAccess` is non-nullable `int32` vs Java's nullable enum**: Cannot represent "not set", so the default-to-`ALL` behavior is lost. Zero-value `0` may not correspond to `ProfileAccessStrategy.ALL`.
-- [ ] **`PermissionGroupID` is non-nullable `int64` vs Java's nullable `Long`**: Cannot represent "not set", so the default-to-`DEFAULT_USER_ROLE_ID` behavior is lost.
-- [ ] **`UserDefinedAttributes` stored as a nested sub-document instead of flattened `#`-prefixed top-level fields**: Java's custom `EntityCodec` stores user-defined attributes as individual top-level MongoDB fields with `#` prefix (e.g., `{"#attr1": val1, "#attr2": val2}`). The Go struct uses `bson:"user_defined_attributes,omitempty"`, storing them as a nested sub-document (e.g., `{"user_defined_attributes": {"attr1": val1}}`). This is a fundamental storage format incompatibility with existing data written by the Java server.
+os.system **`Password` is `string` instead of `[]byte`**: Java type is `byte[]` for the `password` field. The Go `string` type will not correctly round-trip binary data stored by the Java implementation.
+os.system **`IsActive` is non-nullable `bool` vs Java's nullable `Boolean`**: Cannot represent the "not set" state, so the default-to-`activateUserWhenAdded` behavior from Java is impossible.
+os.system **`ProfileAccess` is non-nullable `int32` vs Java's nullable enum**: Cannot represent "not set", so the default-to-`ALL` behavior is lost. Zero-value `0` may not correspond to `ProfileAccessStrategy.ALL`.
+os.system **`PermissionGroupID` is non-nullable `int64` vs Java's nullable `Long`**: Cannot represent "not set", so the default-to-`DEFAULT_USER_ROLE_ID` behavior is lost.
+os.system **`UserDefinedAttributes` stored as a nested sub-document instead of flattened `#`-prefixed top-level fields**: Java's custom `EntityCodec` stores user-defined attributes as individual top-level MongoDB fields with `#` prefix (e.g., `{"#attr1": val1, "#attr2": val2}`). The Go struct uses `bson:"user_defined_attributes,omitempty"`, storing them as a nested sub-document (e.g., `{"user_defined_attributes": {"attr1": val1}}`). This is a fundamental storage format incompatibility with existing data written by the Java server.
 
 # UserRelationshipGroup.java
 *Checked methods: UserRelationshipGroup(@NotNull Key key, @NotNull String name, @NotNull Date creationDate, @Nullable List<Value> customAttributes)*
@@ -15943,13 +15943,13 @@ The user's specified constructor signature doesn't exist in this class. Let me c
 
 ## UserRelationshipGroup (Constructor / Struct Fields)
 
-- [ ] **`UserRelationshipGroupKey.Index` BSON tag mismatch**: The Go struct uses `bson:"i"` for `Index`, but the Java code uses `@Field(Fields.GROUP_INDEX)` where `GROUP_INDEX = "gidx"`. The Go code should use `bson:"gidx"` to match the MongoDB field name `"gidx"` in the Java version. Using `"i"` means documents serialized by Java (`gidx`) won't deserialize correctly in Go, and vice versa.
+os.system **`UserRelationshipGroupKey.Index` BSON tag mismatch**: The Go struct uses `bson:"i"` for `Index`, but the Java code uses `@Field(Fields.GROUP_INDEX)` where `GROUP_INDEX = "gidx"`. The Go code should use `bson:"gidx"` to match the MongoDB field name `"gidx"` in the Java version. Using `"i"` means documents serialized by Java (`gidx`) won't deserialize correctly in Go, and vice versa.
 
-- [ ] **`UserRelationshipGroup` Go struct uses `int32` for `Index` but Java uses `Integer`**: Java's `Integer` maps to a 32-bit signed integer, and Go's `int32` also maps to 32-bit, so this is actually fine. However, the BSON field name is wrong as noted above.
+os.system **`UserRelationshipGroup` Go struct uses `int32` for `Index` but Java uses `Integer`**: Java's `Integer` maps to a 32-bit signed integer, and Go's `int32` also maps to 32-bit, so this is actually fine. However, the BSON field name is wrong as noted above.
 
-- [ ] **Missing the second constructor** `UserRelationshipGroup(Long ownerId, Integer index, String name, Date creationDate)`: The Go code only has a struct definition with no constructor functions. The Java class has a convenience constructor that creates the `Key` internally from `ownerId` and `index`. The Go code has no equivalent constructor function, which means callers must manually construct the `Key` and set all fields. While Go doesn't have constructor overloading, the absence of a `NewUserRelationshipGroup(ownerId, index, name, creationDate)` factory function is a functional gap.
+os.system **Missing the second constructor** `UserRelationshipGroup(Long ownerId, Integer index, String name, Date creationDate)`: The Go code only has a struct definition with no constructor functions. The Java class has a convenience constructor that creates the `Key` internally from `ownerId` and `index`. The Go code has no equivalent constructor function, which means callers must manually construct the `Key` and set all fields. While Go doesn't have constructor overloading, the absence of a `NewUserRelationshipGroup(ownerId, index, name, creationDate)` factory function is a functional gap.
 
-- [ ] **Missing `BaseEntity` inheritance / embedding**: The Java class `extends BaseEntity`, but the Go struct has no embedded base entity struct. If `BaseEntity` provides fields like `id` or common methods, those are missing in the Go version.
+os.system **Missing `BaseEntity` inheritance / embedding**: The Java class `extends BaseEntity`, but the Go struct has no embedded base entity struct. If `BaseEntity` provides fields like `id` or common methods, those are missing in the Go version.
 
 # UserRelationshipGroupMember.java
 *Checked methods: UserRelationshipGroupMember(@NotNull Key key, @NotNull Date joinDate, @Nullable List<Value> customAttributes)*
@@ -15966,11 +15966,11 @@ Let me also check for the `customAttributes` field and verify the `groupIndex`/`
 
 ## UserRelationshipGroupMember(Key key, Date joinDate)
 
-- [ ] **BSON tag mismatch for `GroupIndex`**: In Java, `GroupIndex` is mapped to `"gidx"` (`Fields.GROUP_INDEX = "gidx"`), but in Go it's mapped to `"gi"`. This will cause incorrect MongoDB serialization/deserialization.
-- [ ] **BSON tag mismatch for `RelatedUserID`**: In Java, `RelatedUserID` is mapped to `"ruid"` (`Fields.RELATED_USER_ID = "ruid"`), but in Go it's mapped to `"rid"`. This will cause incorrect MongoDB serialization/deserialization.
-- [ ] **Missing `customAttributes` field**: The Java class extends `BaseEntity`, which includes a `customAttributes` field. The Go struct does not include this field. The `@AllArgsConstructor`/`@PersistenceConstructor` in Java would accept `customAttributes` as a parameter (inherited from `BaseEntity`), but the Go struct omits it entirely.
-- [ ] **Missing convenience constructor**: The Java code has a convenience constructor `UserRelationshipGroupMember(@NotNull Long ownerId, @NotNull Integer groupIndex, @NotNull Long relatedUserId, @NotNull Date joinDate)` that constructs the `Key` internally. The Go code has no equivalent constructor function (e.g., `NewUserRelationshipGroupMember`).
-- [ ] **Missing `Key` convenience constructor**: The Java `Key` inner class (as a `@Data` class) has an `@AllArgsConstructor` that accepts `ownerId`, `groupIndex`, and `relatedUserId`. The Go code has no equivalent constructor for `UserRelationshipGroupMemberKey`.
+os.system **BSON tag mismatch for `GroupIndex`**: In Java, `GroupIndex` is mapped to `"gidx"` (`Fields.GROUP_INDEX = "gidx"`), but in Go it's mapped to `"gi"`. This will cause incorrect MongoDB serialization/deserialization.
+os.system **BSON tag mismatch for `RelatedUserID`**: In Java, `RelatedUserID` is mapped to `"ruid"` (`Fields.RELATED_USER_ID = "ruid"`), but in Go it's mapped to `"rid"`. This will cause incorrect MongoDB serialization/deserialization.
+os.system **Missing `customAttributes` field**: The Java class extends `BaseEntity`, which includes a `customAttributes` field. The Go struct does not include this field. The `@AllArgsConstructor`/`@PersistenceConstructor` in Java would accept `customAttributes` as a parameter (inherited from `BaseEntity`), but the Go struct omits it entirely.
+os.system **Missing convenience constructor**: The Java code has a convenience constructor `UserRelationshipGroupMember(@NotNull Long ownerId, @NotNull Integer groupIndex, @NotNull Long relatedUserId, @NotNull Date joinDate)` that constructs the `Key` internally. The Go code has no equivalent constructor function (e.g., `NewUserRelationshipGroupMember`).
+os.system **Missing `Key` convenience constructor**: The Java `Key` inner class (as a `@Data` class) has an `@AllArgsConstructor` that accepts `ownerId`, `groupIndex`, and `relatedUserId`. The Go code has no equivalent constructor for `UserRelationshipGroupMemberKey`.
 
 # UserFriendRequest.java
 *Checked methods: UserFriendRequest(@NotNull Long id, @Nullable String content, @NotNull RequestStatus status, @Nullable String reason, @NotNull Date creationDate, @Nullable Date responseDate, @Nullable Date expirationDate, @NotNull Long requesterId, @NotNull Long recipientId, @Nullable List<Value> customAttributes)*
@@ -16022,12 +16022,12 @@ Now, focusing on the actual field assignments and bson tags:
 
 ## UserFriendRequest
 
-- [ ] **BSON tag mismatch on `Content`**: Go uses `bson:"c"` but Java uses `@Field(Fields.CONTENT)` where `CONTENT = "cnt"`. The Go code should use `bson:"cnt"`.
-- [ ] **BSON tag mismatch on `Status`**: Go uses `bson:"s"` but Java uses `@Field(Fields.STATUS)` where `STATUS = "stat"`. The Go code should use `bson:"stat"`.
-- [ ] **BSON tag mismatch on `Reason`**: Go uses `bson:"r,omitempty"` but Java uses `@Field(Fields.REASON)` where `REASON = "rsn"`. The Go code should use `bson:"rsn,omitempty"`.
-- [ ] **BSON tag mismatch on `ResponseDate`**: Go uses `bson:"rd,omitempty"` but Java uses `@Field(Fields.RESPONSE_DATE)` where `RESPONSE_DATE = "adr"`. The Go code should use `bson:"adr,omitempty"`.
-- [ ] **BSON tag mismatch on `RequesterID`**: Go uses `bson:"rqid"` but Java uses `@Field(Fields.REQUESTER_ID)` where `REQUESTER_ID = "rrid"`. The Go code should use `bson:"rrid"`.
-- [ ] **BSON tag mismatch on `RecipientID`**: Go uses `bson:"rcid"` but Java uses `@Field(Fields.RECIPIENT_ID)` where `RECIPIENT_ID = "rtid"`. The Go code should use `bson:"rtid"`.
+os.system **BSON tag mismatch on `Content`**: Go uses `bson:"c"` but Java uses `@Field(Fields.CONTENT)` where `CONTENT = "cnt"`. The Go code should use `bson:"cnt"`.
+os.system **BSON tag mismatch on `Status`**: Go uses `bson:"s"` but Java uses `@Field(Fields.STATUS)` where `STATUS = "stat"`. The Go code should use `bson:"stat"`.
+os.system **BSON tag mismatch on `Reason`**: Go uses `bson:"r,omitempty"` but Java uses `@Field(Fields.REASON)` where `REASON = "rsn"`. The Go code should use `bson:"rsn,omitempty"`.
+os.system **BSON tag mismatch on `ResponseDate`**: Go uses `bson:"rd,omitempty"` but Java uses `@Field(Fields.RESPONSE_DATE)` where `RESPONSE_DATE = "adr"`. The Go code should use `bson:"adr,omitempty"`.
+os.system **BSON tag mismatch on `RequesterID`**: Go uses `bson:"rqid"` but Java uses `@Field(Fields.REQUESTER_ID)` where `REQUESTER_ID = "rrid"`. The Go code should use `bson:"rrid"`.
+os.system **BSON tag mismatch on `RecipientID`**: Go uses `bson:"rcid"` but Java uses `@Field(Fields.RECIPIENT_ID)` where `RECIPIENT_ID = "rtid"`. The Go code should use `bson:"rtid"`.
 
 # UserRepository.java
 *Checked methods: updateUsers(Set<Long> userIds, @Nullable byte[] password, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable Date registrationDate, @Nullable Boolean isActive, @Nullable Map<String, Object> userDefinedAttributes, @Nullable ClientSession session), updateUsersDeletionDate(Set<Long> userIds), checkIfUserExists(Long userId, boolean queryDeletedRecords), countRegisteredUsers(@Nullable DateRange dateRange, boolean queryDeletedRecords), countDeletedUsers(@Nullable DateRange dateRange), countUsers(boolean queryDeletedRecords), countUsers(@Nullable Set<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive), findName(Long userId), findAllNames(), findProfileAccessIfNotDeleted(Long userId), findUsers(@Nullable Collection<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive, @Nullable Integer page, @Nullable Integer size, boolean queryDeletedRecords), findNotDeletedUserProfiles(Collection<Long> userIds, Collection<String> includedUserDefinedAttributes, @Nullable Date lastUpdatedDate), findUsersProfile(Collection<Long> userIds, Collection<String> includedUserDefinedAttributes, boolean queryDeletedRecords), findUserRoleId(Long userId), isActiveAndNotDeleted(Long userId)*
@@ -16137,37 +16137,37 @@ Now I have all the information needed to perform a thorough comparison. Let me s
 ## Summary
 
 ## updateUsers
-- [ ] **BUG (service):** `UpdateUsers` in `user_service.go` does not set `lud` (lastUpdatedDate) in the update, unlike the single-user `UpdateUser` and the Java version which always sets `LAST_UPDATED_DATE`.
+os.system **BUG (service):** `UpdateUsers` in `user_service.go` does not set `lud` (lastUpdatedDate) in the update, unlike the single-user `UpdateUser` and the Java version which always sets `LAST_UPDATED_DATE`.
 
 ## updateUsersDeletionDate
-- [ ] **BUG:** Missing `lud` (lastUpdatedDate) field assignment. Java sets both `DELETION_DATE` and `LAST_UPDATED_DATE` to `now`, Go only sets `dd`.
+os.system **BUG:** Missing `lud` (lastUpdatedDate) field assignment. Java sets both `DELETION_DATE` and `LAST_UPDATED_DATE` to `now`, Go only sets `dd`.
 
 ## checkIfUserExists
-- [ ] **BUG (service):** Missing `queryDeletedRecords` parameter. The Go `CheckIfUserExists` always checks existence regardless of deletion status, while Java conditionally filters by `DELETION_DATE == null` when `queryDeletedRecords` is false.
+os.system **BUG (service):** Missing `queryDeletedRecords` parameter. The Go `CheckIfUserExists` always checks existence regardless of deletion status, while Java conditionally filters by `DELETION_DATE == null` when `queryDeletedRecords` is false.
 
 ## countRegisteredUsers
-- [ ] **BUG (repository):** Wrong BSON field name `"cd"` used for the registration date range filter — should be `"rd"` (matching Java's `User.Fields.REGISTRATION_DATE = "rd"`).
-- [ ] **BUG (service):** Missing `queryDeletedRecords` filter logic. The service's `CountRegisteredUsers` does not add `dd == nil` to the filter when `queryDeletedRecords` is false, unlike both the Java version and the Go repository's own `CountRegisteredUsers`.
+os.system **BUG (repository):** Wrong BSON field name `"cd"` used for the registration date range filter — should be `"rd"` (matching Java's `User.Fields.REGISTRATION_DATE = "rd"`).
+os.system **BUG (service):** Missing `queryDeletedRecords` filter logic. The service's `CountRegisteredUsers` does not add `dd == nil` to the filter when `queryDeletedRecords` is false, unlike both the Java version and the Go repository's own `CountRegisteredUsers`.
 
 ## countDeletedUsers
-- [ ] **BUG (service):** Missing date range filtering. The service's `CountDeletedUsers` ignores the `startDate` and `endDate` parameters entirely, always querying with `{"dd": {"$exists": true, "$ne": nil}}`. The Java version filters by `DELETION_DATE` within the date range when dates are provided, and only uses `DELETION_DATE != null` when no dates are given.
+os.system **BUG (service):** Missing date range filtering. The service's `CountDeletedUsers` ignores the `startDate` and `endDate` parameters entirely, always querying with `{"dd": {"$exists": true, "$ne": nil}}`. The Java version filters by `DELETION_DATE` within the date range when dates are provided, and only uses `DELETION_DATE != null` when no dates are given.
 
 ## countUsers (boolean queryDeletedRecords)
-- [ ] **BUG (service):** Wrong filter logic. Java's `countUsers(boolean queryDeletedRecords)` filters by `DELETION_DATE == null` when `queryDeletedRecords` is false. Go's `CountUsers(activeOnly)` filters by `act == true` when `activeOnly` is true. These are semantically different — one filters by deletion status, the other by active status.
+os.system **BUG (service):** Wrong filter logic. Java's `countUsers(boolean queryDeletedRecords)` filters by `DELETION_DATE == null` when `queryDeletedRecords` is false. Go's `CountUsers(activeOnly)` filters by `act == true` when `activeOnly` is true. These are semantically different — one filters by deletion status, the other by active status.
 
 ## countUsers (multi-param overload)
-- [ ] **BUG:** Missing method entirely. Java has `countUsers(Set<Long> userIds, DateRange registrationDateRange, DateRange deletionDateRange, Boolean isActive)` supporting filtering by user IDs, registration date range, deletion date range, and active status. Go has no equivalent.
+os.system **BUG:** Missing method entirely. Java has `countUsers(Set<Long> userIds, DateRange registrationDateRange, DateRange deletionDateRange, Boolean isActive)` supporting filtering by user IDs, registration date range, deletion date range, and active status. Go has no equivalent.
 
 ## findUsers
-- [ ] **BUG:** Missing filtering parameters. Java supports optional `registrationDateRange`, `deletionDateRange`, `isActive`, `page`, `size`, and `queryDeletedRecords`. Go's `FindUsers` only filters by `userIDs` and ignores all other parameters.
+os.system **BUG:** Missing filtering parameters. Java supports optional `registrationDateRange`, `deletionDateRange`, `isActive`, `page`, `size`, and `queryDeletedRecords`. Go's `FindUsers` only filters by `userIDs` and ignores all other parameters.
 
 ## findNotDeletedUserProfiles
-- [ ] **BUG:** Missing `lastUpdatedDate` parameter. Java filters by `LAST_UPDATED_DATE > lastUpdatedDate` when provided. Go always returns all non-deleted user profiles regardless of last update time.
-- [ ] **BUG:** Missing projection. Java projects only `PUBLIC_USER_FIELDS` plus `includedUserDefinedAttributes`. Go fetches full documents.
+os.system **BUG:** Missing `lastUpdatedDate` parameter. Java filters by `LAST_UPDATED_DATE > lastUpdatedDate` when provided. Go always returns all non-deleted user profiles regardless of last update time.
+os.system **BUG:** Missing projection. Java projects only `PUBLIC_USER_FIELDS` plus `includedUserDefinedAttributes`. Go fetches full documents.
 
 ## findUsersProfile
-- [ ] **BUG:** Missing `queryDeletedRecords` parameter. Java conditionally filters `DELETION_DATE == null` when `queryDeletedRecords` is false. Go always returns all matching users regardless of deletion status.
-- [ ] **BUG:** Missing projection. Java projects only `PUBLIC_USER_FIELDS` plus `includedUserDefinedAttributes`. Go fetches full documents.
+os.system **BUG:** Missing `queryDeletedRecords` parameter. Java conditionally filters `DELETION_DATE == null` when `queryDeletedRecords` is false. Go always returns all matching users regardless of deletion status.
+os.system **BUG:** Missing projection. Java projects only `PUBLIC_USER_FIELDS` plus `includedUserDefinedAttributes`. Go fetches full documents.
 
 # UserRoleRepository.java
 *Checked methods: updateUserRoles(Set<Long> groupIds, @Nullable String name, @Nullable Set<Long> creatableGroupTypeIds, @Nullable Integer ownedGroupLimit, @Nullable Integer ownedGroupLimitForEachGroupType, @Nullable Map<Long, Integer> groupTypeIdToLimit)*
@@ -16176,11 +16176,11 @@ Now I have a complete picture. Let me compare both implementations.
 
 ## updateRoles
 
-- [ ] **Missing field-level update construction**: The Java method constructs the update inline with `setIfNotNull` for 5 specific fields (`name`, `creatableGroupTypeIds`, `ownedGroupLimit`, `ownedGroupLimitForEachGroupType`, `groupTypeIdToLimit`), passing each as a parameter. The Go `UpdateUserRoles` method instead takes a generic `update interface{}` parameter, delegating all field-level `setIfNotNull` logic to the caller. However, the **service-layer caller** (`user_role_service.go:33-39`) is a **stub that does nothing** — it returns `nil` without ever calling the repository's `UpdateUserRoles` or constructing any update document. This means the entire update flow for user roles is non-functional.
+os.system **Missing field-level update construction**: The Java method constructs the update inline with `setIfNotNull` for 5 specific fields (`name`, `creatableGroupTypeIds`, `ownedGroupLimit`, `ownedGroupLimitForEachGroupType`, `groupTypeIdToLimit`), passing each as a parameter. The Go `UpdateUserRoles` method instead takes a generic `update interface{}` parameter, delegating all field-level `setIfNotNull` logic to the caller. However, the **service-layer caller** (`user_role_service.go:33-39`) is a **stub that does nothing** — it returns `nil` without ever calling the repository's `UpdateUserRoles` or constructing any update document. This means the entire update flow for user roles is non-functional.
 
-- [ ] **Return value mismatch**: The Java method returns `Mono<UpdateResult>` (which includes `matchedCount`, `modifiedCount`, and `upsertedId`). The Go method returns only `int64` (`res.ModifiedCount`). This discards `matchedCount` and `upsertedId`, which callers in the Java codebase may rely on for determining whether documents were found vs. actually modified.
+os.system **Return value mismatch**: The Java method returns `Mono<UpdateResult>` (which includes `matchedCount`, `modifiedCount`, and `upsertedId`). The Go method returns only `int64` (`res.ModifiedCount`). This discards `matchedCount` and `upsertedId`, which callers in the Java codebase may rely on for determining whether documents were found vs. actually modified.
 
-- [ ] **Empty input handling difference**: The Java method has no explicit empty-set check for `groupIds` — it passes the set directly to the filter, which would match zero documents if empty. The Go method adds an early return `if len(roleIDs) == 0 { return 0, nil }`. While this is arguably a valid optimization, it changes observable behavior: Java would still execute the MongoDB `updateMany` operation (returning an `UpdateResult` with `matchedCount=0`), while Go silently returns `(0, nil)` without hitting the database.
+os.system **Empty input handling difference**: The Java method has no explicit empty-set check for `groupIds` — it passes the set directly to the filter, which would match zero documents if empty. The Go method adds an early return `if len(roleIDs) == 0 { return 0, nil }`. While this is arguably a valid optimization, it changes observable behavior: Java would still execute the MongoDB `updateMany` operation (returning an `UpdateResult` with `matchedCount=0`), while Go silently returns `(0, nil)` without hitting the database.
 
 # UserSettingsRepository.java
 *Checked methods: upsertSettings(Long userId, Map<String, Object> settings), unsetSettings(Long userId, @Nullable Collection<String> settingNames), findByIdAndSettingNames(Long userId, @Nullable Collection<String> settingNames, @Nullable Date lastUpdatedDateStart)*
@@ -16231,8 +16231,8 @@ This looks correct.
 ## findByIdAndSettingNames
 
 ## findByIdAndSettingNames
-- [ ] When `names` (settingNames) is nil or empty, the Go code still applies a projection with an empty map (`projection := map[string]interface{}{}`), and passes it via `SetProjection(projection)`. In the Java code, when `settingNames` is null or empty, `queryOptions` remains `null`, meaning **no projection** is applied and all fields are returned. In MongoDB, an empty projection `{}` may cause no fields (or only `_id`) to be returned, which is different behavior from "return all fields".
-- [ ] The Go code projects setting names with the `"s."` prefix (`projection["s."+name] = 1`), while the Java code projects them without any prefix (`projection.append(settingName, BsonPool.BSON_INT32_1)`). This causes different projection behavior — Go projects `"s.isActive"` while Java projects `"isActive"`.
+os.system When `names` (settingNames) is nil or empty, the Go code still applies a projection with an empty map (`projection := map[string]interface{}{}`), and passes it via `SetProjection(projection)`. In the Java code, when `settingNames` is null or empty, `queryOptions` remains `null`, meaning **no projection** is applied and all fields are returned. In MongoDB, an empty projection `{}` may cause no fields (or only `_id`) to be returned, which is different behavior from "return all fields".
+os.system The Go code projects setting names with the `"s."` prefix (`projection["s."+name] = 1`), while the Java code projects them without any prefix (`projection.append(settingName, BsonPool.BSON_INT32_1)`). This causes different projection behavior — Go projects `"s.isActive"` while Java projects `"isActive"`.
 
 # UserFriendRequestService.java
 *Checked methods: removeAllExpiredFriendRequests(Date expirationDate), hasPendingFriendRequest(@NotNull Long requesterId, @NotNull Long recipientId), createFriendRequest(@Nullable Long id, @NotNull Long requesterId, @NotNull Long recipientId, @NotNull String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate, @Nullable String reason), authAndCreateFriendRequest(@NotNull Long requesterId, @NotNull Long recipientId, @Nullable String content, @NotNull @PastOrPresent Date creationDate), authAndRecallFriendRequest(@NotNull Long requesterId, @NotNull Long requestId), updatePendingFriendRequestStatus(@NotNull Long requestId, @NotNull @ValidRequestStatus RequestStatus requestStatus, @Nullable String reason, @Nullable ClientSession session), updateFriendRequests(@NotEmpty Set<Long> requestIds, @Nullable Long requesterId, @Nullable Long recipientId, @Nullable String content, @Nullable @ValidRequestStatus RequestStatus status, @Nullable String reason, @Nullable @PastOrPresent Date creationDate, @Nullable @PastOrPresent Date responseDate), queryRecipientId(@NotNull Long requestId), queryRequesterIdAndRecipientIdAndStatus(@NotNull Long requestId), queryRequesterIdAndRecipientIdAndCreationDateAndStatus(@NotNull Long requestId), authAndHandleFriendRequest(@NotNull Long friendRequestId, @NotNull Long requesterId, @NotNull @ValidResponseAction ResponseAction action, @Nullable String reason), queryFriendRequestsWithVersion(@NotNull Long userId, boolean areSentByUser, @Nullable Date lastUpdatedDate), queryFriendRequestsByRecipientId(@NotNull Long recipientId), queryFriendRequestsByRequesterId(@NotNull Long requesterId), deleteFriendRequests(@Nullable Set<Long> ids), queryFriendRequests(@Nullable Set<Long> ids, @Nullable Set<Long> requesterIds, @Nullable Set<Long> recipientIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange, @Nullable Integer page, @Nullable Integer size), countFriendRequests(@Nullable Set<Long> ids, @Nullable Set<Long> requesterIds, @Nullable Set<Long> recipientIds, @Nullable Set<RequestStatus> statuses, @Nullable DateRange creationDateRange, @Nullable DateRange responseDateRange, @Nullable DateRange expirationDateRange)*
@@ -16243,65 +16243,65 @@ Now I have all the information needed for a comprehensive comparison. Let me com
 
 ## createFriendRequest
 
-- [ ] **BSON field mismatch for content in UpdateFriendRequests**: The Go `UserFriendRequest` struct defines `Content` with BSON tag `"c"`, but the repository's `UpdateFriendRequests` method (line 116) uses `updateOps["txt"] = *content`. This will silently update a non-existent field `"txt"` instead of the correct `"c"` field, causing content updates to have no effect.
+os.system **BSON field mismatch for content in UpdateFriendRequests**: The Go `UserFriendRequest` struct defines `Content` with BSON tag `"c"`, but the repository's `UpdateFriendRequests` method (line 116) uses `updateOps["txt"] = *content`. This will silently update a non-existent field `"txt"` instead of the correct `"c"` field, causing content updates to have no effect.
 
 ## authAndCreateFriendRequest
 
-- [ ] **Missing `Validator.notNull(content, "content")` check**: The Java code validates `Validator.notNull(content, "content")` in `createFriendRequest`, but the Go code only does `MaxLength` on content and does not validate that content is not null/empty. In Java, if content is null in `authAndCreateFriendRequest`, it's explicitly defaulted to `""` (`finalContent = content == null ? "" : content`) before calling `createFriendRequest`, but the Go version passes the content directly without this defaulting, meaning it could pass an empty content string without the null→"" fallback that Java does. However, since Go's content parameter is a `string` (not `*string`), it will default to `""` naturally, so this is actually not a bug for `authAndCreateFriendRequest`. But the `createFriendRequest` in Java does validate `Validator.notNull(content, "content")` which the Go version omits.
-- [ ] **Missing `Validator.notNull(creationDate, "creationDate")` and `Validator.pastOrPresent(creationDate, "creationDate")` validation**: The Java `authAndCreateFriendRequest` validates both that creationDate is not null and that it is past or present. The Go version accepts `creationDate time.Time` (non-pointer) so nullability is not an issue, but it does not validate that creationDate is not in the future.
+os.system **Missing `Validator.notNull(content, "content")` check**: The Java code validates `Validator.notNull(content, "content")` in `createFriendRequest`, but the Go code only does `MaxLength` on content and does not validate that content is not null/empty. In Java, if content is null in `authAndCreateFriendRequest`, it's explicitly defaulted to `""` (`finalContent = content == null ? "" : content`) before calling `createFriendRequest`, but the Go version passes the content directly without this defaulting, meaning it could pass an empty content string without the null→"" fallback that Java does. However, since Go's content parameter is a `string` (not `*string`), it will default to `""` naturally, so this is actually not a bug for `authAndCreateFriendRequest`. But the `createFriendRequest` in Java does validate `Validator.notNull(content, "content")` which the Go version omits.
+os.system **Missing `Validator.notNull(creationDate, "creationDate")` and `Validator.pastOrPresent(creationDate, "creationDate")` validation**: The Java `authAndCreateFriendRequest` validates both that creationDate is not null and that it is past or present. The Go version accepts `creationDate time.Time` (non-pointer) so nullability is not an issue, but it does not validate that creationDate is not in the future.
 
 ## authAndRecallFriendRequest
 
-- [ ] **Missing expiration check for PENDING requests**: The Java code checks `if (userFriendRequestRepository.isExpired(request.getCreationDate().getTime()))` for PENDING status requests, and if expired, returns `RECALL_NON_PENDING_FRIEND_REQUEST` error. The Go code does NOT perform any expiration check - it only checks if status is PENDING and then proceeds directly to update. This means in Go, expired but still PENDING requests can be recalled, while in Java they cannot.
-- [ ] **`updateStatusIfPending` filter is missing `isNotExpired` check**: The Java repository's `updateStatusIfPending` includes `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())` in its filter, ensuring that expired pending requests cannot be updated. The Go repository's `UpdateStatusIfPending` only filters by `_id` and status PENDING, without any expiration check. This is a behavioral difference - Go will update expired requests' status while Java will not.
+os.system **Missing expiration check for PENDING requests**: The Java code checks `if (userFriendRequestRepository.isExpired(request.getCreationDate().getTime()))` for PENDING status requests, and if expired, returns `RECALL_NON_PENDING_FRIEND_REQUEST` error. The Go code does NOT perform any expiration check - it only checks if status is PENDING and then proceeds directly to update. This means in Go, expired but still PENDING requests can be recalled, while in Java they cannot.
+os.system **`updateStatusIfPending` filter is missing `isNotExpired` check**: The Java repository's `updateStatusIfPending` includes `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())` in its filter, ensuring that expired pending requests cannot be updated. The Go repository's `UpdateStatusIfPending` only filters by `_id` and status PENDING, without any expiration check. This is a behavioral difference - Go will update expired requests' status while Java will not.
 
 ## authAndHandleFriendRequest
 
-- [ ] **Missing expiration check for PENDING requests**: Same as `authAndRecallFriendRequest` - the Java code checks `if (userFriendRequestRepository.isExpired(request.getCreationDate().getTime()))` for PENDING requests, and if expired, returns `UPDATE_NON_PENDING_FRIEND_REQUEST` error with "The request is under the status EXPIRED". The Go code does not perform any expiration check.
-- [ ] **Missing transaction for ACCEPT action**: The Java code wraps the ACCEPT action in `userFriendRequestRepository.inTransaction(session -> ...)` combining both `updatePendingFriendRequestStatus` and `userRelationshipService.friendTwoUsers` in a single MongoDB transaction with retry. The Go code calls these sequentially without any transaction, which means a partial failure could leave the request accepted without creating the friendship relationship, or vice versa.
-- [ ] **Missing `Validator.notNull` for `action` parameter**: Java validates `Validator.notNull(action, "action")` and `DataValidator.validResponseAction(action)`. Go does not validate the action parameter for null/invalid before the switch statement (though Go's switch default handles unknown actions).
-- [ ] **Missing `Validator.maxLength` for `reason`**: Java validates `Validator.maxLength(reason, "reason", maxResponseReasonLength)` in this method. Go does not validate reason length in `authAndHandleFriendRequest`.
+os.system **Missing expiration check for PENDING requests**: Same as `authAndRecallFriendRequest` - the Java code checks `if (userFriendRequestRepository.isExpired(request.getCreationDate().getTime()))` for PENDING requests, and if expired, returns `UPDATE_NON_PENDING_FRIEND_REQUEST` error with "The request is under the status EXPIRED". The Go code does not perform any expiration check.
+os.system **Missing transaction for ACCEPT action**: The Java code wraps the ACCEPT action in `userFriendRequestRepository.inTransaction(session -> ...)` combining both `updatePendingFriendRequestStatus` and `userRelationshipService.friendTwoUsers` in a single MongoDB transaction with retry. The Go code calls these sequentially without any transaction, which means a partial failure could leave the request accepted without creating the friendship relationship, or vice versa.
+os.system **Missing `Validator.notNull` for `action` parameter**: Java validates `Validator.notNull(action, "action")` and `DataValidator.validResponseAction(action)`. Go does not validate the action parameter for null/invalid before the switch statement (though Go's switch default handles unknown actions).
+os.system **Missing `Validator.maxLength` for `reason`**: Java validates `Validator.maxLength(reason, "reason", maxResponseReasonLength)` in this method. Go does not validate reason length in `authAndHandleFriendRequest`.
 
 ## updatePendingFriendRequestStatus
 
-- [ ] **`updateStatusIfPending` missing `isNotExpired` filter**: As noted above, the Java repository method includes `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())` in its filter. The Go repository does not include this condition. This means Go will successfully update expired pending requests while Java will not (returning modifiedCount=0).
+os.system **`updateStatusIfPending` missing `isNotExpired` filter**: As noted above, the Java repository method includes `.isNotExpired(UserFriendRequest.Fields.CREATION_DATE, getEntityExpirationDate())` in its filter. The Go repository does not include this condition. This means Go will successfully update expired pending requests while Java will not (returning modifiedCount=0).
 
 ## createFriendRequest
 
-- [ ] **Incorrect responseDate logic for non-pending statuses**: The Java code uses `getResponseDateBasedOnStatusForNewRecord(now, status, responseDate)` which returns `null` for PENDING/CANCELED/EXPIRED statuses (setting responseDate to null), and returns the provided responseDate or `now` for ACCEPTED/DECLINED/IGNORED. The Go code's logic (`if responseDate == nil { if st != po.RequestStatusPending { responseDate = &now } }`) only checks for non-PENDING but doesn't differentiate between CANCELED/EXPIRED (which should keep responseDate as nil) vs ACCEPTED/DECLINED/IGNORED (which should have responseDate set). This means for CANCELED and EXPIRED statuses, Go will incorrectly set responseDate to `now`, while Java keeps it as null.
+os.system **Incorrect responseDate logic for non-pending statuses**: The Java code uses `getResponseDateBasedOnStatusForNewRecord(now, status, responseDate)` which returns `null` for PENDING/CANCELED/EXPIRED statuses (setting responseDate to null), and returns the provided responseDate or `now` for ACCEPTED/DECLINED/IGNORED. The Go code's logic (`if responseDate == nil { if st != po.RequestStatusPending { responseDate = &now } }`) only checks for non-PENDING but doesn't differentiate between CANCELED/EXPIRED (which should keep responseDate as nil) vs ACCEPTED/DECLINED/IGNORED (which should have responseDate set). This means for CANCELED and EXPIRED statuses, Go will incorrectly set responseDate to `now`, while Java keeps it as null.
 
 ## updateFriendRequests
 
-- [ ] **`responseDate` parameter accepted but never passed to repository**: The Go service method accepts `responseDate *time.Time` parameter and validates it, but the repository method `UpdateFriendRequests` does not accept or use `responseDate`. This means responseDate updates are silently dropped. In Java, `updateFriendRequests` in the repository handles responseDate through `updateResponseDateBasedOnStatus`.
+os.system **`responseDate` parameter accepted but never passed to repository**: The Go service method accepts `responseDate *time.Time` parameter and validates it, but the repository method `UpdateFriendRequests` does not accept or use `responseDate`. This means responseDate updates are silently dropped. In Java, `updateFriendRequests` in the repository handles responseDate through `updateResponseDateBasedOnStatus`.
 
 ## queryFriendRequestsWithVersion
 
-- [ ] **Missing version-based caching logic**: The Java implementation queries the version first (`querySentFriendRequestsVersion` or `queryReceivedFriendRequestsVersion`), compares it with `lastUpdatedDate` using `DateTimeUtil.isAfterOrSame`, returns `alreadyUpToUpdate` error if the client is up-to-date, and includes the version in the response. The Go implementation simply delegates to `QueryFriendRequestsByRecipientId` or `QueryFriendRequestsByRequesterId` without any version checking, which is a significant behavioral difference.
-- [ ] **Missing NO_CONTENT check**: Java returns `NO_CONTENT` error when the request list is empty. Go returns an empty slice without error.
-- [ ] **Missing expiration status transformation**: Java uses `findExpirableDocs` (from `ExpirableEntityRepository`) which transforms PENDING requests to EXPIRED based on `expireAfterSeconds`. Go does not perform any expiration status transformation on the results.
-- [ ] **Missing lastUpdatedDate in response**: Java includes `builder.setLastUpdatedDate(version.getTime())` in the response. Go returns raw `[]po.UserFriendRequest` without version information.
+os.system **Missing version-based caching logic**: The Java implementation queries the version first (`querySentFriendRequestsVersion` or `queryReceivedFriendRequestsVersion`), compares it with `lastUpdatedDate` using `DateTimeUtil.isAfterOrSame`, returns `alreadyUpToUpdate` error if the client is up-to-date, and includes the version in the response. The Go implementation simply delegates to `QueryFriendRequestsByRecipientId` or `QueryFriendRequestsByRequesterId` without any version checking, which is a significant behavioral difference.
+os.system **Missing NO_CONTENT check**: Java returns `NO_CONTENT` error when the request list is empty. Go returns an empty slice without error.
+os.system **Missing expiration status transformation**: Java uses `findExpirableDocs` (from `ExpirableEntityRepository`) which transforms PENDING requests to EXPIRED based on `expireAfterSeconds`. Go does not perform any expiration status transformation on the results.
+os.system **Missing lastUpdatedDate in response**: Java includes `builder.setLastUpdatedDate(version.getTime())` in the response. Go returns raw `[]po.UserFriendRequest` without version information.
 
 ## queryFriendRequests / countFriendRequests
 
-- [ ] **Missing `isExpiredOrNot` filter logic**: The Java repository applies `isExpiredOrNot(statuses, CREATION_DATE, expirationDate)` which filters by expiration based on the requested statuses (e.g., if EXPIRED is in statuses, only returns expired docs; if PENDING is in statuses, only returns non-expired docs). The Go `countOrFind` method does not apply any expiration-based filtering, which means it will return both expired and non-expired PENDING requests regardless of filter.
-- [ ] **Missing `getCreationDateRange` intersection with `expirationDateRange`**: The Java code uses `getCreationDateRange(creationDateRange, expirationDateRange)` which converts the expiration date range to a creation date range (by subtracting `expireAfterSeconds`) and intersects it with the provided creation date range. The Go code accepts `expirationDateStart`/`expirationDateEnd` parameters but never uses them in `countOrFind` - the entire expiration date range filtering is missing.
-- [ ] **Missing expiration status transformation on results**: The Java `findExpirableDocs` method transforms the status of returned documents from PENDING to EXPIRED based on `expireAfterSeconds`. The Go `FindFriendRequests` returns raw results without any status transformation.
+os.system **Missing `isExpiredOrNot` filter logic**: The Java repository applies `isExpiredOrNot(statuses, CREATION_DATE, expirationDate)` which filters by expiration based on the requested statuses (e.g., if EXPIRED is in statuses, only returns expired docs; if PENDING is in statuses, only returns non-expired docs). The Go `countOrFind` method does not apply any expiration-based filtering, which means it will return both expired and non-expired PENDING requests regardless of filter.
+os.system **Missing `getCreationDateRange` intersection with `expirationDateRange`**: The Java code uses `getCreationDateRange(creationDateRange, expirationDateRange)` which converts the expiration date range to a creation date range (by subtracting `expireAfterSeconds`) and intersects it with the provided creation date range. The Go code accepts `expirationDateStart`/`expirationDateEnd` parameters but never uses them in `countOrFind` - the entire expiration date range filtering is missing.
+os.system **Missing expiration status transformation on results**: The Java `findExpirableDocs` method transforms the status of returned documents from PENDING to EXPIRED based on `expireAfterSeconds`. The Go `FindFriendRequests` returns raw results without any status transformation.
 
 ## queryFriendRequestsByRecipientId / queryFriendRequestsByRequesterId
 
-- [ ] **Missing expiration status transformation**: Java uses `findExpirableDocs` in the repository layer which transforms PENDING requests to EXPIRED status based on `expireAfterSeconds`. Go's `FindFriendRequestsByRecipientId` and `FindFriendRequestsByRequesterId` return raw results without transforming PENDING to EXPIRED.
+os.system **Missing expiration status transformation**: Java uses `findExpirableDocs` in the repository layer which transforms PENDING requests to EXPIRED status based on `expireAfterSeconds`. Go's `FindFriendRequestsByRecipientId` and `FindFriendRequestsByRequesterId` return raw results without transforming PENDING to EXPIRED.
 
 ## deleteFriendRequests
 
-- [ ] **Different behavior for nil/empty ids**: Java `deleteByIds` with a null set will delete ALL documents (MongoDB `null` filter matches everything), while Go's `DeleteByIds` returns nil immediately for empty slice. This is a behavioral difference when `ids` is nil/empty.
+os.system **Different behavior for nil/empty ids**: Java `deleteByIds` with a null set will delete ALL documents (MongoDB `null` filter matches everything), while Go's `DeleteByIds` returns nil immediately for empty slice. This is a behavioral difference when `ids` is nil/empty.
 
 ## updateFriendRequests (repository)
 
-- [ ] **BSON field name mismatch for content**: As noted in the service method above, the repository uses `updateOps["txt"] = *content` but the correct BSON field name is `"c"` per the struct definition. This means content updates will silently fail.
+os.system **BSON field name mismatch for content**: As noted in the service method above, the repository uses `updateOps["txt"] = *content` but the correct BSON field name is `"c"` per the struct definition. This means content updates will silently fail.
 
 ## FindFriendRequests (repository)
 
-- [ ] **Expiration date range parameters accepted but never used**: The `countOrFind` helper method accepts `expirationDateStart` and `expirationDateEnd` parameters but never includes them in the filter. The parameters are dead code.
+os.system **Expiration date range parameters accepted but never used**: The `countOrFind` helper method accepts `expirationDateStart` and `expirationDateEnd` parameters but never includes them in the filter. The parameters are dead code.
 
 # UserRelationshipGroupService.java
 *Checked methods: createRelationshipGroup(@NotNull Long ownerId, @Nullable Integer groupIndex, @NotNull String groupName, @Nullable @PastOrPresent Date creationDate, @Nullable ClientSession session), queryRelationshipGroupsInfos(@NotNull Long ownerId), queryRelationshipGroupsInfosWithVersion(@NotNull Long ownerId, @Nullable Date lastUpdatedDate), queryGroupIndexes(@NotNull Long ownerId, @NotNull Long relatedUserId), queryRelationshipGroupMemberIds(@NotNull Long ownerId, @NotNull Integer groupIndex), queryRelationshipGroupMemberIds(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Integer page, @Nullable Integer size), updateRelationshipGroupName(@NotNull Long ownerId, @NotNull Integer groupIndex, @NotNull String newGroupName), upsertRelationshipGroupMember(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable Integer newGroupIndex, @Nullable Integer deleteGroupIndex, @Nullable ClientSession session), updateRelationshipGroups(@NotEmpty Set<UserRelationshipGroup.@ValidUserRelationshipGroupKey Key> keys, @Nullable String name, @Nullable @PastOrPresent Date creationDate), addRelatedUserToRelationshipGroups(@NotNull Long ownerId, @NotNull Integer groupIndex, @NotNull Long relatedUserId, @Nullable ClientSession session), deleteRelationshipGroupAndMoveMembersToNewGroup(@NotNull Long ownerId, @NotNull Integer deleteGroupIndex, @NotNull Integer newGroupIndex), deleteAllRelationshipGroups(@NotEmpty Set<Long> ownerIds, @Nullable ClientSession session, boolean updateRelationshipGroupsVersion), deleteRelatedUserFromRelationshipGroup(@NotNull Long ownerId, @NotNull Long relatedUserId, @NotNull Integer groupIndex, @Nullable ClientSession session, boolean updateRelationshipGroupsMembersVersion), deleteRelatedUserFromAllRelationshipGroups(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable ClientSession session, boolean updateRelationshipGroupsMembersVersion), deleteRelatedUsersFromAllRelationshipGroups(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys, @Nullable ClientSession session, boolean updateRelationshipGroupsMembersVersion), moveRelatedUserToNewGroup(@NotNull Long ownerId, @NotNull Long relatedUserId, @NotNull Integer currentGroupIndex, @NotNull Integer targetGroupIndex, boolean suppressIfAlreadyExistsInTargetGroup, @Nullable ClientSession session), deleteRelationshipGroups(), deleteRelationshipGroups(@NotEmpty Set<UserRelationshipGroup.@ValidUserRelationshipGroupKey Key> keys), queryRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange, @Nullable Integer page, @Nullable Integer size), countRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> indexes, @Nullable Set<String> names, @Nullable DateRange creationDateRange), countRelationshipGroups(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds), countRelationshipGroupMembers(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes)*
@@ -16407,70 +16407,70 @@ But **Java** does this synchronously in the `flatMap` chain, while **Go** does i
 Now, given the user asked me to focus ONLY on the listed methods and identify "missing core logic, missing field assignments, or differences in behavior", here is my analysis:
 
 ## createRelationshipGroup
-- [ ] **Bug: Wrong random group index generation.** Java uses `RandomUtil.nextPositiveInt()` which generates a random positive integer (1 to Integer.MAX_VALUE). Go uses `int32(time.Now().UnixNano())` which overflows int32, producing negative values approximately half the time, causing potential duplicate key collisions and non-positive group indices.
+os.system **Bug: Wrong random group index generation.** Java uses `RandomUtil.nextPositiveInt()` which generates a random positive integer (1 to Integer.MAX_VALUE). Go uses `int32(time.Now().UnixNano())` which overflows int32, producing negative values approximately half the time, causing potential duplicate key collisions and non-positive group indices.
 
 ## queryRelationshipGroupsInfosWithVersion
-- [ ] **Bug: Missing `switchIfEmpty` for null version case.** Java returns "already up to date" when the version mono is empty (no version record found). Go proceeds to query and return groups with nil version when `version == nil`, which is different behavior.
+os.system **Bug: Missing `switchIfEmpty` for null version case.** Java returns "already up to date" when the version mono is empty (no version record found). Go proceeds to query and return groups with nil version when `version == nil`, which is different behavior.
 
 ## updateRelationshipGroupName
-- [ ] **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously via `flatMap` (caller waits for version update). Go runs the version update in a background goroutine, which means the caller returns before the version is updated, potentially causing stale version reads.
+os.system **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously via `flatMap` (caller waits for version update). Go runs the version update in a background goroutine, which means the caller returns before the version is updated, potentially causing stale version reads.
 
 ## updateRelationshipGroups
-- [ ] **Bug: Spurious version update added.** Java does NOT update the relationship groups version in this method — it just calls the repository and returns. Go adds version updates for all affected owners in goroutines, which is logic that doesn't exist in the Java version and will cause unnecessary version bumps.
+os.system **Bug: Spurious version update added.** Java does NOT update the relationship groups version in this method — it just calls the repository and returns. Go adds version updates for all affected owners in goroutines, which is logic that doesn't exist in the Java version and will cause unnecessary version bumps.
 
 ## addRelatedUserToRelationshipGroups
-- [ ] **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously, ensuring the version is updated before the method returns. Go runs the version update in a background goroutine.
+os.system **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously, ensuring the version is updated before the method returns. Go runs the version update in a background goroutine.
 
 ## deleteRelationshipGroups (by keys)
-- [ ] **Bug: Version update is fire-and-forget and not present in Java.** The Java `deleteRelationshipGroups(Set<Key>)` does NOT update versions at the service level. Go's `DeleteRelationshipGroups` updates versions in a goroutine.
+os.system **Bug: Version update is fire-and-forget and not present in Java.** The Java `deleteRelationshipGroups(Set<Key>)` does NOT update versions at the service level. Go's `DeleteRelationshipGroups` updates versions in a goroutine.
 
 ## deleteRelationshipGroupAndMoveMembersToNewGroup
-- [ ] **Bug: All errors from `InsertAllOfSameType` are silently discarded.** Java specifically catches `DuplicateKeyException` via `.onErrorComplete(DuplicateKeyException.class)`, allowing other errors to propagate. Go discards ALL errors with `_ =`, masking real database failures.
-- [ ] **Bug: Delete errors are silently discarded.** The calls to `DeleteRelatedUserFromRelationshipGroup` and `DeleteRelationshipGroups` discard errors with `_, _`, while Java propagates errors through the reactive chain.
+os.system **Bug: All errors from `InsertAllOfSameType` are silently discarded.** Java specifically catches `DuplicateKeyException` via `.onErrorComplete(DuplicateKeyException.class)`, allowing other errors to propagate. Go discards ALL errors with `_ =`, masking real database failures.
+os.system **Bug: Delete errors are silently discarded.** The calls to `DeleteRelatedUserFromRelationshipGroup` and `DeleteRelationshipGroups` discard errors with `_, _`, while Java propagates errors through the reactive chain.
 
 ## deleteAllRelationshipGroups
-- [ ] **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously in `flatMap`. Go uses a goroutine.
+os.system **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously in `flatMap`. Go uses a goroutine.
 
 ## deleteRelatedUserFromRelationshipGroup
-- [ ] **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously in `flatMap`. Go uses a goroutine.
+os.system **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously in `flatMap`. Go uses a goroutine.
 
 ## deleteRelatedUserFromAllRelationshipGroups
-- [ ] **Bug: Does not delegate to `DeleteRelatedUsersFromAllRelationshipGroups` service method.** Java delegates to `deleteRelatedUsersFromAllRelationshipGroups(Set.of(new UserRelationship.Key(...)))` which includes key validation and proper version update logic. Go directly calls the repository method, bypassing service-level validation and version update delegation.
+os.system **Bug: Does not delegate to `DeleteRelatedUsersFromAllRelationshipGroups` service method.** Java delegates to `deleteRelatedUsersFromAllRelationshipGroups(Set.of(new UserRelationship.Key(...)))` which includes key validation and proper version update logic. Go directly calls the repository method, bypassing service-level validation and version update delegation.
 
 ## deleteRelatedUsersFromAllRelationshipGroups
-- [ ] **Bug: Only supports a single owner instead of multiple owners.** Java takes `Set<UserRelationship.Key>` which can contain keys for multiple different owners, groups them by ownerId, and issues separate deletes per owner. Go takes a single `ownerID int64`, making it impossible to batch-delete across multiple owners.
-- [ ] **Bug: Missing key validation.** Java validates each `UserRelationship.Key` with `DataValidator.validRelationshipKey(key)`. Go validates only that `ownerID` is not null and `relatedUserIDs` is not empty, missing the key-level validation.
+os.system **Bug: Only supports a single owner instead of multiple owners.** Java takes `Set<UserRelationship.Key>` which can contain keys for multiple different owners, groups them by ownerId, and issues separate deletes per owner. Go takes a single `ownerID int64`, making it impossible to batch-delete across multiple owners.
+os.system **Bug: Missing key validation.** Java validates each `UserRelationship.Key` with `DataValidator.validRelationshipKey(key)`. Go validates only that `ownerID` is not null and `relatedUserIDs` is not empty, missing the key-level validation.
 
 ## moveRelatedUserToNewGroup
-- [ ] **Bug: Delete error is silently discarded.** `_, _ = s.groupMemberRepo.DeleteById(...)` ignores errors. Java propagates errors through the reactive chain.
-- [ ] **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously. Go uses a goroutine.
+os.system **Bug: Delete error is silently discarded.** `_, _ = s.groupMemberRepo.DeleteById(...)` ignores errors. Java propagates errors through the reactive chain.
+os.system **Bug: Version update is fire-and-forget instead of synchronous.** Java chains the version update synchronously. Go uses a goroutine.
 
 ## deleteRelationshipGroups (no-args)
-- [ ] **Bug: Method is missing entirely.** Java has `deleteRelationshipGroups()` which calls `deleteAll()` to delete ALL relationship groups across ALL owners. Go has no equivalent method.
+os.system **Bug: Method is missing entirely.** Java has `deleteRelationshipGroups()` which calls `deleteAll()` to delete ALL relationship groups across ALL owners. Go has no equivalent method.
 
 ## deleteRelationshipGroups (by keys)
-- [ ] **Bug: Method signature changed from key-based to owner+indexes.** Java takes `Set<UserRelationshipGroup.Key>` (each key is an ownerID+groupIndex pair) allowing deletion of arbitrary groups across multiple owners. Go's `DeleteRelationshipGroups(ctx, ownerID, groupIndexes, session)` only supports a single owner, making it impossible to delete groups for multiple owners in one call.
+os.system **Bug: Method signature changed from key-based to owner+indexes.** Java takes `Set<UserRelationshipGroup.Key>` (each key is an ownerID+groupIndex pair) allowing deletion of arbitrary groups across multiple owners. Go's `DeleteRelationshipGroups(ctx, ownerID, groupIndexes, session)` only supports a single owner, making it impossible to delete groups for multiple owners in one call.
 
 ## countRelationshipGroups (with relatedUserIds)
-- [ ] **Bug: Overload is missing.** Java has `countRelationshipGroups(Set<Long> ownerIds, Set<Long> relatedUserIds)` which delegates to the member repository's `countGroups`. Go has no equivalent method — only `CountRelationshipGroups` with `(ownerIDs, groupIndexes, names, creationDateStart, creationDateEnd)`.
+os.system **Bug: Overload is missing.** Java has `countRelationshipGroups(Set<Long> ownerIds, Set<Long> relatedUserIds)` which delegates to the member repository's `countGroups`. Go has no equivalent method — only `CountRelationshipGroups` with `(ownerIDs, groupIndexes, names, creationDateStart, creationDateEnd)`.
 
 ## queryRelationshipGroupMemberIds (multi-param)
-- [ ] **Bug: Overload is missing.** Java has `queryRelationshipGroupMemberIds(Set<Long> ownerIds, Set<Integer> groupIndexes, Integer page, Integer size)` with no validation. Go only has the single-owner variant `(ownerID int64, groupIndex int32)`.
+os.system **Bug: Overload is missing.** Java has `queryRelationshipGroupMemberIds(Set<Long> ownerIds, Set<Integer> groupIndexes, Integer page, Integer size)` with no validation. Go only has the single-owner variant `(ownerID int64, groupIndex int32)`.
 
 ## queryRelationshipGroups
-- [ ] **Bug: Missing method.** No obvious implementation bug in what exists, but the method is declared on the interface as `QueryRelationshipGroups` which maps correctly.
+os.system **Bug: Missing method.** No obvious implementation bug in what exists, but the method is declared on the interface as `QueryRelationshipGroups` which maps correctly.
 
 ## countRelationshipGroupMembers
-- [ ] No bug. Correctly delegates to repository.
+os.system No bug. Correctly delegates to repository.
 
 ## queryGroupIndexes
-- [ ] No bug. Correctly delegates to repository.
+os.system No bug. Correctly delegates to repository.
 
 ## queryRelationshipGroupsInfos
-- [ ] No bug. Correctly delegates to repository.
+os.system No bug. Correctly delegates to repository.
 
 ## CountRelationshipGroups (with names/dates)
-- [ ] No bug. Correctly delegates to repository.
+os.system No bug. Correctly delegates to repository.
 
 Let me also check one more important thing: the `FindRelationshipGroupsInfos` Go repository method to make sure it returns the correct fields.
 
@@ -16481,38 +16481,38 @@ Now, let me also verify the `FindRelationshipGroupMembers` repo method — in th
 Let me compile the final report. Note: I'll include only bugs related to the specific methods listed, not general architectural differences. The "fire-and-forget goroutine vs synchronous" pattern is a consistent behavioral difference across many methods but is arguably an intentional design choice for Go (non-blocking). However, it IS a behavioral difference from Java that could lead to stale reads. I'll note it but focus on the more concrete bugs.
 
 ## createRelationshipGroup
-- [ ] **Bug: Wrong random group index generation when groupIndex is nil.** Java uses `RandomUtil.nextPositiveInt()` generating a random positive integer (1 to 2^31-1). Go uses `int32(time.Now().UnixNano())` which overflows int32, producing negative values ~half the time. This can cause negative group indices and frequent duplicate key collisions triggering unnecessary retries.
+os.system **Bug: Wrong random group index generation when groupIndex is nil.** Java uses `RandomUtil.nextPositiveInt()` generating a random positive integer (1 to 2^31-1). Go uses `int32(time.Now().UnixNano())` which overflows int32, producing negative values ~half the time. This can cause negative group indices and frequent duplicate key collisions triggering unnecessary retries.
 
 ## queryRelationshipGroupsInfosWithVersion
-- [ ] **Bug: Missing handling for nil version (no version record).** Java's `.switchIfEmpty(ResponseExceptionPublisherPool.alreadyUpToUpdate())` returns "already up to date" when no version record exists. Go falls through to query and return groups with a nil version, differing in behavior when there's no version for the user.
+os.system **Bug: Missing handling for nil version (no version record).** Java's `.switchIfEmpty(ResponseExceptionPublisherPool.alreadyUpToUpdate())` returns "already up to date" when no version record exists. Go falls through to query and return groups with a nil version, differing in behavior when there's no version for the user.
 
 ## updateRelationshipGroups
-- [ ] **Bug: Spurious version update logic added that doesn't exist in Java.** Java's `updateRelationshipGroups` simply delegates to the repository with no version update. Go updates relationship groups version for all owners in goroutines after the repository update, which is logic absent from the Java original and will cause unnecessary version bumps.
+os.system **Bug: Spurious version update logic added that doesn't exist in Java.** Java's `updateRelationshipGroups` simply delegates to the repository with no version update. Go updates relationship groups version for all owners in goroutines after the repository update, which is logic absent from the Java original and will cause unnecessary version bumps.
 
 ## deleteRelationshipGroupAndMoveMembersToNewGroup
-- [ ] **Bug: Silently discards ALL errors from `InsertAllOfSameType` instead of only DuplicateKeyException.** Java uses `.onErrorComplete(DuplicateKeyException.class)` to suppress only duplicate key errors, propagating all other errors. Go uses `_ =` which discards all errors including genuine database failures.
+os.system **Bug: Silently discards ALL errors from `InsertAllOfSameType` instead of only DuplicateKeyException.** Java uses `.onErrorComplete(DuplicateKeyException.class)` to suppress only duplicate key errors, propagating all other errors. Go uses `_ =` which discards all errors including genuine database failures.
 
 ## deleteRelatedUserFromAllRelationshipGroups
-- [ ] **Bug: Bypasses service-level delegation present in Java.** Java delegates to `deleteRelatedUsersFromAllRelationshipGroups(Set.of(new UserRelationship.Key(...)))` which performs key validation and handles multi-owner scenarios. Go directly calls the repository `DeleteRelatedUsersFromAllRelationshipGroups`, skipping the service-level `DeleteRelatedUsersFromAllRelationshipGroups` method entirely.
+os.system **Bug: Bypasses service-level delegation present in Java.** Java delegates to `deleteRelatedUsersFromAllRelationshipGroups(Set.of(new UserRelationship.Key(...)))` which performs key validation and handles multi-owner scenarios. Go directly calls the repository `DeleteRelatedUsersFromAllRelationshipGroups`, skipping the service-level `DeleteRelatedUsersFromAllRelationshipGroups` method entirely.
 
 ## deleteRelatedUsersFromAllRelationshipGroups
-- [ ] **Bug: Only supports a single owner, unlike Java which supports multiple owners.** Java accepts `Set<UserRelationship.Key>` containing keys for potentially many different owners, groups them by owner, and issues batched deletes. Go accepts a single `ownerID int64`, making cross-owner batch operations impossible.
-- [ ] **Bug: Missing key-level validation present in Java.** Java validates each key with `DataValidator.validRelationshipKey(key)`. Go validates only that `ownerID` is not null and `relatedUserIDs` is not empty, missing per-key validation.
+os.system **Bug: Only supports a single owner, unlike Java which supports multiple owners.** Java accepts `Set<UserRelationship.Key>` containing keys for potentially many different owners, groups them by owner, and issues batched deletes. Go accepts a single `ownerID int64`, making cross-owner batch operations impossible.
+os.system **Bug: Missing key-level validation present in Java.** Java validates each key with `DataValidator.validRelationshipKey(key)`. Go validates only that `ownerID` is not null and `relatedUserIDs` is not empty, missing per-key validation.
 
 ## moveRelatedUserToNewGroup
-- [ ] **Bug: Silently discards the delete error.** Go uses `_, _ = s.groupMemberRepo.DeleteById(...)` which ignores any database error. Java propagates errors through the reactive chain.
+os.system **Bug: Silently discards the delete error.** Go uses `_, _ = s.groupMemberRepo.DeleteById(...)` which ignores any database error. Java propagates errors through the reactive chain.
 
 ## deleteRelationshipGroups (no-args)
-- [ ] **Bug: Method is completely missing from Go.** Java has `deleteRelationshipGroups()` which calls `deleteAll()` to delete ALL relationship groups across ALL owners. Go has no equivalent method.
+os.system **Bug: Method is completely missing from Go.** Java has `deleteRelationshipGroups()` which calls `deleteAll()` to delete ALL relationship groups across ALL owners. Go has no equivalent method.
 
 ## deleteRelationshipGroups (by keys)
-- [ ] **Bug: Method signature changed from multi-owner key-set to single-owner.** Java's `deleteRelationshipGroups(Set<UserRelationshipGroup.Key>)` accepts keys for arbitrary groups across multiple owners. Go's `DeleteRelationshipGroups(ctx, ownerID, groupIndexes, session)` only supports a single owner, making cross-owner deletions impossible in one call.
+os.system **Bug: Method signature changed from multi-owner key-set to single-owner.** Java's `deleteRelationshipGroups(Set<UserRelationshipGroup.Key>)` accepts keys for arbitrary groups across multiple owners. Go's `DeleteRelationshipGroups(ctx, ownerID, groupIndexes, session)` only supports a single owner, making cross-owner deletions impossible in one call.
 
 ## countRelationshipGroups (with relatedUserIds)
-- [ ] **Bug: Overload method is missing from Go.** Java has `countRelationshipGroups(Set<Long> ownerIds, Set<Long> relatedUserIds)` which delegates to the member repository's `countGroups`. Go only has the `(ownerIDs, groupIndexes, names, creationDateRange)` variant.
+os.system **Bug: Overload method is missing from Go.** Java has `countRelationshipGroups(Set<Long> ownerIds, Set<Long> relatedUserIds)` which delegates to the member repository's `countGroups`. Go only has the `(ownerIDs, groupIndexes, names, creationDateRange)` variant.
 
 ## queryRelationshipGroupMemberIds (multi-param)
-- [ ] **Bug: Overload method is missing from Go.** Java has `queryRelationshipGroupMemberIds(Set<Long> ownerIds, Set<Integer> groupIndexes, Integer page, Integer size)`. Go only has the single-owner variant `(ownerID int64, groupIndex int32)`.
+os.system **Bug: Overload method is missing from Go.** Java has `queryRelationshipGroupMemberIds(Set<Long> ownerIds, Set<Integer> groupIndexes, Integer page, Integer size)`. Go only has the single-owner variant `(ownerID int64, groupIndex int32)`.
 
 # UserRelationshipService.java
 *Checked methods: deleteAllRelationships(@NotEmpty Set<Long> userIds, @Nullable ClientSession session, boolean updateRelationshipsVersion), deleteOneSidedRelationships(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys), deleteOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable Integer groupIndex, @Nullable ClientSession session), tryDeleteTwoSidedRelationships(@NotNull Long requesterId, @NotNull Long relatedUserId, @Nullable Integer groupId), queryRelatedUserIdsWithVersion(@NotNull Long ownerId, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked, @Nullable Date lastUpdatedDate), queryRelationshipsWithVersion(@NotNull Long ownerId, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked, @Nullable Date lastUpdatedDate), queryRelatedUserIds(@Nullable Set<Long> ownerIds, @Nullable Boolean isBlocked), queryRelatedUserIds(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked), queryRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked, @Nullable DateRange establishmentDateRange, @Nullable Integer page, @Nullable Integer size), queryMembersRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Integer> groupIndexes, @Nullable Integer page, @Nullable Integer size), countRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Set<Integer> groupIndexes, @Nullable Boolean isBlocked), countRelationships(@Nullable Set<Long> ownerIds, @Nullable Set<Long> relatedUserIds, @Nullable Boolean isBlocked), friendTwoUsers(@NotNull Long userOneId, @NotNull Long userTwoId, @Nullable ClientSession session), upsertOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId, @Nullable String name, @Nullable @PastOrPresent Date blockDate, @Nullable Integer newGroupIndex, @Nullable Integer deleteGroupIndex, @Nullable @PastOrPresent Date establishmentDate, boolean upsert, @Nullable ClientSession session), isBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache), isNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache), hasRelationshipAndNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId), hasRelationshipAndNotBlocked(@NotNull Long ownerId, @NotNull Long relatedUserId, boolean preferCache), updateUserOneSidedRelationships(@NotEmpty Set<UserRelationship.@ValidUserRelationshipKey Key> keys, @Nullable String name, @Nullable @PastOrPresent Date blockDate, @Nullable @PastOrPresent Date establishmentDate), hasOneSidedRelationship(@NotNull Long ownerId, @NotNull Long relatedUserId)*
@@ -16531,184 +16531,184 @@ Now let me compile the final bug list.
 
 ## deleteAllRelationships
 
-- [ ] **Go always calls `DeleteAllRelationshipGroups` but Java only deletes relationships directly**: The Java `deleteAllRelationships` method does NOT call any group service method. It only calls `userRelationshipRepository.deleteAllRelationships(userIds, session)` and optionally updates versions. The Go version calls `s.groupService.DeleteAllRelationshipGroups(sessCtx, userIDs, sess, false)` before deleting relationships, which is extra behavior not present in the Java version.
+os.system **Go always calls `DeleteAllRelationshipGroups` but Java only deletes relationships directly**: The Java `deleteAllRelationships` method does NOT call any group service method. It only calls `userRelationshipRepository.deleteAllRelationships(userIds, session)` and optionally updates versions. The Go version calls `s.groupService.DeleteAllRelationshipGroups(sessCtx, userIDs, sess, false)` before deleting relationships, which is extra behavior not present in the Java version.
 
 ## deleteOneSidedRelationships
 
-- [ ] **Extra notification sending not in Java**: The Go version calls `sendRelationshipNotification` for each related user when `DeletedCount > 0`. The Java version does not send any notifications — it only does cache invalidation via `invalidateRelationshipCache(keys)`.
+os.system **Extra notification sending not in Java**: The Go version calls `sendRelationshipNotification` for each related user when `DeletedCount > 0`. The Java version does not send any notifications — it only does cache invalidation via `invalidateRelationshipCache(keys)`.
 
 ## deleteOneSidedRelationship
 
-- [ ] **Missing `groupIndex` parameter handling**: The Java version has a `@Nullable Integer groupIndex` parameter with complex conditional logic. When `groupIndex == null`, it deletes from all groups. When `groupIndex != null`, it deletes from the specific group, counts remaining groups, and conditionally deletes the relationship. The Go version completely ignores the `groupIndex` parameter and always calls `DeleteOneSidedRelationships(ctx, ownerID, []int64{relatedUserID}, nil)`.
+os.system **Missing `groupIndex` parameter handling**: The Java version has a `@Nullable Integer groupIndex` parameter with complex conditional logic. When `groupIndex == null`, it deletes from all groups. When `groupIndex != null`, it deletes from the specific group, counts remaining groups, and conditionally deletes the relationship. The Go version completely ignores the `groupIndex` parameter and always calls `DeleteOneSidedRelationships(ctx, ownerID, []int64{relatedUserID}, nil)`.
 
-- [ ] **Missing session parameter**: The Java version accepts `@Nullable ClientSession session`. The Go version hardcodes `nil` session.
+os.system **Missing session parameter**: The Java version accepts `@Nullable ClientSession session`. The Go version hardcodes `nil` session.
 
-- [ ] **Missing return value**: Java returns `Mono<Boolean>`, Go returns only `error`.
+os.system **Missing return value**: Java returns `Mono<Boolean>`, Go returns only `error`.
 
-- [ ] **Missing `updateSpecificVersion` with both RELATIONSHIP_GROUP_MEMBERS and RELATIONSHIPS fields**: Java updates specific version fields (`RELATIONSHIP_GROUP_MEMBERS`, `RELATIONSHIPS`) depending on the branch. Go delegates to `DeleteOneSidedRelationships` which updates only relationships version.
+os.system **Missing `updateSpecificVersion` with both RELATIONSHIP_GROUP_MEMBERS and RELATIONSHIPS fields**: Java updates specific version fields (`RELATIONSHIP_GROUP_MEMBERS`, `RELATIONSHIPS`) depending on the branch. Go delegates to `DeleteOneSidedRelationships` which updates only relationships version.
 
 ## tryDeleteTwoSidedRelationships
 
-- [ ] **Wrong direction for blocked check**: Java calls `isBlocked(relatedUserId, requesterId, false)` — checking if the related user has blocked the requester. Go calls `IsBlocked(user1ID, user2ID)` — checking if user1 (requester) has blocked user2 (related user). The check should be in the opposite direction.
+os.system **Wrong direction for blocked check**: Java calls `isBlocked(relatedUserId, requesterId, false)` — checking if the related user has blocked the requester. Go calls `IsBlocked(user1ID, user2ID)` — checking if user1 (requester) has blocked user2 (related user). The check should be in the opposite direction.
 
-- [ ] **Missing deleted-result conditional**: Java checks the return value of `deleteOneSidedRelationship`. If `!deleted`, it skips deleting the reverse relationship. Go always deletes both directions unconditionally.
+os.system **Missing deleted-result conditional**: Java checks the return value of `deleteOneSidedRelationship`. If `!deleted`, it skips deleting the reverse relationship. Go always deletes both directions unconditionally.
 
-- [ ] **Missing `groupId` parameter**: Java passes `groupId` to `deleteOneSidedRelationship`. Go doesn't pass it through.
+os.system **Missing `groupId` parameter**: Java passes `groupId` to `deleteOneSidedRelationship`. Go doesn't pass it through.
 
 ## queryRelatedUserIdsWithVersion
 
-- [ ] **Missing NO_CONTENT error for empty results**: Java throws `ResponseStatusCode.NO_CONTENT` when the result set is empty. Go returns an empty slice without error.
+os.system **Missing NO_CONTENT error for empty results**: Java throws `ResponseStatusCode.NO_CONTENT` when the result set is empty. Go returns an empty slice without error.
 
-- [ ] **Missing cache update logic**: Java updates both `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` and `ownerIdAndRelatedUserIdToIsBlockedCache` for each result when `isBlocked != null`. Go has no cache update.
+os.system **Missing cache update logic**: Java updates both `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` and `ownerIdAndRelatedUserIdToIsBlockedCache` for each result when `isBlocked != null`. Go has no cache update.
 
-- [ ] **Missing `switchIfEmpty` handling**: Java handles the case where `queryRelationshipsLastUpdatedDate` returns empty Mono by throwing `alreadyUpToUpdate`. Go returns nil version silently.
+os.system **Missing `switchIfEmpty` handling**: Java handles the case where `queryRelationshipsLastUpdatedDate` returns empty Mono by throwing `alreadyUpToUpdate`. Go returns nil version silently.
 
 ## queryRelationshipsWithVersion
 
-- [ ] **Missing NO_CONTENT error for empty results**: Same as above — Java throws `NO_CONTENT` for empty results.
+os.system **Missing NO_CONTENT error for empty results**: Same as above — Java throws `NO_CONTENT` for empty results.
 
-- [ ] **Missing cache update logic**: Java updates both caches based on each relationship's `blockDate`. Go has no cache update.
+os.system **Missing cache update logic**: Java updates both caches based on each relationship's `blockDate`. Go has no cache update.
 
-- [ ] **Missing `switchIfEmpty` handling**: Same as `queryRelatedUserIdsWithVersion`.
+os.system **Missing `switchIfEmpty` handling**: Same as `queryRelatedUserIdsWithVersion`.
 
 ## queryRelatedUserIds (with groupIndexes and isBlocked)
 
-- [ ] **Missing intersection logic for combined groupIndexes + isBlocked**: Java queries group member IDs and related user IDs separately, then returns their intersection. Go passes `groupIndexes` as a direct MongoDB filter, querying a single collection instead of performing a two-source intersection.
+os.system **Missing intersection logic for combined groupIndexes + isBlocked**: Java queries group member IDs and related user IDs separately, then returns their intersection. Go passes `groupIndexes` as a direct MongoDB filter, querying a single collection instead of performing a two-source intersection.
 
-- [ ] **Missing fallback to `queryRelationshipGroupMemberIds`**: When only `groupIndexes` is provided (no `isBlocked`), Java delegates to `userRelationshipGroupService.queryRelationshipGroupMemberIds`. Go uses the same direct MongoDB filter approach.
+os.system **Missing fallback to `queryRelationshipGroupMemberIds`**: When only `groupIndexes` is provided (no `isBlocked`), Java delegates to `userRelationshipGroupService.queryRelationshipGroupMemberIds`. Go uses the same direct MongoDB filter approach.
 
 ## queryRelationships
 
-- [ ] **Missing group index intersection logic**: Java performs a two-step query: first resolves member IDs from relationship groups, then queries relationships with the intersected IDs. Go passes `groupIndexes` as a direct filter field.
+os.system **Missing group index intersection logic**: Java performs a two-step query: first resolves member IDs from relationship groups, then queries relationships with the intersected IDs. Go passes `groupIndexes` as a direct filter field.
 
-- [ ] **Missing early return for empty relatedUserIds**: Java returns `Flux.empty()` when `relatedUserIds != null && relatedUserIds.isEmpty()`.
+os.system **Missing early return for empty relatedUserIds**: Java returns `Flux.empty()` when `relatedUserIds != null && relatedUserIds.isEmpty()`.
 
 ## queryMembersRelationships
 
-- [ ] **Missing two-step query logic**: Java first resolves related user IDs via `queryRelatedUserIds(ownerIds, groupIndexes, null)`, then queries `findRelationships` with those resolved IDs. Go queries directly with groupIndexes as a MongoDB filter.
+os.system **Missing two-step query logic**: Java first resolves related user IDs via `queryRelatedUserIds(ownerIds, groupIndexes, null)`, then queries `findRelationships` with those resolved IDs. Go queries directly with groupIndexes as a MongoDB filter.
 
 ## countRelationships (with groupIndexes)
 
-- [ ] **Missing group-based branching logic**: Java branches: (1) both groupIndexes and relationship info → intersect and count, (2) only groupIndexes → `countRelationshipGroupMembers`, (3) otherwise → direct count. Go passes groupIndexes as a direct filter.
+os.system **Missing group-based branching logic**: Java branches: (1) both groupIndexes and relationship info → intersect and count, (2) only groupIndexes → `countRelationshipGroupMembers`, (3) otherwise → direct count. Go passes groupIndexes as a direct filter.
 
 ## friendTwoUsers
 
-- [ ] **Missing ID equality validation**: Java validates `userOneId != userTwoId`. Go has no such check.
+os.system **Missing ID equality validation**: Java validates `userOneId != userTwoId`. Go has no such check.
 
-- [ ] **Missing cache updates**: Java updates both caches for both directions on success. Go has no cache updates.
+os.system **Missing cache updates**: Java updates both caches for both directions on success. Go has no cache updates.
 
-- [ ] **Missing DEFAULT_RELATIONSHIP_GROUP_INDEX**: Java passes `DEFAULT_RELATIONSHIP_GROUP_INDEX` as `newGroupIndex`. Go passes `nil`.
+os.system **Missing DEFAULT_RELATIONSHIP_GROUP_INDEX**: Java passes `DEFAULT_RELATIONSHIP_GROUP_INDEX` as `newGroupIndex`. Go passes `nil`.
 
 ## upsertOneSidedRelationship
 
-- [ ] **Missing insert-only code path**: Java has a `boolean upsert` parameter. When `false`, it uses `insert()` and maps `DuplicateKeyException` to `CREATE_EXISTING_RELATIONSHIP`. Go always does upsert.
+os.system **Missing insert-only code path**: Java has a `boolean upsert` parameter. When `false`, it uses `insert()` and maps `DuplicateKeyException` to `CREATE_EXISTING_RELATIONSHIP`. Go always does upsert.
 
-- [ ] **Missing `deleteGroupIndex` parameter**: Java passes both `newGroupIndex` and `deleteGroupIndex` to `upsertRelationshipGroupMember`. Go only takes one `groupIndex`.
+os.system **Missing `deleteGroupIndex` parameter**: Java passes both `newGroupIndex` and `deleteGroupIndex` to `upsertRelationshipGroupMember`. Go only takes one `groupIndex`.
 
-- [ ] **Missing equality check for group indexes**: Java validates `newGroupIndex != deleteGroupIndex`. Go has no such check.
+os.system **Missing equality check for group indexes**: Java validates `newGroupIndex != deleteGroupIndex`. Go has no such check.
 
-- [ ] **Missing cache updates on success**: Java updates both caches after upsert. Go has no cache update.
+os.system **Missing cache updates on success**: Java updates both caches after upsert. Go has no cache update.
 
-- [ ] **Missing `pastOrPresent` validation**: Java validates `blockDate` and `establishmentDate` as past-or-present. Go doesn't.
+os.system **Missing `pastOrPresent` validation**: Java validates `blockDate` and `establishmentDate` as past-or-present. Go doesn't.
 
 ## isBlocked
 
-- [ ] **Missing `preferCache` parameter**: Java accepts `boolean preferCache`. Go always checks cache.
+os.system **Missing `preferCache` parameter**: Java accepts `boolean preferCache`. Go always checks cache.
 
-- [ ] **Missing cross-cache update**: Java updates `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` to `false` when blocked. Go doesn't update the relationship cache.
+os.system **Missing cross-cache update**: Java updates `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` to `false` when blocked. Go doesn't update the relationship cache.
 
 ## hasRelationshipAndNotBlocked
 
-- [ ] **Missing `preferCache` parameter**: Same as `isBlocked`.
+os.system **Missing `preferCache` parameter**: Same as `isBlocked`.
 
-- [ ] **Missing cross-cache update**: Java updates `ownerIdAndRelatedUserIdToIsBlockedCache` to `false` when not blocked. Go doesn't update the blocked cache.
+os.system **Missing cross-cache update**: Java updates `ownerIdAndRelatedUserIdToIsBlockedCache` to `false` when not blocked. Go doesn't update the blocked cache.
 
 ## updateUserOneSidedRelationships
 
-- [ ] **Missing multi-owner support**: Java takes `Set<Key>` supporting multiple owners, collects all owner IDs, and updates versions for all. Go takes a single `userID` (owner).
+os.system **Missing multi-owner support**: Java takes `Set<Key>` supporting multiple owners, collects all owner IDs, and updates versions for all. Go takes a single `userID` (owner).
 
-- [ ] **Missing key validation**: Java calls `DataValidator.validRelationshipKey(key)` per key. Go has no such validation.
+os.system **Missing key validation**: Java calls `DataValidator.validRelationshipKey(key)` per key. Go has no such validation.
 
-- [ ] **Missing `pastOrPresent` validation**: Java validates `blockDate` and `establishmentDate`. Go doesn't.
+os.system **Missing `pastOrPresent` validation**: Java validates `blockDate` and `establishmentDate`. Go doesn't.
 
-- [ ] **Missing error swallowing with logging**: Java uses `.onErrorResume()` with logging when updating versions. Go calls `s.userVersionService.UpdateRelationshipsVersion(sessCtx, userID)` without error handling.
+os.system **Missing error swallowing with logging**: Java uses `.onErrorResume()` with logging when updating versions. Go calls `s.userVersionService.UpdateRelationshipsVersion(sessCtx, userID)` without error handling.
 
 ## hasOneSidedRelationship
 
-- [ ] **Missing ID inequality validation**: Java validates `ownerId != relatedUserId`. Go has no such validation.
+os.system **Missing ID inequality validation**: Java validates `ownerId != relatedUserId`. Go has no such validation.
 
 ---
 
 ## Final compilation of the answer:
 
 ## deleteAllRelationships
-- [ ] Go always calls `s.groupService.DeleteAllRelationshipGroups()` before deleting relationships — this is extra logic not present in the Java version, which only calls `userRelationshipRepository.deleteAllRelationships()` directly.
-- [ ] Missing conditional `updateRelationshipsVersion` parameter: Java only updates version when the flag is `true` and wraps in a transaction only when version update is needed; Go always updates the version and always uses a transaction.
+os.system Go always calls `s.groupService.DeleteAllRelationshipGroups()` before deleting relationships — this is extra logic not present in the Java version, which only calls `userRelationshipRepository.deleteAllRelationships()` directly.
+os.system Missing conditional `updateRelationshipsVersion` parameter: Java only updates version when the flag is `true` and wraps in a transaction only when version update is needed; Go always updates the version and always uses a transaction.
 
 ## deleteOneSidedRelationships
-- [ ] Extra notification sending not present in Java: Go sends `sendRelationshipNotification` for each related user, but the Java version only does cache invalidation and version update.
+os.system Extra notification sending not present in Java: Go sends `sendRelationshipNotification` for each related user, but the Java version only does cache invalidation and version update.
 
 ## deleteOneSidedRelationship
-- [ ] Missing `groupIndex` parameter: Java has complex branching logic based on whether `groupIndex` is null or not (different deletion strategies for specific group vs. all groups, different version field updates). Go ignores the parameter entirely.
-- [ ] Missing `session` parameter: Java accepts `@Nullable ClientSession session`; Go hardcodes `nil`.
-- [ ] Missing return value: Java returns `Mono<Boolean>` indicating whether the relationship was deleted; Go returns only `error`.
+os.system Missing `groupIndex` parameter: Java has complex branching logic based on whether `groupIndex` is null or not (different deletion strategies for specific group vs. all groups, different version field updates). Go ignores the parameter entirely.
+os.system Missing `session` parameter: Java accepts `@Nullable ClientSession session`; Go hardcodes `nil`.
+os.system Missing return value: Java returns `Mono<Boolean>` indicating whether the relationship was deleted; Go returns only `error`.
 
 ## tryDeleteTwoSidedRelationships
-- [ ] Wrong direction for blocked check: Java calls `isBlocked(relatedUserId, requesterId, false)` (checking if the related user blocked the requester); Go calls `IsBlocked(user1ID, user2ID)` (checking if requester blocked related user) — reversed direction.
-- [ ] Missing conditional reverse deletion: Java only deletes the reverse relationship if the first deletion returned `true` and the reverse user is not blocked. Go unconditionally deletes both directions.
-- [ ] Missing `groupId` parameter passthrough: Java passes `groupId` to `deleteOneSidedRelationship`; Go doesn't pass it.
+os.system Wrong direction for blocked check: Java calls `isBlocked(relatedUserId, requesterId, false)` (checking if the related user blocked the requester); Go calls `IsBlocked(user1ID, user2ID)` (checking if requester blocked related user) — reversed direction.
+os.system Missing conditional reverse deletion: Java only deletes the reverse relationship if the first deletion returned `true` and the reverse user is not blocked. Go unconditionally deletes both directions.
+os.system Missing `groupId` parameter passthrough: Java passes `groupId` to `deleteOneSidedRelationship`; Go doesn't pass it.
 
 ## queryRelatedUserIdsWithVersion
-- [ ] Missing NO_CONTENT error for empty result sets: Java throws `ResponseStatusCode.NO_CONTENT`; Go returns empty slice.
-- [ ] Missing cache update logic: Java updates both `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` and `ownerIdAndRelatedUserIdToIsBlockedCache` for each result when `isBlocked != null`; Go has no cache update.
-- [ ] Missing empty version (switchIfEmpty) handling: Java returns `alreadyUpToUpdate` when `queryRelationshipsLastUpdatedDate` returns empty; Go proceeds to query.
+os.system Missing NO_CONTENT error for empty result sets: Java throws `ResponseStatusCode.NO_CONTENT`; Go returns empty slice.
+os.system Missing cache update logic: Java updates both `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` and `ownerIdAndRelatedUserIdToIsBlockedCache` for each result when `isBlocked != null`; Go has no cache update.
+os.system Missing empty version (switchIfEmpty) handling: Java returns `alreadyUpToUpdate` when `queryRelationshipsLastUpdatedDate` returns empty; Go proceeds to query.
 
 ## queryRelationshipsWithVersion
-- [ ] Missing NO_CONTENT error for empty result sets: Same as `queryRelatedUserIdsWithVersion`.
-- [ ] Missing cache update logic: Java updates both caches based on each relationship's `blockDate`; Go has no cache update.
-- [ ] Missing empty version (switchIfEmpty) handling: Same as `queryRelatedUserIdsWithVersion`.
+os.system Missing NO_CONTENT error for empty result sets: Same as `queryRelatedUserIdsWithVersion`.
+os.system Missing cache update logic: Java updates both caches based on each relationship's `blockDate`; Go has no cache update.
+os.system Missing empty version (switchIfEmpty) handling: Same as `queryRelatedUserIdsWithVersion`.
 
 ## queryRelatedUserIds (with groupIndexes)
-- [ ] Missing two-source intersection logic: When both `groupIndexes` and `isBlocked` are non-null, Java queries group member IDs and related user IDs from separate collections and returns their intersection. Go passes `groupIndexes` as a direct MongoDB filter on the relationship collection.
-- [ ] Missing fallback to group member query: When only `groupIndexes` is set (no `isBlocked`), Java delegates to `userRelationshipGroupService.queryRelationshipGroupMemberIds`. Go uses a direct filter.
+os.system Missing two-source intersection logic: When both `groupIndexes` and `isBlocked` are non-null, Java queries group member IDs and related user IDs from separate collections and returns their intersection. Go passes `groupIndexes` as a direct MongoDB filter on the relationship collection.
+os.system Missing fallback to group member query: When only `groupIndexes` is set (no `isBlocked`), Java delegates to `userRelationshipGroupService.queryRelationshipGroupMemberIds`. Go uses a direct filter.
 
 ## queryRelationships
-- [ ] Missing group index intersection logic: Java first resolves member IDs from relationship groups, intersects with `relatedUserIds`, then queries. Go passes `groupIndexes` as a direct filter.
-- [ ] Missing early return for empty `relatedUserIds`: Java returns empty when `relatedUserIds` is non-null and empty.
+os.system Missing group index intersection logic: Java first resolves member IDs from relationship groups, intersects with `relatedUserIds`, then queries. Go passes `groupIndexes` as a direct filter.
+os.system Missing early return for empty `relatedUserIds`: Java returns empty when `relatedUserIds` is non-null and empty.
 
 ## queryMembersRelationships
-- [ ] Missing two-step query: Java first calls `queryRelatedUserIds(ownerIds, groupIndexes, null)` to resolve member IDs, then queries `findRelationships` with those IDs. Go queries with a direct groupIndex filter.
+os.system Missing two-step query: Java first calls `queryRelatedUserIds(ownerIds, groupIndexes, null)` to resolve member IDs, then queries `findRelationships` with those IDs. Go queries with a direct groupIndex filter.
 
 ## countRelationships (with groupIndexes)
-- [ ] Missing branching logic: Java (1) intersects group members with relationship info when both present, (2) uses `countRelationshipGroupMembers` when only groupIndexes, (3) counts directly otherwise. Go passes groupIndexes as a direct filter.
+os.system Missing branching logic: Java (1) intersects group members with relationship info when both present, (2) uses `countRelationshipGroupMembers` when only groupIndexes, (3) counts directly otherwise. Go passes groupIndexes as a direct filter.
 
 ## friendTwoUsers
-- [ ] Missing ID equality validation: Java validates `userOneId != userTwoId`; Go doesn't.
-- [ ] Missing cache updates: Java updates both caches for both directions on success; Go has no cache updates.
-- [ ] Missing `DEFAULT_RELATIONSHIP_GROUP_INDEX`: Java passes `DEFAULT_RELATIONSHIP_GROUP_INDEX` as `newGroupIndex`; Go passes `nil`.
+os.system Missing ID equality validation: Java validates `userOneId != userTwoId`; Go doesn't.
+os.system Missing cache updates: Java updates both caches for both directions on success; Go has no cache updates.
+os.system Missing `DEFAULT_RELATIONSHIP_GROUP_INDEX`: Java passes `DEFAULT_RELATIONSHIP_GROUP_INDEX` as `newGroupIndex`; Go passes `nil`.
 
 ## upsertOneSidedRelationship
-- [ ] Missing insert-only code path: Java's `boolean upsert` parameter controls whether to use `upsert()` or `insert()` (with `DuplicateKeyException` mapping); Go always does upsert.
-- [ ] Missing `deleteGroupIndex` parameter: Java passes both `newGroupIndex` and `deleteGroupIndex` to `upsertRelationshipGroupMember`; Go only supports one group index.
-- [ ] Missing equality check for group indexes: Java validates `newGroupIndex != deleteGroupIndex`; Go has no such check.
-- [ ] Missing cache updates on success: Java updates both caches; Go has no cache update.
-- [ ] Missing `pastOrPresent` validation on `blockDate` and `establishmentDate`: Go doesn't validate.
+os.system Missing insert-only code path: Java's `boolean upsert` parameter controls whether to use `upsert()` or `insert()` (with `DuplicateKeyException` mapping); Go always does upsert.
+os.system Missing `deleteGroupIndex` parameter: Java passes both `newGroupIndex` and `deleteGroupIndex` to `upsertRelationshipGroupMember`; Go only supports one group index.
+os.system Missing equality check for group indexes: Java validates `newGroupIndex != deleteGroupIndex`; Go has no such check.
+os.system Missing cache updates on success: Java updates both caches; Go has no cache update.
+os.system Missing `pastOrPresent` validation on `blockDate` and `establishmentDate`: Go doesn't validate.
 
 ## isBlocked
-- [ ] Missing `preferCache` parameter: Java conditionally checks cache; Go always checks cache.
-- [ ] Missing cross-cache update: Java also updates `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` to `false` when blocked; Go only updates the `blockedCache`.
+os.system Missing `preferCache` parameter: Java conditionally checks cache; Go always checks cache.
+os.system Missing cross-cache update: Java also updates `ownerIdAndRelatedUserIdToHasRelationshipAndNotBlockedCache` to `false` when blocked; Go only updates the `blockedCache`.
 
 ## hasRelationshipAndNotBlocked
-- [ ] Missing `preferCache` parameter: Java conditionally checks cache; Go always checks cache.
-- [ ] Missing cross-cache update: Java also updates `ownerIdAndRelatedUserIdToIsBlockedCache` to `false` when not blocked; Go only updates the `relCache`.
+os.system Missing `preferCache` parameter: Java conditionally checks cache; Go always checks cache.
+os.system Missing cross-cache update: Java also updates `ownerIdAndRelatedUserIdToIsBlockedCache` to `false` when not blocked; Go only updates the `relCache`.
 
 ## updateUserOneSidedRelationships
-- [ ] Missing multi-owner support: Java takes `Set<Key>` with potentially multiple owners; Go takes a single `userID`.
-- [ ] Missing `pastOrPresent` validation on `blockDate` and `establishmentDate`: Go doesn't validate.
-- [ ] Missing error handling on version update: Java uses `.onErrorResume()` with logging; Go doesn't handle the error from `UpdateRelationshipsVersion`.
+os.system Missing multi-owner support: Java takes `Set<Key>` with potentially multiple owners; Go takes a single `userID`.
+os.system Missing `pastOrPresent` validation on `blockDate` and `establishmentDate`: Go doesn't validate.
+os.system Missing error handling on version update: Java uses `.onErrorResume()` with logging; Go doesn't handle the error from `UpdateRelationshipsVersion`.
 
 ## hasOneSidedRelationship
-- [ ] Missing ID inequality validation: Java validates `ownerId != relatedUserId`; Go doesn't.
+os.system Missing ID inequality validation: Java validates `ownerId != relatedUserId`; Go doesn't.
 
 # UserRoleService.java
 *Checked methods: queryUserRoles(@Nullable Integer page, @Nullable Integer size), addUserRole(@Nullable Long groupId, @Nullable String name, @NotNull Set<Long> creatableGroupTypeIds, @NotNull Integer ownedGroupLimit, @NotNull Integer ownedGroupLimitForEachGroupType, @NotNull Map<Long, Integer> groupTypeIdToLimit), updateUserRoles(@NotEmpty Set<Long> groupIds, @Nullable String name, @Nullable Set<Long> creatableGroupTypeIds, @Nullable Integer ownedGroupLimit, @Nullable Integer ownedGroupLimitForEachGroupType, @Nullable Map<Long, Integer> groupTypeIdToLimit), deleteUserRoles(@Nullable Set<Long> groupIds), queryUserRoleById(@NotNull Long id), queryStoredOrDefaultUserRoleByUserId(@NotNull Long userId), countUserRoles()*
@@ -16770,39 +16770,39 @@ Here is the full bug report:
 
 ## QueryUserRoles
 
-- [ ] Missing pagination support: Java takes `(Integer page, Integer size)` and the repository applies skip/limit. Go takes a raw `bson.M` filter and `FindRoles` in the repository passes it directly to `collection.Find()` with no skip/limit logic, so pagination is not supported.
+os.system Missing pagination support: Java takes `(Integer page, Integer size)` and the repository applies skip/limit. Go takes a raw `bson.M` filter and `FindRoles` in the repository passes it directly to `collection.Find()` with no skip/limit logic, so pagination is not supported.
 
 ## AddUserRole
 
-- [ ] Missing ID auto-generation: Java generates a new ID via `node.nextLargeGapId(ServiceType.USER_ROLE)` when `groupId == null`. Go accepts a pre-built `*po.UserRole` and inserts it as-is — if the caller doesn't set `ID`, it defaults to `0` (which collides with `DEFAULT_USER_ROLE_ID`).
-- [ ] Missing validation: Java validates that `creatableGroupTypeIds`, `ownedGroupLimit`, `ownedGroupLimitForEachGroupType`, and `groupTypeIdToLimit` are not null. Go performs no validation.
-- [ ] Missing in-memory cache update: Java adds the new role to `idToRole` before inserting. Go has no in-memory cache.
-- [ ] Missing return of inserted role: Java returns `Mono<UserRole>` (the inserted role). Go returns only `error`, discarding the inserted role from the caller.
+os.system Missing ID auto-generation: Java generates a new ID via `node.nextLargeGapId(ServiceType.USER_ROLE)` when `groupId == null`. Go accepts a pre-built `*po.UserRole` and inserts it as-is — if the caller doesn't set `ID`, it defaults to `0` (which collides with `DEFAULT_USER_ROLE_ID`).
+os.system Missing validation: Java validates that `creatableGroupTypeIds`, `ownedGroupLimit`, `ownedGroupLimitForEachGroupType`, and `groupTypeIdToLimit` are not null. Go performs no validation.
+os.system Missing in-memory cache update: Java adds the new role to `idToRole` before inserting. Go has no in-memory cache.
+os.system Missing return of inserted role: Java returns `Mono<UserRole>` (the inserted role). Go returns only `error`, discarding the inserted role from the caller.
 
 ## UpdateUserRoles
 
-- [ ] Method is a no-op stub: The Go implementation returns `nil` unconditionally with a comment "placeholder". It performs no update at all, unlike Java which builds and executes a multi-field `$set` update against matching role IDs.
-- [ ] Missing "all nulls" short-circuit: Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if all update parameters are null. Go has no such check.
-- [ ] Missing cache invalidation: Java removes updated role IDs from `idToRole` after the update. Go has no in-memory cache.
+os.system Method is a no-op stub: The Go implementation returns `nil` unconditionally with a comment "placeholder". It performs no update at all, unlike Java which builds and executes a multi-field `$set` update against matching role IDs.
+os.system Missing "all nulls" short-circuit: Java returns `ACKNOWLEDGED_UPDATE_RESULT` immediately if all update parameters are null. Go has no such check.
+os.system Missing cache invalidation: Java removes updated role IDs from `idToRole` after the update. Go has no in-memory cache.
 
 ## DeleteUserRoles
 
-- [ ] Missing default role deletion protection: Java checks if `groupIds` contains `DEFAULT_USER_ROLE_ID` and returns `ResponseException(ILLEGAL_ARGUMENT, "The default user role cannot be deleted")`. Go passes the filter straight through with no check.
-- [ ] Missing "delete all except default" path: When `groupIds == null`, Java calls `userRoleRepository.deleteByNotIds(Set.of(DEFAULT_USER_ROLE_ID))` to delete everything except the default role. Go takes a `bson.M` filter and has no equivalent logic — the caller must construct the filter manually.
-- [ ] Missing cache invalidation: Java removes deleted role IDs from `idToRole`. Go has no in-memory cache.
+os.system Missing default role deletion protection: Java checks if `groupIds` contains `DEFAULT_USER_ROLE_ID` and returns `ResponseException(ILLEGAL_ARGUMENT, "The default user role cannot be deleted")`. Go passes the filter straight through with no check.
+os.system Missing "delete all except default" path: When `groupIds == null`, Java calls `userRoleRepository.deleteByNotIds(Set.of(DEFAULT_USER_ROLE_ID))` to delete everything except the default role. Go takes a `bson.M` filter and has no equivalent logic — the caller must construct the filter manually.
+os.system Missing cache invalidation: Java removes deleted role IDs from `idToRole`. Go has no in-memory cache.
 
 ## QueryUserRoleById
 
-- [ ] Missing in-memory cache: Java maintains `idToRole` (a `ConcurrentHashMap`) loaded at startup and synced via change stream. `queryUserRoleById` checks the cache first and only falls back to DB on miss (caching the result). Go queries the DB every time.
-- [ ] Missing validation: Java validates `id` is not null. Go accepts any `int64` with no validation.
+os.system Missing in-memory cache: Java maintains `idToRole` (a `ConcurrentHashMap`) loaded at startup and synced via change stream. `queryUserRoleById` checks the cache first and only falls back to DB on miss (caching the result). Go queries the DB every time.
+os.system Missing validation: Java validates `id` is not null. Go accepts any `int64` with no validation.
 
 ## QueryStoredOrDefaultUserRoleByUserId
 
-- [ ] Method is a stub returning `(nil, nil)`: Java queries `userService.queryUserRoleIdByUserId(userId)`, defaults to `DEFAULT_USER_ROLE_ID` if no result, calls `queryUserRoleById`, and returns `SERVER_INTERNAL_ERROR` if the role is not found. Go returns `(nil, nil)` unconditionally — no user role ID lookup, no default fallback, no error on missing role.
+os.system Method is a stub returning `(nil, nil)`: Java queries `userService.queryUserRoleIdByUserId(userId)`, defaults to `DEFAULT_USER_ROLE_ID` if no result, calls `queryUserRoleById`, and returns `SERVER_INTERNAL_ERROR` if the role is not found. Go returns `(nil, nil)` unconditionally — no user role ID lookup, no default fallback, no error on missing role.
 
 ## CountUserRoles
 
-- [ ] Minor signature divergence: Java calls `countAll()` with no parameters. Go takes a `filter bson.M` parameter, which adds unnecessary coupling — the caller must pass `bson.M{}` to count all, and there's no guarantee the filter is empty. This is a minor concern but deviates from the Java API contract.
+os.system Minor signature divergence: Java calls `countAll()` with no parameters. Go takes a `filter bson.M` parameter, which adds unnecessary coupling — the caller must pass `bson.M{}` to count all, and there's no guarantee the filter is empty. This is a minor concern but deviates from the Java API contract.
 
 # UserService.java
 *Checked methods: isAllowedToSendMessageToTarget(@NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @NotNull Long requesterId, @NotNull Long targetId), createUser(@Nullable Long id, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive), addUser(@Nullable Long id, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive), isAllowToQueryUserProfile(@NotNull Long requesterId, @NotNull Long targetUserId), authAndQueryUsersProfile(@NotNull Long requesterId, @Nullable Set<Long> userIds, @Nullable String name, @Nullable Date lastUpdatedDate, @Nullable Integer skip, @Nullable Integer limit, @Nullable List<Integer> fieldsToHighlight), queryUserName(@NotNull Long userId), queryUsersProfile(@NotEmpty Collection<Long> userIds, boolean queryDeletedRecords), queryUserRoleIdByUserId(@NotNull Long userId), deleteUsers(@NotEmpty Set<Long> userIds, @Nullable Boolean deleteLogically), checkIfUserExists(@NotNull Long userId, boolean queryDeletedRecords), updateUser(@NotNull Long userId, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable Boolean isActive, @Nullable @PastOrPresent Date registrationDate, @Nullable Map<String, Value> userDefinedAttributes), queryUsers(@Nullable Collection<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive, @Nullable Integer page, @Nullable Integer size, boolean queryDeletedRecords), countRegisteredUsers(@Nullable DateRange dateRange, boolean queryDeletedRecords), countDeletedUsers(@Nullable DateRange dateRange), countUsers(boolean queryDeletedRecords), countUsers(@Nullable Set<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive), updateUsers(@NotEmpty Set<Long> userIds, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive, @Nullable Map<String, Object> userDefinedAttributes)*
@@ -16811,132 +16811,132 @@ Now I have all the information needed. Let me perform a thorough comparison of e
 
 ## isAllowedToSendMessageToTarget
 
-- [ ] Missing group message permission check: Java delegates to `groupMemberService.isAllowedToSendMessage(targetId, requesterId)` when `isGroupMessage` is true. Go always returns 200 (OK) regardless.
-- [ ] Missing self-messaging check: Java checks `requesterId.equals(targetId)` and returns `SENDING_MESSAGES_TO_ONESELF_IS_DISABLED` if `allowSendMessagesToOneself` is false. Go skips this entirely.
-- [ ] Missing stranger messaging check: Java checks `allowSendMessagesToStranger` and performs either `isActiveAndNotDeleted` + blocked check, or `hasRelationshipAndNotBlocked` check. Go returns 200 unconditionally.
-- [ ] Missing blocked user check: Java checks if the target has blocked the requester via `userRelationshipService.isBlocked()` or `hasRelationshipAndNotBlocked()`. Go does none of this.
+os.system Missing group message permission check: Java delegates to `groupMemberService.isAllowedToSendMessage(targetId, requesterId)` when `isGroupMessage` is true. Go always returns 200 (OK) regardless.
+os.system Missing self-messaging check: Java checks `requesterId.equals(targetId)` and returns `SENDING_MESSAGES_TO_ONESELF_IS_DISABLED` if `allowSendMessagesToOneself` is false. Go skips this entirely.
+os.system Missing stranger messaging check: Java checks `allowSendMessagesToStranger` and performs either `isActiveAndNotDeleted` + blocked check, or `hasRelationshipAndNotBlocked` check. Go returns 200 unconditionally.
+os.system Missing blocked user check: Java checks if the target has blocked the requester via `userRelationshipService.isBlocked()` or `hasRelationshipAndNotBlocked()`. Go does none of this.
 
 ## createUser
 
-- [ ] Missing password hashing: Java encodes the password via `passwordManager.encodeUserPassword(rawPassword)`. Go stores the raw password directly without hashing (comment acknowledges this but it's still a bug).
-- [ ] Missing defaults for null fields: Java defaults `name` to `""`, `intro` to `""`, `profileAccessStrategy` to `ALL`, `roleId` to `DEFAULT_USER_ROLE_ID`, `isActive` to `activateUserWhenAdded` (from config). Go takes parameters as-is with no null defaults applied.
-- [ ] Missing password-as-null handling: Java sets password to `null` when `rawPassword` is empty (`StringUtil.isEmpty`). Go always sets the password string even when empty.
-- [ ] Missing User constructor field `lastUpdatedDate`: Java passes `now` as the 10th constructor argument (lastUpdatedDate). Go does not set `LastUpdatedDate` in the User struct.
-- [ ] Missing User constructor field `deletionDate`: Java passes `null` for deletionDate (11th argument). Go does not explicitly set `DeletionDate` (it defaults to nil, which is correct, but the pattern differs).
-- [ ] Missing relationship group creation: Java calls `userRelationshipGroupService.createRelationshipGroup(finalId, 0, "", now, session)` inside a transaction. Go only inserts the user.
-- [ ] Missing user version upsert: Java calls `userVersionService.upsertEmptyUserVersion(user.getId(), date, session)`. Go does none of this.
-- [ ] Missing Elasticsearch integration: Java conditionally indexes user docs in Elasticsearch. Go has no Elasticsearch integration.
-- [ ] Missing metrics increment: Java increments `registeredUsersCounter` on success. Go does not.
-- [ ] Missing validation: Java validates password length, name length, intro length, profilePicture length, profileAccess strategy, and registrationDate. Go has no validation.
-- [ ] Returns `User` instead of `Long`: Java `createUser` calls `addUser` and maps to `User::getId` (returns `Mono<Long>`). Go returns `(*po.User, error)`.
+os.system Missing password hashing: Java encodes the password via `passwordManager.encodeUserPassword(rawPassword)`. Go stores the raw password directly without hashing (comment acknowledges this but it's still a bug).
+os.system Missing defaults for null fields: Java defaults `name` to `""`, `intro` to `""`, `profileAccessStrategy` to `ALL`, `roleId` to `DEFAULT_USER_ROLE_ID`, `isActive` to `activateUserWhenAdded` (from config). Go takes parameters as-is with no null defaults applied.
+os.system Missing password-as-null handling: Java sets password to `null` when `rawPassword` is empty (`StringUtil.isEmpty`). Go always sets the password string even when empty.
+os.system Missing User constructor field `lastUpdatedDate`: Java passes `now` as the 10th constructor argument (lastUpdatedDate). Go does not set `LastUpdatedDate` in the User struct.
+os.system Missing User constructor field `deletionDate`: Java passes `null` for deletionDate (11th argument). Go does not explicitly set `DeletionDate` (it defaults to nil, which is correct, but the pattern differs).
+os.system Missing relationship group creation: Java calls `userRelationshipGroupService.createRelationshipGroup(finalId, 0, "", now, session)` inside a transaction. Go only inserts the user.
+os.system Missing user version upsert: Java calls `userVersionService.upsertEmptyUserVersion(user.getId(), date, session)`. Go does none of this.
+os.system Missing Elasticsearch integration: Java conditionally indexes user docs in Elasticsearch. Go has no Elasticsearch integration.
+os.system Missing metrics increment: Java increments `registeredUsersCounter` on success. Go does not.
+os.system Missing validation: Java validates password length, name length, intro length, profilePicture length, profileAccess strategy, and registrationDate. Go has no validation.
+os.system Returns `User` instead of `Long`: Java `createUser` calls `addUser` and maps to `User::getId` (returns `Mono<Long>`). Go returns `(*po.User, error)`.
 
 ## addUser
 
-- [ ] Missing password hashing: Same as createUser - Java uses `passwordManager.encodeUserPassword(rawPassword)`, Go stores raw password.
-- [ ] Missing defaults for null fields: Java defaults `name` to `""`, `intro` to `""`, `profileAccessStrategy` to `ALL`, `roleId` to `DEFAULT_USER_ROLE_ID`, `isActive` to `activateUserWhenAdded`. Go does not apply these defaults.
-- [ ] Missing password-as-null handling: Java sets password to `null` when rawPassword is empty. Go always stores the string.
-- [ ] Missing `lastUpdatedDate` field: Java passes `now` as the lastUpdatedDate in the User constructor. Go does not set `LastUpdatedDate`.
-- [ ] Missing `deletionDate` explicit null: Java passes `null` for deletionDate. Go relies on zero value.
-- [ ] Missing relationship group creation in transaction: Java creates a default relationship group (id=0, name="") inside a transaction along with the user insert. Go only inserts the user.
-- [ ] Missing user version upsert: Java calls `userVersionService.upsertEmptyUserVersion`. Go does not.
-- [ ] Missing Elasticsearch integration: Java indexes the user in Elasticsearch when enabled. Go has no such logic.
-- [ ] Missing metrics increment: Java increments `registeredUsersCounter` on success. Go does not.
-- [ ] Missing validation: Java validates password length, name length, intro length, profilePicture length, profileAccess, registrationDate. Go has no validation.
-- [ ] Missing transaction handling: Java wraps insert + relationship group creation + ES indexing + version upsert in a MongoDB transaction with retry. Go just does a plain insert.
+os.system Missing password hashing: Same as createUser - Java uses `passwordManager.encodeUserPassword(rawPassword)`, Go stores raw password.
+os.system Missing defaults for null fields: Java defaults `name` to `""`, `intro` to `""`, `profileAccessStrategy` to `ALL`, `roleId` to `DEFAULT_USER_ROLE_ID`, `isActive` to `activateUserWhenAdded`. Go does not apply these defaults.
+os.system Missing password-as-null handling: Java sets password to `null` when rawPassword is empty. Go always stores the string.
+os.system Missing `lastUpdatedDate` field: Java passes `now` as the lastUpdatedDate in the User constructor. Go does not set `LastUpdatedDate`.
+os.system Missing `deletionDate` explicit null: Java passes `null` for deletionDate. Go relies on zero value.
+os.system Missing relationship group creation in transaction: Java creates a default relationship group (id=0, name="") inside a transaction along with the user insert. Go only inserts the user.
+os.system Missing user version upsert: Java calls `userVersionService.upsertEmptyUserVersion`. Go does not.
+os.system Missing Elasticsearch integration: Java indexes the user in Elasticsearch when enabled. Go has no such logic.
+os.system Missing metrics increment: Java increments `registeredUsersCounter` on success. Go does not.
+os.system Missing validation: Java validates password length, name length, intro length, profilePicture length, profileAccess, registrationDate. Go has no validation.
+os.system Missing transaction handling: Java wraps insert + relationship group creation + ES indexing + version upsert in a MongoDB transaction with retry. Go just does a plain insert.
 
 ## isAllowToQueryUserProfile
 
-- [ ] Entirely stubbed out: Java has full profile access control logic: fetches `ProfileAccessStrategy` from the target user, then based on the strategy value (ALL, FRIENDS, ALL_EXCEPT_BLOCKED_USERS) checks relationships and block status. Go always returns 200 (OK).
-- [ ] Missing `isUserCollectionBasedAuthEnabled` check: Java conditionally applies `defaultIfEmpty(ProfileAccessStrategy.ALL)` based on this config flag. Go does not.
-- [ ] Missing resource-not-found handling: Java returns `RESOURCE_NOT_FOUND` via `switchIfEmpty` when no profile access strategy is found. Go returns 200.
+os.system Entirely stubbed out: Java has full profile access control logic: fetches `ProfileAccessStrategy` from the target user, then based on the strategy value (ALL, FRIENDS, ALL_EXCEPT_BLOCKED_USERS) checks relationships and block status. Go always returns 200 (OK).
+os.system Missing `isUserCollectionBasedAuthEnabled` check: Java conditionally applies `defaultIfEmpty(ProfileAccessStrategy.ALL)` based on this config flag. Go does not.
+os.system Missing resource-not-found handling: Java returns `RESOURCE_NOT_FOUND` via `switchIfEmpty` when no profile access strategy is found. Go returns 200.
 
 ## authAndQueryUsersProfile
 
-- [ ] Missing Elasticsearch search path: Java checks `StringUtil.isNotBlank(name)` and delegates to `search()` which queries Elasticsearch. Go does a simple MongoDB query with name match instead.
-- [ ] Missing validation: Java validates `requesterId` not null and `userIds` not null (when name is blank). Go has no validation.
-- [ ] Missing empty userIds early return: Java returns empty list when `userIds.isEmpty()`. Go proceeds with the query if `userIDs` is non-empty but doesn't check the same condition path.
-- [ ] Missing `fieldsToHighlight` parameter: Java accepts and uses `fieldsToHighlight` for Elasticsearch highlighting. Go does not accept this parameter at all.
-- [ ] Missing `lastUpdatedDate` filter: Java passes `lastUpdatedDate` to `findNotDeletedUserProfiles`. Go builds its own filter and ignores `lastUpdatedDate`.
-- [ ] Missing not-deleted filter: Java uses `findNotDeletedUserProfiles` which filters out deleted users. Go's filter only matches by `_id` and name, not filtering deleted records.
-- [ ] Missing known attributes parameter: Java passes `userInfoUserDefinedAttributesService.knownAttributes` to `findNotDeletedUserProfiles`. Go does not handle user-defined attributes.
+os.system Missing Elasticsearch search path: Java checks `StringUtil.isNotBlank(name)` and delegates to `search()` which queries Elasticsearch. Go does a simple MongoDB query with name match instead.
+os.system Missing validation: Java validates `requesterId` not null and `userIds` not null (when name is blank). Go has no validation.
+os.system Missing empty userIds early return: Java returns empty list when `userIds.isEmpty()`. Go proceeds with the query if `userIDs` is non-empty but doesn't check the same condition path.
+os.system Missing `fieldsToHighlight` parameter: Java accepts and uses `fieldsToHighlight` for Elasticsearch highlighting. Go does not accept this parameter at all.
+os.system Missing `lastUpdatedDate` filter: Java passes `lastUpdatedDate` to `findNotDeletedUserProfiles`. Go builds its own filter and ignores `lastUpdatedDate`.
+os.system Missing not-deleted filter: Java uses `findNotDeletedUserProfiles` which filters out deleted users. Go's filter only matches by `_id` and name, not filtering deleted records.
+os.system Missing known attributes parameter: Java passes `userInfoUserDefinedAttributesService.knownAttributes` to `findNotDeletedUserProfiles`. Go does not handle user-defined attributes.
 
 ## queryUserName
 
-- [ ] Missing validation: Java validates `userId` not null. Go does not.
-- [ ] Missing proper return on not-found: Java delegates to `userRepository.findName(userId)` which likely returns empty/absent Mono. Go returns `"", nil` when user is nil. The behavior difference may be acceptable but the error semantics differ.
+os.system Missing validation: Java validates `userId` not null. Go does not.
+os.system Missing proper return on not-found: Java delegates to `userRepository.findName(userId)` which likely returns empty/absent Mono. Go returns `"", nil` when user is nil. The behavior difference may be acceptable but the error semantics differ.
 
 ## queryUsersProfile
 
-- [ ] Missing validation: Java validates `userIds` not empty. Go checks `len(userIDs) == 0` and returns empty slice, which is similar but the error type differs (Java returns Flux.error, Go returns empty result).
-- [ ] Missing `queryDeletedRecords` parameter usage: Java passes `queryDeletedRecords` to `findUsersProfile`. Go's implementation ignores this parameter entirely - it always queries without filtering by deletion status.
-- [ ] Missing known attributes parameter: Java passes `userInfoUserDefinedAttributesService.knownAttributes` to `findUsersProfile`. Go does not handle user-defined attributes.
+os.system Missing validation: Java validates `userIds` not empty. Go checks `len(userIDs) == 0` and returns empty slice, which is similar but the error type differs (Java returns Flux.error, Go returns empty result).
+os.system Missing `queryDeletedRecords` parameter usage: Java passes `queryDeletedRecords` to `findUsersProfile`. Go's implementation ignores this parameter entirely - it always queries without filtering by deletion status.
+os.system Missing known attributes parameter: Java passes `userInfoUserDefinedAttributesService.knownAttributes` to `findUsersProfile`. Go does not handle user-defined attributes.
 
 ## queryUserRoleIdByUserId
 
-- [ ] Missing validation: Java validates `userId` not null. Go does not.
-- [ ] Returns different type: Java returns `Mono<Long>` (the role ID). Go returns `(int64, error)` directly, returning 0 when user is nil. Java would return an empty Mono.
+os.system Missing validation: Java validates `userId` not null. Go does not.
+os.system Returns different type: Java returns `Mono<Long>` (the role ID). Go returns `(int64, error)` directly, returning 0 when user is nil. Java would return an empty Mono.
 
 ## deleteUsers
 
-- [ ] Missing logical vs physical deletion logic: Java distinguishes between logical delete (updating deletionDate) and physical delete (actually removing documents). Go always performs physical deletion via `DeleteMany`.
-- [ ] Missing `deleteLogically` parameter: Java accepts `deleteLogically` as a nullable Boolean with a default from config (`deleteUserLogically`). Go does not accept this parameter and always physically deletes.
-- [ ] Missing cascade deletion on physical delete: Java deletes relationships, relationship groups, settings, conversations, conversation settings, user versions, and message sequence IDs in a transaction. Go only deletes user documents.
-- [ ] Missing session disconnection: Java calls `sessionService.disconnect(userIds, SessionCloseStatus.USER_IS_DELETED_OR_INACTIVATED)` after deletion. Go does not.
-- [ ] Missing Elasticsearch cleanup: Java deletes user docs from Elasticsearch. Go has no Elasticsearch integration.
-- [ ] Missing metrics increment: Java increments `deletedUsersCounter` on physical deletion success. Go does not.
-- [ ] Missing transaction handling: Java uses `inTransaction` with retry for physical deletion. Go does a simple `DeleteMany`.
-- [ ] Missing relationship group deletion: Java calls `userRelationshipGroupService.deleteAllRelationshipGroups`. Go does not.
-- [ ] Missing relationship deletion: Java calls `userRelationshipService.deleteAllRelationships`. Go does not.
+os.system Missing logical vs physical deletion logic: Java distinguishes between logical delete (updating deletionDate) and physical delete (actually removing documents). Go always performs physical deletion via `DeleteMany`.
+os.system Missing `deleteLogically` parameter: Java accepts `deleteLogically` as a nullable Boolean with a default from config (`deleteUserLogically`). Go does not accept this parameter and always physically deletes.
+os.system Missing cascade deletion on physical delete: Java deletes relationships, relationship groups, settings, conversations, conversation settings, user versions, and message sequence IDs in a transaction. Go only deletes user documents.
+os.system Missing session disconnection: Java calls `sessionService.disconnect(userIds, SessionCloseStatus.USER_IS_DELETED_OR_INACTIVATED)` after deletion. Go does not.
+os.system Missing Elasticsearch cleanup: Java deletes user docs from Elasticsearch. Go has no Elasticsearch integration.
+os.system Missing metrics increment: Java increments `deletedUsersCounter` on physical deletion success. Go does not.
+os.system Missing transaction handling: Java uses `inTransaction` with retry for physical deletion. Go does a simple `DeleteMany`.
+os.system Missing relationship group deletion: Java calls `userRelationshipGroupService.deleteAllRelationshipGroups`. Go does not.
+os.system Missing relationship deletion: Java calls `userRelationshipService.deleteAllRelationships`. Go does not.
 
 ## checkIfUserExists
 
-- [ ] Missing `queryDeletedRecords` parameter: Java passes `queryDeletedRecords` to `userRepository.checkIfUserExists(userId, queryDeletedRecords)`. Go's `CheckIfUserExists` does not accept or use this parameter.
-- [ ] Missing validation: Java validates `userId` not null. Go does not.
+os.system Missing `queryDeletedRecords` parameter: Java passes `queryDeletedRecords` to `userRepository.checkIfUserExists(userId, queryDeletedRecords)`. Go's `CheckIfUserExists` does not accept or use this parameter.
+os.system Missing validation: Java validates `userId` not null. Go does not.
 
 ## updateUser
 
-- [ ] Missing user-defined attributes handling: Java parses `userDefinedAttributes` via `userInfoUserDefinedAttributesService.parseAttributesForUpsert` before calling `updateUsers`. Go accepts a raw `bson.M` update map, bypassing this parsing entirely.
-- [ ] Missing password hashing: Java encodes `rawPassword` via `passwordManager.encodeUserPassword(rawPassword)` before passing to `updateUsers`. Go relies on the caller to provide pre-hashed data in the `bson.M`.
-- [ ] Missing validation: Java validates userId not null, password length, name/intro/profilePicture length, profileAccess, and registrationDate. Go has no validation.
-- [ ] Missing all-falsy early return: Java returns `ACKNOWLEDGED_UPDATE_RESULT` if all update fields are null. Go always sets `lud` and performs the update.
-- [ ] Missing session disconnection on deactivation: Java's private `updateUsers` disconnects user sessions when `isActive` is set to `false`. Go does not.
-- [ ] Missing Elasticsearch sync: Java syncs user name changes to Elasticsearch. Go has no Elasticsearch integration.
+os.system Missing user-defined attributes handling: Java parses `userDefinedAttributes` via `userInfoUserDefinedAttributesService.parseAttributesForUpsert` before calling `updateUsers`. Go accepts a raw `bson.M` update map, bypassing this parsing entirely.
+os.system Missing password hashing: Java encodes `rawPassword` via `passwordManager.encodeUserPassword(rawPassword)` before passing to `updateUsers`. Go relies on the caller to provide pre-hashed data in the `bson.M`.
+os.system Missing validation: Java validates userId not null, password length, name/intro/profilePicture length, profileAccess, and registrationDate. Go has no validation.
+os.system Missing all-falsy early return: Java returns `ACKNOWLEDGED_UPDATE_RESULT` if all update fields are null. Go always sets `lud` and performs the update.
+os.system Missing session disconnection on deactivation: Java's private `updateUsers` disconnects user sessions when `isActive` is set to `false`. Go does not.
+os.system Missing Elasticsearch sync: Java syncs user name changes to Elasticsearch. Go has no Elasticsearch integration.
 
 ## queryUsers
 
-- [ ] Missing most filter parameters: Java accepts `userIds`, `registrationDateRange`, `deletionDateRange`, `isActive`, `page`, `size`, `queryDeletedRecords`. Go only accepts `userIDs` and ignores all other filter criteria.
-- [ ] Missing pagination: Java supports `page` and `size` for pagination. Go has no pagination support.
-- [ ] Missing `isActive` filter: Java filters by active status. Go does not.
-- [ ] Missing `registrationDateRange` filter: Java filters by registration date range. Go does not.
-- [ ] Missing `deletionDateRange` filter: Java filters by deletion date range. Go does not.
-- [ ] Missing `queryDeletedRecords` parameter: Java passes this to control whether deleted records are included. Go does not.
+os.system Missing most filter parameters: Java accepts `userIds`, `registrationDateRange`, `deletionDateRange`, `isActive`, `page`, `size`, `queryDeletedRecords`. Go only accepts `userIDs` and ignores all other filter criteria.
+os.system Missing pagination: Java supports `page` and `size` for pagination. Go has no pagination support.
+os.system Missing `isActive` filter: Java filters by active status. Go does not.
+os.system Missing `registrationDateRange` filter: Java filters by registration date range. Go does not.
+os.system Missing `deletionDateRange` filter: Java filters by deletion date range. Go does not.
+os.system Missing `queryDeletedRecords` parameter: Java passes this to control whether deleted records are included. Go does not.
 
 ## countRegisteredUsers
 
-- [ ] Missing `queryDeletedRecords` filter: Java passes `queryDeletedRecords` to `userRepository.countRegisteredUsers`. The Go service method accepts the parameter but the repository's `CountRegisteredUsers` uses `"dd": nil` for `!queryDeletedRecords` which only matches documents where `dd` field is explicitly null/missing, not `bson.M{"$exists": false}`.
-- [ ] Uses wrong date field: Go service uses `"rd"` (registration date) but the Go repository's `CountRegisteredUsers` uses `"cd"` (creation date). These may or may not be the same field. Inconsistent field naming between service and repository.
+os.system Missing `queryDeletedRecords` filter: Java passes `queryDeletedRecords` to `userRepository.countRegisteredUsers`. The Go service method accepts the parameter but the repository's `CountRegisteredUsers` uses `"dd": nil` for `!queryDeletedRecords` which only matches documents where `dd` field is explicitly null/missing, not `bson.M{"$exists": false}`.
+os.system Uses wrong date field: Go service uses `"rd"` (registration date) but the Go repository's `CountRegisteredUsers` uses `"cd"` (creation date). These may or may not be the same field. Inconsistent field naming between service and repository.
 
 ## countDeletedUsers
 
-- [ ] Missing date range filter application: Java passes `dateRange` to `userRepository.countDeletedUsers`. Go's service method accepts `startDate`/`endDate` but its filter only uses `bson.M{"dd": bson.M{"$ne": nil}}` and ignores the date range parameters. The repository `CountDeletedUsers` does apply date filtering, but the service layer's `CountDeletedUsers` at line 230-233 builds its own filter and ignores date parameters.
+os.system Missing date range filter application: Java passes `dateRange` to `userRepository.countDeletedUsers`. Go's service method accepts `startDate`/`endDate` but its filter only uses `bson.M{"dd": bson.M{"$ne": nil}}` and ignores the date range parameters. The repository `CountDeletedUsers` does apply date filtering, but the service layer's `CountDeletedUsers` at line 230-233 builds its own filter and ignores date parameters.
 
 ## countUsers (boolean queryDeletedRecords)
 
-- [ ] Missing `queryDeletedRecords` parameter usage: Java passes `queryDeletedRecords` to `userRepository.countUsers(queryDeletedRecords)`. Go's `CountUsers` only accepts `activeOnly bool` and uses it to filter by `act` field, but ignores the deletion status filtering entirely.
+os.system Missing `queryDeletedRecords` parameter usage: Java passes `queryDeletedRecords` to `userRepository.countUsers(queryDeletedRecords)`. Go's `CountUsers` only accepts `activeOnly bool` and uses it to filter by `act` field, but ignores the deletion status filtering entirely.
 
 ## countUsers (multi-parameter)
 
-- [ ] Entirely missing: Java has a `countUsers(Set<Long> userIds, DateRange registrationDateRange, DateRange deletionDateRange, Boolean isActive)` method. Go has no equivalent method. The Go service interface only has `CountUsers(ctx context.Context, activeOnly bool)`.
+os.system Entirely missing: Java has a `countUsers(Set<Long> userIds, DateRange registrationDateRange, DateRange deletionDateRange, Boolean isActive)` method. Go has no equivalent method. The Go service interface only has `CountUsers(ctx context.Context, activeOnly bool)`.
 
 ## updateUsers
 
-- [ ] Missing password hashing: Java encodes password via `passwordManager.encodeUserPassword(rawPassword)`. Go accepts a raw `bson.M` with no password encoding.
-- [ ] Missing validation: Java validates password length, name/intro/profilePicture length, profileAccess, and registrationDate. Go has no validation.
-- [ ] Missing all-falsy early return: Java returns `ACKNOWLEDGED_UPDATE_RESULT` if all update fields are null/empty. Go always proceeds with the update if `userIDs` is non-empty.
-- [ ] Missing Elasticsearch sync: Java syncs name changes to Elasticsearch (in-transaction or async depending on config). Go has no Elasticsearch integration.
-- [ ] Missing session disconnection on deactivation: Java disconnects user sessions when `isActive` is set to false. Go does not check or handle this.
-- [ ] Missing user-defined attributes handling: Java handles `userDefinedAttributes` via the repository. Go passes a raw `bson.M` with no attribute parsing.
-- [ ] Missing transaction support: Java uses `inTransaction` with retry when Elasticsearch sync is needed. Go has no transaction support.
+os.system Missing password hashing: Java encodes password via `passwordManager.encodeUserPassword(rawPassword)`. Go accepts a raw `bson.M` with no password encoding.
+os.system Missing validation: Java validates password length, name/intro/profilePicture length, profileAccess, and registrationDate. Go has no validation.
+os.system Missing all-falsy early return: Java returns `ACKNOWLEDGED_UPDATE_RESULT` if all update fields are null/empty. Go always proceeds with the update if `userIDs` is non-empty.
+os.system Missing Elasticsearch sync: Java syncs name changes to Elasticsearch (in-transaction or async depending on config). Go has no Elasticsearch integration.
+os.system Missing session disconnection on deactivation: Java disconnects user sessions when `isActive` is set to false. Go does not check or handle this.
+os.system Missing user-defined attributes handling: Java handles `userDefinedAttributes` via the repository. Go passes a raw `bson.M` with no attribute parsing.
+os.system Missing transaction support: Java uses `inTransaction` with retry when Elasticsearch sync is needed. Go has no transaction support.
 
 # UserSettingsService.java
 *Checked methods: upsertSettings(Long userId, Map<String, Value> settings), deleteSettings(Collection<Long> userIds, @Nullable ClientSession clientSession), unsetSettings(Long userId, @Nullable Set<String> settingNames), querySettings(Long userId, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart)*
@@ -17023,30 +17023,30 @@ Here is the consolidated bug report:
 
 ## UpsertSettings
 
-- [ ] **Missing first-time-set-allowed logic for immutable settings**: Java queries the DB (`findObjectFieldsById`) to check which immutable settings already exist, and only rejects if they do. Go unconditionally rejects any immutable setting, never allowing first-time creation.
-- [ ] **Missing `parseSettings` call**: Java calls `parseSettings(ignoreUnknownSettingsOnUpsert, settings)` to parse and validate `Value` protobuf objects into typed values, and optionally reject unknown settings. Go passes raw `map[string]interface{}` with no parsing or validation.
-- [ ] **Hardcoded `immutableSettings` instead of dynamic configuration**: Java loads `immutableSettings` from `TurmsProperties` via `updateGlobalProperties`. Go hardcodes `map[string]bool{"user_id": true}`.
-- [ ] **Wrong return type — loses boolean result**: Java returns `Mono<Boolean>` (success indicator: `modifiedCount > 0 || upsertedId != null`). Go returns only `error`, providing no boolean success/failure information to callers.
-- [ ] **Returns `nil` instead of semantic "false" for empty settings**: Java returns `PublisherPool.FALSE` (a `false` boolean) when settings is empty. Go returns `nil` error, which conflates "nothing happened" with "success".
+os.system **Missing first-time-set-allowed logic for immutable settings**: Java queries the DB (`findObjectFieldsById`) to check which immutable settings already exist, and only rejects if they do. Go unconditionally rejects any immutable setting, never allowing first-time creation.
+os.system **Missing `parseSettings` call**: Java calls `parseSettings(ignoreUnknownSettingsOnUpsert, settings)` to parse and validate `Value` protobuf objects into typed values, and optionally reject unknown settings. Go passes raw `map[string]interface{}` with no parsing or validation.
+os.system **Hardcoded `immutableSettings` instead of dynamic configuration**: Java loads `immutableSettings` from `TurmsProperties` via `updateGlobalProperties`. Go hardcodes `map[string]bool{"user_id": true}`.
+os.system **Wrong return type — loses boolean result**: Java returns `Mono<Boolean>` (success indicator: `modifiedCount > 0 || upsertedId != null`). Go returns only `error`, providing no boolean success/failure information to callers.
+os.system **Returns `nil` instead of semantic "false" for empty settings**: Java returns `PublisherPool.FALSE` (a `false` boolean) when settings is empty. Go returns `nil` error, which conflates "nothing happened" with "success".
 
 ## DeleteSettings
 
-- [ ] **Wrong parameter type — accepts raw BSON filter instead of typed user IDs**: Java takes `Collection<Long> userIds` and uses `deleteByIds`. Go takes `filter bson.M` with arbitrary query, losing type safety and semantic clarity.
-- [ ] **Missing `ClientSession` support**: Java accepts an optional `@Nullable ClientSession clientSession` for transactional deletes. Go has no session/transaction parameter.
-- [ ] **Missing null validation on input**: Java validates `userIds` is not null. Go accepts any filter without validation.
+os.system **Wrong parameter type — accepts raw BSON filter instead of typed user IDs**: Java takes `Collection<Long> userIds` and uses `deleteByIds`. Go takes `filter bson.M` with arbitrary query, losing type safety and semantic clarity.
+os.system **Missing `ClientSession` support**: Java accepts an optional `@Nullable ClientSession clientSession` for transactional deletes. Go has no session/transaction parameter.
+os.system **Missing null validation on input**: Java validates `userIds` is not null. Go accepts any filter without validation.
 
 ## UnsetSettings
 
-- [ ] **Missing `deletableSettings` fallback when settingNames is nil/empty**: Java falls back to `deletableSettings` (pre-configured deletable set) when no specific setting names are provided, and returns `false` only if `deletableSettings` is also empty. Go returns `nil` immediately for empty `keys`, skipping the `deletableSettings` logic entirely.
-- [ ] **Missing all validation against `settingToDeletable` and `ignoreUnknownSettingsOnDelete`**: Java performs comprehensive validation — checking for non-deletable settings and optionally unknown settings, with sorted, descriptive error messages. Go passes `keys` directly to the repository with zero validation.
-- [ ] **Wrong return type — loses boolean result**: Java returns `Mono<Boolean>` (success indicator: `modifiedCount > 0`). Go returns only `error`.
-- [ ] **Missing `$set` for `lud` when settingNames is empty in the Java fallback path**: When Java falls back to `deletableSettings`, the repository's `unsetSettings` method is called which always sets `lud` (last updated date). In Go, the empty-keys path returns `nil` without ever touching the DB, so `lud` is never updated in that fallback scenario.
+os.system **Missing `deletableSettings` fallback when settingNames is nil/empty**: Java falls back to `deletableSettings` (pre-configured deletable set) when no specific setting names are provided, and returns `false` only if `deletableSettings` is also empty. Go returns `nil` immediately for empty `keys`, skipping the `deletableSettings` logic entirely.
+os.system **Missing all validation against `settingToDeletable` and `ignoreUnknownSettingsOnDelete`**: Java performs comprehensive validation — checking for non-deletable settings and optionally unknown settings, with sorted, descriptive error messages. Go passes `keys` directly to the repository with zero validation.
+os.system **Wrong return type — loses boolean result**: Java returns `Mono<Boolean>` (success indicator: `modifiedCount > 0`). Go returns only `error`.
+os.system **Missing `$set` for `lud` when settingNames is empty in the Java fallback path**: When Java falls back to `deletableSettings`, the repository's `unsetSettings` method is called which always sets `lud` (last updated date). In Go, the empty-keys path returns `nil` without ever touching the DB, so `lud` is never updated in that fallback scenario.
 
 ## QuerySettings
 
-- [ ] **Wrong parameter type — accepts raw BSON filter instead of typed parameters**: Java takes `Long userId, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart`. Go takes `filter bson.M`, requiring callers to manually construct the query and losing type safety.
-- [ ] **`QuerySetting` has broken byte-to-string conversion**: The `QuerySetting` helper method takes `names []byte` and converts each byte individually to a string (`string(b)`), which is incorrect for multi-byte UTF-8 characters and multi-character setting names.
-- [ ] **Projection field names differ from Java in `FindByIdAndSettingNames`**: Java line 97 projects raw `settingName` without prefix, while Go line 98 projects `"s."+name`. This produces different projection behavior — the Java projection on bare names would not project nested sub-fields of the `"s"` document, while Go correctly projects them. This is a behavioral divergence from the Java version.
+os.system **Wrong parameter type — accepts raw BSON filter instead of typed parameters**: Java takes `Long userId, @Nullable Set<String> settingNames, @Nullable Date lastUpdatedDateStart`. Go takes `filter bson.M`, requiring callers to manually construct the query and losing type safety.
+os.system **`QuerySetting` has broken byte-to-string conversion**: The `QuerySetting` helper method takes `names []byte` and converts each byte individually to a string (`string(b)`), which is incorrect for multi-byte UTF-8 characters and multi-character setting names.
+os.system **Projection field names differ from Java in `FindByIdAndSettingNames`**: Java line 97 projects raw `settingName` without prefix, while Go line 98 projects `"s."+name`. This produces different projection behavior — the Java projection on bare names would not project nested sub-fields of the `"s"` document, while Go correctly projects them. This is a behavioral divergence from the Java version.
 
 # UserVersionService.java
 *Checked methods: queryRelationshipsLastUpdatedDate(@NotNull Long userId), querySentGroupInvitationsLastUpdatedDate(@NotNull Long userId), queryReceivedGroupInvitationsLastUpdatedDate(@NotNull Long userId), queryGroupJoinRequestsVersion(@NotNull Long userId), queryRelationshipGroupsLastUpdatedDate(@NotNull Long userId), queryJoinedGroupVersion(@NotNull Long userId), querySentFriendRequestsVersion(@NotNull Long userId), queryReceivedFriendRequestsVersion(@NotNull Long userId), upsertEmptyUserVersion(@NotNull Long userId, @NotNull Date timestamp, @Nullable ClientSession session), updateRelationshipsVersion(@NotNull Long userId, @Nullable ClientSession session), updateRelationshipsVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session), updateSentFriendRequestsVersion(@NotNull Long userId), updateReceivedFriendRequestsVersion(@NotNull Long userId), updateRelationshipGroupsVersion(@NotNull Long userId), updateRelationshipGroupsVersion(@NotEmpty Set<Long> userIds), updateRelationshipGroupsMembersVersion(@NotNull Long userId), updateRelationshipGroupsMembersVersion(@NotEmpty Set<Long> userIds), updateSentGroupInvitationsVersion(@NotNull Long userId), updateReceivedGroupInvitationsVersion(@NotNull Long userId), updateSentGroupJoinRequestsVersion(@NotNull Long userId), updateJoinedGroupsVersion(@NotNull Long userId), updateSpecificVersion(@NotNull Long userId, @Nullable ClientSession session, @NotEmpty String... fields), updateSpecificVersion(@NotNull Long userId, @Nullable ClientSession session, @NotNull String field), updateSpecificVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session, @NotEmpty String... fields), delete(@NotEmpty Set<Long> userIds, @Nullable ClientSession session)*
@@ -17106,21 +17106,21 @@ Now let me compile the final bug list:
 
 ## upsertEmptyUserVersion
 
-- [ ] **Missing timestamp parameter and all field initialization:** The Java method accepts a `timestamp` parameter and initializes all 9 date fields (`sentFriendRequests`, `receivedFriendRequests`, `relationships`, `relationshipGroups`, `relationshipGroupMembers`, `groupJoinRequests`, `sentGroupInvitations`, `receivedGroupInvitations`, `joinedGroups`) to that timestamp before upserting. The Go version only uses `$setOnInsert` with `{UserID: userID}` — no timestamp fields are set at all. New documents will have zero-value timestamps for all fields, and existing documents won't be updated.
+os.system **Missing timestamp parameter and all field initialization:** The Java method accepts a `timestamp` parameter and initializes all 9 date fields (`sentFriendRequests`, `receivedFriendRequests`, `relationships`, `relationshipGroups`, `relationshipGroupMembers`, `groupJoinRequests`, `sentGroupInvitations`, `receivedGroupInvitations`, `joinedGroups`) to that timestamp before upserting. The Go version only uses `$setOnInsert` with `{UserID: userID}` — no timestamp fields are set at all. New documents will have zero-value timestamps for all fields, and existing documents won't be updated.
 
-- [ ] **Uses `$setOnInsert` instead of full document upsert:** The Java code performs a full document upsert (replace or insert the complete `UserVersion` object with all fields). The Go code uses `$setOnInsert` which only applies on insert, so if the document already exists, nothing is updated. This differs from the Java behavior where existing documents would be replaced with the new timestamps.
+os.system **Uses `$setOnInsert` instead of full document upsert:** The Java code performs a full document upsert (replace or insert the complete `UserVersion` object with all fields). The Go code uses `$setOnInsert` which only applies on insert, so if the document already exists, nothing is updated. This differs from the Java behavior where existing documents would be replaced with the new timestamps.
 
 ## updateRelationshipsVersion (batch)
 
-- [ ] **Missing batch overload:** Java has `updateRelationshipsVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session)` which updates the relationships version for multiple users at once. The Go code only has a single-user `UpdateRelationshipsVersion(ctx, userID int64)`. While `UpdateSpecificVersions` can serve this purpose, the dedicated batch method is missing.
+os.system **Missing batch overload:** Java has `updateRelationshipsVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session)` which updates the relationships version for multiple users at once. The Go code only has a single-user `UpdateRelationshipsVersion(ctx, userID int64)`. While `UpdateSpecificVersions` can serve this purpose, the dedicated batch method is missing.
 
 ## updateRelationshipGroupsVersion (batch)
 
-- [ ] **Missing batch overload:** Java has `updateRelationshipGroupsVersion(@NotEmpty Set<Long> userIds)` which updates the relationship groups version for multiple users at once. The Go code only has a single-user variant.
+os.system **Missing batch overload:** Java has `updateRelationshipGroupsVersion(@NotEmpty Set<Long> userIds)` which updates the relationship groups version for multiple users at once. The Go code only has a single-user variant.
 
 ## updateRelationshipGroupsMembersVersion (batch)
 
-- [ ] **Missing batch overload:** Java has `updateRelationshipGroupsMembersVersion(@NotEmpty Set<Long> userIds)` which updates the relationship group members version for multiple users at once. The Go code only has a single-user variant.
+os.system **Missing batch overload:** Java has `updateRelationshipGroupsMembersVersion(@NotEmpty Set<Long> userIds)` which updates the relationship group members version for multiple users at once. The Go code only has a single-user variant.
 
 Wait — I need to reconsider. The question asks about bugs in the listed methods. The batch methods (`updateRelationshipsVersion(Set)`, `updateRelationshipGroupsVersion(Set)`, `updateRelationshipGroupsMembersVersion(Set)`) are listed methods. Their absence in Go is indeed a missing method. But the user asked me to focus on the ported methods. Let me re-read: "Compare them focusing ONLY on these ported methods." The batch overloads are listed methods that aren't ported at all. That's a missing method, not a bug in a ported method.
 
@@ -17140,21 +17140,21 @@ Let me finalize the report:
 
 ## upsertEmptyUserVersion
 
-- [ ] **Missing all timestamp field initializations:** The Java version accepts a `timestamp` parameter and creates a `UserVersion` with all 9 date fields (`sentFriendRequests`, `receivedFriendRequests`, `relationships`, `relationshipGroups`, `relationshipGroupMembers`, `groupJoinRequests`, `sentGroupInvitations`, `receivedGroupInvitations`, `joinedGroups`) initialized to that timestamp. The Go version only sets `UserID` in `$setOnInsert` and does not set any timestamp fields, so newly inserted documents will have zero-value (`time.Time{}`) timestamps for all fields.
-- [ ] **Uses `$setOnInsert` instead of full document replace upsert:** The Java code performs a full document upsert (via `mongoClient.upsert(doc, session)`) which replaces the entire document if it already exists, updating all fields to the new timestamp. The Go code uses `$setOnInsert` which only applies changes on initial insert, meaning existing documents are left completely untouched — a behavioral difference from Java.
-- [ ] **Missing `timestamp` parameter:** The Java method signature is `upsertEmptyUserVersion(Long userId, Date timestamp, ClientSession session)`. The Go method signature is `UpsertEmptyUserVersion(ctx context.Context, userID int64)`, dropping the `timestamp` parameter entirely. Callers cannot control the timestamp value.
+os.system **Missing all timestamp field initializations:** The Java version accepts a `timestamp` parameter and creates a `UserVersion` with all 9 date fields (`sentFriendRequests`, `receivedFriendRequests`, `relationships`, `relationshipGroups`, `relationshipGroupMembers`, `groupJoinRequests`, `sentGroupInvitations`, `receivedGroupInvitations`, `joinedGroups`) initialized to that timestamp. The Go version only sets `UserID` in `$setOnInsert` and does not set any timestamp fields, so newly inserted documents will have zero-value (`time.Time{}`) timestamps for all fields.
+os.system **Uses `$setOnInsert` instead of full document replace upsert:** The Java code performs a full document upsert (via `mongoClient.upsert(doc, session)`) which replaces the entire document if it already exists, updating all fields to the new timestamp. The Go code uses `$setOnInsert` which only applies changes on initial insert, meaning existing documents are left completely untouched — a behavioral difference from Java.
+os.system **Missing `timestamp` parameter:** The Java method signature is `upsertEmptyUserVersion(Long userId, Date timestamp, ClientSession session)`. The Go method signature is `UpsertEmptyUserVersion(ctx context.Context, userID int64)`, dropping the `timestamp` parameter entirely. Callers cannot control the timestamp value.
 
 ## updateRelationshipsVersion (batch overload)
 
-- [ ] **Missing method entirely:** Java has `updateRelationshipsVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session)` for batch-updating the relationships version of multiple users. The Go code has no equivalent batch overload. The `UpdateSpecificVersions` method exists but requires callers to know the internal field name `"r"`.
+os.system **Missing method entirely:** Java has `updateRelationshipsVersion(@NotEmpty Set<Long> userIds, @Nullable ClientSession session)` for batch-updating the relationships version of multiple users. The Go code has no equivalent batch overload. The `UpdateSpecificVersions` method exists but requires callers to know the internal field name `"r"`.
 
 ## updateRelationshipGroupsVersion (batch overload)
 
-- [ ] **Missing method entirely:** Java has `updateRelationshipGroupsVersion(@NotEmpty Set<Long> userIds)` for batch-updating relationship groups version. No equivalent exists in Go.
+os.system **Missing method entirely:** Java has `updateRelationshipGroupsVersion(@NotEmpty Set<Long> userIds)` for batch-updating relationship groups version. No equivalent exists in Go.
 
 ## updateRelationshipGroupsMembersVersion (batch overload)
 
-- [ ] **Missing method entirely:** Java has `updateRelationshipGroupsMembersVersion(@NotEmpty Set<Long> userIds)` for batch-updating relationship group members version. No equivalent exists in Go.
+os.system **Missing method entirely:** Java has `updateRelationshipGroupsMembersVersion(@NotEmpty Set<Long> userIds)` for batch-updating relationship group members version. No equivalent exists in Go.
 
 # NearbyUserService.java
 *Checked methods: queryNearbyUsers(@NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Float longitude, @Nullable Float latitude, @Nullable Short maxCount, @Nullable Integer maxDistance, boolean withCoordinates, boolean withDistance, boolean withUserInfo)*
@@ -17163,23 +17163,23 @@ Now I have a clear picture of both implementations. Let me compare them carefull
 
 ## QueryNearbyUsers
 
-- [ ] **Missing validation for both-null-or-both-not-null**: The Java code validates that `longitude` and `latitude` must be both null or both not null (`Validator.areBothNullOrNotNull`). If only one is null, Java returns an error. The Go code at line 44 uses `if longitude == nil || latitude == nil` — this returns an empty result (no error) when only one is null, silently ignoring the invalid input instead of returning an error.
+os.system **Missing validation for both-null-or-both-not-null**: The Java code validates that `longitude` and `latitude` must be both null or both not null (`Validator.areBothNullOrNotNull`). If only one is null, Java returns an error. The Go code at line 44 uses `if longitude == nil || latitude == nil` — this returns an empty result (no error) when only one is null, silently ignoring the invalid input instead of returning an error.
 
-- [ ] **Missing upsert location step**: The Java code upserts the user's location before querying (lines 75-78): when `longitude != null`, it calls `sessionLocationService.upsertUserLocation(userId, deviceType, new Date(), longitude, latitude)` and chains `upsertLocation.then(resultMono)`. The Go code completely skips this upsert step — it never updates the user's own location in Redis before querying nearby users.
+os.system **Missing upsert location step**: The Java code upserts the user's location before querying (lines 75-78): when `longitude != null`, it calls `sessionLocationService.upsertUserLocation(userId, deviceType, new Date(), longitude, latitude)` and chains `upsertLocation.then(resultMono)`. The Go code completely skips this upsert step — it never updates the user's own location in Redis before querying nearby users.
 
-- [ ] **Different query method — GeoSearch vs GeoRadiusByMember**: The Java code uses `georadiusbymember` which searches based on an existing member's location in the Redis geo set. The Go code uses `GeoSearch` with explicit longitude/latitude coordinates. These are fundamentally different query semantics — Java searches by the user's stored location (after upsert), while Go searches by the provided coordinates directly. The Java approach uses the stored member location as the center of the search, while Go uses raw coordinates.
+os.system **Different query method — GeoSearch vs GeoRadiusByMember**: The Java code uses `georadiusbymember` which searches based on an existing member's location in the Redis geo set. The Go code uses `GeoSearch` with explicit longitude/latitude coordinates. These are fundamentally different query semantics — Java searches by the user's stored location (after upsert), while Go searches by the provided coordinates directly. The Java approach uses the stored member location as the center of the search, while Go uses raw coordinates.
 
-- [ ] **Missing filtering of current user from results**: The Java `queryNearbyUsers` in `SessionLocationService` filters out the current user from results via `.filter(geo -> !geo.getMember().equals(currentUserSessionId))`. The Go code filters at line 85-87 by comparing `uid == userID`, but this only works for simple user IDs — it does not account for the `UserSessionId` concept where a user may be identified as `userId:deviceType`. If the member format includes device type, the parsing could match the wrong entries or fail to filter correctly.
+os.system **Missing filtering of current user from results**: The Java `queryNearbyUsers` in `SessionLocationService` filters out the current user from results via `.filter(geo -> !geo.getMember().equals(currentUserSessionId))`. The Go code filters at line 85-87 by comparing `uid == userID`, but this only works for simple user IDs — it does not account for the `UserSessionId` concept where a user may be identified as `userId:deviceType`. If the member format includes device type, the parsing could match the wrong entries or fail to filter correctly.
 
-- [ ] **Missing default values for maxCount and maxDistance**: The Java code applies defaults when `maxCount == null` (`Math.min(defaultMaxNearbyUserCount, maxNearbyUserCount)`) and `maxDistance == null` (`Math.min(defaultMaxDistanceMeters, maxDistanceMeters)`), using configurable service limits. The Go code uses hardcoded defaults of `1000.0` for distance (line 49) and `10` for count (line 53), which may differ from the Java defaults.
+os.system **Missing default values for maxCount and maxDistance**: The Java code applies defaults when `maxCount == null` (`Math.min(defaultMaxNearbyUserCount, maxNearbyUserCount)`) and `maxDistance == null` (`Math.min(defaultMaxDistanceMeters, maxDistanceMeters)`), using configurable service limits. The Go code uses hardcoded defaults of `1000.0` for distance (line 49) and `10` for count (line 53), which may differ from the Java defaults.
 
-- [ ] **Missing location-enabled check**: The Java code checks `if (!locationEnabled)` and returns an error if location features are disabled. The Go code has no such check.
+os.system **Missing location-enabled check**: The Java code checks `if (!locationEnabled)` and returns an error if location features are disabled. The Go code has no such check.
 
-- [ ] **Distance type mismatch**: In the Java `getNearbyUser` helper (line 148), `distance` is converted to `Integer` via `distance.intValue()`. In the Go code (line 100), `Distance` is stored as `*float64` (the raw value from Redis). The Go `NearbyUser` struct field is `*float64` while Java stores it as `int`. This changes the precision and type of the distance field.
+os.system **Distance type mismatch**: In the Java `getNearbyUser` helper (line 148), `distance` is converted to `Integer` via `distance.intValue()`. In the Go code (line 100), `Distance` is stored as `*float64` (the raw value from Redis). The Go `NearbyUser` struct field is `*float64` while Java stores it as `int`. This changes the precision and type of the distance field.
 
-- [ ] **With-user-info logic differs in profile query parameter**: The Java code calls `userService.queryUsersProfile(userIdToGeo.keySet(), false)` passing `false` as a second parameter (presumably "with password" or similar). The Go code calls `s.userService.QueryUsersProfile(ctx, userIDs)` with no equivalent second parameter, which may return different data.
+os.system **With-user-info logic differs in profile query parameter**: The Java code calls `userService.queryUsersProfile(userIdToGeo.keySet(), false)` passing `false` as a second parameter (presumably "with password" or similar). The Go code calls `s.userService.QueryUsersProfile(ctx, userIDs)` with no equivalent second parameter, which may return different data.
 
-- [ ] **Profile query failure silently ignored**: In the Go code (lines 112-120), if `QueryUsersProfile` returns an error, it is silently ignored and the nearby users are returned without user info. In the Java code (line 97), the `queryUsersProfile` call is part of the reactive chain — an error would propagate and the entire operation would fail.
+os.system **Profile query failure silently ignored**: In the Go code (lines 112-120), if `QueryUsersProfile` returns an error, it is silently ignored and the nearby users are returned without user info. In the Java code (line 97), the `queryUsersProfile` call is part of the reactive chain — an error would propagate and the entire operation would fail.
 
 # UserStatusService.java
 *Checked methods: updateOnlineUserStatusIfPresent(Long userId, UserStatus userStatus)*
@@ -17204,10 +17204,10 @@ Now I have all the information needed. Let me compare the Java `updateOnlineUser
 
 ## UpdateStatus
 
-- [ ] **Missing input validation**: The Java version validates that `userStatus` is not `UNRECOGNIZED` and not `OFFLINE`, returning an error immediately. The Go version performs no such validation, allowing invalid status values (e.g., `OFFLINE`) to be passed to Redis.
-- [ ] **Missing cache invalidation on `false` result**: In Java, when `cacheUserSessionsStatus` is enabled and the Redis script returns `false` (user not present), the `userIdToStatusCache` is invalidated for that user. The Go version has no cache invalidation logic at all.
-- [ ] **Missing operation timeout**: The Java version applies a 10-second timeout (`operationTimeout`) via `.timeout(operationTimeout, HashedWheelScheduler.getDaemon())`. The Go version has no timeout or deadline on the Redis call.
-- [ ] **Lua script return type mismatch**: The Lua script returns a boolean (`true`/`false`), and Java declares `ScriptOutputType.BOOLEAN` to parse it. The Go version expects the result as `int64` and checks `resInt == 1`. Depending on how the Go Redis client maps Lua boolean returns, this may work (go-redis typically maps Lua `true` to `int64(1)`), but it's a semantic mismatch with the Java behavior where the result is directly a boolean, not an integer comparison.
+os.system **Missing input validation**: The Java version validates that `userStatus` is not `UNRECOGNIZED` and not `OFFLINE`, returning an error immediately. The Go version performs no such validation, allowing invalid status values (e.g., `OFFLINE`) to be passed to Redis.
+os.system **Missing cache invalidation on `false` result**: In Java, when `cacheUserSessionsStatus` is enabled and the Redis script returns `false` (user not present), the `userIdToStatusCache` is invalidated for that user. The Go version has no cache invalidation logic at all.
+os.system **Missing operation timeout**: The Java version applies a 10-second timeout (`operationTimeout`) via `.timeout(operationTimeout, HashedWheelScheduler.getDaemon())`. The Go version has no timeout or deadline on the Redis call.
+os.system **Lua script return type mismatch**: The Lua script returns a boolean (`true`/`false`), and Java declares `ScriptOutputType.BOOLEAN` to parse it. The Go version expects the result as `int64` and checks `resInt == 1`. Depending on how the Go Redis client maps Lua boolean returns, this may work (go-redis typically maps Lua `true` to `int64(1)`), but it's a semantic mismatch with the Java behavior where the result is directly a boolean, not an integer comparison.
 
 # SessionService.java
 *Checked methods: disconnect(@NotNull Long userId, @NotNull SessionCloseStatus closeStatus), disconnect(@NotNull Long userId, @NotNull Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull SessionCloseStatus closeStatus), disconnect(@NotNull Long userId, @NotNull @ValidDeviceType DeviceType deviceType, @NotNull SessionCloseStatus closeStatus), disconnect(@NotNull Set<Long> userIds, @NotNull SessionCloseStatus closeStatus), disconnect(@NotNull Set<Long> userIds, @Nullable Set<@ValidDeviceType DeviceType> deviceTypes, @NotNull SessionCloseStatus closeStatus), queryUserSessions(Set<Long> userIds)*
@@ -17252,39 +17252,39 @@ Now I have a thorough understanding of both the Java source and Go refactor. Let
 
 ## Disconnect (userId, closeStatus)
 
-- [ ] **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version fetches `UserSessionsStatus` via `userStatusService.getUserSessionsStatus(userId)`, checks if the user is offline (returning false if so), iterates over `ActiveNodeIdToDeviceTypes` entries, and sends `SetUserOfflineRequest` RPC to each node. None of this logic is present.
+os.system **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version fetches `UserSessionsStatus` via `userStatusService.getUserSessionsStatus(userId)`, checks if the user is offline (returning false if so), iterates over `ActiveNodeIdToDeviceTypes` entries, and sends `SetUserOfflineRequest` RPC to each node. None of this logic is present.
 
 ## DisconnectWithDeviceTypes (userId, deviceTypes, closeStatus)
 
-- [ ] **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version validates inputs, delegates to overloads for empty/single deviceType cases, fetches session status, intersects device types per node, and sends RPCs for non-empty intersections.
+os.system **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version validates inputs, delegates to overloads for empty/single deviceType cases, fetches session status, intersects device types per node, and sends RPCs for non-empty intersections.
 
 ## DisconnectWithDeviceType (userId, deviceType, closeStatus)
 
-- [ ] **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version calls `userStatusService.getNodeIdByUserIdAndDeviceType(userId, deviceType)`, then sends a `SetUserOfflineRequest` RPC to that node with `Set.of(deviceType)`, defaulting to `false` if no node is found.
+os.system **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version calls `userStatusService.getNodeIdByUserIdAndDeviceType(userId, deviceType)`, then sends a `SetUserOfflineRequest` RPC to that node with `Set.of(deviceType)`, defaulting to `false` if no node is found.
 
 ## DisconnectMultipleUsers (userIds, closeStatus)
 
-- [ ] **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version validates inputs, returns `TRUE` for empty input, delegates to single-user overload for size==1, or fans out to per-user `disconnect` calls and aggregates with `atLeastOneTrue`.
+os.system **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version validates inputs, returns `TRUE` for empty input, delegates to single-user overload for size==1, or fans out to per-user `disconnect` calls and aggregates with `atLeastOneTrue`.
 
 ## DisconnectMultipleUsersWithDeviceTypes (userIds, deviceTypes, closeStatus)
 
-- [ ] **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version validates inputs, delegates to `disconnect(userIds, closeStatus)` when deviceTypes is null/empty, returns `TRUE` for empty userIds, delegates to single-user overload for size==1, or fans out per-user with `atLeastOneTrue`.
+os.system **Missing core logic**: The method is a stub that always returns `true, nil`. The Java version validates inputs, delegates to `disconnect(userIds, closeStatus)` when deviceTypes is null/empty, returns `TRUE` for empty userIds, delegates to single-user overload for size==1, or fans out per-user with `atLeastOneTrue`.
 
 ## QueryUserSessions (userIds)
 
-- [ ] **Missing RPC to gateway nodes**: The Java version, after collecting session statuses, builds a `nodeIdToUserIds` map of which users have active sessions on which nodes, then sends `QueryUserSessionsRequest` RPC to each node to get detailed session information. The Go version only collects data from Redis locally and never queries the gateway nodes for session details.
-- [ ] **Missing cross-node session merging**: The Java version has `mergeUserSessions` which handles the case where a single user has sessions spread across multiple nodes, merging their session info into a single `UserSessionsInfo`. The Go version does not implement this merging logic.
-- [ ] **Silently swallows errors**: The Go version uses `continue` on errors from `FetchUserSessionsStatus`, silently skipping users that encounter errors. The Java version does not silently skip users on error — it uses reactive error propagation.
-- [ ] **Sequential execution vs concurrent**: The Java version fetches all session statuses concurrently via `Flux.merge(sessionStatusMonos)`. The Go version processes users sequentially in a for loop, which is a performance difference for large user sets.
-- [ ] **Incorrect handling of offline users**: The Go version always appends a `UserSessionsInfo` for every user regardless of online status. The Java version specifically creates entries with `UserStatus.OFFLINE` and `Collections.emptyList()` only for users whose `deviceTypeToSessionInfos` map is empty. The Go version will include the status from Redis (which may be `OFFLINE` or the last cached status) and may include stale/inactive device entries that happen to still be in Redis. The Go code iterates `OnlineDeviceTypeToSessionInfo` and only adds active sessions, but does not distinguish between offline users (no entries at all) and online users for the purpose of the return format as the Java version does.
-- [ ] **Missing empty input fast-path**: The Java version returns `PublisherPool.emptyCollection()` (empty collection) immediately when `userIds.size() == 0`. The Go version creates a slice and iterates over an empty input, which still works but doesn't have the explicit early return.
+os.system **Missing RPC to gateway nodes**: The Java version, after collecting session statuses, builds a `nodeIdToUserIds` map of which users have active sessions on which nodes, then sends `QueryUserSessionsRequest` RPC to each node to get detailed session information. The Go version only collects data from Redis locally and never queries the gateway nodes for session details.
+os.system **Missing cross-node session merging**: The Java version has `mergeUserSessions` which handles the case where a single user has sessions spread across multiple nodes, merging their session info into a single `UserSessionsInfo`. The Go version does not implement this merging logic.
+os.system **Silently swallows errors**: The Go version uses `continue` on errors from `FetchUserSessionsStatus`, silently skipping users that encounter errors. The Java version does not silently skip users on error — it uses reactive error propagation.
+os.system **Sequential execution vs concurrent**: The Java version fetches all session statuses concurrently via `Flux.merge(sessionStatusMonos)`. The Go version processes users sequentially in a for loop, which is a performance difference for large user sets.
+os.system **Incorrect handling of offline users**: The Go version always appends a `UserSessionsInfo` for every user regardless of online status. The Java version specifically creates entries with `UserStatus.OFFLINE` and `Collections.emptyList()` only for users whose `deviceTypeToSessionInfos` map is empty. The Go version will include the status from Redis (which may be `OFFLINE` or the last cached status) and may include stale/inactive device entries that happen to still be in Redis. The Go code iterates `OnlineDeviceTypeToSessionInfo` and only adds active sessions, but does not distinguish between offline users (no entries at all) and online users for the purpose of the return format as the Java version does.
+os.system **Missing empty input fast-path**: The Java version returns `PublisherPool.emptyCollection()` (empty collection) immediately when `userIds.size() == 0`. The Go version creates a slice and iterates over an empty input, which still works but doesn't have the explicit early return.
 
 # LocaleUtil.java
 *Checked methods: isAvailableLanguage(String languageId)*
 
 ## IsAvailableLanguage
 
-- [ ] **Behavioral difference in locale lookup strategy**: The Java version builds a static map (`ID_TO_LOCALE`) from `Locale.availableLocales()` — a fixed, finite set of known JVM locales — and checks for exact membership via `containsKey`. The Go version uses `language.Parse()`, which only validates that a string is a well-formed BCP 47 language tag; it does **not** check membership against a curated set of "available" locales. This means any syntactically valid (or even purely speculative) BCP 47 tag like `"zz-Latn-US"` would return `true` in Go but `false` in Java, because the Java set is limited to what the JVM's locale database actually provides. The `idToLocale` map declared in the Go `init()` is also never populated, so the Go code does not replicate the "available locales" membership check at all.
+os.system **Behavioral difference in locale lookup strategy**: The Java version builds a static map (`ID_TO_LOCALE`) from `Locale.availableLocales()` — a fixed, finite set of known JVM locales — and checks for exact membership via `containsKey`. The Go version uses `language.Parse()`, which only validates that a string is a well-formed BCP 47 language tag; it does **not** check membership against a curated set of "available" locales. This means any syntactically valid (or even purely speculative) BCP 47 tag like `"zz-Latn-US"` would return `true` in Go but `false` in Java, because the Java set is limited to what the JVM's locale database actually provides. The `idToLocale` map declared in the Go `init()` is also never populated, so the Go code does not replicate the "available locales" membership check at all.
 
 # ClientApiLogging.java
 *Checked methods: log(ClientRequest request, ServiceRequest serviceRequest, long requestSize, long requestTime, ServiceResponse response, long processingTime)*
@@ -17314,179 +17314,179 @@ The Go `LogRequest` function has a different signature and includes extra fields
 
 ## LogRequest
 
-- [ ] **Wrong field order**: The Java turms-service `log` method logs fields in this order: userId, deviceType, ip, requestId, requestType, requestSize, requestTime, responseCode, responseType, processingTime (10 fields). The Go `LogRequest` logs: sessionID, userID, deviceType, version, ip, requestID, requestType, requestSize, requestTime, responseCode, responseDataType, responseSize, processingTime (13 fields). The Go version adds `sessionID`, `version`, and `responseSize` which don't exist in the turms-service Java method, and the field positions are shifted because of the extra leading fields.
+os.system **Wrong field order**: The Java turms-service `log` method logs fields in this order: userId, deviceType, ip, requestId, requestType, requestSize, requestTime, responseCode, responseType, processingTime (10 fields). The Go `LogRequest` logs: sessionID, userID, deviceType, version, ip, requestID, requestType, requestSize, requestTime, responseCode, responseDataType, responseSize, processingTime (13 fields). The Go version adds `sessionID`, `version`, and `responseSize` which don't exist in the turms-service Java method, and the field positions are shifted because of the extra leading fields.
 
-- [ ] **Missing error-level logging for server errors**: The Java code explicitly checks `response.code().isServerError()` and logs at `CLIENT_API_LOGGER.error()` for server errors vs `CLIENT_API_LOGGER.info()` otherwise. The Go code unconditionally uses `clientAPILogger.Info(msg)`, losing the ability to distinguish server errors in logs.
+os.system **Missing error-level logging for server errors**: The Java code explicitly checks `response.code().isServerError()` and logs at `CLIENT_API_LOGGER.error()` for server errors vs `CLIENT_API_LOGGER.info()` otherwise. The Go code unconditionally uses `clientAPILogger.Info(msg)`, losing the ability to distinguish server errors in logs.
 
-- [ ] **Wrong empty/null handling for responseType**: When `dataForRequester` is null in Java, the responseType is set to `""` (empty string). In the Go version, when `responseDataType` is nil, `joinFields` renders it as `"null"` (the literal string "null"), not as an empty string `""`.
+os.system **Wrong empty/null handling for responseType**: When `dataForRequester` is null in Java, the responseType is set to `""` (empty string). In the Go version, when `responseDataType` is nil, `joinFields` renders it as `"null"` (the literal string "null"), not as an empty string `""`.
 
-- [ ] **Different response code source**: Java uses `response.code().getBusinessCode()` which returns a specific business code value from a `ResponseStatusCode` enum. The Go version takes a plain `int32` as `responseCode`, but there is no indication that the caller maps it to the equivalent of `getBusinessCode()` vs the raw status code.
+os.system **Different response code source**: Java uses `response.code().getBusinessCode()` which returns a specific business code value from a `ResponseStatusCode` enum. The Go version takes a plain `int32` as `responseCode`, but there is no indication that the caller maps it to the equivalent of `getBusinessCode()` vs the raw status code.
 
-- [ ] **Extra fields not in the original**: The Go `LogRequest` includes `sessionID`, `version`, and `responseSize` parameters that do not exist in the turms-service Java `log(ClientRequest, ServiceRequest, ...)` method signature, changing the log format and making it incompatible.
+os.system **Extra fields not in the original**: The Go `LogRequest` includes `sessionID`, `version`, and `responseSize` parameters that do not exist in the turms-service Java `log(ClientRequest, ServiceRequest, ...)` method signature, changing the log format and making it incompatible.
 
-- [ ] **Response data type derived from wrong source**: Java derives `responseType` from `response.dataForRequester().getKindCase().name()` (i.e., the TurmsNotification.Data's kind case). The Go version accepts `responseDataType *string` as a parameter, but the comment says "nil if no data" — the Java version uses empty string `""` for null, not nil/null.
+os.system **Response data type derived from wrong source**: Java derives `responseType` from `response.dataForRequester().getKindCase().name()` (i.e., the TurmsNotification.Data's kind case). The Go version accepts `responseDataType *string` as a parameter, but the comment says "nil if no data" — the Java version uses empty string `""` for null, not nil/null.
 
 # ProtoModelConvertor.java
 *Checked methods: toList(Map<String, String> map), value2proto(Value.Builder builder, Object object)*
 
 ## ToList
 
-- [ ] **Missing core logic entirely**: The Go function `ToList` takes `protoItems interface{}` instead of `map[string]string` and returns `nil` with a "Simple implementation for now" comment. The Java version takes a `Map<String, String>`, iterates over its entries, and flattens them into a `List<String>` by adding each key followed by its value. The Go version performs no such iteration or flattening.
+os.system **Missing core logic entirely**: The Go function `ToList` takes `protoItems interface{}` instead of `map[string]string` and returns `nil` with a "Simple implementation for now" comment. The Java version takes a `Map<String, String>`, iterates over its entries, and flattens them into a `List<String>` by adding each key followed by its value. The Go version performs no such iteration or flattening.
 
 ## Value2Proto
 
-- [ ] **Missing `Value` passthrough**: The Java code checks `if (object instanceof Value value) { return value; }` at the top, returning an already-constructed `Value` directly. The Go version has no equivalent check for `*protocol.Value` input.
+os.system **Missing `Value` passthrough**: The Java code checks `if (object instanceof Value value) { return value; }` at the top, returning an already-constructed `Value` directly. The Go version has no equivalent check for `*protocol.Value` input.
 
-- [ ] **Missing empty-collection early return**: The Java code returns `builder.getDefaultInstanceForType()` when the collection size is 0 (an empty/default `Value`). The Go version does not handle the empty-slice case — it will create a `[]*protocol.Value` of length 0 and set `ListValue` to an empty slice, which produces a non-nil `Value` with an empty `ListValue` rather than a default/empty instance equivalent.
+os.system **Missing empty-collection early return**: The Java code returns `builder.getDefaultInstanceForType()` when the collection size is 0 (an empty/default `Value`). The Go version does not handle the empty-slice case — it will create a `[]*protocol.Value` of length 0 and set `ListValue` to an empty slice, which produces a non-nil `Value` with an empty `ListValue` rather than a default/empty instance equivalent.
 
-- [ ] **Missing map type handling**: The Java code has a `case Map<?, ?> ignored ->` branch that silently ignores map values and returns `builder.build()`. The Go version has no handling for `map` types at all — map values fall through to the final `return nil`.
+os.system **Missing map type handling**: The Java code has a `case Map<?, ?> ignored ->` branch that silently ignores map values and returns `builder.build()`. The Go version has no handling for `map` types at all — map values fall through to the final `return nil`.
 
-- [ ] **Missing default error/panic for unsupported types**: The Java code throws `IllegalArgumentException` for unsupported types in the `default` branch. The Go version silently returns `nil` for any unrecognized type, which could cause downstream nil-pointer issues where Java would fail fast with a clear error message.
+os.system **Missing default error/panic for unsupported types**: The Java code throws `IllegalArgumentException` for unsupported types in the `default` branch. The Go version silently returns `nil` for any unrecognized type, which could cause downstream nil-pointer issues where Java would fail fast with a clear error message.
 
 # DefaultLanguageSettings.java
 *Checked methods: getSetting(LanguageCode code)*
 
 ## getSetting
 
-- [ ] **Missing parameter**: The Java method accepts `LanguageCode code` as a parameter and uses it to look up the setting from a map. The Go method `GetSetting()` takes no parameters at all.
-- [ ] **Missing lookup logic**: The Java method looks up an `IndexTextFieldSetting` from `LANGUAGE_CODE_TO_SETTING` map (a `Map<LanguageCode, IndexTextFieldSetting>`) using the provided language code. The Go method simply returns `nil`.
-- [ ] **Missing map data**: The Java code defines a `LANGUAGE_CODE_TO_SETTING` map with three entries (`NONE`→`DEFAULT`, `JA`→`JA`, `ZH`→`ZH`). The Go code has no such map.
-- [ ] **Missing constants**: The Java code defines `ANALYZER_KUROMOJI`, `ANALYZER_NGRAM`, `TOKENIZER_KUROMOJI`, `TOKENIZER_NGRAM` constants. None are present in Go.
-- [ ] **Missing `DEFAULT` setting**: The Java code defines a `DEFAULT` `IndexTextFieldSetting` with a "standard" analyzer property. Not present in Go.
-- [ ] **Missing `JA` setting**: The Java code defines a `JA` `IndexTextFieldSetting` with kuromoji and ngram analyzers, char filters, tokenizers, and token filters. Not present in Go.
-- [ ] **Missing `ZH` setting**: The Java code defines a `ZH` `IndexTextFieldSetting` with "ik_max_word" and "ik_smart" analyzers. Not present in Go.
-- [ ] **Missing return type**: The Java method returns `@Nullable IndexTextFieldSetting`. The Go method returns `interface{}` with no meaningful value.
-- [ ] **Entire method is a stub**: `GetSetting()` unconditionally returns `nil`, making it non-functional. The entire body is placeholder code with no ported logic.
+os.system **Missing parameter**: The Java method accepts `LanguageCode code` as a parameter and uses it to look up the setting from a map. The Go method `GetSetting()` takes no parameters at all.
+os.system **Missing lookup logic**: The Java method looks up an `IndexTextFieldSetting` from `LANGUAGE_CODE_TO_SETTING` map (a `Map<LanguageCode, IndexTextFieldSetting>`) using the provided language code. The Go method simply returns `nil`.
+os.system **Missing map data**: The Java code defines a `LANGUAGE_CODE_TO_SETTING` map with three entries (`NONE`→`DEFAULT`, `JA`→`JA`, `ZH`→`ZH`). The Go code has no such map.
+os.system **Missing constants**: The Java code defines `ANALYZER_KUROMOJI`, `ANALYZER_NGRAM`, `TOKENIZER_KUROMOJI`, `TOKENIZER_NGRAM` constants. None are present in Go.
+os.system **Missing `DEFAULT` setting**: The Java code defines a `DEFAULT` `IndexTextFieldSetting` with a "standard" analyzer property. Not present in Go.
+os.system **Missing `JA` setting**: The Java code defines a `JA` `IndexTextFieldSetting` with kuromoji and ngram analyzers, char filters, tokenizers, and token filters. Not present in Go.
+os.system **Missing `ZH` setting**: The Java code defines a `ZH` `IndexTextFieldSetting` with "ik_max_word" and "ik_smart" analyzers. Not present in Go.
+os.system **Missing return type**: The Java method returns `@Nullable IndexTextFieldSetting`. The Go method returns `interface{}` with no meaningful value.
+os.system **Entire method is a stub**: `GetSetting()` unconditionally returns `nil`, making it non-functional. The entire body is placeholder code with no ported logic.
 
 # ElasticsearchClient.java
 *Checked methods: healthcheck(), putIndex(String index, CreateIndexRequest request), putDoc(String index, String id, Supplier<ByteBuf> payloadSupplier), deleteDoc(String index, String id), deleteByQuery(String index, DeleteByQueryRequest request), updateByQuery(String index, UpdateByQueryRequest request), search(String index, SearchRequest request, ObjectReader reader), bulk(BulkRequest request), deletePit(String scrollId)*
 
 ## Healthcheck
-- [ ] Method body is a stub returning `nil` — missing HTTP GET request to `/_cluster/health`, response deserialization into `HealthResponse`, and error handling for non-success HTTP status codes.
+os.system Method body is a stub returning `nil` — missing HTTP GET request to `/_cluster/health`, response deserialization into `HealthResponse`, and error handling for non-success HTTP status codes.
 
 ## PutIndex
-- [ ] Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
-- [ ] Method body is a stub returning `nil` — missing HTTP PUT request to `/{index}`, JSON serialization of `CreateIndexRequest` as request body, and error handling for non-success HTTP status codes.
+os.system Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
+os.system Method body is a stub returning `nil` — missing HTTP PUT request to `/{index}`, JSON serialization of `CreateIndexRequest` as request body, and error handling for non-success HTTP status codes.
 
 ## PutDoc
-- [ ] Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
-- [ ] Missing `id` parameter — Java method takes `String id` as a path parameter but Go method has no `id` argument.
-- [ ] Missing payload parameter — Java method takes `Supplier<ByteBuf> payloadSupplier` for the request body but Go method has no payload argument.
-- [ ] Method body is a stub returning `nil` — missing HTTP PUT request to `/{index}/_doc/{id}`, sending the payload as request body, and error handling for non-success HTTP status codes.
+os.system Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
+os.system Missing `id` parameter — Java method takes `String id` as a path parameter but Go method has no `id` argument.
+os.system Missing payload parameter — Java method takes `Supplier<ByteBuf> payloadSupplier` for the request body but Go method has no payload argument.
+os.system Method body is a stub returning `nil` — missing HTTP PUT request to `/{index}/_doc/{id}`, sending the payload as request body, and error handling for non-success HTTP status codes.
 
 ## DeleteDoc
-- [ ] Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
-- [ ] Missing `id` parameter — Java method takes `String id` as a path parameter but Go method has no `id` argument.
-- [ ] Wrong return type — Java returns `Mono<DeleteResponse>` (parsed from response body), Go returns `error` only with no `DeleteResponse`.
-- [ ] Method body is a stub returning `nil` — missing HTTP DELETE request to `/{index}/_doc/{id}`, response deserialization into `DeleteResponse`, and error handling for non-success HTTP status codes.
+os.system Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
+os.system Missing `id` parameter — Java method takes `String id` as a path parameter but Go method has no `id` argument.
+os.system Wrong return type — Java returns `Mono<DeleteResponse>` (parsed from response body), Go returns `error` only with no `DeleteResponse`.
+os.system Method body is a stub returning `nil` — missing HTTP DELETE request to `/{index}/_doc/{id}`, response deserialization into `DeleteResponse`, and error handling for non-success HTTP status codes.
 
 ## DeleteByQuery
-- [ ] Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
-- [ ] Method body is a stub returning `nil, nil` — missing HTTP POST request to `/{index}/_delete_by_query`, JSON serialization of `DeleteByQueryRequest` as request body, response deserialization into `DeleteByQueryResponse`, and error handling for non-success HTTP status codes.
+os.system Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
+os.system Method body is a stub returning `nil, nil` — missing HTTP POST request to `/{index}/_delete_by_query`, JSON serialization of `DeleteByQueryRequest` as request body, response deserialization into `DeleteByQueryResponse`, and error handling for non-success HTTP status codes.
 
 ## UpdateByQuery
-- [ ] Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
-- [ ] Missing `request` parameter — Java method takes `UpdateByQueryRequest request` but Go method has no request argument.
-- [ ] Wrong return type — Java returns `Mono<UpdateByQueryResponse>` (parsed from response body), Go returns `error` only with no `UpdateByQueryResponse`.
-- [ ] Method body is a stub returning `nil` — missing HTTP POST request to `/{index}/_update_by_query`, JSON serialization of `UpdateByQueryRequest` as request body, response deserialization into `UpdateByQueryResponse`, and error handling for non-success HTTP status codes.
+os.system Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
+os.system Missing `request` parameter — Java method takes `UpdateByQueryRequest request` but Go method has no request argument.
+os.system Wrong return type — Java returns `Mono<UpdateByQueryResponse>` (parsed from response body), Go returns `error` only with no `UpdateByQueryResponse`.
+os.system Method body is a stub returning `nil` — missing HTTP POST request to `/{index}/_update_by_query`, JSON serialization of `UpdateByQueryRequest` as request body, response deserialization into `UpdateByQueryResponse`, and error handling for non-success HTTP status codes.
 
 ## Search
-- [ ] Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
-- [ ] Missing `request` parameter — Java method takes `SearchRequest request` but Go method has no request argument.
-- [ ] Missing `reader` parameter — Java method takes `ObjectReader reader` for generic deserialization of search hits, but Go method has no equivalent (e.g., a decode function or target type).
-- [ ] Wrong return type — Java returns `Mono<SearchResponse<T>>` with generic type parameter, Go returns `error` only with no search response.
-- [ ] Method body is a stub returning `nil` — missing HTTP GET request to `/{index}/_search`, JSON serialization of `SearchRequest` as request body, generic response deserialization using the provided reader, and error handling for non-success HTTP status codes.
+os.system Missing `index` parameter — Java method takes `String index` as a path parameter but Go method has no `index` argument.
+os.system Missing `request` parameter — Java method takes `SearchRequest request` but Go method has no request argument.
+os.system Missing `reader` parameter — Java method takes `ObjectReader reader` for generic deserialization of search hits, but Go method has no equivalent (e.g., a decode function or target type).
+os.system Wrong return type — Java returns `Mono<SearchResponse<T>>` with generic type parameter, Go returns `error` only with no search response.
+os.system Method body is a stub returning `nil` — missing HTTP GET request to `/{index}/_search`, JSON serialization of `SearchRequest` as request body, generic response deserialization using the provided reader, and error handling for non-success HTTP status codes.
 
 ## Bulk
-- [ ] Method body is a stub returning `nil, nil` — missing HTTP POST request to `/_bulk`, NDJSON serialization of `BulkRequest` as request body, response deserialization into `BulkResponse`, and error handling for non-success HTTP status codes.
+os.system Method body is a stub returning `nil, nil` — missing HTTP POST request to `/_bulk`, NDJSON serialization of `BulkRequest` as request body, response deserialization into `BulkResponse`, and error handling for non-success HTTP status codes.
 
 ## DeletePit
-- [ ] Wrong parameter type — Java takes `String scrollId` and constructs `ClosePointInTimeRequest` internally with `new ClosePointInTimeRequest(scrollId)`, but Go takes a pre-constructed `*model.ClosePointInTimeRequest` instead of just the scroll ID string.
-- [ ] Method body is a stub returning `nil` — missing HTTP DELETE request to `/_pit`, JSON serialization of `ClosePointInTimeRequest` as request body, and error handling for non-success HTTP status codes.
+os.system Wrong parameter type — Java takes `String scrollId` and constructs `ClosePointInTimeRequest` internally with `new ClosePointInTimeRequest(scrollId)`, but Go takes a pre-constructed `*model.ClosePointInTimeRequest` instead of just the scroll ID string.
+os.system Method body is a stub returning `nil` — missing HTTP DELETE request to `/_pit`, JSON serialization of `ClosePointInTimeRequest` as request body, and error handling for non-success HTTP status codes.
 
 ## General (all methods)
-- [ ] `ElasticsearchClient` struct has no HTTP client field — Java holds `HttpClient httpClient` for making requests, but the Go struct is empty with no transport mechanism.
-- [ ] All methods are pure stubs returning zero values — none of the 10 methods contain any actual HTTP request/response logic, request serialization, response deserialization, or error handling that the Java versions implement.
+os.system `ElasticsearchClient` struct has no HTTP client field — Java holds `HttpClient httpClient` for making requests, but the Go struct is empty with no transport mechanism.
+os.system All methods are pure stubs returning zero values — none of the 10 methods contain any actual HTTP request/response logic, request serialization, response deserialization, or error handling that the Java versions implement.
 
 # ElasticsearchManager.java
 *Checked methods: putUserDoc(Long userId, String name), putUserDocs(Collection<Long> userIds, String name), deleteUserDoc(Long userId), deleteUserDocs(Collection<Long> userIds), searchUserDocs(@Nullable Integer from, @Nullable Integer size, String name, @Nullable Collection<Long> ids, boolean highlight, @Nullable String scrollId, @Nullable String keepAlive), putGroupDoc(Long groupId, String name), putGroupDocs(Collection<Long> groupIds, String name), deleteGroupDocs(Collection<Long> groupIds), deleteAllGroupDocs(), searchGroupDocs(@Nullable Integer from, @Nullable Integer size, String name, @Nullable Collection<Long> ids, boolean highlight, @Nullable String scrollId, @Nullable String keepAlive), deletePitForUserDocs(String scrollId)*
 
 ## PutUserDoc
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version: (1) if `onlyOneIndexForUserDocs`, calls `elasticsearchClientForUserDocs.putDoc(index, userId.toString(), () -> JsonUtil.write(64, new UserDoc(userId, name)))`; (2) otherwise builds a `BulkRequest` with INDEX operations for each index and sends it via `elasticsearchClientForUserDocs.bulk()`, erroring on `bulkResponse.errors()`. The Go method also lacks the parameters `userId int64` and `name string` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version: (1) if `onlyOneIndexForUserDocs`, calls `elasticsearchClientForUserDocs.putDoc(index, userId.toString(), () -> JsonUtil.write(64, new UserDoc(userId, name)))`; (2) otherwise builds a `BulkRequest` with INDEX operations for each index and sends it via `elasticsearchClientForUserDocs.bulk()`, erroring on `bulkResponse.errors()`. The Go method also lacks the parameters `userId int64` and `name string` entirely.
 
 ## PutUserDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.updateByQuery("turms_user*", UpdateByQueryRequest{query: {"ids": {"values": userIds}}, script: "ctx._source.name=" + JsonUtil.writeAsString(name)})`. The Go method also lacks the parameters `userIds []int64` and `name string` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.updateByQuery("turms_user*", UpdateByQueryRequest{query: {"ids": {"values": userIds}}, script: "ctx._source.name=" + JsonUtil.writeAsString(name)})`. The Go method also lacks the parameters `userIds []int64` and `name string` entirely.
 
 ## DeleteUserDoc
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.deleteDoc("turms_user*", userId.toString())`. The Go method also lacks the parameter `userId int64` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.deleteDoc("turms_user*", userId.toString())`. The Go method also lacks the parameter `userId int64` entirely.
 
 ## DeleteUserDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.deleteByQuery("turms_user*", DeleteByQueryRequest{"terms": {"_ids": userIds}})`. The Go method also lacks the parameter `userIds []int64` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.deleteByQuery("turms_user*", DeleteByQueryRequest{"terms": {"_ids": userIds}})`. The Go method also lacks the parameter `userIds []int64` entirely.
 
 ## SearchUserDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version builds a `multi_match` query over `name*`, `name*.standard^0.5`, `name*.ngram^0.25` fields, optionally wraps it in a `bool`/`must` with an `ids` filter, and sends a `SearchRequest` with `from`, `size`, `COLLAPSE_ID`, optional `HIGHLIGHT_NAME`, optional `PointInTimeReference(scrollId, keepAlive)`, and the query. It uses `READER_USER_DOC` to deserialize `SearchResponse<UserDoc>`. The Go method also lacks all parameters (`from`, `size`, `name`, `ids`, `highlight`, `scrollId`, `keepAlive`) entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version builds a `multi_match` query over `name*`, `name*.standard^0.5`, `name*.ngram^0.25` fields, optionally wraps it in a `bool`/`must` with an `ids` filter, and sends a `SearchRequest` with `from`, `size`, `COLLAPSE_ID`, optional `HIGHLIGHT_NAME`, optional `PointInTimeReference(scrollId, keepAlive)`, and the query. It uses `READER_USER_DOC` to deserialize `SearchResponse<UserDoc>`. The Go method also lacks all parameters (`from`, `size`, `name`, `ids`, `highlight`, `scrollId`, `keepAlive`) entirely.
 
 ## PutGroupDoc
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version mirrors `putUserDoc` but uses `elasticsearchClientForGroupDocs`, `GroupDoc`, `allIndexesForGroupDocs`, and `onlyOneIndexForGroupDocs`. The Go method also lacks the parameters `groupId int64` and `name string` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version mirrors `putUserDoc` but uses `elasticsearchClientForGroupDocs`, `GroupDoc`, `allIndexesForGroupDocs`, and `onlyOneIndexForGroupDocs`. The Go method also lacks the parameters `groupId int64` and `name string` entirely.
 
 ## PutGroupDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForGroupDocs.updateByQuery("turms_group*", UpdateByQueryRequest{query: {"ids": {"values": groupIds}}, script: "ctx._source.name=" + JsonUtil.writeAsString(name)})`. The Go method also lacks the parameters `groupIds []int64` and `name string` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForGroupDocs.updateByQuery("turms_group*", UpdateByQueryRequest{query: {"ids": {"values": groupIds}}, script: "ctx._source.name=" + JsonUtil.writeAsString(name)})`. The Go method also lacks the parameters `groupIds []int64` and `name string` entirely.
 
 ## DeleteGroupDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForGroupDocs.deleteByQuery("turms_group*", DeleteByQueryRequest{"terms": {"_ids": groupIds}})`. The Go method also lacks the parameter `groupIds []int64` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForGroupDocs.deleteByQuery("turms_group*", DeleteByQueryRequest{"terms": {"_ids": groupIds}})`. The Go method also lacks the parameter `groupIds []int64` entirely.
 
 ## DeleteAllGroupDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForGroupDocs.deleteByQuery("turms_group*", DeleteByQueryRequest{"match_all": {}})`.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForGroupDocs.deleteByQuery("turms_group*", DeleteByQueryRequest{"match_all": {}})`.
 
 ## SearchGroupDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version uses the same `search()` helper as `searchUserDocs` but with `READER_GROUP_DOC`, `elasticsearchClientForGroupDocs`, and `"turms_group*"`. The Go method also lacks all parameters (`from`, `size`, `name`, `ids`, `highlight`, `scrollId`, `keepAlive`) entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version uses the same `search()` helper as `searchUserDocs` but with `READER_GROUP_DOC`, `elasticsearchClientForGroupDocs`, and `"turms_group*"`. The Go method also lacks all parameters (`from`, `size`, `name`, `ids`, `highlight`, `scrollId`, `keepAlive`) entirely.
 
 ## DeletePitForUserDocs
-- [ ] Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.deletePit(scrollId)`. The Go method also lacks the parameter `scrollId string` entirely.
+os.system Method body is entirely unimplemented (returns `nil` without doing anything). The Java version calls `elasticsearchClientForUserDocs.deletePit(scrollId)`. The Go method also lacks the parameter `scrollId string` entirely.
 
 # DeleteByQueryResponse.java
 *Checked methods: DeleteByQueryResponse(@JsonProperty("deleted") long deleted)*
 
 ## DeleteByQueryResponse
 
-- [ ] **Wrong field type**: The Java version declares `deleted` as `@Nullable Long` (a boxed `Long`, nullable), while the Go version declares it as `bool` (`Deleted bool`). The field should be `*int64` (or at minimum `int64`) to match the Java semantics of a count of deleted documents, not a boolean.
-- [ ] **Missing nullability**: The Java version uses `@Nullable Long`, meaning `deleted` can be absent/null. The Go version uses a non-pointer `bool`, which cannot represent null. It should use a pointer type (e.g., `*int64`) to properly reflect the nullable semantics.
+os.system **Wrong field type**: The Java version declares `deleted` as `@Nullable Long` (a boxed `Long`, nullable), while the Go version declares it as `bool` (`Deleted bool`). The field should be `*int64` (or at minimum `int64`) to match the Java semantics of a count of deleted documents, not a boolean.
+os.system **Missing nullability**: The Java version uses `@Nullable Long`, meaning `deleted` can be absent/null. The Go version uses a non-pointer `bool`, which cannot represent null. It should use a pointer type (e.g., `*int64`) to properly reflect the nullable semantics.
 
 # ErrorResponse.java
 *Checked methods: ErrorResponse(@JsonProperty("error") ErrorCause error)*
 
 ## ErrorResponse
 
-- [ ] **Missing `status` field**: The Java `ErrorResponse` record has two fields: `error` (type `ErrorCause`) and `status` (type `int`, annotated with `@JsonProperty("status")`). The Go `ErrorResponse` struct at line 77 only has the `Error` field (`json:"error"`) and is missing the `Status int \`json:"status"\`` field entirely.
+os.system **Missing `status` field**: The Java `ErrorResponse` record has two fields: `error` (type `ErrorCause`) and `status` (type `int`, annotated with `@JsonProperty("status")`). The Go `ErrorResponse` struct at line 77 only has the `Error` field (`json:"error"`) and is missing the `Status int \`json:"status"\`` field entirely.
 
 # HealthResponse.java
 *Checked methods: HealthResponse(@JsonProperty("cluster_name") String clusterName, @JsonProperty("status") String status)*
 
 ## HealthResponse
 
-- [ ] **`Status` field is `string` instead of a typed enum.** The Java `HealthResponse` declares `status` as type `HealthStatus` (a Java enum with values `GREEN`, `YELLOW`, `RED`), which provides type safety and constrains valid values. The Go version declares `Status string`, losing the type safety of the original enum. There is no `HealthStatus` enum/type defined in the Go file. While the JSON deserialization will still work (since Elasticsearch returns string values like `"green"`, `"yellow"`, `"red"`), the Go code lacks the compile-time validation that the Java enum provided, allowing any arbitrary string to be assigned to `Status` without error.
+os.system **`Status` field is `string` instead of a typed enum.** The Java `HealthResponse` declares `status` as type `HealthStatus` (a Java enum with values `GREEN`, `YELLOW`, `RED`), which provides type safety and constrains valid values. The Go version declares `Status string`, losing the type safety of the original enum. There is no `HealthStatus` enum/type defined in the Go file. While the JSON deserialization will still work (since Elasticsearch returns string values like `"green"`, `"yellow"`, `"red"`), the Go code lacks the compile-time validation that the Java enum provided, allowing any arbitrary string to be assigned to `Status` without error.
 
 # Highlight.java
 *Checked methods: Highlight(@JsonProperty("fields") Map<String, Object> fields)*
 
 ## Highlight
 
-- [ ] **`Fields` type mismatch**: The Java record declares `fields` as `Map<String, Map<String, Object>>` (a nested map), but the Go struct declares `Fields` as `map[string]interface{}` (a flat `interface{}` value). This means the Go code loses type safety for the inner map. When serialized to JSON, the output may be equivalent, but when deserializing or constructing, `Map<String, Map<String, Object>>` expects each value to be a map of string to arbitrary objects (e.g., highlight field configurations like `{"pre_tags": ["<em>"]}`), while `interface{}` accepts any value type without enforcing the inner map structure.
+os.system **`Fields` type mismatch**: The Java record declares `fields` as `Map<String, Map<String, Object>>` (a nested map), but the Go struct declares `Fields` as `map[string]interface{}` (a flat `interface{}` value). This means the Go code loses type safety for the inner map. When serialized to JSON, the output may be equivalent, but when deserializing or constructing, `Map<String, Map<String, Object>>` expects each value to be a map of string to arbitrary objects (e.g., highlight field configurations like `{"pre_tags": ["<em>"]}`), while `interface{}` accepts any value type without enforcing the inner map structure.
 
-- [ ] **Missing fields `PreTags`, `PostTags`, `Type`, `NumberOfFragments`**: The Java `Highlight` record has five fields: `fields`, `preTags`, `postTags`, `type`, and `numberOfFragments`. The Go struct only has `Fields`. All four nullable fields (`PreTags []string`, `PostTags []string`, `Type *string`, `NumberOfFragments *int`) are missing, which means the Go version cannot represent or serialize highlight configurations that use custom tags, highlight types, or fragment control.
+os.system **Missing fields `PreTags`, `PostTags`, `Type`, `NumberOfFragments`**: The Java `Highlight` record has five fields: `fields`, `preTags`, `postTags`, `type`, and `numberOfFragments`. The Go struct only has `Fields`. All four nullable fields (`PreTags []string`, `PostTags []string`, `Type *string`, `NumberOfFragments *int`) are missing, which means the Go version cannot represent or serialize highlight configurations that use custom tags, highlight types, or fragment control.
 
 # IndexSettings.java
 *Checked methods: IndexSettings(@JsonProperty("index") @Nullable Map<String, Object> index, @JsonProperty("analysis") @Nullable IndexSettingsAnalysis analysis)*
 
 ## IndexSettings
 
-- [ ] **Missing `index` field**: The Java record has a self-referential field `@JsonProperty("index") @Nullable IndexSettings index` — a recursive structure where `IndexSettings` can nest another `IndexSettings` under the `"index"` JSON key. The Go struct completely omits this field.
+os.system **Missing `index` field**: The Java record has a self-referential field `@JsonProperty("index") @Nullable IndexSettings index` — a recursive structure where `IndexSettings` can nest another `IndexSettings` under the `"index"` JSON key. The Go struct completely omits this field.
 
-- [ ] **Missing `number_of_shards` field**: The Java record has `@JsonProperty("number_of_shards") @Nullable Integer numberOfShards`. The Go struct has no equivalent field.
+os.system **Missing `number_of_shards` field**: The Java record has `@JsonProperty("number_of_shards") @Nullable Integer numberOfShards`. The Go struct has no equivalent field.
 
-- [ ] **Missing `number_of_replicas` field**: The Java record has `@JsonProperty("number_of_replicas") @Nullable Integer numberOfReplicas`. The Go struct has no equivalent field.
+os.system **Missing `number_of_replicas` field**: The Java record has `@JsonProperty("number_of_replicas") @Nullable Integer numberOfReplicas`. The Go struct has no equivalent field.
 
-- [ ] **Missing `default_pipeline` field**: The Java record has `@JsonProperty("default_pipeline") @Nullable String defaultPipeline`. The Go struct has no equivalent field.
+os.system **Missing `default_pipeline` field**: The Java record has `@JsonProperty("default_pipeline") @Nullable String defaultPipeline`. The Go struct has no equivalent field.
 
 # IndexSettingsAnalysis.java
 *Checked methods: IndexSettingsAnalysis(@JsonProperty("analyzer") @Nullable Map<String, Map<String, Object>> analyzer, @JsonProperty("tokenizer") @Nullable Map<String, Map<String, Object>> tokenizer, @JsonProperty("filter") @Nullable Map<String, Map<String, Object>> filter, @JsonProperty("char_filter") @Nullable Map<String, Map<String, Object>> charFilter, @JsonProperty("normalizer") @Nullable Map<String, Map<String, Object>> normalizer), merge(IndexSettingsAnalysis analysis)*
@@ -17495,11 +17495,11 @@ Now I have all the information needed for a thorough comparison.
 
 ## `merge` (Go: `Merge`)
 
-- [ ] **Go mutates receiver in-place; Java returns a new object.** The Java `merge` method is a pure function that returns a brand-new `IndexSettingsAnalysis` record without modifying either operand. The Go `Merge` method mutates the receiver `a` in-place. While this is a behavioral difference, the merge *semantics* (how maps are combined) are what matters for correctness, so this is noted but may be intentional for Go idiom.
+os.system **Go mutates receiver in-place; Java returns a new object.** The Java `merge` method is a pure function that returns a brand-new `IndexSettingsAnalysis` record without modifying either operand. The Go `Merge` method mutates the receiver `a` in-place. While this is a behavioral difference, the merge *semantics* (how maps are combined) are what matters for correctness, so this is noted but may be intentional for Go idiom.
 
-- [ ] **`mergeMaps` mutates `m1` in-place instead of creating a new map; Java's `CollectionUtil.merge` creates a new map.** When both maps are non-nil, the Go `mergeMaps` function iterates over `m2` and writes entries directly into `m1` (`m1[k] = v`), then returns `m1`. This means the caller's original `a.Analyzer` (etc.) map is mutated and shared with the result. In Java, `CollectionUtil.merge` creates a fresh map, copies `map1` entries, then copies `map2` entries, leaving both originals untouched. If external code holds a reference to the original map, the Go version will corrupt it (side-effect on shared state), while the Java version will not.
+os.system **`mergeMaps` mutates `m1` in-place instead of creating a new map; Java's `CollectionUtil.merge` creates a new map.** When both maps are non-nil, the Go `mergeMaps` function iterates over `m2` and writes entries directly into `m1` (`m1[k] = v`), then returns `m1`. This means the caller's original `a.Analyzer` (etc.) map is mutated and shared with the result. In Java, `CollectionUtil.merge` creates a fresh map, copies `map1` entries, then copies `map2` entries, leaving both originals untouched. If external code holds a reference to the original map, the Go version will corrupt it (side-effect on shared state), while the Java version will not.
 
-- [ ] **When `this.analyzer` (or any field) is non-null but `analysis.analyzer` is null, Java returns `null`; Go returns `this`'s value (`m1`).** In the Java code:
+os.system **When `this.analyzer` (or any field) is non-null but `analysis.analyzer` is null, Java returns `null`; Go returns `this`'s value (`m1`).** In the Java code:
   ```java
   analyzer == null
       ? analysis.analyzer          // (this.analyzer is null -> use other)
@@ -17542,7 +17542,7 @@ type PointInTimeReference struct {
 The Java `keepAlive` field is annotated `@Nullable`, meaning it can be `null`. In Go, `KeepAlive` is declared as `string` (a value type), not `*string`. This means it cannot represent a `null`/absent `keep_alive` value — it will always serialize as an empty string `""` when the Java version would serialize as `null` or omit the field.
 
 ## PointInTimeReference
-- [ ] `KeepAlive` field should be `*string` (pointer) to match the Java `@Nullable String keepAlive` semantics. A plain `string` in Go cannot represent `nil`, so when the Java version would pass `null` or omit the value, the Go version incorrectly sends an empty string `""`.
+os.system `KeepAlive` field should be `*string` (pointer) to match the Java `@Nullable String keepAlive` semantics. A plain `string` in Go cannot represent `nil`, so when the Java version would pass `null` or omit the value, the Go version incorrectly sends an empty string `""`.
 
 # TypeMapping.java
 *Checked methods: TypeMapping(@JsonProperty("dynamic") @Nullable String dynamic, @JsonProperty("properties") Map<String, Property> properties)*
@@ -17559,88 +17559,88 @@ Now I have the full picture. Here is the comparison:
 The Go version is missing the `dynamic` field entirely, and the corresponding `DynamicMapping` enum is not defined anywhere in the Go code.
 
 ## TypeMapping
-- [ ] **Missing `dynamic` field**: The Go struct `TypeMapping` is missing the `dynamic` field entirely. The Java version has `@JsonProperty("dynamic") @Nullable DynamicMapping dynamic` which maps to an enum (`DynamicMapping`) with values `strict`, `runtime`, `true`, `false`. The Go code has no `DynamicMapping` type and no `Dynamic` field on `TypeMapping`.
-- [ ] **Missing `DynamicMapping` enum**: The Java code defines a `DynamicMapping` enum with `STRICT`, `RUNTIME`, `TRUE`, `FALSE` values with custom `@JsonProperty` serialization. There is no equivalent Go type defined.
-- [ ] **`properties` field not nullable/omitempty**: In Java, `properties` is `@Nullable`, meaning it can be omitted from JSON serialization when null. The Go struct tag is `json:"properties"` without `,omitempty`, so it will always serialize as `"properties": {}` (empty map) rather than being omitted, which could cause different behavior with Elasticsearch APIs that distinguish between absent and empty properties.
+os.system **Missing `dynamic` field**: The Go struct `TypeMapping` is missing the `dynamic` field entirely. The Java version has `@JsonProperty("dynamic") @Nullable DynamicMapping dynamic` which maps to an enum (`DynamicMapping`) with values `strict`, `runtime`, `true`, `false`. The Go code has no `DynamicMapping` type and no `Dynamic` field on `TypeMapping`.
+os.system **Missing `DynamicMapping` enum**: The Java code defines a `DynamicMapping` enum with `STRICT`, `RUNTIME`, `TRUE`, `FALSE` values with custom `@JsonProperty` serialization. There is no equivalent Go type defined.
+os.system **`properties` field not nullable/omitempty**: In Java, `properties` is `@Nullable`, meaning it can be omitted from JSON serialization when null. The Go struct tag is `json:"properties"` without `,omitempty`, so it will always serialize as `"properties": {}` (empty map) rather than being omitted, which could cause different behavior with Elasticsearch APIs that distinguish between absent and empty properties.
 
 # UpdateByQueryRequest.java
 *Checked methods: UpdateByQueryRequest(@JsonProperty("query") Map<String, Object> query)*
 
 ## UpdateByQueryRequest
 
-- [ ] **Missing `script` field**: The Java record `UpdateByQueryRequest` has two fields: `query` (`Map<String, Object>`) and `script` (`Script`). The Go struct only has the `Query` field and is missing the `Script *Script` field entirely. This means Go code cannot construct an `UpdateByQueryRequest` that includes a script, which is the core mechanism for specifying how documents should be updated in Elasticsearch's Update By Query API.
+os.system **Missing `script` field**: The Java record `UpdateByQueryRequest` has two fields: `query` (`Map<String, Object>`) and `script` (`Script`). The Go struct only has the `Query` field and is missing the `Script *Script` field entirely. This means Go code cannot construct an `UpdateByQueryRequest` that includes a script, which is the core mechanism for specifying how documents should be updated in Elasticsearch's Update By Query API.
 
 # UpdateByQueryResponse.java
 *Checked methods: UpdateByQueryResponse(@JsonProperty("updated") long updated)*
 
 ## UpdateByQueryResponse
 
-- [ ] **Field type mismatch**: The Java version declares `updated` as `@Nullable Long` (boxed, nullable), while the Go version declares it as `int64` (non-nullable value type). When Elasticsearch returns a response without an `"updated"` field, Java would deserialize it as `null`, but Go will deserialize it as `0`. This changes the semantics — the Go code cannot distinguish between "no value" and "zero updates." The field should be `*int64` to preserve the nullable semantics of the Java `@Nullable Long`.
+os.system **Field type mismatch**: The Java version declares `updated` as `@Nullable Long` (boxed, nullable), while the Go version declares it as `int64` (non-nullable value type). When Elasticsearch returns a response without an `"updated"` field, Java would deserialize it as `null`, but Go will deserialize it as `0`. This changes the semantics — the Go code cannot distinguish between "no value" and "zero updates." The field should be `*int64` to preserve the nullable semantics of the Java `@Nullable Long`.
 
 # MongoCollectionMigrator.java
 *Checked methods: migrate(Set<String> existingCollectionNames)*
 
 ## Migrate
 
-- [ ] The Go `Migrate()` method is completely empty — it returns `nil` without performing any logic. The Java `migrate(Set<String> existingCollectionNames)` method concatenates two operations: `migrateAdminDocs()` and (conditionally) `migrateUserRoleDocs()` when `existingCollectionNames` contains `UserRole.LEGACY_COLLECTION_NAME`. None of this logic is ported.
-- [ ] The Go `Migrate()` method does not accept an `existingCollectionNames` parameter (or equivalent), so it cannot conditionally decide whether to migrate user role documents.
-- [ ] The Go `MongoCollectionMigrator` struct has no fields for `adminMongoClient` and `userMongoClient`, which the Java constructor requires and the migration methods depend on.
-- [ ] None of the private helper methods called by `migrate` are ported: `migrateAdminDocs()`, `convertLegacyAdminRecord()`, and `migrateUserRoleDocs()`.
+os.system The Go `Migrate()` method is completely empty — it returns `nil` without performing any logic. The Java `migrate(Set<String> existingCollectionNames)` method concatenates two operations: `migrateAdminDocs()` and (conditionally) `migrateUserRoleDocs()` when `existingCollectionNames` contains `UserRole.LEGACY_COLLECTION_NAME`. None of this logic is ported.
+os.system The Go `Migrate()` method does not accept an `existingCollectionNames` parameter (or equivalent), so it cannot conditionally decide whether to migrate user role documents.
+os.system The Go `MongoCollectionMigrator` struct has no fields for `adminMongoClient` and `userMongoClient`, which the Java constructor requires and the migration methods depend on.
+os.system None of the private helper methods called by `migrate` are ported: `migrateAdminDocs()`, `convertLegacyAdminRecord()`, and `migrateUserRoleDocs()`.
 
 # MongoConfig.java
 *Checked methods: adminMongoClient(TurmsPropertiesManager propertiesManager), userMongoClient(TurmsPropertiesManager propertiesManager), groupMongoClient(TurmsPropertiesManager propertiesManager), conversationMongoClient(TurmsPropertiesManager propertiesManager), messageMongoClient(TurmsPropertiesManager propertiesManager), conferenceMongoClient(TurmsPropertiesManager propertiesManager)*
 
 ## adminMongoClient
 
-- [ ] **Missing write concern registration with entity classes**: The Java code creates `MongoCollectionOptions.of(Admin.class, writeConcern.getAdmin())` and `MongoCollectionOptions.of(AdminRole.class, writeConcern.getAdminRole())`, passing the write concern per entity. The Go code calls `RegisterEntitiesByClasses("Admin", "AdminRole")` with no write concern parameters at all. The `MongoProperties` struct has no `WriteConcern` field, so per-entity write concern configuration is completely missing.
+os.system **Missing write concern registration with entity classes**: The Java code creates `MongoCollectionOptions.of(Admin.class, writeConcern.getAdmin())` and `MongoCollectionOptions.of(AdminRole.class, writeConcern.getAdminRole())`, passing the write concern per entity. The Go code calls `RegisterEntitiesByClasses("Admin", "AdminRole")` with no write concern parameters at all. The `MongoProperties` struct has no `WriteConcern` field, so per-entity write concern configuration is completely missing.
 
 ## userMongoClient
 
-- [ ] **Missing write concern registration with entity classes**: The Java code registers 7 entities each with their own write concern setting (`User`, `UserFriendRequest`, `UserRelationship`, `UserRelationshipGroup`, `UserRelationshipGroupMember`, `UserRole`, `UserVersion`). The Go code only registers `"User"` and passes no write concern information.
-- [ ] **Missing entity registrations**: The Java code registers 7 entities (User, UserFriendRequest, UserRelationship, UserRelationshipGroup, UserRelationshipGroupMember, UserRole, UserVersion). The Go code registers only `"User"` — 6 entities are missing.
-- [ ] **Incorrect conditional guard**: The Java `userMongoClient` is an unconditional `@Bean` — it always creates and returns a `TurmsMongoClient`. The Go code adds a guard `if !c.iamProps.Enabled || c.iamProps.Type != IdentityAccessManagementTypePassword` that returns `nil, nil`, which has no equivalent in the Java source.
-- [ ] **Missing `MongoProperties` for user**: The Go `MongoConfig` only stores `adminProps` and `userProps` of type `MongoProperties` (which only has a `URI` field). The Java code reads `UserMongoProperties` which contains a `WriteConcernProperties` sub-object. None of the write concern fields are modeled or used.
+os.system **Missing write concern registration with entity classes**: The Java code registers 7 entities each with their own write concern setting (`User`, `UserFriendRequest`, `UserRelationship`, `UserRelationshipGroup`, `UserRelationshipGroupMember`, `UserRole`, `UserVersion`). The Go code only registers `"User"` and passes no write concern information.
+os.system **Missing entity registrations**: The Java code registers 7 entities (User, UserFriendRequest, UserRelationship, UserRelationshipGroup, UserRelationshipGroupMember, UserRole, UserVersion). The Go code registers only `"User"` — 6 entities are missing.
+os.system **Incorrect conditional guard**: The Java `userMongoClient` is an unconditional `@Bean` — it always creates and returns a `TurmsMongoClient`. The Go code adds a guard `if !c.iamProps.Enabled || c.iamProps.Type != IdentityAccessManagementTypePassword` that returns `nil, nil`, which has no equivalent in the Java source.
+os.system **Missing `MongoProperties` for user**: The Go `MongoConfig` only stores `adminProps` and `userProps` of type `MongoProperties` (which only has a `URI` field). The Java code reads `UserMongoProperties` which contains a `WriteConcernProperties` sub-object. None of the write concern fields are modeled or used.
 
 ## groupMongoClient
 
-- [ ] **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "group", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 8 entities (Group, GroupBlockedUser, GroupInvitation, GroupJoinQuestion, GroupJoinRequest, GroupMember, GroupType, GroupVersion) each with their own write concern. The Go method returns `nil` unconditionally — all logic is missing.
+os.system **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "group", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 8 entities (Group, GroupBlockedUser, GroupInvitation, GroupJoinQuestion, GroupJoinRequest, GroupMember, GroupType, GroupVersion) each with their own write concern. The Go method returns `nil` unconditionally — all logic is missing.
 
 ## conversationMongoClient
 
-- [ ] **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "conversation", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 2 entities (PrivateConversation, GroupConversation) with write concern. The Go method returns `nil` unconditionally — all logic is missing.
+os.system **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "conversation", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 2 entities (PrivateConversation, GroupConversation) with write concern. The Go method returns `nil` unconditionally — all logic is missing.
 
 ## messageMongoClient
 
-- [ ] **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "message", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 1 entity (Message) with write concern. The Go method returns `nil` unconditionally — all logic is missing.
+os.system **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "message", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 1 entity (Message) with write concern. The Go method returns `nil` unconditionally — all logic is missing.
 
 ## conferenceMongoClient
 
-- [ ] **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "conference", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 1 entity (Meeting) with write concern. The Go method returns `nil` unconditionally — all logic is missing.
+os.system **Method is a nil-returning stub**: The Java code creates a full client with `getMongoClient(properties, "conference", Set.of(ClusterType.SHARDED, ClusterType.LOAD_BALANCED))` and registers 1 entity (Meeting) with write concern. The Go method returns `nil` unconditionally — all logic is missing.
 
 # MongoFakeDataGenerator.java
 *Checked methods: populateCollectionsWithFakeData()*
 
 ## populateCollectionsWithFakeData
 
-- [ ] The Go implementation is a stub that returns `nil` immediately with no logic at all. The entire method body is missing: no fake data generation (`generateFakeData` equivalent), no collection insertion, no logging, and no error handling.
-- [ ] Missing all field initializations on `MongoFakeDataGenerator` struct — the Go struct is empty while the Java version has fields for `passwordManager`, five `TurmsMongoClient` instances (`adminMongoClient`, `userMongoClient`, `groupMongoClient`, `conversationMongoClient`, `messageMongoClient`), `isFakingEnabled`, `userCount`, all `targetUser*` range fields, `clearAllCollectionsBeforeFaking`, `fakeIfCollectionExists`, and `currentId`.
-- [ ] Missing constructor logic — the Java constructor computes `step = userCount / 10` and derives all `targetUser*` range boundaries from it; none of this is present.
-- [ ] Missing `generateFakeData` equivalent — the entire fake data generation logic is absent, including creation of: Admin records (guest + 10 admins), AdminRole records (ADMIN + GUEST), Group, GroupVersion, GroupBlockedUser records, GroupInvitation records, GroupJoinQuestion, GroupJoinRequest records, GroupMember records, GroupType, Message records (100 × 3 = 300 messages with private and group conversations), PrivateConversation records, GroupConversation, User + UserVersion + UserRelationshipGroup records, UserFriendRequest records, UserRole, and UserRelationship + UserRelationshipGroupMember records.
-- [ ] Missing the parallel/async insertion into five separate MongoDB clients (`adminMongoClient`, `userMongoClient`, `groupMongoClient`, `conversationMongoClient`, `messageMongoClient`) with `insertAll` calls and `Mono.whenDelayError` semantics (insert into all collections even if some fail).
-- [ ] Missing logging — the Java version logs start/completion/error for each data category and overall.
-- [ ] The Go signature returns only `error` but the Java version returns `Mono<Void>` (reactive), meaning the Go version cannot represent partial-failure semantics (insert what succeeds even if some fail).
+os.system The Go implementation is a stub that returns `nil` immediately with no logic at all. The entire method body is missing: no fake data generation (`generateFakeData` equivalent), no collection insertion, no logging, and no error handling.
+os.system Missing all field initializations on `MongoFakeDataGenerator` struct — the Go struct is empty while the Java version has fields for `passwordManager`, five `TurmsMongoClient` instances (`adminMongoClient`, `userMongoClient`, `groupMongoClient`, `conversationMongoClient`, `messageMongoClient`), `isFakingEnabled`, `userCount`, all `targetUser*` range fields, `clearAllCollectionsBeforeFaking`, `fakeIfCollectionExists`, and `currentId`.
+os.system Missing constructor logic — the Java constructor computes `step = userCount / 10` and derives all `targetUser*` range boundaries from it; none of this is present.
+os.system Missing `generateFakeData` equivalent — the entire fake data generation logic is absent, including creation of: Admin records (guest + 10 admins), AdminRole records (ADMIN + GUEST), Group, GroupVersion, GroupBlockedUser records, GroupInvitation records, GroupJoinQuestion, GroupJoinRequest records, GroupMember records, GroupType, Message records (100 × 3 = 300 messages with private and group conversations), PrivateConversation records, GroupConversation, User + UserVersion + UserRelationshipGroup records, UserFriendRequest records, UserRole, and UserRelationship + UserRelationshipGroupMember records.
+os.system Missing the parallel/async insertion into five separate MongoDB clients (`adminMongoClient`, `userMongoClient`, `groupMongoClient`, `conversationMongoClient`, `messageMongoClient`) with `insertAll` calls and `Mono.whenDelayError` semantics (insert into all collections even if some fail).
+os.system Missing logging — the Java version logs start/completion/error for each data category and overall.
+os.system The Go signature returns only `error` but the Java version returns `Mono<Void>` (reactive), meaning the Go version cannot represent partial-failure semantics (insert what succeeds even if some fail).
 
 # RedisConfig.java
 *Checked methods: newSequenceIdRedisClientManager(RedisProperties properties), sequenceIdRedisClientManager()*
 
 ## newSequenceIdRedisClientManager
 
-- [ ] The method is completely unimplemented — it returns `nil` instead of constructing a `TurmsRedisClientManager` with the provided `RedisProperties` and `RedisCodecContext.DEFAULT` as the Java version does.
-- [ ] The method signature is missing the `RedisProperties` parameter. The Java version takes `RedisProperties properties` as input.
+os.system The method is completely unimplemented — it returns `nil` instead of constructing a `TurmsRedisClientManager` with the provided `RedisProperties` and `RedisCodecContext.DEFAULT` as the Java version does.
+os.system The method signature is missing the `RedisProperties` parameter. The Java version takes `RedisProperties properties` as input.
 
 ## sequenceIdRedisClientManager
 
-- [ ] The method is completely unimplemented — it returns `nil` instead of returning the stored `sequenceIdRedisClientManager` field.
-- [ ] The `RedisConfig` struct is missing the `sequenceIdRedisClientManager` field entirely. In Java, this is a private field assigned during construction based on `SequenceIdProperties` flags.
-- [ ] Missing conditional initialization logic: the Java version only creates a `TurmsRedisClientManager` when `sequenceIdProperties.isUseSequenceIdForGroupConversation()` or `sequenceIdProperties.isUseSequenceIdForPrivateConversation()` is true; otherwise the field is set to `null`.
-- [ ] Missing `registerClientManagers` call: when the `sequenceIdRedisClientManager` is non-null, Java calls `registerClientManagers(List.of(sequenceIdRedisClientManager))` — this is absent in Go.
+os.system The method is completely unimplemented — it returns `nil` instead of returning the stored `sequenceIdRedisClientManager` field.
+os.system The `RedisConfig` struct is missing the `sequenceIdRedisClientManager` field entirely. In Java, this is a private field assigned during construction based on `SequenceIdProperties` flags.
+os.system Missing conditional initialization logic: the Java version only creates a `TurmsRedisClientManager` when `sequenceIdProperties.isUseSequenceIdForGroupConversation()` or `sequenceIdProperties.isUseSequenceIdForPrivateConversation()` is true; otherwise the field is set to `null`.
+os.system Missing `registerClientManagers` call: when the `sequenceIdRedisClientManager` is non-null, Java calls `registerClientManagers(List.of(sequenceIdRedisClientManager))` — this is absent in Go.
