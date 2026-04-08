@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"log"
+	"math"
+	"math/rand"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -77,7 +79,9 @@ func (s *userRelationshipGroupService) CreateRelationshipGroup(
 
 	finalGroupIndex := int32(0)
 	if groupIndex == nil {
-		finalGroupIndex = int32(time.Now().UnixNano()) // Simple random
+		// Java uses RandomUtil.nextPositiveInt() which generates 1 to MaxInt32.
+		// Use rand.Int31n to avoid negative values from int32 overflow.
+		finalGroupIndex = rand.Int31n(math.MaxInt32) + 1
 	} else {
 		finalGroupIndex = *groupIndex
 	}

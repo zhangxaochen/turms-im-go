@@ -116,10 +116,16 @@ func (s *userFriendRequestService) CreateFriendRequest(ctx context.Context, requ
 		st = *status
 	}
 
-	if responseDate == nil {
-		if st != po.RequestStatusPending {
+	// Java's getResponseDateBasedOnStatusForNewRecord:
+	// If status is processed by responder (ACCEPTED, DECLINED, IGNORED): use responseDate if non-nil, else now
+	// Otherwise (PENDING, CANCELED, EXPIRED, null): always set to nil
+	switch st {
+	case po.RequestStatusAccepted, po.RequestStatusDeclined, po.RequestStatusIgnored:
+		if responseDate == nil {
 			responseDate = &now
 		}
+	default:
+		responseDate = nil
 	}
 
 	req := &po.UserFriendRequest{
