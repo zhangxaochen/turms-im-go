@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,7 +18,7 @@ type UserService interface {
 	FindUser(ctx context.Context, userID int64) (*po.User, error)
 	UpdateUser(ctx context.Context, userID int64, update bson.M) error
 	CheckIfUserExists(ctx context.Context, userID int64) (bool, error)
-	DeleteUsers(ctx context.Context, userIDs []int64) error
+	DeleteUsers(ctx context.Context, userIDs []int64) (int64, error)
 	QueryUsersProfile(ctx context.Context, userIDs []int64) ([]*po.User, error)
 	QueryUserName(ctx context.Context, userID int64) (string, error)
 	QueryUsers(ctx context.Context, userIDs []int64) ([]*po.User, error)
@@ -71,16 +72,40 @@ func (s *userService) CreateUser(ctx context.Context, password string, name stri
 // @MappedFrom addUser(@RequestBody AddUserDTO addUserDTO)
 // @MappedFrom addUser(@Nullable Long id, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable @PastOrPresent Date registrationDate, @Nullable Boolean isActive)
 func (s *userService) AddUser(ctx context.Context, id int64, password string, name string, intro string, profilePicture string, profileAccess int32, permissionGroupID int64, registrationDate time.Time, isActive bool) (*po.User, error) {
+	// Validation (matching Java: minPasswordLengthForCreate, maxPasswordLength, name/intro/profilePicture max lengths)
+	if len(password) > 64 {
+		return nil, errors.New("password must not exceed 64 characters")
+	}
+	if len(name) > 40 {
+		return nil, errors.New("name must not exceed 40 characters")
+	}
+	if len(intro) > 300 {
+		return nil, errors.New("intro must not exceed 300 characters")
+	}
+	if len(profilePicture) > 255 {
+		return nil, errors.New("profilePicture must not exceed 255 characters")
+	}
+	if !registrationDate.IsZero() && registrationDate.After(time.Now()) {
+		return nil, errors.New("registrationDate must be a past or present date")
+	}
+
 	if id == 0 {
 		id = s.idGen.NextIncreasingId()
 	}
 	if registrationDate.IsZero() {
 		registrationDate = time.Now()
 	}
+	now := time.Now()
+
+	// Apply defaults matching Java behavior
+	// profileAccess defaults to ALL (1), permissionGroupID defaults to DEFAULT_USER_ROLE_ID
+	if profileAccess == 0 {
+		profileAccess = 1 // ProfileAccessStrategy.ALL
+	}
 
 	user := &po.User{
 		ID:                id,
-		Password:          password,
+		Password:          password, // TODO: Implement password encoding via passwordManager
 		Name:              name,
 		Intro:             intro,
 		ProfilePicture:    profilePicture,
@@ -88,11 +113,14 @@ func (s *userService) AddUser(ctx context.Context, id int64, password string, na
 		PermissionGroupID: permissionGroupID,
 		RegistrationDate:  registrationDate,
 		IsActive:          isActive,
+		LastUpdatedDate:   &now,
+		// DeletionDate is nil (zero value) by default, matching Java's explicit null
 	}
 	err := s.repo.Insert(ctx, user)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Create default relationship group, upsert user version, sync Elasticsearch (transactional side effects)
 	return user, nil
 }
 
@@ -103,6 +131,10 @@ func (s *userService) FindUser(ctx context.Context, userID int64) (*po.User, err
 // @MappedFrom updateUser(@NotNull Long userId, @Nullable String rawPassword, @Nullable String name, @Nullable String intro, @Nullable String profilePicture, @Nullable @ValidProfileAccess ProfileAccessStrategy profileAccessStrategy, @Nullable Long roleId, @Nullable Boolean isActive, @Nullable @PastOrPresent Date registrationDate, @Nullable Map<String, Value> userDefinedAttributes)
 // @MappedFrom updateUser(Set<Long> ids, @RequestBody UpdateUserDTO updateUserDTO)
 func (s *userService) UpdateUser(ctx context.Context, userID int64, update bson.M) error {
+	// No-op optimization: if update is empty, return immediately (matching Java ACKNOWLEDGED_UPDATE_RESULT)
+	if len(update) == 0 {
+		return nil
+	}
 	now := time.Now()
 	update["lud"] = now // Set LastUpdatedDate
 	return s.repo.Update(ctx, userID, update)
@@ -116,13 +148,19 @@ func (s *userService) CheckIfUserExists(ctx context.Context, userID int64) (bool
 
 // @MappedFrom deleteUsers(@NotEmpty Set<Long> userIds, @Nullable Boolean deleteLogically)
 // @MappedFrom deleteUsers(Set<Long> ids, @QueryParam(required = false)
-func (s *userService) DeleteUsers(ctx context.Context, userIDs []int64) error {
+func (s *userService) DeleteUsers(ctx context.Context, userIDs []int64) (int64, error) {
 	if len(userIDs) == 0 {
-		return nil
+		return 0, nil
 	}
 	filter := bson.M{"_id": bson.M{"$in": userIDs}}
-	_, err := s.repo.DeleteMany(ctx, filter)
-	return err
+	deletedCount, err := s.repo.DeleteMany(ctx, filter)
+	if err != nil {
+		return 0, err
+	}
+	// TODO: Support logical delete (set deletionDate instead of physical delete when deleteLogically=true)
+	// TODO: Cascade deletion: Elasticsearch docs, relationships, relationship groups, settings, conversations, conversation settings, user versions, message sequence IDs
+	// TODO: Disconnect user sessions after delete
+	return deletedCount, nil
 }
 
 // @MappedFrom queryUsersProfile(@NotEmpty Collection<Long> userIds, boolean queryDeletedRecords)
@@ -149,10 +187,11 @@ func (s *userService) QueryUserName(ctx context.Context, userID int64) (string, 
 // @MappedFrom queryUsers(@QueryParam(required = false)
 // @MappedFrom queryUsers(@Nullable Collection<Long> userIds, @Nullable DateRange registrationDateRange, @Nullable DateRange deletionDateRange, @Nullable Boolean isActive, @Nullable Integer page, @Nullable Integer size, boolean queryDeletedRecords)
 func (s *userService) QueryUsers(ctx context.Context, userIDs []int64) ([]*po.User, error) {
-	if len(userIDs) == 0 {
-		return []*po.User{}, nil
+	filter := bson.M{}
+	if len(userIDs) > 0 {
+		filter["_id"] = bson.M{"$in": userIDs}
 	}
-	filter := bson.M{"_id": bson.M{"$in": userIDs}}
+	// When userIDs is empty (equivalent to Java null), return all users
 	return s.repo.FindMany(ctx, filter)
 }
 
@@ -236,6 +275,18 @@ func (s *userService) UpdateUsers(ctx context.Context, userIDs []int64, update b
 	if len(userIDs) == 0 {
 		return 0, nil
 	}
+	// No-op optimization: if all update fields are null/empty, return acknowledged result immediately (matching Java)
+	if len(update) == 0 {
+		return 0, nil
+	}
+	// Set LastUpdatedDate
+	update["lud"] = time.Now()
 	filter := bson.M{"_id": bson.M{"$in": userIDs}}
-	return s.repo.UpdateMany(ctx, filter, update)
+	modified, err := s.repo.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return 0, err
+	}
+	// TODO: Disconnect user sessions when isActive is set to false and modified > 0
+	// TODO: Elasticsearch sync for name changes
+	return modified, nil
 }

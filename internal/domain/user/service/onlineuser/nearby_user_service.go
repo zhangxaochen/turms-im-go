@@ -22,7 +22,7 @@ type NearbyUser struct {
 }
 
 type NearbyUserService interface {
-	QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *int, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error)
+	QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *float64, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error)
 }
 
 type nearbyUserService struct {
@@ -40,9 +40,22 @@ func NewNearbyUserService(userService service.UserService, sessionLocationServic
 }
 
 // @MappedFrom queryNearbyUsers(@NotNull Long userId, @NotNull DeviceType deviceType, @Nullable Float longitude, @Nullable Float latitude, @Nullable Short maxCount, @Nullable Integer maxDistance, boolean withCoordinates, boolean withDistance, boolean withUserInfo)
-func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *int, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error) {
-	if longitude == nil || latitude == nil {
-		return []*NearbyUser{}, nil
+func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, deviceType protocol.DeviceType, longitude *float32, latitude *float32, maxCount *int, maxDistance *float64, withCoordinates bool, withDistance bool, withUserInfo bool) ([]*NearbyUser, error) {
+	// When longitude/latitude are provided, upsert the user's location first (matching Java behavior)
+	var searchLon, searchLat float64
+	if longitude != nil && latitude != nil {
+		_ = s.sessionLocationService.UpsertUserLocation(ctx, userID, deviceType, *longitude, *latitude)
+		searchLon = float64(*longitude)
+		searchLat = float64(*latitude)
+	} else {
+		// When longitude/latitude are nil, look up the user's existing location (matching Java GEORADIUSBYMEMBER behavior)
+		loc, err := s.sessionLocationService.GetUserLocation(ctx, userID, deviceType)
+		if err != nil || loc == nil {
+			// User has no existing location; return empty (can't search without coordinates)
+			return []*NearbyUser{}, nil
+		}
+		searchLon = float64(loc.Longitude)
+		searchLat = float64(loc.Latitude)
 	}
 
 	// Use go-redis GeoSearch
@@ -57,8 +70,8 @@ func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, 
 
 	res, err := s.redisClient.RDB.GeoSearchLocation(ctx, redis.KeyLocation, &goredis.GeoSearchLocationQuery{
 		GeoSearchQuery: goredis.GeoSearchQuery{
-			Longitude:  float64(*longitude),
-			Latitude:   float64(*latitude),
+			Longitude:  searchLon,
+			Latitude:   searchLat,
 			Radius:     radius,
 			RadiusUnit: "m",
 			Count:      limit,
@@ -107,7 +120,6 @@ func (s *nearbyUserService) QueryNearbyUsers(ctx context.Context, userID int64, 
 	}
 
 	if withUserInfo && len(userIDs) > 0 {
-		// Fix: QueryUsersProfile only takes (ctx, userIDs)
 		users, profileErr := s.userService.QueryUsersProfile(ctx, userIDs)
 		if profileErr == nil {
 			userMap := make(map[int64]*po.User)

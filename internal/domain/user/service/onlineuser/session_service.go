@@ -68,7 +68,7 @@ func (s *sessionService) QueryUserSessions(ctx context.Context, userIDs []int64)
 	for _, uid := range userIDs {
 		status, err := s.userStatusService.FetchUserSessionsStatus(ctx, uid)
 		if err != nil {
-			continue
+			return nil, err // Propagate error instead of silently continuing
 		}
 
 		var sessions []UserSessionInfo

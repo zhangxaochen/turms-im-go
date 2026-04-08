@@ -62,7 +62,7 @@ func (c *StorageController) HandleQueryResourceUploadInfoRequest(ctx context.Con
 	}
 
 	// Assuming there's some custom logic or no max size provided in request, passing 0
-	url, err := c.storageService.QueryResourceUploadInfo(ctx, s.UserID, resType, name, mediaType, 0)
+	url, err := c.storageService.QueryResourceUploadInfo(ctx, s.UserID, resType, uploadReq.IdNum, name, mediaType, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (c *StorageController) HandleQueryResourceDownloadInfoRequest(ctx context.C
 		resourceIdStr = strconv.FormatInt(*downloadReq.IdNum, 10)
 	}
 
-	url, err := c.storageService.QueryResourceDownloadInfo(ctx, s.UserID, resType, resourceIdStr)
+	url, err := c.storageService.QueryResourceDownloadInfo(ctx, s.UserID, resType, downloadReq.IdNum, resourceIdStr)
 	if err != nil {
 		return nil, err
 	}
