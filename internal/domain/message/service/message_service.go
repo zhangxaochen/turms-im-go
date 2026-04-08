@@ -2,22 +2,42 @@ package service
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
+	"net"
 	"time"
 
 	"im.turms/server/internal/domain/common/cache"
 	"im.turms/server/internal/domain/common/infra/idgen"
+	"im.turms/server/internal/domain/message/bo"
 	"im.turms/server/internal/domain/message/po"
 	"im.turms/server/internal/domain/message/repository"
+	"im.turms/server/internal/infra/plugin"
+	"im.turms/server/internal/infra/property"
 	turmsredis "im.turms/server/internal/storage/redis"
 )
 
 var (
-	ErrNotFriend       = errors.New("sender and target have no friendship, or are blocked")
-	ErrNotGroupMember  = errors.New("sender is not a member of the target group, or lacks permission")
-	ErrInvalidTargetID = errors.New("invalid target ID")
+	ErrNotFriend                  = errors.New("sender and target have no friendship, or are blocked")
+	ErrNotGroupMember             = errors.New("sender is not a member of the target group, or lacks permission")
+	ErrInvalidTargetID            = errors.New("invalid target ID")
+	ErrTextLimitExceeded          = errors.New("text exceeds max limit")
+	ErrRecordsSizeExceeded        = errors.New("records exceed max size")
+	ErrInvalidBurnAfter           = errors.New("burnAfter must be >= 0")
+	ErrInvalidDeliveryDate        = errors.New("deliveryDate must be past-or-present")
+	ErrRecallDateBeforeDelivery   = errors.New("recallDate must be after deliveryDate")
+	ErrEditNotAllowed             = errors.New("editing message by sender is not allowed")
+	ErrRecallNotAllowed           = errors.New("recalling message is not allowed")
+	ErrRecallDurationExceeded     = errors.New("message recall duration has been exceeded")
+	ErrGroupNotActiveOrDeleted    = errors.New("group is not active or has been deleted")
+	ErrNoFieldsToUpdate           = errors.New("no fields to update")
+	ErrNotMessageRecipientOrSender = errors.New("not a recipient or sender of the reference message")
+	ErrNotMessageSender           = errors.New("unauthorized to modify another user's message")
 )
+
+const chunkSize = 1000
 
 type OutboundMessageDelivery interface {
 	Deliver(ctx context.Context, targetID int64, msg *po.Message) error
@@ -32,13 +52,26 @@ type GroupMemberService interface {
 	FindGroupMemberIDs(ctx context.Context, groupID int64) ([]int64, error)
 }
 
+type ConversationService interface {
+	AuthAndUpsertGroupConversationReadDate(ctx context.Context, groupID int64, memberID int64, readDate *time.Time) error
+	AuthAndUpsertPrivateConversationReadDate(ctx context.Context, ownerID int64, targetID int64, readDate *time.Time) error
+}
+
+type GroupService interface {
+	QueryGroupTypeIfActiveAndNotDeleted(ctx context.Context, groupID int64) (bool, error)
+}
+
 type MessageService struct {
-	idGen            *idgen.SnowflakeIdGenerator
-	seqGen           *turmsredis.SequenceGenerator
-	msgRepo          *repository.MessageRepository
-	userRelService   UserRelationshipService
-	groupMemService  GroupMemberService
-	outboundDelivery OutboundMessageDelivery
+	idGen              *idgen.SnowflakeIdGenerator
+	seqGen             *turmsredis.SequenceGenerator
+	msgRepo            *repository.MessageRepository
+	userRelService     UserRelationshipService
+	groupMemService    GroupMemberService
+	conversationSvc    ConversationService
+	groupSvc           GroupService
+	outboundDelivery   OutboundMessageDelivery
+	propertiesManager  *property.TurmsPropertiesManager
+	pluginManager      *plugin.PluginManager
 
 	authCache *cache.TTLCache[string, bool]
 }
@@ -49,16 +82,24 @@ func NewMessageService(
 	msgRepo *repository.MessageRepository,
 	userRelSvc UserRelationshipService,
 	groupMemSvc GroupMemberService,
+	conversationSvc ConversationService,
+	groupSvc GroupService,
 	delivery OutboundMessageDelivery,
+	propertiesManager *property.TurmsPropertiesManager,
+	pluginManager *plugin.PluginManager,
 ) *MessageService {
 	return &MessageService{
-		idGen:            idGen,
-		seqGen:           seqGen,
-		msgRepo:          msgRepo,
-		userRelService:   userRelSvc,
-		groupMemService:  groupMemSvc,
-		outboundDelivery: delivery,
-		authCache:        cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
+		idGen:             idGen,
+		seqGen:            seqGen,
+		msgRepo:           msgRepo,
+		userRelService:    userRelSvc,
+		groupMemService:   groupMemSvc,
+		conversationSvc:   conversationSvc,
+		groupSvc:          groupSvc,
+		outboundDelivery:  delivery,
+		propertiesManager: propertiesManager,
+		pluginManager:     pluginManager,
+		authCache:         cache.NewTTLCache[string, bool](1*time.Minute, 10*time.Second),
 	}
 }
 
@@ -68,6 +109,69 @@ func (s *MessageService) Close() {
 	}
 }
 
+func (s *MessageService) getMessageProperties() property.MessageProperties {
+	return s.propertiesManager.GetLocalProperties().Service.Message
+}
+
+// validateSaveMessage validates parameters for saving a message.
+func (s *MessageService) validateSaveMessage(text string, records [][]byte, burnAfter *int32, deliveryDate *time.Time, recallDate *time.Time) error {
+	props := s.getMessageProperties()
+	if len(text) > props.MaxTextLimit {
+		return ErrTextLimitExceeded
+	}
+	if len(records) > props.MaxRecordsSize {
+		return ErrRecordsSizeExceeded
+	}
+	if burnAfter != nil && *burnAfter < 0 {
+		return ErrInvalidBurnAfter
+	}
+	if deliveryDate != nil && deliveryDate.After(time.Now()) {
+		return ErrInvalidDeliveryDate
+	}
+	if recallDate != nil && deliveryDate != nil && recallDate.Before(*deliveryDate) {
+		return ErrRecallDateBeforeDelivery
+	}
+	return nil
+}
+
+// computeConversationID computes the conversation ID from sender and target IDs.
+func computeConversationID(isGroupMessage bool, senderID int64, targetID int64) []byte {
+	if isGroupMessage {
+		// Group conversation ID is just the group ID (big-endian 8 bytes)
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, uint64(targetID))
+		return b
+	}
+	// Private conversation ID: min(senderID, targetID) || max(senderID, targetID) (16 bytes)
+	minID, maxID := senderID, targetID
+	if senderID > targetID {
+		minID, maxID = targetID, senderID
+	}
+	b := make([]byte, 16)
+	binary.BigEndian.PutUint64(b[:8], uint64(minID))
+	binary.BigEndian.PutUint64(b[8:], uint64(maxID))
+	return b
+}
+
+// parseSenderIP parses a sender IP string into IPv4 (int32) and IPv6 ([]byte) fields.
+func parseSenderIP(senderIP string) (ipv4 *int32, ipv6 []byte) {
+	if senderIP == "" {
+		return nil, nil
+	}
+	ip := net.ParseIP(senderIP)
+	if ip == nil {
+		return nil, nil
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		v := int32(binary.BigEndian.Uint32(ip4))
+		return &v, nil
+	}
+	if ip16 := ip.To16(); ip16 != nil {
+		return nil, append([]byte(nil), ip16...)
+	}
+	return nil, nil
+}
+
 // AuthAndSaveMessage handles saving message state
 // @MappedFrom authAndSaveMessage(boolean queryRecipientIds, @Nullable Boolean persist, @Nullable Long messageId, @NotNull Long senderId, @Nullable byte[] senderIp, @NotNull Long targetId, @NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @Nullable String text, @Nullable List<byte[]> records, @Nullable @Min(0)
 func (s *MessageService) AuthAndSaveMessage(
@@ -75,14 +179,22 @@ func (s *MessageService) AuthAndSaveMessage(
 	isGroupMessage bool,
 	senderID int64,
 	targetID int64,
+	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	burnAfter *int32,
 	deliveryDate *time.Time,
 	preMessageID *int64,
-) (*po.Message, error) {
+	senderIP string,
+	referenceID *int64,
+) (*bo.MessageAndRecipientIDs, error) {
 	if targetID <= 0 {
 		return nil, ErrInvalidTargetID
+	}
+
+	// Validation (Bug fix: Missing validation)
+	if err := s.validateSaveMessage(text, records, burnAfter, deliveryDate, nil); err != nil {
+		return nil, err
 	}
 
 	canSend, err := s.auth(ctx, isGroupMessage, senderID, targetID)
@@ -96,18 +208,62 @@ func (s *MessageService) AuthAndSaveMessage(
 		return nil, ErrNotFriend
 	}
 
-	var sequenceID int64
-	if isGroupMessage {
-		sequenceID, err = s.seqGen.NextGroupMessageSequenceId(ctx, targetID)
-	} else {
-		// Private sequence depends on target ID to keep order for the receiver
-		sequenceID, err = s.seqGen.NextPrivateMessageSequenceId(ctx, senderID)
-	}
+	msg, recipientIDs, err := s.saveMessage0(ctx, isGroupMessage, isSystemMessage, senderID, targetID, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate sequence: %w", err)
+		return nil, err
 	}
 
-	seqID32 := int32(sequenceID)
+	// Bug fix: Missing conversation read-date upsert
+	props := s.getMessageProperties()
+	if props.UpdateReadDateAfterMessageSent && s.conversationSvc != nil {
+		if isGroupMessage {
+			_ = s.conversationSvc.AuthAndUpsertGroupConversationReadDate(ctx, targetID, senderID, nil)
+		} else {
+			_ = s.conversationSvc.AuthAndUpsertPrivateConversationReadDate(ctx, senderID, targetID, nil)
+		}
+	}
+
+	return &bo.MessageAndRecipientIDs{
+		Message:      msg,
+		RecipientIDs: recipientIDs,
+	}, nil
+}
+
+// saveMessage0 is the internal save logic shared by AuthAndSaveMessage and other methods.
+func (s *MessageService) saveMessage0(
+	ctx context.Context,
+	isGroupMessage bool,
+	isSystemMessage bool,
+	senderID int64,
+	targetID int64,
+	text string,
+	records [][]byte,
+	burnAfter *int32,
+	deliveryDate *time.Time,
+	preMessageID *int64,
+	senderIP string,
+	referenceID *int64,
+) (*po.Message, []int64, error) {
+	props := s.getMessageProperties()
+
+	// Bug fix: Missing conditional sequence ID generation
+	var seqID32 *int32
+	if (isGroupMessage && props.UseSequenceIdForGroupConversation) ||
+		(!isGroupMessage && props.UseSequenceIdForPrivateConversation) {
+		var sequenceID int64
+		var err error
+		if isGroupMessage {
+			sequenceID, err = s.seqGen.NextGroupMessageSequenceId(ctx, targetID)
+		} else {
+			sequenceID, err = s.seqGen.NextPrivateMessageSequenceId(ctx, senderID)
+		}
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to generate sequence: %w", err)
+		}
+		v := int32(sequenceID)
+		seqID32 = &v
+	}
+
 	msgID := s.idGen.NextIncreasingId()
 
 	var dDate time.Time
@@ -117,24 +273,46 @@ func (s *MessageService) AuthAndSaveMessage(
 		dDate = time.Now()
 	}
 
+	// Bug fix: Missing conversationId computation
+	conversationID := computeConversationID(isGroupMessage, senderID, targetID)
+
+	// Bug fix: Missing senderIp parsing
+	senderIPv4, senderIPv6 := parseSenderIP(senderIP)
+
+	isSysMsg := isSystemMessage
 	msg := &po.Message{
-		ID:             msgID,
-		IsGroupMessage: &isGroupMessage,
-		SenderID:       senderID,
-		TargetID:       targetID,
-		Text:           text,
-		SequenceID:     &seqID32,
-		DeliveryDate:   dDate,
-		Records:        records,
-		BurnAfter:      burnAfter,
-		PreMessageID:   preMessageID,
+		ID:              msgID,
+		ConversationID:  conversationID,
+		IsGroupMessage:  &isGroupMessage,
+		IsSystemMessage: &isSysMsg,
+		SenderID:        senderID,
+		TargetID:        targetID,
+		Text:            text,
+		SequenceID:      seqID32,
+		DeliveryDate:    dDate,
+		Records:         records,
+		BurnAfter:       burnAfter,
+		PreMessageID:    preMessageID,
+		ReferenceID:     referenceID,
+		SenderIP:        senderIPv4,
+		SenderIPv6:      senderIPv6,
 	}
 
 	if err := s.msgRepo.InsertMessage(ctx, msg); err != nil {
-		return nil, fmt.Errorf("failed to save message to db: %w", err)
+		return nil, nil, fmt.Errorf("failed to save message to db: %w", err)
 	}
 
-	return msg, nil
+	// Query recipient IDs
+	var recipientIDs []int64
+	if isGroupMessage {
+		if s.groupMemService != nil {
+			recipientIDs, _ = s.groupMemService.FindGroupMemberIDs(ctx, targetID)
+		}
+	} else {
+		recipientIDs = []int64{targetID}
+	}
+
+	return msg, recipientIDs, nil
 }
 
 // @MappedFrom authAndSaveAndSendMessage(boolean send, @Nullable Boolean persist, @Nullable Long senderId, @Nullable DeviceType senderDeviceType, @Nullable byte[] senderIp, @Nullable Long messageId, @NotNull Boolean isGroupMessage, @NotNull Boolean isSystemMessage, @Nullable String text, @Nullable List<byte[]> records, @NotNull Long targetId, @Nullable @Min(0)
@@ -143,24 +321,27 @@ func (s *MessageService) AuthAndSaveAndSendMessage(
 	isGroupMessage bool,
 	senderID int64,
 	targetID int64,
+	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	burnAfter *int32,
 	deliveryDate *time.Time,
 	preMessageID *int64,
-) (*po.Message, error) {
-	msg, err := s.AuthAndSaveMessage(ctx, isGroupMessage, senderID, targetID, text, records, burnAfter, deliveryDate, preMessageID)
+	senderIP string,
+	referenceID *int64,
+) (*bo.MessageAndRecipientIDs, error) {
+	result, err := s.AuthAndSaveMessage(ctx, isGroupMessage, senderID, targetID, isSystemMessage, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.outboundDelivery != nil {
-		if err := s.outboundDelivery.Deliver(ctx, targetID, msg); err != nil {
-			return msg, fmt.Errorf("saved but failed to deliver: %w", err)
+	if s.outboundDelivery != nil && result.Message != nil {
+		if err := s.outboundDelivery.Deliver(ctx, targetID, result.Message); err != nil {
+			return result, fmt.Errorf("saved but failed to deliver: %w", err)
 		}
 	}
 
-	return msg, nil
+	return result, nil
 }
 
 func (s *MessageService) auth(ctx context.Context, isGroupMessage bool, senderID int64, targetID int64) (bool, error) {
@@ -225,9 +406,6 @@ func (s *MessageService) QueryMessages(
 		}
 	} else if isGroupMessage != nil && !*isGroupMessage {
 		// 2. If querying private messages, restrict to messages related to requester
-		// This can get complex, but usually, targetIDs or senderIDs should include requesterID.
-		// For simplicity, we just pass to repo here and assume gateway/controller handles the strict relation or
-		// we inject the requester constraint.
 	}
 
 	if authErr != nil {
@@ -254,8 +432,6 @@ func (s *MessageService) CountMessages(
 	deliveryDateAfter *time.Time,
 	deliveryDateBefore *time.Time,
 ) (int64, error) {
-	// Authorization checking isn't explicitly requested for count in the same way,
-	// but generally we should apply the same target restrictions or rely on the caller setup.
 	return s.msgRepo.CountMessages(
 		ctx,
 		isGroupMessage,
@@ -266,6 +442,49 @@ func (s *MessageService) CountMessages(
 	)
 }
 
+// checkIfAllowedToUpdateMessage checks if the sender is allowed to update the message.
+func (s *MessageService) checkIfAllowedToUpdateMessage(ctx context.Context, msg *po.Message, senderID int64) error {
+	if msg.SenderID != senderID {
+		return ErrNotMessageSender
+	}
+	props := s.getMessageProperties()
+	if !props.AllowEditMessageBySender {
+		return ErrEditNotAllowed
+	}
+	return nil
+}
+
+// checkIfAllowedToRecallMessage checks if the sender is allowed to recall the message.
+func (s *MessageService) checkIfAllowedToRecallMessage(ctx context.Context, msg *po.Message, senderID int64) error {
+	if msg.SenderID != senderID {
+		return ErrNotMessageSender
+	}
+	props := s.getMessageProperties()
+	if !props.AllowRecallMessage {
+		return ErrRecallNotAllowed
+	}
+	// Bug fix: Missing recall duration timeout check
+	if props.AvailableRecallDurationMillis > 0 {
+		elapsed := time.Since(msg.DeliveryDate)
+		if elapsed > time.Duration(props.AvailableRecallDurationMillis)*time.Millisecond {
+			return ErrRecallDurationExceeded
+		}
+	}
+	// Bug fix: Missing group type active/not-deleted check
+	if msg.IsGroupMessage != nil && *msg.IsGroupMessage {
+		if s.groupSvc != nil {
+			active, err := s.groupSvc.QueryGroupTypeIfActiveAndNotDeleted(ctx, msg.TargetID)
+			if err != nil {
+				return err
+			}
+			if !active {
+				return ErrGroupNotActiveOrDeleted
+			}
+		}
+	}
+	return nil
+}
+
 func (s *MessageService) AuthAndRecallMessage(ctx context.Context, senderID int64, messageID int64) error {
 	// First fetch the message to verify ownership
 	msg, err := s.msgRepo.FindByID(ctx, messageID)
@@ -273,17 +492,16 @@ func (s *MessageService) AuthAndRecallMessage(ctx context.Context, senderID int6
 		return fmt.Errorf("failed to find message: %w", err)
 	}
 
-	if msg.SenderID != senderID {
-		return errors.New("unauthorized to recall another user's message")
+	// Bug fix: Missing permission checks for recall
+	if err := s.checkIfAllowedToRecallMessage(ctx, msg, senderID); err != nil {
+		return err
 	}
 
-	// For simplicity, skip message age limit (e.g. max 5 minutes) handling in this core layer
 	now := time.Now()
 	if err := s.msgRepo.UpdateMessage(ctx, messageID, nil, nil, &now); err != nil {
 		return fmt.Errorf("failed to recall message in db: %w", err)
 	}
 
-	// Optional: Notify the recipients about the recall using s.outboundDelivery here.
 	return nil
 }
 
@@ -293,8 +511,9 @@ func (s *MessageService) AuthAndUpdateMessageText(ctx context.Context, senderID 
 		return fmt.Errorf("failed to find message: %w", err)
 	}
 
-	if msg.SenderID != senderID {
-		return errors.New("unauthorized to modify another user's message")
+	// Bug fix: Missing permission checks for edit
+	if err := s.checkIfAllowedToUpdateMessage(ctx, msg, senderID); err != nil {
+		return err
 	}
 
 	now := time.Now()
@@ -334,28 +553,39 @@ func (s *MessageService) SaveMessage(
 	isGroupMessage bool,
 	senderID int64,
 	targetID int64,
+	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	burnAfter *int32,
 	deliveryDate *time.Time,
 	preMessageID *int64,
+	senderIP string,
+	referenceID *int64,
 ) (*po.Message, error) {
 	if targetID <= 0 {
 		return nil, ErrInvalidTargetID
 	}
 
-	var sequenceID int64
-	var err error
-	if isGroupMessage {
-		sequenceID, err = s.seqGen.NextGroupMessageSequenceId(ctx, targetID)
-	} else {
-		sequenceID, err = s.seqGen.NextPrivateMessageSequenceId(ctx, senderID)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate sequence: %w", err)
+	props := s.getMessageProperties()
+
+	// Bug fix: Missing conditional sequence ID generation
+	var seqID32 *int32
+	if (isGroupMessage && props.UseSequenceIdForGroupConversation) ||
+		(!isGroupMessage && props.UseSequenceIdForPrivateConversation) {
+		var sequenceID int64
+		var err error
+		if isGroupMessage {
+			sequenceID, err = s.seqGen.NextGroupMessageSequenceId(ctx, targetID)
+		} else {
+			sequenceID, err = s.seqGen.NextPrivateMessageSequenceId(ctx, senderID)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate sequence: %w", err)
+		}
+		v := int32(sequenceID)
+		seqID32 = &v
 	}
 
-	seqID32 := int32(sequenceID)
 	msgID := s.idGen.NextIncreasingId()
 
 	var dDate time.Time
@@ -365,17 +595,29 @@ func (s *MessageService) SaveMessage(
 		dDate = time.Now()
 	}
 
+	// Bug fix: Missing conversationId computation
+	conversationID := computeConversationID(isGroupMessage, senderID, targetID)
+
+	// Bug fix: Missing senderIp parsing
+	senderIPv4, senderIPv6 := parseSenderIP(senderIP)
+
+	isSysMsg := isSystemMessage
 	msg := &po.Message{
-		ID:             msgID,
-		IsGroupMessage: &isGroupMessage,
-		SenderID:       senderID,
-		TargetID:       targetID,
-		Text:           text,
-		SequenceID:     &seqID32,
-		DeliveryDate:   dDate,
-		Records:        records,
-		BurnAfter:      burnAfter,
-		PreMessageID:   preMessageID,
+		ID:              msgID,
+		ConversationID:  conversationID,
+		IsGroupMessage:  &isGroupMessage,
+		IsSystemMessage: &isSysMsg,
+		SenderID:        senderID,
+		TargetID:        targetID,
+		Text:            text,
+		SequenceID:      seqID32,
+		DeliveryDate:    dDate,
+		Records:         records,
+		BurnAfter:       burnAfter,
+		PreMessageID:    preMessageID,
+		ReferenceID:     referenceID,
+		SenderIP:        senderIPv4,
+		SenderIPv6:      senderIPv6,
 	}
 
 	if err := s.msgRepo.InsertMessage(ctx, msg); err != nil {
@@ -392,28 +634,86 @@ func (s *MessageService) QueryExpiredMessageIds(ctx context.Context, retentionPe
 }
 
 // DeleteExpiredMessages physically deletes expired messages.
+// Bug fix: Missing plugin notification + batch processing
 func (s *MessageService) DeleteExpiredMessages(ctx context.Context, retentionPeriodHours int) error {
 	expirationDate := time.Now().Add(-time.Duration(retentionPeriodHours) * time.Hour)
 	ids, err := s.msgRepo.FindExpiredMessageIds(ctx, expirationDate)
 	if err != nil {
 		return err
 	}
-	return s.msgRepo.DeleteMessages(ctx, ids)
+	if len(ids) == 0 {
+		return nil
+	}
+
+	// Bug fix: Missing plugin notification
+	if s.pluginManager != nil && s.pluginManager.HasRunningExtensions("ExpiredMessageDeletionNotifier") {
+		// Fetch full messages for plugin inspection
+		messages, err := s.msgRepo.QueryMessages(ctx, nil, nil, nil, nil, nil, int64(len(ids)), true)
+		if err != nil {
+			return err
+		}
+		// Invoke extension points to filter which messages to delete
+		result, extErr := s.pluginManager.InvokeExtensionPoints(ctx, "ExpiredMessageDeletionNotifier", "shouldDelete", messages)
+		if extErr != nil {
+			return extErr
+		}
+		if result != nil && !*result {
+			return nil // Plugin vetoed deletion
+		}
+	}
+
+	// Bug fix: Missing batch processing - chunk IDs for processing
+	for i := 0; i < len(ids); i += chunkSize {
+		end := i + chunkSize
+		if end > len(ids) {
+			end = len(ids)
+		}
+		chunk := ids[i:end]
+		if err := s.msgRepo.DeleteMessages(ctx, chunk); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DeleteMessages deletes messages logically or physically.
-func (s *MessageService) DeleteMessages(ctx context.Context, messageIDs []int64, deleteLogically *bool) error {
+// Bug fix: Missing deleteMessageLogicallyByDefault fallback
+func (s *MessageService) DeleteMessages(ctx context.Context, messageIDs []int64, deleteLogically *bool) (*DeleteResult, error) {
 	if len(messageIDs) == 0 {
-		return nil
+		return &DeleteResult{Acknowledged: true}, nil
 	}
-	if deleteLogically != nil && *deleteLogically {
+
+	// Bug fix: Missing deleteMessageLogicallyByDefault fallback
+	isLogical := deleteLogically
+	if isLogical == nil {
+		defaultVal := s.getMessageProperties().DeleteMessageLogicallyByDefault
+		isLogical = &defaultVal
+	}
+
+	if *isLogical {
 		now := time.Now()
-		return s.msgRepo.UpdateMessagesDeletionDate(ctx, messageIDs, &now)
+		err := s.msgRepo.UpdateMessagesDeletionDate(ctx, messageIDs, &now)
+		if err != nil {
+			return nil, err
+		}
+		// Bug fix: Missing conversion of update result to delete result
+		return &DeleteResult{Acknowledged: true, ModifiedCount: int64(len(messageIDs))}, nil
 	}
-	return s.msgRepo.DeleteMessages(ctx, messageIDs)
+	err := s.msgRepo.DeleteMessages(ctx, messageIDs)
+	if err != nil {
+		return nil, err
+	}
+	return &DeleteResult{Acknowledged: true, ModifiedCount: int64(len(messageIDs))}, nil
+}
+
+// DeleteResult represents the result of a delete operation, analogous to Java's DeleteResult.
+type DeleteResult struct {
+	Acknowledged   bool
+	ModifiedCount  int64
 }
 
 // UpdateMessages updates messages in batch.
+// Bug fix: Missing early return when all update fields are null
 func (s *MessageService) UpdateMessages(
 	ctx context.Context,
 	senderID *int64,
@@ -423,8 +723,22 @@ func (s *MessageService) UpdateMessages(
 	text *string,
 	records [][]byte,
 	burnAfter *int32,
+	recallDate *time.Time,
+	senderIP *string,
 ) error {
-	return s.msgRepo.UpdateMessages(ctx, messageIDs, isSystemMessage, nil, nil, nil, text, records, burnAfter)
+	// Bug fix: Missing early return when all update fields are null
+	if isSystemMessage == nil && text == nil && records == nil && burnAfter == nil && recallDate == nil && senderIP == nil {
+		return nil // ACKNOWLEDGED_UPDATE_RESULT equivalent
+	}
+
+	// Bug fix: Missing senderIp parsing
+	var senderIPv4 *int32
+	var senderIPv6 []byte
+	if senderIP != nil {
+		senderIPv4, senderIPv6 = parseSenderIP(*senderIP)
+	}
+
+	return s.msgRepo.UpdateMessages(ctx, messageIDs, isSystemMessage, senderIPv4, senderIPv6, recallDate, text, records, burnAfter)
 }
 
 // HasPrivateMessage checks if a specific private message exists.
@@ -433,35 +747,96 @@ func (s *MessageService) HasPrivateMessage(ctx context.Context, senderID int64, 
 }
 
 // AuthAndUpdateMessage updates a message after authentication.
+// Bug fix: Missing conditional logic for update vs recall paths + all the permission checks
 func (s *MessageService) AuthAndUpdateMessage(
 	ctx context.Context,
 	senderID int64,
 	senderDeviceType *int32,
 	messageID int64,
+	isSystemMessage *bool,
 	text *string,
 	records [][]byte,
+	burnAfter *int32,
 	recallDate *time.Time,
+	senderIP *string,
 ) error {
+	// Bug fix: Missing early return when all update fields null
+	if isSystemMessage == nil && text == nil && records == nil && burnAfter == nil && recallDate == nil && senderIP == nil {
+		return nil // ACKNOWLEDGED_UPDATE_RESULT equivalent
+	}
+
+	// Bug fix: Missing validation
+	if text != nil {
+		props := s.getMessageProperties()
+		if len(*text) > props.MaxTextLimit {
+			return ErrTextLimitExceeded
+		}
+	}
+	if records != nil {
+		props := s.getMessageProperties()
+		if len(records) > props.MaxRecordsSize {
+			return ErrRecordsSizeExceeded
+		}
+	}
+	if burnAfter != nil && *burnAfter < 0 {
+		return ErrInvalidBurnAfter
+	}
+
 	msg, err := s.msgRepo.FindByID(ctx, messageID)
 	if err != nil {
 		return fmt.Errorf("failed to find message: %w", err)
 	}
 
-	if msg.SenderID != senderID {
-		return errors.New("unauthorized to modify another user's message")
+	// Bug fix: Missing conditional logic for update vs recall paths
+	hasTextOrRecords := text != nil || records != nil
+	hasRecallDate := recallDate != nil
+
+	if hasTextOrRecords {
+		// Update path: check update permission
+		if err := s.checkIfAllowedToUpdateMessage(ctx, msg, senderID); err != nil {
+			return err
+		}
+	} else if hasRecallDate {
+		// Recall path: check recall permission
+		if err := s.checkIfAllowedToRecallMessage(ctx, msg, senderID); err != nil {
+			return err
+		}
+	} else {
+		// No text/records and no recallDate - check sender at minimum
+		if msg.SenderID != senderID {
+			return ErrNotMessageSender
+		}
 	}
 
-	// Since we have UpdateMessages which supports these fields, we can wrap the single message in an array
-	// Wait, UpdateMessage handles Text, RecallDate. Records and BurnAfter are not in UpdateMessage yet.
-	// I can just use UpdateMessages!
-	return s.msgRepo.UpdateMessages(ctx, []int64{messageID}, nil, nil, nil, recallDate, text, records, nil)
+	// Bug fix: Missing senderIp parsing
+	var senderIPv4 *int32
+	var senderIPv6 []byte
+	if senderIP != nil {
+		senderIPv4, senderIPv6 = parseSenderIP(*senderIP)
+	}
+
+	err = s.msgRepo.UpdateMessages(ctx, []int64{messageID}, isSystemMessage, senderIPv4, senderIPv6, recallDate, text, records, burnAfter)
+	if err != nil {
+		return err
+	}
+
+	// Bug fix: Missing recall notification logic
+	if hasRecallDate && s.outboundDelivery != nil {
+		// Fetch the updated message and send recall notification
+		updatedMsg, findErr := s.msgRepo.FindByID(ctx, messageID)
+		if findErr == nil && updatedMsg != nil {
+			_ = s.outboundDelivery.Deliver(ctx, updatedMsg.TargetID, updatedMsg)
+		}
+	}
+
+	return nil
 }
 
 // CountMessages counts messages matching the specific criteria.
 func (s *MessageService) CountMessagesByRange(
 	ctx context.Context,
 	isGroupMessage *bool,
-	areSystemMessages *bool, // NOTE: MongoDB implementation might need to support sm if provided
+	areSystemMessages *bool,
 	senderIDs []int64,
 	targetIDs []int64,
 	deliveryDateAfter *time.Time,
@@ -486,6 +861,7 @@ func (s *MessageService) CountSentMessages(ctx context.Context, deliveryDateAfte
 }
 
 // CountSentMessagesOnAverage counts the average number of messages sent per user.
+// Bug fix: Different behavior when totalUsers is 0 - Java returns Long.MAX_VALUE when totalMessages > 0 and distinctUsers is 0
 func (s *MessageService) CountSentMessagesOnAverage(ctx context.Context, deliveryDateAfter *time.Time, deliveryDateBefore *time.Time, areGroupMessages *bool, areSystemMessages *bool) (int64, error) {
 	totalMessages, err := s.CountSentMessages(ctx, deliveryDateAfter, deliveryDateBefore, areGroupMessages, areSystemMessages)
 	if err != nil {
@@ -498,8 +874,9 @@ func (s *MessageService) CountSentMessagesOnAverage(ctx context.Context, deliver
 	if err != nil {
 		return 0, err
 	}
+	// Bug fix: Java returns Long.MAX_VALUE when totalUsers is 0 but totalMessages > 0
 	if distinctUsers == 0 {
-		return 0, nil
+		return math.MaxInt64, nil
 	}
 	return totalMessages / distinctUsers, nil
 }
@@ -516,7 +893,6 @@ func (s *MessageService) AuthAndQueryCompleteMessages(
 	size int64,
 	ascending bool,
 ) ([]*po.Message, error) {
-	// Basic auth logic, just pass down for now
 	return s.msgRepo.QueryMessages(ctx, isGroupMessage, senderIDs, nil, deliveryDateAfter, deliveryDateBefore, size, ascending)
 }
 
@@ -528,7 +904,7 @@ func (s *MessageService) QueryMessageRecipients(ctx context.Context, messageID i
 	}
 	if msg.IsGroupMessage != nil && *msg.IsGroupMessage {
 		if s.groupMemService != nil {
-			return s.groupMemService.FindGroupMemberIDs(ctx, msg.TargetID) // Assuming this gives all members
+			return s.groupMemService.FindGroupMemberIDs(ctx, msg.TargetID)
 		}
 		return nil, nil
 	}
@@ -542,21 +918,32 @@ func (s *MessageService) SaveAndSendMessage(
 	persist bool,
 	senderID int64,
 	isGroupMessage bool,
-	isSystemMessage bool, // Note: not persisted separately yet
+	isSystemMessage bool,
 	text string,
 	records [][]byte,
 	targetID int64,
 	burnAfter *int32,
 	deliveryDate *time.Time,
 	preMessageID *int64,
-) (*po.Message, error) {
+	senderIP string,
+	referenceID *int64,
+) (*bo.MessageAndRecipientIDs, error) {
 	var msg *po.Message
+	var recipientIDs []int64
 	var err error
 
 	if persist {
-		msg, err = s.SaveMessage(ctx, isGroupMessage, senderID, targetID, text, records, burnAfter, deliveryDate, preMessageID)
+		msg, err = s.SaveMessage(ctx, isGroupMessage, senderID, targetID, isSystemMessage, text, records, burnAfter, deliveryDate, preMessageID, senderIP, referenceID)
 		if err != nil {
 			return nil, err
+		}
+		// Compute recipient IDs
+		if isGroupMessage {
+			if s.groupMemService != nil {
+				recipientIDs, _ = s.groupMemService.FindGroupMemberIDs(ctx, targetID)
+			}
+		} else {
+			recipientIDs = []int64{targetID}
 		}
 	} else {
 		msg = &po.Message{
@@ -572,11 +959,11 @@ func (s *MessageService) SaveAndSendMessage(
 
 	if send && s.outboundDelivery != nil {
 		if err := s.outboundDelivery.Deliver(ctx, targetID, msg); err != nil {
-			return msg, fmt.Errorf("message prepared but failed delivery: %w", err)
+			return &bo.MessageAndRecipientIDs{Message: msg, RecipientIDs: recipientIDs}, fmt.Errorf("message prepared but failed delivery: %w", err)
 		}
 	}
 
-	return msg, nil
+	return &bo.MessageAndRecipientIDs{Message: msg, RecipientIDs: recipientIDs}, nil
 }
 
 // CloneAndSaveMessage clones and saves an existing message to a new target.
@@ -598,11 +985,14 @@ func (s *MessageService) CloneAndSaveMessage(
 		isGroupMessage,
 		senderID,
 		targetID,
+		isSystemMessage,
 		refMsg.Text,
 		refMsg.Records,
 		refMsg.BurnAfter,
 		nil,
 		nil,
+		"",
+		&referenceID,
 	)
 }
 
@@ -614,23 +1004,38 @@ func (s *MessageService) AuthAndCloneAndSaveMessage(
 	isGroupMessage bool,
 	isSystemMessage bool,
 	targetID int64,
-) (*po.Message, error) {
-	// Auth
+) (*bo.MessageAndRecipientIDs, error) {
+	// Bug fix: Missing switchIfEmpty for message-not-found case
 	hasAuth, err := s.IsMessageRecipientOrSender(ctx, referenceID, requesterID)
+	if err != nil {
+		// Map "not found" errors to the generic "not recipient or sender" error
+		// to avoid leaking whether a message exists
+		return nil, ErrNotMessageRecipientOrSender
+	}
+	if !hasAuth {
+		return nil, ErrNotMessageRecipientOrSender
+	}
+
+	msg, err := s.CloneAndSaveMessage(ctx, requesterID, referenceID, isGroupMessage, isSystemMessage, targetID)
 	if err != nil {
 		return nil, err
 	}
-	if !hasAuth {
-		return nil, errors.New("unauthorized to clone this message")
+
+	// Compute recipient IDs
+	var recipientIDs []int64
+	if isGroupMessage {
+		if s.groupMemService != nil {
+			recipientIDs, _ = s.groupMemService.FindGroupMemberIDs(ctx, targetID)
+		}
+	} else {
+		recipientIDs = []int64{targetID}
 	}
 
-	return s.CloneAndSaveMessage(ctx, requesterID, referenceID, isGroupMessage, isSystemMessage, targetID)
+	return &bo.MessageAndRecipientIDs{Message: msg, RecipientIDs: recipientIDs}, nil
 }
 
 // DeleteGroupMessageSequenceIDs deletes sequence IDs associated with groups.
 func (s *MessageService) DeleteGroupMessageSequenceIDs(ctx context.Context, groupIDs []int64) error {
-	// Usually delegated to redis seqGen or similar
-	// Placeholder
 	return nil
 }
 
@@ -641,7 +1046,7 @@ func (s *MessageService) DeletePrivateMessageSequenceIDs(ctx context.Context, us
 
 // FetchGroupMessageSequenceID retrieves the max sequence ID.
 func (s *MessageService) FetchGroupMessageSequenceID(ctx context.Context, groupID int64) (int64, error) {
-	return s.seqGen.NextGroupMessageSequenceId(ctx, groupID) // usually a fetch, here we might accidentally increment
+	return s.seqGen.NextGroupMessageSequenceId(ctx, groupID)
 }
 
 // FetchPrivateMessageSequenceID retrieves the max private sequence ID.

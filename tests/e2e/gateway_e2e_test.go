@@ -29,6 +29,8 @@ import (
 
 	userpo "im.turms/server/internal/domain/user/po"
 
+	"im.turms/server/internal/infra/plugin"
+	"im.turms/server/internal/infra/property"
 	turmsredis "im.turms/server/internal/storage/redis"
 
 	"im.turms/server/internal/testingutil"
@@ -170,7 +172,11 @@ func TestGateway_E2E_TCP_Lifecycle(t *testing.T) {
 		msgRepo,
 		&mockUserRelService{},
 		&mockGroupMemService{},
+		nil,
+		nil,
 		&localDelivery{svc: sessionSvc},
+		property.NewTurmsPropertiesManager(),
+		plugin.NewPluginManager(),
 	)
 
 	// 4. Gateway Dispatcher and Controllers
